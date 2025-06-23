@@ -1,0 +1,6 @@
+@BiatecTokensApi_HostAddress = http://localhost:5277
+
+GET {{BiatecTokensApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
