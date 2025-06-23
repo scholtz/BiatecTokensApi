@@ -340,13 +340,23 @@ namespace BiatecTokensTests
         }
         
         /// <summary>
-        /// Helper method to assert BigInteger equality
+        /// Helper method to assert BigInteger equality with better comparison and error messages
         /// </summary>
         private void AssertBigIntegerEqual(BigInteger expected, BigInteger actual, string message = null)
         {
+            // Convert to string for better error messages
             if (expected != actual)
             {
-                Assert.Fail($"{message ?? "BigIntegers not equal"}: Expected {expected}, Actual {actual}");
+                string errorMessage = message ?? "BigIntegers not equal";
+                
+                // Convert to decimal for more readable output if possible
+                string expectedStr = Web3.Convert.FromWei(expected).ToString();
+                string actualStr = Web3.Convert.FromWei(actual).ToString();
+                
+                // Include both wei values and token values in the error message
+                string fullErrorMessage = $"{errorMessage}: Expected {expected} wei ({expectedStr} tokens), Actual {actual} wei ({actualStr} tokens)";
+                
+                Assert.Fail(fullErrorMessage);
             }
         }
     }
