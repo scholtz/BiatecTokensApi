@@ -38,6 +38,11 @@ namespace BiatecTokensTests
             
             instructions.AppendLine("Local blockchain for testing is not running. Please follow these steps:");
             instructions.AppendLine();
+            instructions.AppendLine("Option 1 - Using Hardhat (recommended):");
+            instructions.AppendLine("1. Run: yarn workspace @se-2/hardhat chain");
+            instructions.AppendLine("2. This will start a local blockchain at http://127.0.0.1:8545 with chainId 31337");
+            instructions.AppendLine();
+            instructions.AppendLine("Option 2 - Using Ganache:");
             instructions.AppendLine("1. Install Ganache from https://trufflesuite.com/ganache/");
             
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -54,20 +59,20 @@ namespace BiatecTokensTests
                 instructions.AppendLine("   Alternatively, use ganache-cli: npm install -g ganache-cli && ganache-cli");
             }
             
-            instructions.AppendLine("3. Ensure it's running on http://127.0.0.1:8545");
+            instructions.AppendLine("3. Ensure it's running on http://127.0.0.1:8545 with chainId 31337");
             instructions.AppendLine("4. Run the tests again");
             instructions.AppendLine();
-            instructions.AppendLine("Note: The tests use the first two accounts from Ganache's default accounts.");
+            instructions.AppendLine("Note: The tests use the first two accounts from the default test accounts.");
             
             return instructions.ToString();
         }
         
         /// <summary>
-        /// Gets the default Ganache accounts private keys
+        /// Gets the default Hardhat/Ganache accounts private keys
         /// </summary>
         public static (string Owner, string User) GetDefaultGanachePrivateKeys()
         {
-            // Default private keys from Ganache (these are well-known test keys, never use in production)
+            // Default private keys from Hardhat/Ganache (these are well-known test keys, never use in production)
             return (
                 "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", // Account 0
                 "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"  // Account 1

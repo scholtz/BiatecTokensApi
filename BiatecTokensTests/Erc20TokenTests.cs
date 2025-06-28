@@ -44,8 +44,8 @@ namespace BiatecTokensTests
             _blockchainConfig = new BlockchainConfig
             {
                 BaseRpcUrl = TestHelper.LocalBlockchainUrl,
-                ChainId = 31337, // Ganache chain ID (note: modern Ganache uses 31337, not 1337)
-                GasLimit = 6721975 // Default Ganache gas limit
+                ChainId = 31337, // Hardhat/modern Ganache chain ID
+                GasLimit = 10000000 // Increased gas limit for local deployment
             };
 
             var configMock = new Mock<IOptions<BlockchainConfig>>();
@@ -273,7 +273,7 @@ namespace BiatecTokensTests
         }
         
         [Test, Order(5)]
-        public async Task IncreaseAndDecreaseAllowance_ShouldWorkCorrectly()
+        public async Task AllowanceManagement_ShouldWorkCorrectly()
         {
             // Initial setup
             var initialApproveAmount = Web3.Convert.ToWei(100); // 100 tokens
@@ -281,9 +281,9 @@ namespace BiatecTokensTests
             // Get allowance function
             var allowanceFunction = _tokenContract.GetFunction("allowance");
             
-            // Get approve function and approve initial amount using owner's Web3 instance
+            // Approve initial amount (owner approves user as spender)
             var approveFunction = _tokenContract.GetFunction("approve");
-            await approveFunction.SendTransactionAndWaitForReceiptAsync(
+            var approveReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
                 _ownerAccount.Address,
                 null,
                 new HexBigInteger(_blockchainConfig.GasLimit),
@@ -291,57 +291,56 @@ namespace BiatecTokensTests
                 _userAccount.Address,
                 initialApproveAmount
             );
+            Assert.IsTrue(approveReceipt.Status.Value == 1, "Approve transaction failed");
             
             // Verify initial allowance
             var initialAllowance = await allowanceFunction.CallAsync<BigInteger>(_ownerAccount.Address, _userAccount.Address);
             Console.WriteLine($"Initial allowance: {Web3.Convert.FromWei(initialAllowance)} TEST");
             AssertBigIntegerEqual(initialApproveAmount, initialAllowance, "Initial allowance not set correctly");
             
-            // Increase allowance
-            var increaseAmount = Web3.Convert.ToWei(50); // 50 more tokens
-            var increaseAllowanceFunction = _tokenContract.GetFunction("increaseAllowance");
-            var increaseReceipt = await increaseAllowanceFunction.SendTransactionAndWaitForReceiptAsync(
+            // Test updating allowance by approving a new amount (increase)
+            var newApproveAmount = Web3.Convert.ToWei(150); // 150 tokens (increased from 100)
+            var updateApproveReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
                 _ownerAccount.Address,
                 null,
                 new HexBigInteger(_blockchainConfig.GasLimit),
                 null,
                 _userAccount.Address,
-                increaseAmount
+                newApproveAmount
             );
+            Assert.IsTrue(updateApproveReceipt.Status.Value == 1, "Update approve transaction failed");
             
-            // Verify increased allowance
-            var increasedAllowance = await allowanceFunction.CallAsync<BigInteger>(_ownerAccount.Address, _userAccount.Address);
-            Console.WriteLine($"Increased allowance: {Web3.Convert.FromWei(increasedAllowance)} TEST");
-            Console.WriteLine($"Increase transaction hash: {increaseReceipt.TransactionHash}");
+            // Verify updated allowance
+            var updatedAllowance = await allowanceFunction.CallAsync<BigInteger>(_ownerAccount.Address, _userAccount.Address);
+            Console.WriteLine($"Updated allowance: {Web3.Convert.FromWei(updatedAllowance)} TEST");
+            Console.WriteLine($"Update transaction hash: {updateApproveReceipt.TransactionHash}");
             
-            var expectedIncreasedAllowance = initialAllowance + increaseAmount;
-            AssertBigIntegerEqual(expectedIncreasedAllowance, increasedAllowance, "Allowance not increased correctly");
+            AssertBigIntegerEqual(newApproveAmount, updatedAllowance, "Allowance not updated correctly");
             
-            // Decrease allowance
-            var decreaseAmount = Web3.Convert.ToWei(30); // Decrease by 30 tokens
-            var decreaseAllowanceFunction = _tokenContract.GetFunction("decreaseAllowance");
-            var decreaseReceipt = await decreaseAllowanceFunction.SendTransactionAndWaitForReceiptAsync(
+            // Test reducing allowance by approving a smaller amount (decrease)
+            var reducedApproveAmount = Web3.Convert.ToWei(75); // 75 tokens (decreased from 150)
+            var reduceApproveReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
                 _ownerAccount.Address,
                 null,
                 new HexBigInteger(_blockchainConfig.GasLimit),
                 null,
                 _userAccount.Address,
-                decreaseAmount
+                reducedApproveAmount
             );
+            Assert.IsTrue(reduceApproveReceipt.Status.Value == 1, "Reduce approve transaction failed");
             
             // Verify final allowance
             var finalAllowance = await allowanceFunction.CallAsync<BigInteger>(_ownerAccount.Address, _userAccount.Address);
             Console.WriteLine($"Final allowance: {Web3.Convert.FromWei(finalAllowance)} TEST");
-            Console.WriteLine($"Decrease transaction hash: {decreaseReceipt.TransactionHash}");
+            Console.WriteLine($"Reduce transaction hash: {reduceApproveReceipt.TransactionHash}");
             
-            var expectedFinalAllowance = initialAllowance + increaseAmount - decreaseAmount;
-            AssertBigIntegerEqual(expectedFinalAllowance, finalAllowance, "Allowance not decreased correctly");
+            AssertBigIntegerEqual(reducedApproveAmount, finalAllowance, "Allowance not reduced correctly");
         }
 
         private string GetERC20ABI()
         {
-            // Return the standard ERC20 ABI from the TokenService
-            return @"[{""inputs"":[{""internalType"":""string"",""name"":""name_"",""type"":""string""},{""internalType"":""string"",""name"":""symbol_"",""type"":""string""},{""internalType"":""uint256"",""name"":""initialSupply"",""type"":""uint256""},{""internalType"":""uint8"",""name"":""decimals_"",""type"":""uint8""}],""stateMutability"":""nonpayable"",""type"":""constructor""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""owner"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""spender"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Approval"",""type"":""event""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""from"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""to"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Transfer"",""type"":""event""},{""inputs"":[{""internalType"":""address"",""name"":""owner"",""type"":""address""},{""internalType"":""address"",""name"":""spender"",""type"":""address""}],""name"":""allowance"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""spender"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""approve"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""account"",""type"":""address""}],""name"":""balanceOf"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""decimals"",""outputs"":[{""internalType"":""uint8"",""name"":"""",""type"":""uint8""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""spender"",""type"":""address""},{""internalType"":""uint256"",""name"":""subtractedValue"",""type"":""uint256""}],""name"":""decreaseAllowance"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""spender"",""type"":""address""},{""internalType"":""uint256"",""name"":""addedValue"",""type"":""uint256""}],""name"":""increaseAllowance"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[],""name"":""name"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""symbol"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""totalSupply"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transfer"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""from"",""type"":""address""},{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transferFrom"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""}]";
+            // Return the simple ERC20 ABI that matches our test contract
+            return @"[{""inputs"":[{""internalType"":""string"",""name"":""name_"",""type"":""string""},{""internalType"":""string"",""name"":""symbol_"",""type"":""string""},{""internalType"":""uint256"",""name"":""initialSupply"",""type"":""uint256""},{""internalType"":""uint8"",""name"":""decimals_"",""type"":""uint8""}],""stateMutability"":""nonpayable"",""type"":""constructor""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""owner"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""spender"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Approval"",""type"":""event""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""from"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""to"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Transfer"",""type"":""event""},{""inputs"":[{""internalType"":""address"",""name"":""owner"",""type"":""address""},{""internalType"":""address"",""name"":""spender"",""type"":""address""}],""name"":""allowance"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""spender"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""approve"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""account"",""type"":""address""}],""name"":""balanceOf"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""decimals"",""outputs"":[{""internalType"":""uint8"",""name"":"""",""type"":""uint8""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""name"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""symbol"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""totalSupply"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transfer"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""from"",""type"":""address""},{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transferFrom"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""}]";
         }
         
         /// <summary>
