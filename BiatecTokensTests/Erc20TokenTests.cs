@@ -44,7 +44,7 @@ namespace BiatecTokensTests
             _blockchainConfig = new BlockchainConfig
             {
                 BaseRpcUrl = TestHelper.LocalBlockchainUrl,
-                ChainId = 1337, // Default Ganache chain ID
+                ChainId = 31337, // Ganache chain ID (note: modern Ganache uses 31337, not 1337)
                 GasLimit = 6721975 // Default Ganache gas limit
             };
 
@@ -62,7 +62,7 @@ namespace BiatecTokensTests
             
             // Make sure we have enough ETH in the accounts
             var ownerBalance = await _web3Owner.Eth.GetBalance.SendRequestAsync(_ownerAccount.Address);
-            var userBalance = await _web3Owner.Eth.GetBalance.SendRequestAsync(_userAccount.Address);
+            var userBalance = await _web3User.Eth.GetBalance.SendRequestAsync(_userAccount.Address);
             
             Console.WriteLine($"Owner account {_ownerAccount.Address} balance: {Web3.Convert.FromWei(ownerBalance)} ETH");
             Console.WriteLine($"User account {_userAccount.Address} balance: {Web3.Convert.FromWei(userBalance)} ETH");
@@ -83,6 +83,11 @@ namespace BiatecTokensTests
             };
             
             var deploymentResult = await _tokenService.DeployTokenAsync(deploymentRequest);
+            
+            if (!deploymentResult.Success)
+            {
+                Assert.Fail($"Token deployment failed: {deploymentResult.ErrorMessage}");
+            }
             
             Assert.That(deploymentResult.Success, Is.True, "Token deployment failed");
             _tokenContractAddress = deploymentResult.ContractAddress!;
@@ -194,8 +199,8 @@ namespace BiatecTokensTests
             // Approve the owner to spend tokens on behalf of user
             var approveAmount = Web3.Convert.ToWei(50); // 50 tokens
             
-            // Get approve function
-            var approveFunction = _tokenContract.GetFunction("approve");
+            // Get approve function using the user's Web3 instance
+            var approveFunction = _web3User.Eth.GetContract(GetERC20ABI(), _tokenContractAddress).GetFunction("approve");
             
             // User approves owner to spend tokens
             var approvalReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
@@ -276,7 +281,7 @@ namespace BiatecTokensTests
             // Get allowance function
             var allowanceFunction = _tokenContract.GetFunction("allowance");
             
-            // Get approve function and approve initial amount
+            // Get approve function and approve initial amount using owner's Web3 instance
             var approveFunction = _tokenContract.GetFunction("approve");
             await approveFunction.SendTransactionAndWaitForReceiptAsync(
                 _ownerAccount.Address,
