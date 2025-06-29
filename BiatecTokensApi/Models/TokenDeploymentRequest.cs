@@ -28,6 +28,12 @@ namespace BiatecTokensApi.Models
         public int Decimals { get; set; } = 18;
 
         /// <summary>
+        /// Address that will receive the initial token supply. 
+        /// If not specified, the deployer address will be used.
+        /// </summary>
+        public string? InitialSupplyReceiver { get; set; }
+
+        /// <summary>
         /// Private key for the wallet deploying the contract
         /// In production, consider more secure ways to handle this
         /// </summary>
@@ -56,5 +62,10 @@ namespace BiatecTokensApi.Models
         /// Status of the deployment
         /// </summary>
         public bool Success { get; set; }
+
+        /// <summary>
+        /// Address that received the initial token supply
+        /// </summary>
+        public string? InitialSupplyReceiver { get; set; }
     }
 }

@@ -79,6 +79,7 @@ namespace BiatecTokensTests
                 Symbol = "TEST",
                 InitialSupply = 1000000, // 1 million tokens
                 Decimals = 18,
+                InitialSupplyReceiver = null, // Will default to deployer
                 DeployerPrivateKey = _accounts.Owner
             };
             

@@ -25,9 +25,10 @@ namespace BiatecTokensApi.Controllers
         /// - Pausable functionality (owner can pause/unpause transfers)
         /// - Ownable (ownership transfer functionality)
         /// The deployer automatically becomes the owner and first minter.
+        /// The initial token supply can be sent to a specified address or the deployer.
         /// </summary>
-        /// <param name="request">Token deployment parameters</param>
-        /// <returns>Deployment result with contract address</returns>
+        /// <param name="request">Token deployment parameters including optional initial supply receiver</param>
+        /// <returns>Deployment result with contract address and initial supply receiver</returns>
         [HttpPost("deploy")]
         [ProducesResponseType(typeof(TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
