@@ -18,7 +18,13 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
-        /// Deploys a new ERC20 token on the Base blockchain
+        /// Deploys a new BiatecToken on the Base blockchain.
+        /// BiatecToken is an advanced ERC20 token with additional features:
+        /// - Minting capabilities (owner and authorized minters)
+        /// - Burning capabilities (burn and burnFrom)
+        /// - Pausable functionality (owner can pause/unpause transfers)
+        /// - Ownable (ownership transfer functionality)
+        /// The deployer automatically becomes the owner and first minter.
         /// </summary>
         /// <param name="request">Token deployment parameters</param>
         /// <returns>Deployment result with contract address</returns>
@@ -39,18 +45,19 @@ namespace BiatecTokensApi.Controllers
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("Token deployed successfully at address {Address}", result.ContractAddress);
+                    _logger.LogInformation("BiatecToken deployed successfully at address {Address} with transaction {TxHash}", 
+                        result.ContractAddress, result.TransactionHash);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("Token deployment failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("BiatecToken deployment failed: {Error}", result.ErrorMessage);
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deploying token");
+                _logger.LogError(ex, "Error deploying BiatecToken");
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }

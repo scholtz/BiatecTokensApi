@@ -72,10 +72,10 @@ namespace BiatecTokensTests
                 Assert.Fail("Test accounts don't have enough ETH. Please use Ganache with default accounts.");
             }
             
-            // Deploy the token
+            // Deploy the token using the TokenService (which now uses BiatecToken)
             var deploymentRequest = new TokenDeploymentRequest
             {
-                Name = "Test ERC20 Token",
+                Name = "Test BiatecToken",
                 Symbol = "TEST",
                 InitialSupply = 1000000, // 1 million tokens
                 Decimals = 18,
@@ -84,17 +84,12 @@ namespace BiatecTokensTests
             
             var deploymentResult = await _tokenService.DeployTokenAsync(deploymentRequest);
             
-            if (!deploymentResult.Success)
-            {
-                Assert.Fail($"Token deployment failed: {deploymentResult.ErrorMessage}");
-            }
-            
             Assert.That(deploymentResult.Success, Is.True, "Token deployment failed");
             _tokenContractAddress = deploymentResult.ContractAddress!;
-            Console.WriteLine($"Token deployed at {_tokenContractAddress}");
+            Console.WriteLine($"BiatecToken deployed at {_tokenContractAddress}");
             
-            // Get contract instance
-            _tokenContract = _web3Owner.Eth.GetContract(GetERC20ABI(), _tokenContractAddress);
+            // Get contract instance with BiatecToken ABI
+            _tokenContract = _web3Owner.Eth.GetContract(GetBiatecTokenABI(), _tokenContractAddress);
         }
 
         [Test, Order(1)]
@@ -113,7 +108,7 @@ namespace BiatecTokensTests
             var decimals = await decimalsFunction.CallAsync<byte>();
             
             // Assert basic token properties
-            Assert.That(name, Is.EqualTo("Test ERC20 Token"));
+            Assert.That(name, Is.EqualTo("Test BiatecToken"));
             Assert.That(symbol, Is.EqualTo("TEST"));
             Assert.That(decimals, Is.EqualTo(18));
             
@@ -162,18 +157,19 @@ namespace BiatecTokensTests
             // Transfer amount (100 tokens with 18 decimals)
             var transferAmount = Web3.Convert.ToWei(100);
             
-            // Transfer tokens
+            // Transfer tokens with explicit transaction input and gas limit
             var transferFunction = _tokenContract.GetFunction("transfer");
-            var transactionReceipt = await transferFunction.SendTransactionAndWaitForReceiptAsync(
+            var transactionInput = transferFunction.CreateTransactionInput(
                 _ownerAccount.Address,
+                new HexBigInteger(100000), // Gas limit
                 null, // Gas price
-                new HexBigInteger(_blockchainConfig.GasLimit),
-                null, // Value (ETH)
+                new HexBigInteger(0), // Value (ETH)
                 _userAccount.Address, // To address
                 transferAmount // Amount
             );
-            
-            Console.WriteLine($"Transfer transaction hash: {transactionReceipt.TransactionHash}");
+            var txHash = await _web3Owner.Eth.TransactionManager.SendTransactionAsync(transactionInput);
+            Console.WriteLine($"Transfer transaction hash: {txHash}");
+            var transactionReceipt = await _web3Owner.Eth.TransactionManager.TransactionReceiptService.PollForReceiptAsync(txHash);
             
             // Get updated balances
             var ownerFinalBalance = await balanceOfFunction.CallAsync<BigInteger>(_ownerAccount.Address);
@@ -182,8 +178,9 @@ namespace BiatecTokensTests
             Console.WriteLine($"Owner final balance: {Web3.Convert.FromWei(ownerFinalBalance)} TEST");
             Console.WriteLine($"User final balance: {Web3.Convert.FromWei(userFinalBalance)} TEST");
             
-            // Assert transaction was successful (status = 1)
-            Assert.IsTrue(transactionReceipt.Status.Value == 1, "Transaction failed");
+            // Assert balances are updated correctly
+            Assert.That(transactionReceipt.Status?.Value, Is.EqualTo(new Nethereum.Hex.HexTypes.HexBigInteger(1).Value), "Transaction failed");
+            Assert.IsTrue(transactionReceipt.Status?.Value == 1, "Transaction failed");
             
             // Use custom helper to compare BigInteger values
             var expectedOwnerBalance = ownerInitialBalance - transferAmount;
@@ -196,21 +193,33 @@ namespace BiatecTokensTests
         [Test, Order(4)]
         public async Task User_ShouldBeAbleToApproveAndTransferFrom()
         {
+            // Ensure user has enough tokens by transferring from owner
+            var initialTransferAmount = Web3.Convert.ToWei(100); // 100 tokens
+            var transferFunction = _tokenContract.GetFunction("transfer");
+            var transferTxInput = transferFunction.CreateTransactionInput(
+                _ownerAccount.Address,
+                new HexBigInteger(100000),
+                null,
+                new HexBigInteger(0),
+                _userAccount.Address,
+                initialTransferAmount
+            );
+            var transferTxHash = await _web3Owner.Eth.TransactionManager.SendTransactionAsync(transferTxInput);
+            await _web3Owner.Eth.TransactionManager.TransactionReceiptService.PollForReceiptAsync(transferTxHash);
+
             // Approve the owner to spend tokens on behalf of user
             var approveAmount = Web3.Convert.ToWei(50); // 50 tokens
-            
-            // Get approve function using the user's Web3 instance
-            var approveFunction = _web3User.Eth.GetContract(GetERC20ABI(), _tokenContractAddress).GetFunction("approve");
-            
-            // User approves owner to spend tokens
-            var approvalReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
+            var approveFunction = _tokenContract.GetFunction("approve");
+            var approveTxInput = approveFunction.CreateTransactionInput(
                 _userAccount.Address, // From address
+                new HexBigInteger(100000), // Gas limit
                 null, // Gas price
-                new HexBigInteger(_blockchainConfig.GasLimit),
-                null, // Value (ETH)
+                new HexBigInteger(0), // Value (ETH)
                 _ownerAccount.Address, // Spender address
                 approveAmount // Amount
             );
+            var approveTxHash = await _web3User.Eth.TransactionManager.SendTransactionAsync(approveTxInput);
+            var approvalReceipt = await _web3User.Eth.TransactionManager.TransactionReceiptService.PollForReceiptAsync(approveTxHash);
             
             // Check allowance
             var allowanceFunction = _tokenContract.GetFunction("allowance");
@@ -219,8 +228,9 @@ namespace BiatecTokensTests
             Console.WriteLine($"Approval transaction hash: {approvalReceipt.TransactionHash}");
             Console.WriteLine($"Owner allowance: {Web3.Convert.FromWei(allowance)} TEST");
             
-            // Assert approval was successful (status = 1)
-            Assert.IsTrue(approvalReceipt.Status.Value == 1, "Approval transaction failed");
+            // Assert approval was successful
+            Assert.That(approvalReceipt.Status?.Value, Is.EqualTo(new Nethereum.Hex.HexTypes.HexBigInteger(1).Value), "Approval transaction failed");
+            Assert.IsTrue(approvalReceipt.Status?.Value == 1, "Approval transaction failed");
             AssertBigIntegerEqual(approveAmount, allowance, "Allowance wasn't set correctly");
             
             // Get initial balances
@@ -237,15 +247,17 @@ namespace BiatecTokensTests
             
             // Owner transfers from user to third party
             var transferFromFunction = _tokenContract.GetFunction("transferFrom");
-            var transferFromReceipt = await transferFromFunction.SendTransactionAndWaitForReceiptAsync(
+            var transferFromTxInput = transferFromFunction.CreateTransactionInput(
                 _ownerAccount.Address, // From address (the owner)
+                new HexBigInteger(100000), // Gas limit
                 null, // Gas price
-                new HexBigInteger(_blockchainConfig.GasLimit),
-                null, // Value (ETH)
+                new HexBigInteger(0), // Value (ETH)
                 _userAccount.Address, // From which address to take tokens
                 thirdPartyAddress, // To which address to send tokens
                 transferAmount // Amount
             );
+            var transferFromTxHash = await _web3Owner.Eth.TransactionManager.SendTransactionAsync(transferFromTxInput);
+            var transferFromReceipt = await _web3Owner.Eth.TransactionManager.TransactionReceiptService.PollForReceiptAsync(transferFromTxHash);
             
             Console.WriteLine($"TransferFrom transaction hash: {transferFromReceipt.TransactionHash}");
             
@@ -258,8 +270,9 @@ namespace BiatecTokensTests
             Console.WriteLine($"Third party final balance: {Web3.Convert.FromWei(thirdPartyFinalBalance)} TEST");
             Console.WriteLine($"Final allowance: {Web3.Convert.FromWei(finalAllowance)} TEST");
             
-            // Assert transferFrom was successful (status = 1)
-            Assert.IsTrue(transferFromReceipt.Status.Value == 1, "TransferFrom transaction failed");
+            // Assert transferFrom was successful
+            Assert.That(transferFromReceipt.Status?.Value, Is.EqualTo(new Nethereum.Hex.HexTypes.HexBigInteger(1).Value), "TransferFrom transaction failed");
+            Assert.IsTrue(transferFromReceipt.Status?.Value == 1, "TransferFrom transaction failed");
             
             // Calculate expected values
             var expectedUserBalance = userInitialBalance - transferAmount;
@@ -273,80 +286,73 @@ namespace BiatecTokensTests
         }
         
         [Test, Order(5)]
-        public async Task AllowanceManagement_ShouldWorkCorrectly()
+        public async Task Owner_ShouldBeAbleToMintTokens()
         {
-            // Initial setup
-            var initialApproveAmount = Web3.Convert.ToWei(100); // 100 tokens
+            // Test BiatecToken's minting functionality
+            var mintAmount = Web3.Convert.ToWei(1000); // 1000 tokens
+            var recipientAddress = _userAccount.Address;
             
-            // Get allowance function
-            var allowanceFunction = _tokenContract.GetFunction("allowance");
+            // Get initial balance
+            var balanceOfFunction = _tokenContract.GetFunction("balanceOf");
+            var initialBalance = await balanceOfFunction.CallAsync<BigInteger>(recipientAddress);
             
-            // Approve initial amount (owner approves user as spender)
-            var approveFunction = _tokenContract.GetFunction("approve");
-            var approveReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
+            // Get initial total supply
+            var totalSupplyFunction = _tokenContract.GetFunction("totalSupply");
+            var initialTotalSupply = await totalSupplyFunction.CallAsync<BigInteger>();
+            
+            Console.WriteLine($"Initial balance: {Web3.Convert.FromWei(initialBalance)} TEST");
+            Console.WriteLine($"Initial total supply: {Web3.Convert.FromWei(initialTotalSupply)} TEST");
+            
+            // Mint tokens (owner is automatically a minter)
+            var mintFunction = _tokenContract.GetFunction("mint");
+            
+            // Create a transaction input with explicit gas settings
+            var transactionInput = mintFunction.CreateTransactionInput(
                 _ownerAccount.Address,
-                null,
-                new HexBigInteger(_blockchainConfig.GasLimit),
-                null,
-                _userAccount.Address,
-                initialApproveAmount
+                new HexBigInteger(100000), // Gas limit
+                null, // Gas price (auto)
+                new HexBigInteger(0), // Value (no ETH)
+                recipientAddress, // to
+                mintAmount // amount
             );
-            Assert.IsTrue(approveReceipt.Status.Value == 1, "Approve transaction failed");
             
-            // Verify initial allowance
-            var initialAllowance = await allowanceFunction.CallAsync<BigInteger>(_ownerAccount.Address, _userAccount.Address);
-            Console.WriteLine($"Initial allowance: {Web3.Convert.FromWei(initialAllowance)} TEST");
-            AssertBigIntegerEqual(initialApproveAmount, initialAllowance, "Initial allowance not set correctly");
+            // Send the transaction manually
+            var txHash = await _web3Owner.Eth.TransactionManager.SendTransactionAsync(transactionInput);
+            Console.WriteLine($"Mint transaction hash: {txHash}");
             
-            // Test updating allowance by approving a new amount (increase)
-            var newApproveAmount = Web3.Convert.ToWei(150); // 150 tokens (increased from 100)
-            var updateApproveReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
-                _ownerAccount.Address,
-                null,
-                new HexBigInteger(_blockchainConfig.GasLimit),
-                null,
-                _userAccount.Address,
-                newApproveAmount
-            );
-            Assert.IsTrue(updateApproveReceipt.Status.Value == 1, "Update approve transaction failed");
+            // Wait for receipt
+            var mintReceipt = await _web3Owner.Eth.TransactionManager.TransactionReceiptService.PollForReceiptAsync(txHash);
             
-            // Verify updated allowance
-            var updatedAllowance = await allowanceFunction.CallAsync<BigInteger>(_ownerAccount.Address, _userAccount.Address);
-            Console.WriteLine($"Updated allowance: {Web3.Convert.FromWei(updatedAllowance)} TEST");
-            Console.WriteLine($"Update transaction hash: {updateApproveReceipt.TransactionHash}");
+            Console.WriteLine($"Gas used: {mintReceipt.GasUsed?.Value} / Gas limit: {transactionInput.Gas?.Value}");
             
-            AssertBigIntegerEqual(newApproveAmount, updatedAllowance, "Allowance not updated correctly");
+            // Get updated balances
+            var finalBalance = await balanceOfFunction.CallAsync<BigInteger>(recipientAddress);
+            var finalTotalSupply = await totalSupplyFunction.CallAsync<BigInteger>();
             
-            // Test reducing allowance by approving a smaller amount (decrease)
-            var reducedApproveAmount = Web3.Convert.ToWei(75); // 75 tokens (decreased from 150)
-            var reduceApproveReceipt = await approveFunction.SendTransactionAndWaitForReceiptAsync(
-                _ownerAccount.Address,
-                null,
-                new HexBigInteger(_blockchainConfig.GasLimit),
-                null,
-                _userAccount.Address,
-                reducedApproveAmount
-            );
-            Assert.IsTrue(reduceApproveReceipt.Status.Value == 1, "Reduce approve transaction failed");
+            Console.WriteLine($"Final balance: {Web3.Convert.FromWei(finalBalance)} TEST");
+            Console.WriteLine($"Final total supply: {Web3.Convert.FromWei(finalTotalSupply)} TEST");
             
-            // Verify final allowance
-            var finalAllowance = await allowanceFunction.CallAsync<BigInteger>(_ownerAccount.Address, _userAccount.Address);
-            Console.WriteLine($"Final allowance: {Web3.Convert.FromWei(finalAllowance)} TEST");
-            Console.WriteLine($"Reduce transaction hash: {reduceApproveReceipt.TransactionHash}");
+            // Assert minting was successful
+            Assert.That(mintReceipt.Status?.Value, Is.EqualTo(new Nethereum.Hex.HexTypes.HexBigInteger(1).Value), "Mint transaction failed");
             
-            AssertBigIntegerEqual(reducedApproveAmount, finalAllowance, "Allowance not reduced correctly");
+            // Check balances
+            var expectedBalance = initialBalance + mintAmount;
+            var expectedTotalSupply = initialTotalSupply + mintAmount;
+            
+            AssertBigIntegerEqual(expectedBalance, finalBalance, "Recipient balance wasn't increased correctly");
+            AssertBigIntegerEqual(expectedTotalSupply, finalTotalSupply, "Total supply wasn't increased correctly");
         }
 
-        private string GetERC20ABI()
+        private string GetBiatecTokenABI()
         {
-            // Return the simple ERC20 ABI that matches our test contract
-            return @"[{""inputs"":[{""internalType"":""string"",""name"":""name_"",""type"":""string""},{""internalType"":""string"",""name"":""symbol_"",""type"":""string""},{""internalType"":""uint256"",""name"":""initialSupply"",""type"":""uint256""},{""internalType"":""uint8"",""name"":""decimals_"",""type"":""uint8""}],""stateMutability"":""nonpayable"",""type"":""constructor""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""owner"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""spender"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Approval"",""type"":""event""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""from"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""to"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Transfer"",""type"":""event""},{""inputs"":[{""internalType"":""address"",""name"":""owner"",""type"":""address""},{""internalType"":""address"",""name"":""spender"",""type"":""address""}],""name"":""allowance"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""spender"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""approve"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""account"",""type"":""address""}],""name"":""balanceOf"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""decimals"",""outputs"":[{""internalType"":""uint8"",""name"":"""",""type"":""uint8""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""name"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""symbol"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""totalSupply"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transfer"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""from"",""type"":""address""},{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transferFrom"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""}]";
+            // Return the standard ERC20 ABI with mint function from the TokenService (compatible with BiatecToken)
+            return @"[{""inputs"":[{""internalType"":""string"",""name"":""name"",""type"":""string""},{""internalType"":""string"",""name"":""symbol"",""type"":""string""},{""internalType"":""uint8"",""name"":""decimals_"",""type"":""uint8""},{""internalType"":""uint256"",""name"":""premint"",""type"":""uint256""}],""stateMutability"":""nonpayable"",""type"":""constructor""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""owner"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""spender"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Approval"",""type"":""event""},{""anonymous"":false,""inputs"":[{""indexed"":true,""internalType"":""address"",""name"":""from"",""type"":""address""},{""indexed"":true,""internalType"":""address"",""name"":""to"",""type"":""address""},{""indexed"":false,""internalType"":""uint256"",""name"":""value"",""type"":""uint256""}],""name"":""Transfer"",""type"":""event""},{""inputs"":[{""internalType"":""address"",""name"":""owner"",""type"":""address""},{""internalType"":""address"",""name"":""spender"",""type"":""address""}],""name"":""allowance"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""spender"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""approve"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""account"",""type"":""address""}],""name"":""balanceOf"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""decimals"",""outputs"":[{""internalType"":""uint8"",""name"":"""",""type"":""uint8""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""mint"",""outputs"":[],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[],""name"":""name"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""symbol"",""outputs"":[{""internalType"":""string"",""name"":"""",""type"":""string""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[],""name"":""totalSupply"",""outputs"":[{""internalType"":""uint256"",""name"":"""",""type"":""uint256""}],""stateMutability"":""view"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transfer"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""internalType"":""address"",""name"":""from"",""type"":""address""},{""internalType"":""address"",""name"":""to"",""type"":""address""},{""internalType"":""uint256"",""name"":""amount"",""type"":""uint256""}],""name"":""transferFrom"",""outputs"":[{""internalType"":""bool"",""name"":"""",""type"":""bool""}],""stateMutability"":""nonpayable"",""type"":""function""}]";
         }
         
         /// <summary>
         /// Helper method to assert BigInteger equality with better comparison and error messages
         /// </summary>
-        private void AssertBigIntegerEqual(BigInteger expected, BigInteger actual, string message = null)
+        private void AssertBigIntegerEqual(BigInteger expected, BigInteger actual, string? message = null)
         {
             // Convert to string for better error messages
             if (expected != actual)

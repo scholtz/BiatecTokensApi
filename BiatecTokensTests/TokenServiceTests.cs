@@ -53,8 +53,7 @@ namespace BiatecTokensTests
 
             // Assert - Verify that configuration is set via reflection (testing private field)
             var configField = typeof(TokenService)
-                .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
-                .FirstOrDefault(f => f.Name == "_config");
+                .GetField("_config", BindingFlags.NonPublic | BindingFlags.Instance);
 
             Assert.That(configField, Is.Not.Null);
 
