@@ -264,7 +264,7 @@ namespace BiatecTokensApi.Models
         public string Name { get; set; } = string.Empty;
         public string UnitName { get; set; } = string.Empty;
         public ulong TotalSupply { get; set; }
-        public uint Decimals { get; set; }
+        public ulong Decimals { get; set; }
         public string? Url { get; set; }
         public byte[]? MetadataHash { get; set; }
         public bool DefaultFrozen { get; set; }

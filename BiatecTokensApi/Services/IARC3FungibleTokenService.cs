@@ -14,13 +14,13 @@ namespace BiatecTokensApi.Services
         /// <returns>Response with transaction details and asset ID</returns>
         Task<ARC3TokenDeploymentResponse> CreateTokenAsync(ARC3FungibleTokenDeploymentRequest request);
 
-        /// <summary>
-        /// Gets information about an existing ARC3 token
-        /// </summary>
-        /// <param name="assetId">Asset ID of the token</param>
-        /// <param name="network">Network name (mainnet, testnet, betanet)</param>
-        /// <returns>Token information</returns>
-        Task<ARC3TokenInfo?> GetTokenInfoAsync(ulong assetId, string network);
+        ///// <summary>
+        ///// Gets information about an existing ARC3 token
+        ///// </summary>
+        ///// <param name="assetId">Asset ID of the token</param>
+        ///// <param name="network">Network name (mainnet, testnet, betanet)</param>
+        ///// <returns>Token information</returns>
+        //Task<ARC3TokenInfo?> GetTokenInfoAsync(ulong assetId, string network);
 
         /// <summary>
         /// Transfers ARC3 tokens between accounts

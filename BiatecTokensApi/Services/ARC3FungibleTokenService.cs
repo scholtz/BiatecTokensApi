@@ -3,6 +3,7 @@ using Algorand.Algod;
 using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Models;
+using BiatecTokensApi.Repositories;
 using Microsoft.Extensions.Options;
 using Nethereum.Signer;
 using System.Security.Cryptography;
@@ -20,18 +21,20 @@ namespace BiatecTokensApi.Services
         private readonly IOptionsMonitor<AlgorandAuthenticationOptionsV2> _config;
         private readonly ILogger<ARC3FungibleTokenService> _logger;
         private readonly Dictionary<string, string> _genesisId2GenesisHash = new();
+        private readonly IIPFSRepository _ipfsRepository;
 
         public ARC3FungibleTokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
-            ILogger<ARC3FungibleTokenService> logger)
+            ILogger<ARC3FungibleTokenService> logger,
+            IIPFSRepository ipfsRepository)
         {
             _config = config;
             _logger = logger;
+            _ipfsRepository = ipfsRepository;
 
             foreach (var chain in _config.CurrentValue.AllowedNetworks)
             {
                 _logger.LogInformation("Allowed network: {Network}", chain);
-
 
                 using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Value.Server, chain.Value.Token, chain.Value.Header);
                 DefaultApi algodApiInstance = new DefaultApi(httpClient);
@@ -81,7 +84,7 @@ namespace BiatecTokensApi.Services
                 }
 
                 // Get node URL for the specified network
-                if(!_genesisId2GenesisHash.TryGetValue(request.Network, out var genesisHash))
+                if (!_genesisId2GenesisHash.TryGetValue(request.Network, out var genesisHash))
                 {
                     response.ErrorMessage = $"Unsupported network: {request.Network}";
                     return response;
@@ -98,7 +101,7 @@ namespace BiatecTokensApi.Services
                     (metadataUrl, metadataHash) = await UploadMetadataAsync(request.Metadata);
                     if (string.IsNullOrEmpty(metadataUrl))
                     {
-                        response.ErrorMessage = "Failed to upload metadata";
+                        response.ErrorMessage = "Failed to upload metadata to IPFS";
                         return response;
                     }
                 }
@@ -123,50 +126,50 @@ namespace BiatecTokensApi.Services
         //{
         //    try
         //    {
-        //        var nodeUrl = GetNodeUrl(network);
-        //        if (string.IsNullOrEmpty(nodeUrl))
+        //        _logger.LogInformation("Getting token info for asset {AssetId} on {Network}", assetId, network);
+
+        //        if (!_genesisId2GenesisHash.TryGetValue(network, out var genesisHash))
         //        {
         //            _logger.LogError("Unsupported network: {Network}", network);
         //            return null;
         //        }
 
-        //        // Make API call to get asset information
-        //        var assetUrl = $"{nodeUrl}/v2/assets/{assetId}";
-        //        var response = await _httpClient.GetAsync(assetUrl);
+        //        var chain = _config.CurrentValue.AllowedNetworks[genesisHash];
+        //        using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
+        //        DefaultApi algodApiInstance = new DefaultApi(httpClient);
 
-        //        if (!response.IsSuccessStatusCode)
+        //        // Get asset information from Algorand
+        //        try
         //        {
-        //            _logger.LogError("Failed to get asset info for {AssetId}: {StatusCode}", assetId, response.StatusCode);
-        //            return null;
-        //        }
-
-        //        var jsonResponse = await response.Content.ReadAsStringAsync();
-        //        var assetData = JsonSerializer.Deserialize<JsonElement>(jsonResponse);
-
-        //        if (assetData.TryGetProperty("asset", out var asset) &&
-        //            asset.TryGetProperty("params", out var assetParams))
-        //        {
-        //            var tokenInfo = new ARC3TokenInfo
+        //            var assetInfo = await algodApiInstance.GetAssetByIDAsync(assetId);
+        //            if (assetInfo?.Params != null)
         //            {
-        //                Name = assetParams.TryGetProperty("name", out var name) ? name.GetString() ?? "" : "",
-        //                UnitName = assetParams.TryGetProperty("unit-name", out var unitName) ? unitName.GetString() ?? "" : "",
-        //                TotalSupply = assetParams.TryGetProperty("total", out var total) ? total.GetUInt64() : 0,
-        //                Decimals = assetParams.TryGetProperty("decimals", out var decimals) ? decimals.GetUInt32() : 0,
-        //                Url = assetParams.TryGetProperty("url", out var url) ? url.GetString() : null,
-        //                DefaultFrozen = assetParams.TryGetProperty("default-frozen", out var frozen) && frozen.GetBoolean(),
-        //                ManagerAddress = assetParams.TryGetProperty("manager", out var manager) ? manager.GetString() : null,
-        //                ReserveAddress = assetParams.TryGetProperty("reserve", out var reserve) ? reserve.GetString() : null,
-        //                FreezeAddress = assetParams.TryGetProperty("freeze", out var freeze) ? freeze.GetString() : null,
-        //                ClawbackAddress = assetParams.TryGetProperty("clawback", out var clawback) ? clawback.GetString() : null
-        //            };
+        //                var tokenInfo = new ARC3TokenInfo
+        //                {
+        //                    Name = assetInfo.Params.Name ?? "",
+        //                    UnitName = assetInfo.Params.UnitName ?? "",
+        //                    TotalSupply = assetInfo.Params.Total ?? 0,
+        //                    Decimals = assetInfo.Params.Decimals ?? 0,
+        //                    Url = assetInfo.Params.Url,
+        //                    DefaultFrozen = assetInfo.Params.DefaultFrozen ?? false,
+        //                    ManagerAddress = new Algorand.Address(assetInfo.Params.Manager),
+        //                    ReserveAddress = assetInfo.Params.Reserve,
+        //                    FreezeAddress = assetInfo.Params.Freeze,
+        //                    ClawbackAddress = assetInfo.Params.Clawback
+        //                };
 
-        //            // Fetch metadata if URL is present
-        //            if (!string.IsNullOrEmpty(tokenInfo.Url))
-        //            {
-        //                tokenInfo.Metadata = await FetchMetadataFromUrl(tokenInfo.Url);
+        //                // Fetch metadata if URL is present and it's an IPFS URL
+        //                if (!string.IsNullOrEmpty(tokenInfo.Url))
+        //                {
+        //                    tokenInfo.Metadata = await FetchMetadataFromUrl(tokenInfo.Url);
+        //                }
+
+        //                return tokenInfo;
         //            }
-
-        //            return tokenInfo;
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            _logger.LogError(ex, "Failed to get asset info from Algorand for asset {AssetId}", assetId);
         //        }
         //    }
         //    catch (Exception ex)
@@ -177,58 +180,92 @@ namespace BiatecTokensApi.Services
         //    return null;
         //}
 
-        ///// <summary>
-        ///// Transfers ARC3 tokens between accounts
-        ///// </summary>
-        //public async Task<string?> TransferTokenAsync(ulong assetId, string fromMnemonic, string toAddress, ulong amount, string network)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Transferring {Amount} of asset {AssetId} to {ToAddress} on {Network}",
-        //            amount, assetId, toAddress, network);
+        /// <summary>
+        /// Transfers ARC3 tokens between accounts
+        /// </summary>
+        public async Task<string?> TransferTokenAsync(ulong assetId, string fromMnemonic, string toAddress, ulong amount, string network)
+        {
+            try
+            {
+                _logger.LogInformation("Transferring {Amount} of asset {AssetId} to {ToAddress} on {Network}",
+                    amount, assetId, toAddress, network);
 
-        //        // This would implement the actual transfer logic using Algorand SDK
-        //        // For now, return a placeholder response
-        //        await Task.Delay(100); // Simulate API call
+                if (!_genesisId2GenesisHash.TryGetValue(network, out var genesisHash))
+                {
+                    _logger.LogError("Unsupported network: {Network}", network);
+                    return null;
+                }
 
-        //        // Generate a mock transaction ID for demonstration
-        //        var mockTxId = GenerateMockTransactionId();
+                var chain = _config.CurrentValue.AllowedNetworks[genesisHash];
+                using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
+                DefaultApi algodApiInstance = new DefaultApi(httpClient);
 
-        //        _logger.LogInformation("Transfer completed with transaction ID: {TxId}", mockTxId);
-        //        return mockTxId;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error transferring tokens: {Message}", ex.Message);
-        //        return null;
-        //    }
-        //}
+                // TODO: Implement actual transfer logic using Algorand SDK
+                // This would:
+                // 1. Parse the mnemonic to get the account
+                // 2. Create an asset transfer transaction
+                // 3. Sign the transaction
+                // 4. Submit it to the network
+                // 5. Wait for confirmation
 
-        ///// <summary>
-        ///// Opts an account into receiving a specific ARC3 token
-        ///// </summary>
-        //public async Task<string?> OptInToTokenAsync(ulong assetId, string accountMnemonic, string network)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Opting in to asset {AssetId} on {Network}", assetId, network);
+                // For now, return a placeholder response
+                await Task.Delay(100); // Simulate API call
 
-        //        // This would implement the actual opt-in logic using Algorand SDK
-        //        // For now, return a placeholder response
-        //        await Task.Delay(100); // Simulate API call
+                // Generate a mock transaction ID for demonstration
+                var mockTxId = GenerateMockTransactionId();
 
-        //        // Generate a mock transaction ID for demonstration
-        //        var mockTxId = GenerateMockTransactionId();
+                _logger.LogInformation("Transfer completed with transaction ID: {TxId}", mockTxId);
+                return mockTxId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error transferring tokens: {Message}", ex.Message);
+                return null;
+            }
+        }
 
-        //        _logger.LogInformation("Opt-in completed with transaction ID: {TxId}", mockTxId);
-        //        return mockTxId;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error opting in to token: {Message}", ex.Message);
-        //        return null;
-        //    }
-        //}
+        /// <summary>
+        /// Opts an account into receiving a specific ARC3 token
+        /// </summary>
+        public async Task<string?> OptInToTokenAsync(ulong assetId, string accountMnemonic, string network)
+        {
+            try
+            {
+                _logger.LogInformation("Opting in to asset {AssetId} on {Network}", assetId, network);
+
+                if (!_genesisId2GenesisHash.TryGetValue(network, out var genesisHash))
+                {
+                    _logger.LogError("Unsupported network: {Network}", network);
+                    return null;
+                }
+
+                var chain = _config.CurrentValue.AllowedNetworks[genesisHash];
+                using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
+                DefaultApi algodApiInstance = new DefaultApi(httpClient);
+
+                // TODO: Implement actual opt-in logic using Algorand SDK
+                // This would:
+                // 1. Parse the mnemonic to get the account
+                // 2. Create an asset opt-in transaction (amount = 0)
+                // 3. Sign the transaction
+                // 4. Submit it to the network
+                // 5. Wait for confirmation
+
+                // For now, return a placeholder response
+                await Task.Delay(100); // Simulate API call
+
+                // Generate a mock transaction ID for demonstration
+                var mockTxId = GenerateMockTransactionId();
+
+                _logger.LogInformation("Opt-in completed with transaction ID: {TxId}", mockTxId);
+                return mockTxId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opting in to token: {Message}", ex.Message);
+                return null;
+            }
+        }
 
         /// <summary>
         /// Uploads ARC3 metadata to IPFS and returns the URL and hash
@@ -239,28 +276,19 @@ namespace BiatecTokensApi.Services
             {
                 _logger.LogInformation("Uploading ARC3 metadata to IPFS");
 
-                // Serialize metadata to JSON
-                var options = new JsonSerializerOptions
+                // Use the IPFS repository to upload the metadata
+                var uploadResult = await _ipfsRepository.UploadObjectAsync(metadata, "arc3-metadata.json");
+
+                if (uploadResult.Success && !string.IsNullOrEmpty(uploadResult.Hash))
                 {
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-                };
-
-                var json = JsonSerializer.Serialize(metadata, options);
-
-                // Calculate SHA-256 hash
-                var hash = CalculateSHA256Hash(json);
-
-                // In a real implementation, this would upload to IPFS
-                // For now, simulate the upload and return mock values
-                await Task.Delay(500); // Simulate upload time
-
-                var mockCid = GenerateMockIPFSCID();
-                var ipfsUrl = $"https://ipfs.io/ipfs/{mockCid}";
-
-                _logger.LogInformation("Metadata uploaded to IPFS: {Url}", ipfsUrl);
-                return (ipfsUrl, hash);
+                    _logger.LogInformation("Metadata uploaded to IPFS: {Hash} at {Url}", uploadResult.Hash, uploadResult.GatewayUrl);
+                    return (uploadResult.GatewayUrl, uploadResult.Hash);
+                }
+                else
+                {
+                    _logger.LogError("Failed to upload metadata to IPFS: {Error}", uploadResult.ErrorMessage);
+                    return (null, null);
+                }
             }
             catch (Exception ex)
             {
@@ -363,27 +391,37 @@ namespace BiatecTokensApi.Services
             return true;
         }
 
-        //private async Task<ARC3TokenMetadata?> FetchMetadataFromUrl(string url)
-        //{
-        //    try
-        //    {
-        //        var response = await _httpClient.GetAsync(url);
-        //        if (response.IsSuccessStatusCode)
-        //        {
-        //            var json = await response.Content.ReadAsStringAsync();
-        //            var options = new JsonSerializerOptions
-        //            {
-        //                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
-        //            };
-        //            return JsonSerializer.Deserialize<ARC3TokenMetadata>(json, options);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogWarning(ex, "Failed to fetch metadata from {Url}", url);
-        //    }
-        //    return null;
-        //}
+        private async Task<ARC3TokenMetadata?> FetchMetadataFromUrl(string url)
+        {
+            try
+            {
+                // Check if it's an IPFS URL and extract CID
+                if (url.Contains("/ipfs/"))
+                {
+                    var cid = ExtractCidFromUrl(url);
+                    if (!string.IsNullOrEmpty(cid))
+                    {
+                        return await _ipfsRepository.RetrieveObjectAsync<ARC3TokenMetadata>(cid);
+                    }
+                }
+
+                // For non-IPFS URLs, we can't easily fetch without additional HTTP client
+                _logger.LogWarning("Cannot fetch metadata from non-IPFS URL: {Url}", url);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch metadata from {Url}", url);
+            }
+            return null;
+        }
+
+        private static string? ExtractCidFromUrl(string url)
+        {
+            // Extract CID from IPFS URL like "https://ipfs.biatec.io/ipfs/QmHash"
+            var match = Regex.Match(url, @"/ipfs/([a-zA-Z0-9]+)");
+            return match.Success ? match.Groups[1].Value : null;
+        }
 
         private async Task<ARC3TokenDeploymentResponse> CreateToken(
             ARC3FungibleTokenDeploymentRequest request,
@@ -440,24 +478,6 @@ namespace BiatecTokensApi.Services
                 rng.GetBytes(bytes);
             }
             return Convert.ToBase64String(bytes).Replace("+", "").Replace("/", "").Replace("=", "").ToUpperInvariant();
-        }
-
-        private static string GenerateMockIPFSCID()
-        {
-            // Generate a mock IPFS CID (Content Identifier)
-            var bytes = new byte[34];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(bytes);
-            }
-            return "Qm" + Convert.ToBase64String(bytes).Replace("+", "").Replace("/", "").Replace("=", "")[..44];
-        }
-
-        private static string CalculateSHA256Hash(string input)
-        {
-            using var sha256 = SHA256.Create();
-            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-            return Convert.ToBase64String(hash);
         }
     }
 }

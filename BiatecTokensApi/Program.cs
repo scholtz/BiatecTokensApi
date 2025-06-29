@@ -1,5 +1,6 @@
 using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
+using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
 
 namespace BiatecTokensApi
@@ -25,16 +26,18 @@ namespace BiatecTokensApi
                 });
             });
 
-            // Configure blockchain settings
+            // Configure settings
             builder.Services.Configure<BlockchainConfig>(
                 builder.Configuration.GetSection("BlockchainConfig"));
+            
+            builder.Services.Configure<IPFSConfig>(
+                builder.Configuration.GetSection("IPFSConfig"));
 
-            // Configure Algorand settings
-            builder.Services.Configure<AlgorandAuthenticationOptionsV2>(
-                builder.Configuration.GetSection("AlgorandAuthentication"));
-
-            // Register HTTP client for Algorand API calls
+            // Register HTTP client for API calls
             builder.Services.AddHttpClient();
+
+            // Register repositories
+            builder.Services.AddScoped<IIPFSRepository, IPFSRepository>();
 
             // Register the token services
             builder.Services.AddScoped<IERC20TokenService, ERC20TokenService>();
@@ -63,9 +66,6 @@ namespace BiatecTokensApi
 
             app.MapControllers();
 
-
-            _ = app.Services.GetService<ARC3FungibleTokenService>();
-            _ = app.Services.GetService<ERC20TokenService>();
             app.Run();
         }
     }
