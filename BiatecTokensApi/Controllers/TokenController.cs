@@ -1,9 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BiatecTokensApi.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/v1/token")]
     public class TokenController : ControllerBase

@@ -1,3 +1,4 @@
+using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Services;
 
@@ -31,6 +32,17 @@ namespace BiatecTokensApi
             // Register the token service
             builder.Services.AddScoped<ITokenService, TokenService>();
 
+            var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
+            if (authOptions == null) throw new Exception("Config for the authentication is missing");
+            builder.Services.AddAuthentication(AlgorandAuthenticationHandlerV2.ID).AddAlgorand(a =>
+            {
+                a.Realm = authOptions.Realm;
+                a.CheckExpiration = authOptions.CheckExpiration;
+                a.EmptySuccessOnFailure = authOptions.EmptySuccessOnFailure;
+                a.AllowedNetworks = authOptions.AllowedNetworks;
+                a.Debug = authOptions.Debug;
+            });
+
             var app = builder.Build();
 
             app.UseSwagger();
@@ -38,6 +50,7 @@ namespace BiatecTokensApi
 
             app.UseHttpsRedirection();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
