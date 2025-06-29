@@ -21,7 +21,7 @@ namespace BiatecTokensApi
                 {
                     Title = "Biatec Tokens API",
                     Version = "v1",
-                    Description = "API for deploying and managing ERC20 tokens on Base blockchain"
+                    Description = "API for deploying and managing ERC20 tokens on Base blockchain and ARC3 tokens on Algorand"
                 });
             });
 
@@ -29,8 +29,16 @@ namespace BiatecTokensApi
             builder.Services.Configure<BlockchainConfig>(
                 builder.Configuration.GetSection("BlockchainConfig"));
 
-            // Register the token service
+            // Configure Algorand settings
+            builder.Services.Configure<AlgorandAuthenticationOptionsV2>(
+                builder.Configuration.GetSection("AlgorandAuthentication"));
+
+            // Register HTTP client for Algorand API calls
+            builder.Services.AddHttpClient();
+
+            // Register the token services
             builder.Services.AddScoped<IERC20TokenService, ERC20TokenService>();
+            builder.Services.AddScoped<IARC3FungibleTokenService, ARC3FungibleTokenService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
@@ -55,6 +63,9 @@ namespace BiatecTokensApi
 
             app.MapControllers();
 
+
+            _ = app.Services.GetService<ARC3FungibleTokenService>();
+            _ = app.Services.GetService<ERC20TokenService>();
             app.Run();
         }
     }
