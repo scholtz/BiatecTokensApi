@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: biatec-tokens-api-main-app-deployment
+  namespace: biatec-tokens
+spec:
+  selector:
+    matchLabels:
+      app: biatec-tokens-api-main-app
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: biatec-tokens-api-main-app
+    spec:
+      containers:
+        - name: biatec-tokens-api-main-app
+          image: scholtz2/biatec-tokens-api:1.2025.06.29-main
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 200m
+              memory: "200Mi"
+            limits:
+              cpu: 2000m
+              memory: "1000Mi"
+          ports:
+            - containerPort: 5443
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: biatec-tokens-api-main-app-secret
+          env:
+            - name: ASPNETCORE_Kestrel__Certificates__Default__Path
+              value: /https/cert.pfx
+            - name: ASPNETCORE_Kestrel__Certificates__Default__Password
+              valueFrom:
+                secretKeyRef:
+                  name: csharp-cert-password
+                  key: password
+            - name: ASPNETCORE_Kestrel__Endpoints__Https__Url
+              value: https://biatec-tokens-api-main-app-deployment.biatec:5443
+          readinessProbe:
+            tcpSocket:
+              port: 5443
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            tcpSocket:
+              port: 5443
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 2
+            terminationGracePeriodSeconds: 1
+          volumeMounts:
+            - name: biatec-tokens-api-main-conf
+              mountPath: /app/appsettings.json
+              subPath: appsettings.json
+            - name: https-cert
+              mountPath: /https
+              readOnly: true
+      volumes:
+        - name: biatec-tokens-api-main-conf
+          configMap:
+            name: biatec-tokens-api-main-conf
+        - name: https-cert
+          secret:
+            secretName: csharp-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: biatec-tokens-api-service-main
+  namespace: biatec-tokens
+spec:
+  type: ClusterIP
+  selector:
+    app: biatec-tokens-api-main-app
+  ports:
+    - name: https
+      protocol: TCP
+      appProtocol: https
+      port: 5443
+      targetPort: 5443
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: biatec-tokens-api-ingress-main
+  namespace: biatec-tokens
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: "nginx"
+  tls:
+    - hosts:
+        - api.tokens.biatec.io
+      secretName: tls-api.tokens.biatec.io
+  rules:
+    - host: api.tokens.biatec.io
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: biatec-tokens-api-service-main
+                port:
+                  number: 5443
