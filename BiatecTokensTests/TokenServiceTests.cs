@@ -11,9 +11,9 @@ namespace BiatecTokensTests
     [TestFixture]
     public class TokenServiceTests
     {
-        private ERCTokenService _tokenService;
+        private ERC20TokenService _tokenService;
         private Mock<IOptions<BlockchainConfig>> _blockchainConfigMock;
-        private Mock<ILogger<ERCTokenService>> _loggerMock;
+        private Mock<ILogger<ERC20TokenService>> _loggerMock;
         private BlockchainConfig _blockchainConfig;
         private TokenDeploymentRequest _validRequest;
 
@@ -31,9 +31,9 @@ namespace BiatecTokensTests
             _blockchainConfigMock = new Mock<IOptions<BlockchainConfig>>();
             _blockchainConfigMock.Setup(x => x.Value).Returns(_blockchainConfig);
 
-            _loggerMock = new Mock<ILogger<ERCTokenService>>();
+            _loggerMock = new Mock<ILogger<ERC20TokenService>>();
 
-            _tokenService = new ERCTokenService(_blockchainConfigMock.Object, _loggerMock.Object);
+            _tokenService = new ERC20TokenService(_blockchainConfigMock.Object, _loggerMock.Object);
 
             // Create a valid deployment request for testing
             _validRequest = new TokenDeploymentRequest
