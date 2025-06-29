@@ -2,7 +2,7 @@ using BiatecTokensApi.Models;
 
 namespace BiatecTokensApi.Services
 {
-    public interface ITokenService
+    public interface IERC20TokenService
     {
         /// <summary>
         /// Deploys an ERC20 token to the Base blockchain

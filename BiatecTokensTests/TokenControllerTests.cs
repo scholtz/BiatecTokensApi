@@ -13,7 +13,7 @@ namespace BiatecTokensTests
     [TestFixture]
     public class TokenControllerTests
     {
-        private Mock<ITokenService> _tokenServiceMock;
+        private Mock<IERC20TokenService> _tokenServiceMock;
         private Mock<ILogger<TokenController>> _loggerMock;
         private TokenController _controller;
         private TokenDeploymentRequest _validDeploymentRequest;
@@ -21,7 +21,7 @@ namespace BiatecTokensTests
         [SetUp]
         public void Setup()
         {
-            _tokenServiceMock = new Mock<ITokenService>();
+            _tokenServiceMock = new Mock<IERC20TokenService>();
             _loggerMock = new Mock<ILogger<TokenController>>();
             _controller = new TokenController(_tokenServiceMock.Object, _loggerMock.Object);
 

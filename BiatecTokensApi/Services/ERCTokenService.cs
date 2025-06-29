@@ -12,16 +12,16 @@ using System.Text.Json.Serialization;
 
 namespace BiatecTokensApi.Services
 {
-    public class TokenService : ITokenService
+    public class ERCTokenService : IERC20TokenService
     {
         private readonly BlockchainConfig _config;
-        private readonly ILogger<TokenService> _logger;
+        private readonly ILogger<ERCTokenService> _logger;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenAbi;
         private readonly string _biatecTokenBytecode;
 
-        public TokenService(IOptions<BlockchainConfig> config, ILogger<TokenService> logger)
+        public ERCTokenService(IOptions<BlockchainConfig> config, ILogger<ERCTokenService> logger)
         {
             _config = config.Value;
             _logger = logger;

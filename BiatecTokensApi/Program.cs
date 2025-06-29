@@ -30,7 +30,7 @@ namespace BiatecTokensApi
                 builder.Configuration.GetSection("BlockchainConfig"));
 
             // Register the token service
-            builder.Services.AddScoped<ITokenService, TokenService>();
+            builder.Services.AddScoped<IERC20TokenService, ERCTokenService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");

@@ -22,8 +22,8 @@ namespace BiatecTokensTests
         private readonly (string Owner, string User) _accounts = TestHelper.GetDefaultGanachePrivateKeys();
         
         private BlockchainConfig _blockchainConfig;
-        private Mock<ILogger<TokenService>> _loggerMock;
-        private TokenService _tokenService;
+        private Mock<ILogger<ERCTokenService>> _loggerMock;
+        private ERCTokenService _tokenService;
         private string _tokenContractAddress;
         private Web3 _web3Owner;
         private Web3 _web3User;
@@ -50,9 +50,9 @@ namespace BiatecTokensTests
 
             var configMock = new Mock<IOptions<BlockchainConfig>>();
             configMock.Setup(x => x.Value).Returns(_blockchainConfig);
-            _loggerMock = new Mock<ILogger<TokenService>>();
+            _loggerMock = new Mock<ILogger<ERCTokenService>>();
             
-            _tokenService = new TokenService(configMock.Object, _loggerMock.Object);
+            _tokenService = new ERCTokenService(configMock.Object, _loggerMock.Object);
 
             // Setup accounts
             _ownerAccount = new Account(_accounts.Owner, _blockchainConfig.ChainId);

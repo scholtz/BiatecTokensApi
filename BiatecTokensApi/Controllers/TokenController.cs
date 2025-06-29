@@ -10,12 +10,12 @@ namespace BiatecTokensApi.Controllers
     [Route("api/v1/token")]
     public class TokenController : ControllerBase
     {
-        private readonly ITokenService _tokenService;
+        private readonly IERC20TokenService _erc20TokenService;
         private readonly ILogger<TokenController> _logger;
 
-        public TokenController(ITokenService tokenService, ILogger<TokenController> logger)
+        public TokenController(IERC20TokenService tokenService, ILogger<TokenController> logger)
         {
-            _tokenService = tokenService;
+            _erc20TokenService = tokenService;
             _logger = logger;
         }
 
@@ -44,7 +44,7 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _tokenService.DeployTokenAsync(request);
+                var result = await _erc20TokenService.DeployTokenAsync(request);
 
                 if (result.Success)
                 {
