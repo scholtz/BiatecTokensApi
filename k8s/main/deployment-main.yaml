@@ -25,30 +25,30 @@ spec:
               cpu: 2000m
               memory: "1000Mi"
           ports:
-            - containerPort: 5443
+            - containerPort: 8080
               protocol: TCP
           envFrom:
             - secretRef:
                 name: biatec-tokens-api-main-app-secret
-          env:
-            - name: ASPNETCORE_Kestrel__Certificates__Default__Path
-              value: /https/cert.pfx
-            - name: ASPNETCORE_Kestrel__Certificates__Default__Password
-              valueFrom:
-                secretKeyRef:
-                  name: csharp-cert-password
-                  key: password
-            - name: ASPNETCORE_Kestrel__Endpoints__Https__Url
-              value: https://biatec-tokens-api-main-app-deployment.biatec:5443
+          # env:
+          #   - name: ASPNETCORE_Kestrel__Certificates__Default__Path
+          #     value: /https/cert.pfx
+          #   - name: ASPNETCORE_Kestrel__Certificates__Default__Password
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: csharp-cert-password
+          #         key: password
+          #   - name: ASPNETCORE_Kestrel__Endpoints__Https__Url
+          #     value: https://biatec-tokens-api-main-app-deployment.biatec:5443
           readinessProbe:
             tcpSocket:
-              port: 5443
+              port: 8080
             initialDelaySeconds: 10
             timeoutSeconds: 5
             failureThreshold: 2
           livenessProbe:
             tcpSocket:
-              port: 5443
+              port: 8080
             initialDelaySeconds: 20
             timeoutSeconds: 5
             failureThreshold: 2
@@ -78,11 +78,11 @@ spec:
   selector:
     app: biatec-tokens-api-main-app
   ports:
-    - name: https
+    - name: http
       protocol: TCP
-      appProtocol: https
-      port: 5443
-      targetPort: 5443
+      appProtocol: http
+      port: 8080
+      targetPort: 8080
 
 ---
 apiVersion: networking.k8s.io/v1
@@ -91,7 +91,7 @@ metadata:
   name: biatec-tokens-api-ingress-main
   namespace: biatec-tokens
   annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     cert-manager.io/cluster-issuer: letsencrypt
 spec:
   ingressClassName: "nginx"
@@ -103,10 +103,10 @@ spec:
     - host: api.tokens.biatec.io
       http:
         paths:
-          - path: /(.*)
+          - path: /
             pathType: Prefix
             backend:
               service:
                 name: biatec-tokens-api-service-main
                 port:
-                  number: 5443
+                  number: 8080
