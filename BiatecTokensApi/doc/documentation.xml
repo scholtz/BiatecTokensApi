@@ -1,0 +1,831 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>BiatecTokensApi</name>
+    </assembly>
+    <members>
+        <member name="P:BiatecTokensApi.Configuration.BlockchainConfig.BaseRpcUrl">
+            <summary>
+            RPC URL for the Base blockchain (can be mainnet or testnet)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.BlockchainConfig.ChainId">
+            <summary>
+            Chain ID for Base Mainnet (8453) or Base Sepolia Testnet (84532)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.BlockchainConfig.GasLimit">
+            <summary>
+            Gas limit for token deployment
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Configuration.IPFSConfig">
+            <summary>
+            Configuration for IPFS repository operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.IPFSConfig.ApiUrl">
+            <summary>
+            IPFS API endpoint for storing data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.IPFSConfig.GatewayUrl">
+            <summary>
+            IPFS gateway URL for fetching data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.IPFSConfig.Username">
+            <summary>
+            Username for basic authentication
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.IPFSConfig.Password">
+            <summary>
+            Password for basic authentication
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.IPFSConfig.TimeoutSeconds">
+            <summary>
+            Timeout for HTTP requests in seconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.IPFSConfig.MaxFileSizeBytes">
+            <summary>
+            Maximum file size allowed for upload in bytes (default: 10MB)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.IPFSConfig.ValidateContentHash">
+            <summary>
+            Whether to validate content hashes when retrieving data
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.IERC20TokenService,BiatecTokensApi.Services.IARC3FungibleTokenService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.TokenController"/> class.
+            </summary>
+            <param name="erc20TokenService">The service used to interact with ERC-20 tokens.</param>
+            <param name="arc3TokenService">The service used to interact with ARC-3 fungible tokens.</param>
+            <param name="logger">The logger instance used to log diagnostic and operational information.</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.DeployToken(BiatecTokensApi.Models.TokenDeploymentRequest)">
+            <summary>
+            Deploys a new BiatecToken on the Base blockchain.
+            BiatecToken is an advanced ERC20 token with additional features:
+            - Minting capabilities (owner and authorized minters)
+            - Burning capabilities (burn and burnFrom)
+            - Pausable functionality (owner can pause/unpause transfers)
+            - Ownable (ownership transfer functionality)
+            The deployer automatically becomes the owner and first minter.
+            The initial token supply can be sent to a specified address or the deployer.
+            </summary>
+            <param name="request">Token deployment parameters including optional initial supply receiver</param>
+            <returns>Deployment result with contract address and initial supply receiver</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAToken(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ARC3 fungible token on the specified network.
+            </summary>
+            <remarks>This method processes a request to deploy an ARC3 fungible token using the provided
+            deployment parameters. It validates the request model and interacts with the token service to create the
+            token. If the token creation is successful, the method returns a response containing the asset ID and
+            transaction details. If the creation fails, an error response is returned.</remarks>
+            <param name="request">The deployment request containing the parameters required to create the ARC3 fungible token. This includes
+            details such as the network, token properties, and other configuration settings.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the operation. Returns a 200 OK response with an
+            <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is created successfully. Returns a 400 Bad Request
+            response if the request model is invalid. Returns a 500 Internal Server Error response if an error occurs
+            during token creation.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3Token(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates a new ARC3 Fungible Token on the Algorand blockchain.
+            ARC3 tokens are Algorand Standard Assets (ASAs) that comply with the ARC3 metadata standard:
+            - Support for rich metadata including images, descriptions, and properties
+            - IPFS-based metadata storage with integrity verification
+            - Localization support for international use
+            - Optional management features (freeze, clawback, reserve)
+            The creator becomes the initial manager and can configure additional roles.
+            </summary>
+            <param name="request">ARC3 token creation parameters including metadata</param>
+            <returns>Creation result with asset ID and transaction details</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3NFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ARC3-compliant non-fungible token (NFT) on the specified network.
+            </summary>
+            <remarks>This method accepts a deployment request containing the necessary parameters to
+            create an ARC3 NFT. It validates the request model and interacts with the token service to perform the
+            creation. If the operation is successful, the method returns the details of the created token, including the
+            asset ID and transaction hash. In case of failure, it returns an appropriate error response.</remarks>
+            <param name="request">The deployment request containing the parameters required to create the ARC3 NFT. This includes details such
+            as the network, metadata, and other token-specific configurations.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: <list type="bullet">
+            <item><description>A 200 OK response with an <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is
+            created successfully.</description></item> <item><description>A 400 Bad Request response if the request
+            model is invalid.</description></item> <item><description>A 500 Internal Server Error response if an
+            unexpected error occurs during token creation.</description></item> </list></returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3FractionalNFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ARC3 fractional non-fungible token (FNFT) based on the provided deployment request.
+            </summary>
+            <remarks>This method processes the deployment request for an ARC3 FNFT and returns the result
+            of the operation. The request must include all required parameters for token creation, and the model state
+            must be valid. If the operation succeeds, the response contains details about the created token, including
+            the asset ID and transaction hash. If the operation fails, an appropriate error response is
+            returned.</remarks>
+            <param name="request">The deployment request containing the necessary parameters for creating the ARC3 fractional token. This must
+            be a valid <see cref="T:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest"/> object.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: - A 200 OK response with an <see
+            cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request response if
+            the model state is invalid. - A 500 Internal Server Error response if an error occurs during token creation.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200FractionalNFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates a fractional ARC200 NFT based on the provided deployment request.
+            </summary>
+            <remarks>This method processes the deployment request for an ARC200 fractional NFT and returns
+            the result of the operation. The request must be valid, as determined by model validation. If the operation
+            succeeds, the response contains details about the created token, including its asset ID and transaction
+            hash. If the operation fails, an error response is returned.</remarks>
+            <param name="request">The deployment request containing the necessary parameters for creating the ARC200 fractional NFT. This
+            includes details such as the network, token configuration, and other required metadata.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: <list type="bullet">
+            <item><description>A 200 OK response with the token creation details if successful.</description></item>
+            <item><description>A 400 Bad Request response if the request is invalid.</description></item>
+            <item><description>A 500 Internal Server Error response if an unexpected error occurs during
+            processing.</description></item> </list></returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest">
+            <summary>
+            Request model for creating an ARC3 Fungible Token on Algorand
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Name">
+            <summary>
+            The name of the ARC3 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.UnitName">
+            <summary>
+            The unit name (symbol) of the ARC3 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.TotalSupply">
+            <summary>
+            Total supply of tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Decimals">
+            <summary>
+            Number of decimal places for the token (0-19)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Url">
+            <summary>
+            Optional URL for token metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.MetadataHash">
+            <summary>
+            Optional metadata hash (32 bytes)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.DefaultFrozen">
+            <summary>
+            Whether the asset can be frozen by the freeze address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.ManagerAddress">
+            <summary>
+            Address that can manage the asset configuration (optional)
+            If not provided, the creator will be the manager
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.ReserveAddress">
+            <summary>
+            Address that can reserve tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.FreezeAddress">
+            <summary>
+            Address that can freeze/unfreeze tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.ClawbackAddress">
+            <summary>
+            Address that can clawback tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.CreatorMnemonic">
+            <summary>
+            Mnemonic phrase for the creator account
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Network">
+            <summary>
+            Algorand network to deploy to (mainnet, testnet, betanet)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Metadata">
+            <summary>
+            ARC3 compliant metadata for the token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3TokenMetadata">
+            <summary>
+            ARC3 compliant token metadata structure
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Name">
+            <summary>
+            Identifies the asset to which this token represents
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Decimals">
+            <summary>
+            The number of decimal places that the token amount should display
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Description">
+            <summary>
+            Describes the asset to which this token represents
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Image">
+            <summary>
+            A URI pointing to a file with MIME type image/* representing the asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ImageIntegrity">
+            <summary>
+            The SHA-256 digest of the file pointed by the URI image
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ImageMimetype">
+            <summary>
+            The MIME type of the file pointed by the URI image. MUST be of the form 'image/*'
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.BackgroundColor">
+            <summary>
+            Background color to display the asset. MUST be a six-character hexadecimal without a pre-pended #
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExternalUrl">
+            <summary>
+            A URI pointing to an external website presenting the asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExternalUrlIntegrity">
+            <summary>
+            The SHA-256 digest of the file pointed by the URI external_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExternalUrlMimetype">
+            <summary>
+            The MIME type of the file pointed by the URI external_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.AnimationUrl">
+            <summary>
+            A URI pointing to a multi-media file representing the asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.AnimationUrlIntegrity">
+            <summary>
+            The SHA-256 digest of the file pointed by the URI animation_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.AnimationUrlMimetype">
+            <summary>
+            The MIME type of the file pointed by the URI animation_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Properties">
+            <summary>
+            Arbitrary properties (also called attributes). Values may be strings, numbers, object or arrays
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExtraMetadata">
+            <summary>
+            Extra metadata in base64
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Localization">
+            <summary>
+            Localization information for the metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3TokenLocalization">
+            <summary>
+            Localization information for ARC3 token metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Uri">
+            <summary>
+            The URI pattern to fetch localized data from. This URI should contain the substring `{locale}`
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Default">
+            <summary>
+            The locale of the default data within the base JSON
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Locales">
+            <summary>
+            The list of locales for which data is available
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Integrity">
+            <summary>
+            The SHA-256 digests of the localized JSON files (except the default one)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse">
+            <summary>
+            Response model for ARC3 token deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.TransactionId">
+            <summary>
+            Transaction ID of the asset creation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.AssetId">
+            <summary>
+            Asset ID of the created token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.CreatorAddress">
+            <summary>
+            Creator account address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.ErrorMessage">
+            <summary>
+            Error message if deployment failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.Success">
+            <summary>
+            Status of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.ConfirmedRound">
+            <summary>
+            Round number when the transaction was confirmed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.TokenInfo">
+            <summary>
+            Token configuration details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.MetadataUrl">
+            <summary>
+            Generated metadata URL if metadata was uploaded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.MetadataHash">
+            <summary>
+            Hash of the uploaded metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3TokenInfo">
+            <summary>
+            Information about the created ARC3 token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.IPFSUploadResponse">
+            <summary>
+            Response from IPFS API when uploading content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Hash">
+            <summary>
+            Content Identifier (CID) of the uploaded content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Name">
+            <summary>
+            Name of the uploaded file
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Size">
+            <summary>
+            Size of the uploaded content in bytes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Success">
+            <summary>
+            Whether the upload was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.ErrorMessage">
+            <summary>
+            Error message if upload failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.GatewayUrl">
+            <summary>
+            Full IPFS gateway URL to access the content
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.IPFSUploadRequest">
+            <summary>
+            Request for uploading content to IPFS
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadRequest.Content">
+            <summary>
+            Content to upload as bytes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadRequest.FileName">
+            <summary>
+            Optional filename for the content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadRequest.ContentType">
+            <summary>
+            MIME type of the content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadRequest.Pin">
+            <summary>
+            Whether to pin the content to ensure it stays available
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.IPFSRetrieveResponse">
+            <summary>
+            Response when retrieving content from IPFS
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSRetrieveResponse.Content">
+            <summary>
+            Retrieved content as bytes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSRetrieveResponse.ContentType">
+            <summary>
+            Content type of the retrieved data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSRetrieveResponse.Size">
+            <summary>
+            Size of the retrieved content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSRetrieveResponse.Success">
+            <summary>
+            Whether the retrieval was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSRetrieveResponse.ErrorMessage">
+            <summary>
+            Error message if retrieval failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSRetrieveResponse.HashVerified">
+            <summary>
+            Hash integrity check result
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.IPFSContentInfo">
+            <summary>
+            IPFS content metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSContentInfo.Hash">
+            <summary>
+            Content Identifier (CID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSContentInfo.Size">
+            <summary>
+            Content size in bytes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSContentInfo.ContentType">
+            <summary>
+            Content type/MIME type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSContentInfo.UploadedAt">
+            <summary>
+            When the content was uploaded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSContentInfo.IsPinned">
+            <summary>
+            Whether the content is pinned
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSContentInfo.GatewayUrl">
+            <summary>
+            Gateway URL to access the content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.Name">
+            <summary>
+            The name of the ERC20 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.Symbol">
+            <summary>
+            The symbol of the ERC20 token (ticker)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.InitialSupply">
+            <summary>
+            Initial supply of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.Decimals">
+            <summary>
+            Number of decimals for the token (typically 18)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.InitialSupplyReceiver">
+            <summary>
+            Address that will receive the initial token supply. 
+            If not specified, the deployer address will be used.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.DeployerPrivateKey">
+            <summary>
+            Private key for the wallet deploying the contract
+            In production, consider more secure ways to handle this
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.TransactionHash">
+            <summary>
+            Transaction hash of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.ContractAddress">
+            <summary>
+            Address of the deployed token contract
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.ErrorMessage">
+            <summary>
+            Error message if deployment failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.Success">
+            <summary>
+            Status of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.InitialSupplyReceiver">
+            <summary>
+            Address that received the initial token supply
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
+            <summary>
+            Interface for IPFS repository operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.UploadAsync(BiatecTokensApi.Models.IPFSUploadRequest)">
+            <summary>
+            Uploads content to IPFS
+            </summary>
+            <param name="request">Upload request with content and metadata</param>
+            <returns>Upload response with CID and gateway URL</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.UploadTextAsync(System.String,System.String,System.String)">
+            <summary>
+            Uploads text content to IPFS
+            </summary>
+            <param name="content">Text content to upload</param>
+            <param name="fileName">Optional filename</param>
+            <param name="contentType">Content type (default: text/plain)</param>
+            <returns>Upload response with CID and gateway URL</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.UploadJsonAsync(System.String,System.String)">
+            <summary>
+            Uploads JSON content to IPFS
+            </summary>
+            <param name="jsonContent">JSON content as string</param>
+            <param name="fileName">Optional filename</param>
+            <returns>Upload response with CID and gateway URL</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.UploadObjectAsync``1(``0,System.String)">
+            <summary>
+            Uploads an object as JSON to IPFS
+            </summary>
+            <typeparam name="T">Type of object to serialize</typeparam>
+            <param name="obj">Object to serialize and upload</param>
+            <param name="fileName">Optional filename</param>
+            <returns>Upload response with CID and gateway URL</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.RetrieveAsync(System.String)">
+            <summary>
+            Retrieves content from IPFS by CID
+            </summary>
+            <param name="cid">Content Identifier</param>
+            <returns>Retrieved content and metadata</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.RetrieveTextAsync(System.String)">
+            <summary>
+            Retrieves text content from IPFS by CID
+            </summary>
+            <param name="cid">Content Identifier</param>
+            <returns>Text content as string</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.RetrieveObjectAsync``1(System.String)">
+            <summary>
+            Retrieves and deserializes JSON content from IPFS
+            </summary>
+            <typeparam name="T">Type to deserialize to</typeparam>
+            <param name="cid">Content Identifier</param>
+            <returns>Deserialized object</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.GetContentInfoAsync(System.String)">
+            <summary>
+            Gets information about content stored in IPFS
+            </summary>
+            <param name="cid">Content Identifier</param>
+            <returns>Content information</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.ExistsAsync(System.String)">
+            <summary>
+            Checks if content exists in IPFS
+            </summary>
+            <param name="cid">Content Identifier</param>
+            <returns>True if content exists and is accessible</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.PinAsync(System.String)">
+            <summary>
+            Pins content in IPFS to ensure it stays available
+            </summary>
+            <param name="cid">Content Identifier</param>
+            <returns>True if pinning was successful</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IIPFSRepository.UnpinAsync(System.String)">
+            <summary>
+            Unpins content from IPFS
+            </summary>
+            <param name="cid">Content Identifier</param>
+            <returns>True if unpinning was successful</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.IPFSRepository">
+            <summary>
+            Repository for IPFS operations using Biatec IPFS API
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.UploadAsync(BiatecTokensApi.Models.IPFSUploadRequest)">
+            <summary>
+            Uploads content to IPFS
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.ParseNDJsonResponse(System.String)">
+            <summary>
+            Parses NDJSON (newline-delimited JSON) response from IPFS API
+            </summary>
+            <param name="ndjsonContent">NDJSON content from IPFS API</param>
+            <returns>The file upload response (first line that contains the uploaded file info)</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.UploadTextAsync(System.String,System.String,System.String)">
+            <summary>
+            Uploads text content to IPFS
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.UploadJsonAsync(System.String,System.String)">
+            <summary>
+            Uploads JSON content to IPFS
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.UploadObjectAsync``1(``0,System.String)">
+            <summary>
+            Uploads an object as JSON to IPFS
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.RetrieveAsync(System.String)">
+            <summary>
+            Retrieves content from IPFS by CID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.RetrieveTextAsync(System.String)">
+            <summary>
+            Retrieves text content from IPFS by CID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.RetrieveObjectAsync``1(System.String)">
+            <summary>
+            Retrieves and deserializes JSON content from IPFS
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.GetContentInfoAsync(System.String)">
+            <summary>
+            Gets information about content stored in IPFS
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.ExistsAsync(System.String)">
+            <summary>
+            Checks if content exists in IPFS
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.PinAsync(System.String)">
+            <summary>
+            Pins content in IPFS to ensure it stays available
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IPFSRepository.UnpinAsync(System.String)">
+            <summary>
+            Unpins content from IPFS
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.IPFSRepository.IPFSApiResponse">
+            <summary>
+            Response model for IPFS API
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ARC3FungibleTokenService">
+            <summary>
+            Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ARC3 fungible token on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
+            <summary>
+            Transfers ARC3 tokens between accounts
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
+            <summary>
+            Opts an account into receiving a specific ARC3 token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
+            <summary>
+            Uploads ARC3 metadata to IPFS and returns the URL and hash
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
+            <summary>
+            Validates ARC3 metadata structure
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.IARC3FungibleTokenService">
+            <summary>
+            Interface for ARC3 Fungible Token Service operations on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ARC3 fungible token on Algorand blockchain
+            </summary>
+            <param name="request">Token creation parameters</param>
+            <returns>Response with transaction details and asset ID</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
+            <summary>
+            Transfers ARC3 tokens between accounts
+            </summary>
+            <param name="assetId">Asset ID of the token to transfer</param>
+            <param name="fromMnemonic">Mnemonic of the sender account</param>
+            <param name="toAddress">Recipient address</param>
+            <param name="amount">Amount to transfer</param>
+            <param name="network">Network name</param>
+            <returns>Transaction ID if successful</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
+            <summary>
+            Opts an account into receiving a specific ARC3 token
+            </summary>
+            <param name="assetId">Asset ID of the token</param>
+            <param name="accountMnemonic">Mnemonic of the account to opt in</param>
+            <param name="network">Network name</param>
+            <returns>Transaction ID if successful</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
+            <summary>
+            Uploads ARC3 metadata to IPFS and returns the URL and hash
+            </summary>
+            <param name="metadata">ARC3 metadata to upload</param>
+            <returns>Tuple containing the IPFS URL and content hash</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
+            <summary>
+            Validates ARC3 metadata structure
+            </summary>
+            <param name="metadata">Metadata to validate</param>
+            <returns>True if valid, otherwise false with error message</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.IERC20TokenService.DeployTokenAsync(BiatecTokensApi.Models.TokenDeploymentRequest)">
+            <summary>
+            Deploys an ERC20 token to the Base blockchain
+            </summary>
+            <param name="request">Token deployment parameters</param>
+            <returns>Response with transaction details</returns>
+        </member>
+    </members>
+</doc>

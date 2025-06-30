@@ -1,26 +1,42 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>c595f47a-ad6e-4604-8ed9-0b3cded51ea2</UserSecretsId>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UserSecretsId>c595f47a-ad6e-4604-8ed9-0b3cded51ea2</UserSecretsId>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Algorand4" Version="4.0.3.2025051817" />
-    <PackageReference Include="AlgorandARC76Account" Version="1.0.2" />
-    <PackageReference Include="AlgorandAuthentication" Version="2.0.1" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1-Preview.1" />
-    <PackageReference Include="Nethereum.Web3" Version="5.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Algorand4" Version="4.0.3.2025051817" />
+		<PackageReference Include="AlgorandARC76Account" Version="1.0.2" />
+		<PackageReference Include="AlgorandAuthentication" Version="2.0.1" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1-Preview.1" />
+		<PackageReference Include="Nethereum.Web3" Version="5.0.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="9.0.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Update="ABI\BiatecToken.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<DocumentationFile>doc/documentation.xml</DocumentationFile>
+		<DefineConstants>TRACE</DefineConstants>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<Content Update="ABI\BiatecToken.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="doc\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="doc\documentation.xml">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
 
 </Project>

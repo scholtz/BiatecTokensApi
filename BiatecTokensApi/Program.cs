@@ -2,6 +2,7 @@ using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
+using Microsoft.OpenApi.Models;
 
 namespace BiatecTokensApi
 {
@@ -22,8 +23,20 @@ namespace BiatecTokensApi
                 {
                     Title = "Biatec Tokens API",
                     Version = "v1",
-                    Description = "API for deploying and managing ERC20 tokens on Base blockchain and ARC3 tokens on Algorand"
+                    Description = "API for deploying and managing ERC20 tokens on EVM chains ARC3 tokens and ARC200 tokens on Algorand"
                 });
+                c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+                {
+                    Description = "ARC-0014 Algorand authentication transaction",
+                    In = ParameterLocation.Header,
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.ApiKey,
+                });
+                c.OperationFilter<Swashbuckle.AspNetCore.Filters.SecurityRequirementsOperationFilter>();
+                c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First()); //This line
+                var xmlFile = $"doc/documentation.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                c.IncludeXmlComments(xmlPath);
             });
 
             // Configure settings
