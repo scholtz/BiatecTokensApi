@@ -13,6 +13,7 @@ namespace BiatecTokensApi.Controllers
         private readonly IERC20TokenService _erc20TokenService;
         private readonly IARC3FungibleTokenService _arc3TokenService;
         private readonly ILogger<TokenController> _logger;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TokenController"/> class.
         /// </summary>
@@ -74,24 +75,23 @@ namespace BiatecTokensApi.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
+
         /// <summary>
-        /// Creates an ARC3 fungible token on the specified network.
+        /// Creates a simple ASA (Algorand Standard Asset) without metadata on the specified network.
+        /// ASA tokens are basic Algorand Standard Assets with essential properties:
+        /// - Simple asset creation without ARC3 metadata compliance
+        /// - Basic management features (freeze, clawback, reserve)
+        /// - No IPFS metadata storage
+        /// - Suitable for basic tokenization use cases
+        /// The creator becomes the initial manager and can configure additional roles.
         /// </summary>
-        /// <remarks>This method processes a request to deploy an ARC3 fungible token using the provided
-        /// deployment parameters. It validates the request model and interacts with the token service to create the
-        /// token. If the token creation is successful, the method returns a response containing the asset ID and
-        /// transaction details. If the creation fails, an error response is returned.</remarks>
-        /// <param name="request">The deployment request containing the parameters required to create the ARC3 fungible token. This includes
-        /// details such as the network, token properties, and other configuration settings.</param>
-        /// <returns>An <see cref="IActionResult"/> representing the result of the operation. Returns a 200 OK response with an
-        /// <see cref="ARC3TokenDeploymentResponse"/> if the token is created successfully. Returns a 400 Bad Request
-        /// response if the request model is invalid. Returns a 500 Internal Server Error response if an error occurs
-        /// during token creation.</returns>
+        /// <param name="request">ASA token creation parameters without metadata</param>
+        /// <returns>Creation result with asset ID and transaction details</returns>
         [HttpPost("asa/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CreateASAToken([FromBody] ARC3FungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateASAToken([FromBody] ASATokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -100,26 +100,44 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateTokenAsync(request);
+                // Convert ASA request to ARC3 request without metadata
+                var arc3Request = new ARC3FungibleTokenDeploymentRequest
+                {
+                    Name = request.Name,
+                    UnitName = request.UnitName,
+                    TotalSupply = request.TotalSupply,
+                    Decimals = request.Decimals,
+                    DefaultFrozen = request.DefaultFrozen,
+                    ManagerAddress = request.ManagerAddress,
+                    ReserveAddress = request.ReserveAddress,
+                    FreezeAddress = request.FreezeAddress,
+                    ClawbackAddress = request.ClawbackAddress,
+                    CreatorMnemonic = request.CreatorMnemonic,
+                    Network = request.Network,
+                    Metadata = null // No metadata for simple ASA
+                };
+
+                var result = await _arc3TokenService.CreateTokenAsync(arc3Request);
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
+                    _logger.LogInformation("ASA token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
                         result.AssetId, result.TransactionId, request.Network);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ASA token creation failed: {Error}", result.ErrorMessage);
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
+                _logger.LogError(ex, "Error creating ASA token");
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
+
         /// <summary>
         /// Creates a new ARC3 Fungible Token on the Algorand blockchain.
         /// ARC3 tokens are Algorand Standard Assets (ASAs) that comply with the ARC3 metadata standard:
@@ -164,25 +182,24 @@ namespace BiatecTokensApi.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
+
         /// <summary>
         /// Creates an ARC3-compliant non-fungible token (NFT) on the specified network.
+        /// ARC3 NFTs are unique tokens with a total supply of exactly 1:
+        /// - Comply with ARC3 metadata standard for rich content
+        /// - IPFS-based metadata storage with integrity verification
+        /// - Unique, non-divisible tokens (total supply = 1, decimals = 0)
+        /// - Support for images, descriptions, and properties
+        /// - Optional management features (freeze, clawback, reserve)
+        /// The creator becomes the initial manager and owns the single token.
         /// </summary>
-        /// <remarks>This method accepts a deployment request containing the necessary parameters to
-        /// create an ARC3 NFT. It validates the request model and interacts with the token service to perform the
-        /// creation. If the operation is successful, the method returns the details of the created token, including the
-        /// asset ID and transaction hash. In case of failure, it returns an appropriate error response.</remarks>
-        /// <param name="request">The deployment request containing the parameters required to create the ARC3 NFT. This includes details such
-        /// as the network, metadata, and other token-specific configurations.</param>
-        /// <returns>An <see cref="IActionResult"/> containing the result of the operation: <list type="bullet">
-        /// <item><description>A 200 OK response with an <see cref="ARC3TokenDeploymentResponse"/> if the token is
-        /// created successfully.</description></item> <item><description>A 400 Bad Request response if the request
-        /// model is invalid.</description></item> <item><description>A 500 Internal Server Error response if an
-        /// unexpected error occurs during token creation.</description></item> </list></returns>
+        /// <param name="request">ARC3 NFT creation parameters with required metadata</param>
+        /// <returns>Creation result with asset ID and transaction details</returns>
         [HttpPost("arc3-nft/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CreateARC3NFT([FromBody] ARC3FungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateARC3NFT([FromBody] ARC3NFTDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -191,39 +208,56 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateTokenAsync(request);
+                // Convert NFT request to ARC3 request with forced NFT properties
+                var arc3Request = new ARC3FungibleTokenDeploymentRequest
+                {
+                    Name = request.Name,
+                    UnitName = request.UnitName,
+                    TotalSupply = 1, // NFTs must have total supply of 1
+                    Decimals = 0, // NFTs are not divisible
+                    DefaultFrozen = request.DefaultFrozen,
+                    ManagerAddress = request.ManagerAddress,
+                    ReserveAddress = request.ReserveAddress,
+                    FreezeAddress = request.FreezeAddress,
+                    ClawbackAddress = request.ClawbackAddress,
+                    CreatorMnemonic = request.CreatorMnemonic,
+                    Network = request.Network,
+                    Metadata = request.Metadata
+                };
+
+                var result = await _arc3TokenService.CreateTokenAsync(arc3Request);
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
+                    _logger.LogInformation("ARC3 NFT created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
                         result.AssetId, result.TransactionId, request.Network);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC3 NFT creation failed: {Error}", result.ErrorMessage);
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
+                _logger.LogError(ex, "Error creating ARC3 NFT");
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
+
         /// <summary>
-        /// Creates an ARC3 fractional non-fungible token (FNFT) based on the provided deployment request.
+        /// Creates an ARC3 fractional non-fungible token (FNFT) with supply matching decimals precision.
+        /// ARC3 FNFTs are divisible tokens that represent fractions of a whole asset:
+        /// - Total supply is set to 10^decimals to enable fractional ownership
+        /// - Comply with ARC3 metadata standard for rich content
+        /// - IPFS-based metadata storage with integrity verification
+        /// - Divisible tokens allowing fractional ownership
+        /// - Support for images, descriptions, and properties
+        /// The creator becomes the initial manager and owns all fractional units.
         /// </summary>
-        /// <remarks>This method processes the deployment request for an ARC3 FNFT and returns the result
-        /// of the operation. The request must include all required parameters for token creation, and the model state
-        /// must be valid. If the operation succeeds, the response contains details about the created token, including
-        /// the asset ID and transaction hash. If the operation fails, an appropriate error response is
-        /// returned.</remarks>
-        /// <param name="request">The deployment request containing the necessary parameters for creating the ARC3 fractional token. This must
-        /// be a valid <see cref="ARC3FungibleTokenDeploymentRequest"/> object.</param>
-        /// <returns>An <see cref="IActionResult"/> containing the result of the operation: - A 200 OK response with an <see
-        /// cref="ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request response if
-        /// the model state is invalid. - A 500 Internal Server Error response if an error occurs during token creation.</returns>
+        /// <param name="request">ARC3 FNFT creation parameters with metadata</param>
+        /// <returns>Creation result with asset ID and transaction details</returns>
         [HttpPost("arc3-fnft/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -237,45 +271,63 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateTokenAsync(request);
+                // For fractional NFTs, set total supply to 10^decimals
+                var totalSupply = (ulong)Math.Pow(10, request.Decimals);
+                
+                // Create a new request with the calculated total supply
+                var fnftRequest = new ARC3FungibleTokenDeploymentRequest
+                {
+                    Name = request.Name,
+                    UnitName = request.UnitName,
+                    TotalSupply = totalSupply, // 10^decimals for fractional ownership
+                    Decimals = request.Decimals,
+                    DefaultFrozen = request.DefaultFrozen,
+                    ManagerAddress = request.ManagerAddress,
+                    ReserveAddress = request.ReserveAddress,
+                    FreezeAddress = request.FreezeAddress,
+                    ClawbackAddress = request.ClawbackAddress,
+                    CreatorMnemonic = request.CreatorMnemonic,
+                    Network = request.Network,
+                    Metadata = request.Metadata
+                };
+
+                var result = await _arc3TokenService.CreateTokenAsync(fnftRequest);
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC3 FNFT created successfully with asset ID {AssetId}, total supply {TotalSupply} (10^{Decimals}), and transaction {TxHash} on {Network}",
+                        result.AssetId, totalSupply, request.Decimals, result.TransactionId, request.Network);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC3 FNFT creation failed: {Error}", result.ErrorMessage);
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
+                _logger.LogError(ex, "Error creating ARC3 FNFT");
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
+
         /// <summary>
-        /// Creates a fractional ARC200 NFT based on the provided deployment request.
+        /// Creates an ARC200 token using ERC20-style parameters.
+        /// ARC200 tokens are designed to be similar to ERC20 tokens but on Algorand:
+        /// - Uses familiar ERC20-style parameters (name, symbol, initial supply, decimals)
+        /// - Automatic total supply calculation based on initial supply and decimals
+        /// - No metadata storage (simple token creation)
+        /// - Compatible with ERC20 migration workflows
+        /// The creator receives the initial token supply and becomes the manager.
         /// </summary>
-        /// <remarks>This method processes the deployment request for an ARC200 fractional NFT and returns
-        /// the result of the operation. The request must be valid, as determined by model validation. If the operation
-        /// succeeds, the response contains details about the created token, including its asset ID and transaction
-        /// hash. If the operation fails, an error response is returned.</remarks>
-        /// <param name="request">The deployment request containing the necessary parameters for creating the ARC200 fractional NFT. This
-        /// includes details such as the network, token configuration, and other required metadata.</param>
-        /// <returns>An <see cref="IActionResult"/> containing the result of the operation: <list type="bullet">
-        /// <item><description>A 200 OK response with the token creation details if successful.</description></item>
-        /// <item><description>A 400 Bad Request response if the request is invalid.</description></item>
-        /// <item><description>A 500 Internal Server Error response if an unexpected error occurs during
-        /// processing.</description></item> </list></returns>
+        /// <param name="request">ARC200 token creation parameters using ERC20-style inputs</param>
+        /// <returns>Creation result with asset ID and transaction details</returns>
         [HttpPost("arc200/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CreateARC200FractionalNFT([FromBody] ARC3FungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateARC200FractionalNFT([FromBody] ARC200DeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -284,26 +336,47 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateTokenAsync(request);
+                // Calculate total supply: initial supply * 10^decimals
+                var totalSupply = (ulong)(request.InitialSupply * (decimal)Math.Pow(10, request.Decimals));
+                
+                // Convert ARC200 request to ARC3 request (ERC20-style parameters)
+                var arc3Request = new ARC3FungibleTokenDeploymentRequest
+                {
+                    Name = request.Name,
+                    UnitName = request.Symbol, // Use Symbol as UnitName for ERC20 compatibility
+                    TotalSupply = totalSupply,
+                    Decimals = (uint)request.Decimals,
+                    DefaultFrozen = false, // Standard behavior for ERC20-like tokens
+                    ManagerAddress = request.InitialSupplyReceiver, // Manager gets the tokens
+                    ReserveAddress = null,
+                    FreezeAddress = null,
+                    ClawbackAddress = null,
+                    CreatorMnemonic = request.CreatorMnemonic,
+                    Network = request.Network,
+                    Metadata = null // No metadata for ERC20-style tokens
+                };
+
+                var result = await _arc3TokenService.CreateTokenAsync(arc3Request);
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC200 token created successfully with asset ID {AssetId}, initial supply {InitialSupply}, total supply {TotalSupply}, and transaction {TxHash} on {Network}",
+                        result.AssetId, request.InitialSupply, totalSupply, result.TransactionId, request.Network);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC200 token creation failed: {Error}", result.ErrorMessage);
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
+                _logger.LogError(ex, "Error creating ARC200 token");
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
+
         //    /// <summary>
         //    /// Retrieves information about an existing ARC3 token including metadata.
         //    /// </summary>

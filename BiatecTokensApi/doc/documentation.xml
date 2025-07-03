@@ -81,20 +81,18 @@
             <param name="request">Token deployment parameters including optional initial supply receiver</param>
             <returns>Deployment result with contract address and initial supply receiver</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAToken(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAToken(BiatecTokensApi.Models.ASATokenDeploymentRequest)">
             <summary>
-            Creates an ARC3 fungible token on the specified network.
+            Creates a simple ASA (Algorand Standard Asset) without metadata on the specified network.
+            ASA tokens are basic Algorand Standard Assets with essential properties:
+            - Simple asset creation without ARC3 metadata compliance
+            - Basic management features (freeze, clawback, reserve)
+            - No IPFS metadata storage
+            - Suitable for basic tokenization use cases
+            The creator becomes the initial manager and can configure additional roles.
             </summary>
-            <remarks>This method processes a request to deploy an ARC3 fungible token using the provided
-            deployment parameters. It validates the request model and interacts with the token service to create the
-            token. If the token creation is successful, the method returns a response containing the asset ID and
-            transaction details. If the creation fails, an error response is returned.</remarks>
-            <param name="request">The deployment request containing the parameters required to create the ARC3 fungible token. This includes
-            details such as the network, token properties, and other configuration settings.</param>
-            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the operation. Returns a 200 OK response with an
-            <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is created successfully. Returns a 400 Bad Request
-            response if the request model is invalid. Returns a 500 Internal Server Error response if an error occurs
-            during token creation.</returns>
+            <param name="request">ASA token creation parameters without metadata</param>
+            <returns>Creation result with asset ID and transaction details</returns>
         </member>
         <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3Token(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
             <summary>
@@ -109,52 +107,214 @@
             <param name="request">ARC3 token creation parameters including metadata</param>
             <returns>Creation result with asset ID and transaction details</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3NFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3NFT(BiatecTokensApi.Models.ARC3NFTDeploymentRequest)">
             <summary>
             Creates an ARC3-compliant non-fungible token (NFT) on the specified network.
+            ARC3 NFTs are unique tokens with a total supply of exactly 1:
+            - Comply with ARC3 metadata standard for rich content
+            - IPFS-based metadata storage with integrity verification
+            - Unique, non-divisible tokens (total supply = 1, decimals = 0)
+            - Support for images, descriptions, and properties
+            - Optional management features (freeze, clawback, reserve)
+            The creator becomes the initial manager and owns the single token.
             </summary>
-            <remarks>This method accepts a deployment request containing the necessary parameters to
-            create an ARC3 NFT. It validates the request model and interacts with the token service to perform the
-            creation. If the operation is successful, the method returns the details of the created token, including the
-            asset ID and transaction hash. In case of failure, it returns an appropriate error response.</remarks>
-            <param name="request">The deployment request containing the parameters required to create the ARC3 NFT. This includes details such
-            as the network, metadata, and other token-specific configurations.</param>
-            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: <list type="bullet">
-            <item><description>A 200 OK response with an <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is
-            created successfully.</description></item> <item><description>A 400 Bad Request response if the request
-            model is invalid.</description></item> <item><description>A 500 Internal Server Error response if an
-            unexpected error occurs during token creation.</description></item> </list></returns>
+            <param name="request">ARC3 NFT creation parameters with required metadata</param>
+            <returns>Creation result with asset ID and transaction details</returns>
         </member>
         <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3FractionalNFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
             <summary>
-            Creates an ARC3 fractional non-fungible token (FNFT) based on the provided deployment request.
+            Creates an ARC3 fractional non-fungible token (FNFT) with supply matching decimals precision.
+            ARC3 FNFTs are divisible tokens that represent fractions of a whole asset:
+            - Total supply is set to 10^decimals to enable fractional ownership
+            - Comply with ARC3 metadata standard for rich content
+            - IPFS-based metadata storage with integrity verification
+            - Divisible tokens allowing fractional ownership
+            - Support for images, descriptions, and properties
+            The creator becomes the initial manager and owns all fractional units.
             </summary>
-            <remarks>This method processes the deployment request for an ARC3 FNFT and returns the result
-            of the operation. The request must include all required parameters for token creation, and the model state
-            must be valid. If the operation succeeds, the response contains details about the created token, including
-            the asset ID and transaction hash. If the operation fails, an appropriate error response is
-            returned.</remarks>
-            <param name="request">The deployment request containing the necessary parameters for creating the ARC3 fractional token. This must
-            be a valid <see cref="T:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest"/> object.</param>
-            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: - A 200 OK response with an <see
-            cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request response if
-            the model state is invalid. - A 500 Internal Server Error response if an error occurs during token creation.</returns>
+            <param name="request">ARC3 FNFT creation parameters with metadata</param>
+            <returns>Creation result with asset ID and transaction details</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200FractionalNFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200FractionalNFT(BiatecTokensApi.Models.ARC200DeploymentRequest)">
             <summary>
-            Creates a fractional ARC200 NFT based on the provided deployment request.
+            Creates an ARC200 token using ERC20-style parameters.
+            ARC200 tokens are designed to be similar to ERC20 tokens but on Algorand:
+            - Uses familiar ERC20-style parameters (name, symbol, initial supply, decimals)
+            - Automatic total supply calculation based on initial supply and decimals
+            - No metadata storage (simple token creation)
+            - Compatible with ERC20 migration workflows
+            The creator receives the initial token supply and becomes the manager.
             </summary>
-            <remarks>This method processes the deployment request for an ARC200 fractional NFT and returns
-            the result of the operation. The request must be valid, as determined by model validation. If the operation
-            succeeds, the response contains details about the created token, including its asset ID and transaction
-            hash. If the operation fails, an error response is returned.</remarks>
-            <param name="request">The deployment request containing the necessary parameters for creating the ARC200 fractional NFT. This
-            includes details such as the network, token configuration, and other required metadata.</param>
-            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: <list type="bullet">
-            <item><description>A 200 OK response with the token creation details if successful.</description></item>
-            <item><description>A 400 Bad Request response if the request is invalid.</description></item>
-            <item><description>A 500 Internal Server Error response if an unexpected error occurs during
-            processing.</description></item> </list></returns>
+            <param name="request">ARC200 token creation parameters using ERC20-style inputs</param>
+            <returns>Creation result with asset ID and transaction details</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ASATokenDeploymentRequest">
+            <summary>
+            Request model for creating a simple ASA (Algorand Standard Asset) without metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.Name">
+            <summary>
+            The name of the ASA token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.UnitName">
+            <summary>
+            The unit name (symbol) of the ASA token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.TotalSupply">
+            <summary>
+            Total supply of tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.Decimals">
+            <summary>
+            Number of decimal places for the token (0-19)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.DefaultFrozen">
+            <summary>
+            Whether the asset can be frozen by the freeze address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.ManagerAddress">
+            <summary>
+            Address that can manage the asset configuration (optional)
+            If not provided, the creator will be the manager
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.ReserveAddress">
+            <summary>
+            Address that can reserve tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.FreezeAddress">
+            <summary>
+            Address that can freeze/unfreeze tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.ClawbackAddress">
+            <summary>
+            Address that can clawback tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.CreatorMnemonic">
+            <summary>
+            Mnemonic phrase for the creator account
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASATokenDeploymentRequest.Network">
+            <summary>
+            Algorand network to deploy to (mainnet, testnet, betanet)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3NFTDeploymentRequest">
+            <summary>
+            Request model for creating an ARC3 NFT (Non-Fungible Token) with total supply of 1
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.Name">
+            <summary>
+            The name of the ARC3 NFT
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.UnitName">
+            <summary>
+            The unit name (symbol) of the ARC3 NFT
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.Url">
+            <summary>
+            Optional URL for token metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.MetadataHash">
+            <summary>
+            Optional metadata hash (32 bytes)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.DefaultFrozen">
+            <summary>
+            Whether the asset can be frozen by the freeze address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.ManagerAddress">
+            <summary>
+            Address that can manage the asset configuration (optional)
+            If not provided, the creator will be the manager
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.ReserveAddress">
+            <summary>
+            Address that can reserve tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.FreezeAddress">
+            <summary>
+            Address that can freeze/unfreeze tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.ClawbackAddress">
+            <summary>
+            Address that can clawback tokens (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.CreatorMnemonic">
+            <summary>
+            Mnemonic phrase for the creator account
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.Network">
+            <summary>
+            Algorand network to deploy to (mainnet, testnet, betanet)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3NFTDeploymentRequest.Metadata">
+            <summary>
+            ARC3 compliant metadata for the NFT
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC200DeploymentRequest">
+            <summary>
+            Request model for creating an ARC200 token using ERC20-like parameters
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200DeploymentRequest.Name">
+            <summary>
+            The name of the ARC200 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200DeploymentRequest.Symbol">
+            <summary>
+            The symbol of the ARC200 token (ticker)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200DeploymentRequest.InitialSupply">
+            <summary>
+            Initial supply of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200DeploymentRequest.Decimals">
+            <summary>
+            Number of decimals for the token (typically 6 for Algorand)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200DeploymentRequest.InitialSupplyReceiver">
+            <summary>
+            Address that will receive the initial token supply. 
+            If not specified, the creator address will be used.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200DeploymentRequest.CreatorMnemonic">
+            <summary>
+            Mnemonic phrase for the creator account
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200DeploymentRequest.Network">
+            <summary>
+            Algorand network to deploy to (mainnet, testnet, betanet)
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest">
             <summary>

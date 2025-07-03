@@ -3,6 +3,199 @@ using System.ComponentModel.DataAnnotations;
 namespace BiatecTokensApi.Models
 {
     /// <summary>
+    /// Request model for creating a simple ASA (Algorand Standard Asset) without metadata
+    /// </summary>
+    public class ASATokenDeploymentRequest
+    {
+        /// <summary>
+        /// The name of the ASA token
+        /// </summary>
+        [Required]
+        [StringLength(32, ErrorMessage = "Token name cannot exceed 32 characters")]
+        public required string Name { get; set; }
+
+        /// <summary>
+        /// The unit name (symbol) of the ASA token
+        /// </summary>
+        [Required]
+        [StringLength(8, ErrorMessage = "Unit name cannot exceed 8 characters")]
+        public required string UnitName { get; set; }
+
+        /// <summary>
+        /// Total supply of tokens
+        /// </summary>
+        [Required]
+        [Range(1, ulong.MaxValue, ErrorMessage = "Total supply must be greater than 0")]
+        public required ulong TotalSupply { get; set; }
+
+        /// <summary>
+        /// Number of decimal places for the token (0-19)
+        /// </summary>
+        [Range(0, 19, ErrorMessage = "Decimals must be between 0 and 19")]
+        public uint Decimals { get; set; } = 6;
+
+        /// <summary>
+        /// Whether the asset can be frozen by the freeze address
+        /// </summary>
+        public bool DefaultFrozen { get; set; } = false;
+
+        /// <summary>
+        /// Address that can manage the asset configuration (optional)
+        /// If not provided, the creator will be the manager
+        /// </summary>
+        public string? ManagerAddress { get; set; }
+
+        /// <summary>
+        /// Address that can reserve tokens (optional)
+        /// </summary>
+        public string? ReserveAddress { get; set; }
+
+        /// <summary>
+        /// Address that can freeze/unfreeze tokens (optional)
+        /// </summary>
+        public string? FreezeAddress { get; set; }
+
+        /// <summary>
+        /// Address that can clawback tokens (optional)
+        /// </summary>
+        public string? ClawbackAddress { get; set; }
+
+        /// <summary>
+        /// Mnemonic phrase for the creator account
+        /// </summary>
+        [Required]
+        public required string CreatorMnemonic { get; set; }
+
+        /// <summary>
+        /// Algorand network to deploy to (mainnet, testnet, betanet)
+        /// </summary>
+        [Required]
+        public required string Network { get; set; } = "testnet";
+    }
+
+    /// <summary>
+    /// Request model for creating an ARC3 NFT (Non-Fungible Token) with total supply of 1
+    /// </summary>
+    public class ARC3NFTDeploymentRequest
+    {
+        /// <summary>
+        /// The name of the ARC3 NFT
+        /// </summary>
+        [Required]
+        [StringLength(32, ErrorMessage = "Token name cannot exceed 32 characters")]
+        public required string Name { get; set; }
+
+        /// <summary>
+        /// The unit name (symbol) of the ARC3 NFT
+        /// </summary>
+        [Required]
+        [StringLength(8, ErrorMessage = "Unit name cannot exceed 8 characters")]
+        public required string UnitName { get; set; }
+
+        /// <summary>
+        /// Optional URL for token metadata
+        /// </summary>
+        [StringLength(96, ErrorMessage = "URL cannot exceed 96 characters")]
+        public string? Url { get; set; }
+
+        /// <summary>
+        /// Optional metadata hash (32 bytes)
+        /// </summary>
+        public byte[]? MetadataHash { get; set; }
+
+        /// <summary>
+        /// Whether the asset can be frozen by the freeze address
+        /// </summary>
+        public bool DefaultFrozen { get; set; } = false;
+
+        /// <summary>
+        /// Address that can manage the asset configuration (optional)
+        /// If not provided, the creator will be the manager
+        /// </summary>
+        public string? ManagerAddress { get; set; }
+
+        /// <summary>
+        /// Address that can reserve tokens (optional)
+        /// </summary>
+        public string? ReserveAddress { get; set; }
+
+        /// <summary>
+        /// Address that can freeze/unfreeze tokens (optional)
+        /// </summary>
+        public string? FreezeAddress { get; set; }
+
+        /// <summary>
+        /// Address that can clawback tokens (optional)
+        /// </summary>
+        public string? ClawbackAddress { get; set; }
+
+        /// <summary>
+        /// Mnemonic phrase for the creator account
+        /// </summary>
+        [Required]
+        public required string CreatorMnemonic { get; set; }
+
+        /// <summary>
+        /// Algorand network to deploy to (mainnet, testnet, betanet)
+        /// </summary>
+        [Required]
+        public required string Network { get; set; } = "testnet";
+
+        /// <summary>
+        /// ARC3 compliant metadata for the NFT
+        /// </summary>
+        [Required]
+        public required ARC3TokenMetadata Metadata { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for creating an ARC200 token using ERC20-like parameters
+    /// </summary>
+    public class ARC200DeploymentRequest
+    {
+        /// <summary>
+        /// The name of the ARC200 token
+        /// </summary>
+        [Required]
+        public required string Name { get; set; }
+
+        /// <summary>
+        /// The symbol of the ARC200 token (ticker)
+        /// </summary>
+        [Required]
+        public required string Symbol { get; set; }
+
+        /// <summary>
+        /// Initial supply of tokens (will be multiplied by decimals)
+        /// </summary>
+        [Required]
+        public required decimal InitialSupply { get; set; }
+
+        /// <summary>
+        /// Number of decimals for the token (typically 6 for Algorand)
+        /// </summary>
+        public int Decimals { get; set; } = 6;
+
+        /// <summary>
+        /// Address that will receive the initial token supply. 
+        /// If not specified, the creator address will be used.
+        /// </summary>
+        public string? InitialSupplyReceiver { get; set; }
+
+        /// <summary>
+        /// Mnemonic phrase for the creator account
+        /// </summary>
+        [Required]
+        public required string CreatorMnemonic { get; set; }
+
+        /// <summary>
+        /// Algorand network to deploy to (mainnet, testnet, betanet)
+        /// </summary>
+        [Required]
+        public required string Network { get; set; } = "testnet";
+    }
+
+    /// <summary>
     /// Request model for creating an ARC3 Fungible Token on Algorand
     /// </summary>
     public class ARC3FungibleTokenDeploymentRequest
