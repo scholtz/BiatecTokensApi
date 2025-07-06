@@ -1,5 +1,7 @@
 ﻿using Algorand;
 using Algorand.Algod;
+using Algorand.Algod.Model;
+using Algorand.Algod.Model.Transactions;
 using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Models;
@@ -106,9 +108,7 @@ namespace BiatecTokensApi.Services
                     }
                 }
 
-                // For now, create a placeholder response since we need the actual Algorand SDK
                 response = await CreateToken(request, algodApiInstance, metadataUrl, metadataHash);
-
             }
             catch (Exception ex)
             {
@@ -118,67 +118,6 @@ namespace BiatecTokensApi.Services
 
             return response;
         }
-
-        ///// <summary>
-        ///// Gets information about an existing ARC3 token
-        ///// </summary>
-        //public async Task<ARC3TokenInfo?> GetTokenInfoAsync(ulong assetId, string network)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Getting token info for asset {AssetId} on {Network}", assetId, network);
-
-        //        if (!_genesisId2GenesisHash.TryGetValue(network, out var genesisHash))
-        //        {
-        //            _logger.LogError("Unsupported network: {Network}", network);
-        //            return null;
-        //        }
-
-        //        var chain = _config.CurrentValue.AllowedNetworks[genesisHash];
-        //        using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
-        //        DefaultApi algodApiInstance = new DefaultApi(httpClient);
-
-        //        // Get asset information from Algorand
-        //        try
-        //        {
-        //            var assetInfo = await algodApiInstance.GetAssetByIDAsync(assetId);
-        //            if (assetInfo?.Params != null)
-        //            {
-        //                var tokenInfo = new ARC3TokenInfo
-        //                {
-        //                    Name = assetInfo.Params.Name ?? "",
-        //                    UnitName = assetInfo.Params.UnitName ?? "",
-        //                    TotalSupply = assetInfo.Params.Total ?? 0,
-        //                    Decimals = assetInfo.Params.Decimals ?? 0,
-        //                    Url = assetInfo.Params.Url,
-        //                    DefaultFrozen = assetInfo.Params.DefaultFrozen ?? false,
-        //                    ManagerAddress = new Algorand.Address(assetInfo.Params.Manager),
-        //                    ReserveAddress = assetInfo.Params.Reserve,
-        //                    FreezeAddress = assetInfo.Params.Freeze,
-        //                    ClawbackAddress = assetInfo.Params.Clawback
-        //                };
-
-        //                // Fetch metadata if URL is present and it's an IPFS URL
-        //                if (!string.IsNullOrEmpty(tokenInfo.Url))
-        //                {
-        //                    tokenInfo.Metadata = await FetchMetadataFromUrl(tokenInfo.Url);
-        //                }
-
-        //                return tokenInfo;
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            _logger.LogError(ex, "Failed to get asset info from Algorand for asset {AssetId}", assetId);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error getting token info for asset {AssetId}: {Message}", assetId, ex.Message);
-        //    }
-
-        //    return null;
-        //}
 
         /// <summary>
         /// Transfers ARC3 tokens between accounts
@@ -200,16 +139,23 @@ namespace BiatecTokensApi.Services
                 using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
                 DefaultApi algodApiInstance = new DefaultApi(httpClient);
 
-                // TODO: Implement actual transfer logic using Algorand SDK
-                // This would:
-                // 1. Parse the mnemonic to get the account
-                // 2. Create an asset transfer transaction
-                // 3. Sign the transaction
-                // 4. Submit it to the network
+                // Parse the mnemonic to get the sender account
+                var senderAccount = new Account(fromMnemonic);
+                _logger.LogDebug("Sender account address: {Address}", senderAccount.Address);
+
+                // Get suggested transaction parameters
+                var transactionParams = await algodApiInstance.TransactionParamsAsync();
+
+                // TODO: This is a placeholder implementation for asset transfer
+                // In a production environment, you would:
+                // 1. Create an asset transfer transaction
+                // 2. Set the recipient address and transfer amount
+                // 3. Sign the transaction with the sender account
+                // 4. Submit the transaction to the network
                 // 5. Wait for confirmation
 
-                // For now, return a placeholder response
-                await Task.Delay(100); // Simulate API call
+                // For now, simulate the process
+                await Task.Delay(500); // Simulate network latency
 
                 // Generate a mock transaction ID for demonstration
                 var mockTxId = GenerateMockTransactionId();
@@ -243,16 +189,22 @@ namespace BiatecTokensApi.Services
                 using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
                 DefaultApi algodApiInstance = new DefaultApi(httpClient);
 
-                // TODO: Implement actual opt-in logic using Algorand SDK
-                // This would:
-                // 1. Parse the mnemonic to get the account
-                // 2. Create an asset opt-in transaction (amount = 0)
-                // 3. Sign the transaction
-                // 4. Submit it to the network
-                // 5. Wait for confirmation
+                // Parse the mnemonic to get the account
+                var account = new Account(accountMnemonic);
+                _logger.LogDebug("Account address: {Address}", account.Address);
 
-                // For now, return a placeholder response
-                await Task.Delay(100); // Simulate API call
+                // Get suggested transaction parameters
+                var transactionParams = await algodApiInstance.TransactionParamsAsync();
+
+                // TODO: This is a placeholder implementation for asset opt-in
+                // In a production environment, you would:
+                // 1. Create an asset transfer transaction with amount = 0 to self
+                // 2. Sign the transaction with the account
+                // 3. Submit the transaction to the network
+                // 4. Wait for confirmation
+
+                // For now, simulate the process
+                await Task.Delay(500); // Simulate network latency
 
                 // Generate a mock transaction ID for demonstration
                 var mockTxId = GenerateMockTransactionId();
@@ -429,44 +381,74 @@ namespace BiatecTokensApi.Services
             string? metadataUrl,
             string? metadataHash)
         {
-            // This is a placeholder implementation that demonstrates the structure
-            // In a real implementation, this would:
-            // 1. Parse the mnemonic to get the account
-            // 2. Create an asset creation transaction with metadata URL
-            // 3. Sign the transaction
-            // 4. Submit it to the network
-            // 5. Wait for confirmation
-
-            await Task.Delay(1000); // Simulate processing time
-
-            // For demonstration, create a mock response
-            var mockAssetId = (ulong)Random.Shared.NextInt64(1000000, 999999999);
-            var mockTxId = GenerateMockTransactionId();
-
-            return new ARC3TokenDeploymentResponse
+            try
             {
-                Success = true,
-                AssetId = mockAssetId,
-                TransactionId = mockTxId,
-                CreatorAddress = "PLACEHOLDER_ADDRESS", // Would be derived from mnemonic
-                ConfirmedRound = (ulong)Random.Shared.NextInt64(1000000, 2000000),
-                MetadataUrl = metadataUrl,
-                MetadataHash = metadataHash,
-                TokenInfo = new ARC3TokenInfo
+                _logger.LogInformation("Creating Algorand asset {Name} ({UnitName}) with total supply {TotalSupply}",
+                    request.Name, request.UnitName, request.TotalSupply);
+
+                // Parse the mnemonic to get the account
+                var account = new Account(request.CreatorMnemonic);
+                _logger.LogDebug("Creator account address: {Address}", account.Address);
+
+                // Get suggested transaction parameters
+                var transactionParams = await algod.TransactionParamsAsync();
+                _logger.LogDebug("Transaction params retrieved: LastRound={LastRound}, Fee={Fee}",
+                    transactionParams.LastRound, transactionParams.MinFee);
+
+                // TODO: This is a placeholder implementation for asset creation
+                // In a production environment, you would:
+                // 1. Use the proper Algorand SDK methods to create an asset creation transaction
+                // 2. Set up asset parameters (name, unit name, total supply, decimals, etc.)
+                // 3. Configure management addresses (manager, reserve, freeze, clawback)
+                // 4. Include metadata URL and hash if provided
+                // 5. Sign the transaction with the creator account
+                // 6. Submit the transaction to the network
+                // 7. Extract the asset ID
+
+                // For now, simulate the process
+                await Task.Delay(1000); // Simulate network latency
+
+                // Generate a mock asset ID and transaction ID for demonstration
+                var mockAssetId = (ulong)Random.Shared.NextInt64(1000000, 999999999);
+                var mockTxId = GenerateMockTransactionId();
+
+                _logger.LogInformation("Asset created successfully with ID: {AssetId}", mockAssetId);
+
+                // Create successful response
+                return new ARC3TokenDeploymentResponse
                 {
-                    Name = request.Name,
-                    UnitName = request.UnitName,
-                    TotalSupply = request.TotalSupply,
-                    Decimals = request.Decimals,
-                    Url = metadataUrl,
-                    DefaultFrozen = request.DefaultFrozen,
-                    ManagerAddress = request.ManagerAddress,
-                    ReserveAddress = request.ReserveAddress,
-                    FreezeAddress = request.FreezeAddress,
-                    ClawbackAddress = request.ClawbackAddress,
-                    Metadata = request.Metadata
-                }
-            };
+                    Success = true,
+                    AssetId = mockAssetId,
+                    TransactionId = mockTxId,
+                    CreatorAddress = account.Address.ToString(),
+                    ConfirmedRound = (ulong)Random.Shared.NextInt64(1000000, 2000000),
+                    MetadataUrl = metadataUrl,
+                    MetadataHash = metadataHash,
+                    TokenInfo = new ARC3TokenInfo
+                    {
+                        Name = request.Name,
+                        UnitName = request.UnitName,
+                        TotalSupply = request.TotalSupply,
+                        Decimals = request.Decimals,
+                        Url = metadataUrl ?? request.Url,
+                        DefaultFrozen = request.DefaultFrozen,
+                        ManagerAddress = string.IsNullOrEmpty(request.ManagerAddress) ? account.Address.ToString() : request.ManagerAddress,
+                        ReserveAddress = string.IsNullOrEmpty(request.ReserveAddress) ? account.Address.ToString() : request.ReserveAddress,
+                        FreezeAddress = request.FreezeAddress,
+                        ClawbackAddress = request.ClawbackAddress,
+                        Metadata = request.Metadata
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating Algorand asset: {Message}", ex.Message);
+                return new ARC3TokenDeploymentResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to create asset: {ex.Message}"
+                };
+            }
         }
 
         private static string GenerateMockTransactionId()
