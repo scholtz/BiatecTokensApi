@@ -13,7 +13,8 @@ namespace BiatecTokensApi.Services.Interface
         /// Deploys an ARC200 token
         /// </summary>
         /// <param name="request">Token deployment parameters</param>
+        /// <param name="tokenType">Token type</param>
         /// <returns>Response with transaction details</returns>
-        Task<ARC200TokenDeploymentResponse> DeployTokenAsync(ARC200TokenDeploymentRequest request);
+        Task<ARC200TokenDeploymentResponse> CreateARC200TokenAsync(ARC200TokenDeploymentRequest request, TokenType tokenType);
     }
 }

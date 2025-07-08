@@ -12,7 +12,7 @@ namespace BiatecTokensApi.Models.ARC3.Response
         /// <summary>
         /// Token configuration details
         /// </summary>
-        public ASATokenInfo? TokenInfo { get; set; }
+        public Algorand.Algod.Model.Asset? TokenInfo { get; set; }
 
     }
 }

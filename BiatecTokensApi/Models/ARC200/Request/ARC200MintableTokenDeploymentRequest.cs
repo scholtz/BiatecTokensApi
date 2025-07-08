@@ -1,4 +1,6 @@
-﻿namespace BiatecTokensApi.Models.ARC200.Request
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace BiatecTokensApi.Models.ARC200.Request
 {
     /// <summary>
     /// Represents a request to deploy an ERC-20 token with mintable functionality.
@@ -12,5 +14,11 @@
         /// Gets a value indicating whether the item can be minted.
         /// </summary>
         public bool IsMintable { get; } = true;
+
+        /// <summary>
+        /// Cap of tokens (will be multiplied by decimals)
+        /// </summary>
+        [Required]
+        public required decimal Cap { get; set; }
     }
 }

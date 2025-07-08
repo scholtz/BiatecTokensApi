@@ -6,6 +6,7 @@ using BiatecTokensApi.Models.ARC3.Response;
 using BiatecTokensApi.Models.ASA.Request;
 using BiatecTokensApi.Models.ERC20.Request;
 using BiatecTokensApi.Models.EVM;
+using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +28,7 @@ namespace BiatecTokensApi.Controllers
     {
         private readonly IERC20TokenService _erc20TokenService;
         private readonly IARC3TokenService _arc3TokenService;
+        private readonly IASATokenService _asaTokenService;
         private readonly IARC200TokenService _arc200TokenService;
         private readonly ILogger<TokenController> _logger;
         /// <summary>
@@ -34,16 +36,19 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="erc20TokenService">The service used to interact with ERC-20 tokens.</param>
         /// <param name="arc3TokenService">The service used to interact with ARC-3 tokens.</param>
+        /// <param name="asaTokenService">The service used to interact with ASA tokens.</param>
         /// <param name="arc200TokenService">The service used to interact with ARC-200 tokens</param>
         /// <param name="logger">The logger instance used to log diagnostic and operational information.</param>
         public TokenController(
             IERC20TokenService erc20TokenService,
             IARC3TokenService arc3TokenService,
+            IASATokenService asaTokenService,
             IARC200TokenService arc200TokenService,
             ILogger<TokenController> logger)
         {
             _erc20TokenService = erc20TokenService;
             _arc3TokenService = arc3TokenService;
+            _asaTokenService = asaTokenService;
             _arc200TokenService = arc200TokenService;
             _logger = logger;
         }
@@ -119,7 +124,7 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateASATokenAsync(request, TokenType.ASA_FT);
+                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FT);
 
                 if (result.Success)
                 {
@@ -164,7 +169,7 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateASATokenAsync(request, TokenType.ASA_NFT);
+                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_NFT);
 
                 if (result.Success)
                 {
@@ -211,7 +216,7 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateASATokenAsync(request, TokenType.ASA_FNFT);
+                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FNFT);
 
                 if (result.Success)
                 {
@@ -393,7 +398,7 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateARC200TokenAsync(request, TokenType.ARC200_Mintable);
+                var result = await _arc200TokenService.CreateARC200TokenAsync(request, TokenType.ARC200_Mintable);
 
                 if (result.Success)
                 {
@@ -438,7 +443,7 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _arc3TokenService.CreateTokenAsync(request, TokenType.ARC200_Preminted);
+                var result = await _arc200TokenService.CreateARC200TokenAsync(request, TokenType.ARC200_Preminted);
 
                 if (result.Success)
                 {
@@ -458,74 +463,5 @@ namespace BiatecTokensApi.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
-        //    /// <summary>
-        //    /// Retrieves information about an existing ARC3 token including metadata.
-        //    /// </summary>
-        //    /// <param name="assetId">The asset ID of the ARC3 token</param>
-        //    /// <param name="network">The Algorand network (mainnet, testnet, betanet)</param>
-        //    /// <returns>Token information including metadata if available</returns>
-        //    [HttpGet("arc3/{assetId}")]
-        //    [ProducesResponseType(typeof(ARC3TokenInfo), StatusCodes.Status200OK)]
-        //    [ProducesResponseType(StatusCodes.Status404NotFound)]
-        //    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        //    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        //    public async Task<IActionResult> GetARC3TokenInfo(ulong assetId, [FromQuery] string network = "testnet")
-        //    {
-        //        if (string.IsNullOrWhiteSpace(network))
-        //        {
-        //            return BadRequest("Network parameter is required");
-        //        }
-
-        //        try
-        //        {
-        //            var tokenInfo = await _arc3TokenService.GetTokenInfoAsync(assetId, network);
-
-        //            if (tokenInfo == null)
-        //            {
-        //                _logger.LogWarning("ARC3 token with asset ID {AssetId} not found on {Network}", assetId, network);
-        //                return NotFound($"Token with asset ID {assetId} not found on {network}");
-        //            }
-
-        //            _logger.LogInformation("Retrieved ARC3 token info for asset ID {AssetId} on {Network}", assetId, network);
-        //            return Ok(tokenInfo);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            _logger.LogError(ex, "Error retrieving ARC3 token info for asset ID {AssetId}", assetId);
-        //            return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
-        //        }
-        //    }
-
-
-        //    /// <summary>
-        //    /// Validates ARC3 metadata structure without creating a token.
-        //    /// Useful for testing metadata before token creation.
-        //    /// </summary>
-        //    /// <param name="metadata">ARC3 metadata to validate</param>
-        //    /// <returns>Validation result</returns>
-        //    [HttpPost("arc3/validate-metadata")]
-        //    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-        //    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        //    public IActionResult ValidateARC3Metadata([FromBody] ARC3TokenMetadata metadata)
-        //    {
-        //        if (!ModelState.IsValid)
-        //        {
-        //            return BadRequest(ModelState);
-        //        }
-
-        //        try
-        //        {
-        //            var (isValid, errorMessage) = _arc3TokenService.ValidateMetadata(metadata);
-
-        //            _logger.LogInformation("ARC3 metadata validation result: {IsValid}", isValid);
-        //            return Ok(new { isValid, errorMessage });
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            _logger.LogError(ex, "Error validating ARC3 metadata");
-        //            return BadRequest(new { error = ex.Message });
-        //        }
-        //    }
     }
 }
-

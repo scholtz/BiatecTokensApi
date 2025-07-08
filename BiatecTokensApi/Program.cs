@@ -8,8 +8,23 @@ using Microsoft.OpenApi.Models;
 
 namespace BiatecTokensApi
 {
+    /// <summary>
+    /// Configures and runs the web application for the Biatec Tokens API.
+    /// </summary>
+    /// <remarks>This class sets up the necessary services, middleware, and configurations for the API,
+    /// including controllers, Swagger/OpenAPI documentation, authentication, and token services. It is the entry point
+    /// of the application and is responsible for building and starting the web host.</remarks>
     public class Program
     {
+        /// <summary>
+        /// Configures and runs the web application.
+        /// </summary>
+        /// <remarks>This method sets up the web application by configuring services, middleware, and
+        /// endpoints. It initializes Swagger for API documentation, configures authentication using Algorand, and
+        /// registers various services and repositories required for the application. The method then builds and runs
+        /// the application.</remarks>
+        /// <param name="args">The command-line arguments used to configure the application.</param>
+        /// <exception cref="Exception"></exception>
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
@@ -60,6 +75,7 @@ namespace BiatecTokensApi
             // Register the token services
             builder.Services.AddScoped<IERC20TokenService, ERC20TokenService>();
             builder.Services.AddScoped<IARC3TokenService, ARC3TokenService>();
+            builder.Services.AddScoped<IASATokenService, ASATokenService>();
             builder.Services.AddScoped<IARC200TokenService, ARC200TokenService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();

@@ -10,7 +10,7 @@ namespace BiatecTokensApi.Models.ARC3.Response
         /// <summary>
         /// Token configuration details
         /// </summary>
-        public ARC3TokenInfo? TokenInfo { get; set; }
+        public Algorand.Algod.Model.Asset? TokenInfo { get; set; } = new Algorand.Algod.Model.Asset();
 
         /// <summary>
         /// Generated metadata URL if metadata was uploaded
