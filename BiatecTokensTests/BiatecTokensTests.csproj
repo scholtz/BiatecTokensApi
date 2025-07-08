@@ -11,8 +11,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\BiatecTokensApi\ABI\BiatecToken.json">
-      <Link>ABI\BiatecToken.json</Link>
+    <Content Include="..\BiatecTokensApi\ABI\BiatecTokenMintable.json">
+      <Link>ABI\BiatecTokenMintable.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\BiatecTokensApi\ABI\BiatecTokenPreminted.json">
+      <Link>ABI\BiatecTokenPreminted.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="appsettings.json">
