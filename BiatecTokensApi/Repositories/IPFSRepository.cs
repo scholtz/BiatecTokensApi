@@ -102,6 +102,7 @@ namespace BiatecTokensApi.Repositories
                     {
                         response.Success = true;
                         response.Hash = ipfsResponse.Hash;
+                        response.Sha256Hash = CalculateSha256(request.Content);
                         response.Name = ipfsResponse.Name;
                         response.Size = ipfsResponse.GetSizeAsLong();
                         response.GatewayUrl = $"{_config.GatewayUrl}/{ipfsResponse.Hash}";
@@ -242,7 +243,12 @@ namespace BiatecTokensApi.Repositories
                 return null;
             }
         }
-
+        private static string CalculateSha256(byte[] bytes)
+        {
+            using var sha256 = SHA256.Create();
+            var hash = sha256.ComputeHash(bytes);
+            return Convert.ToHexString(hash).ToLowerInvariant();
+        }
         /// <summary>
         /// Uploads text content to IPFS
         /// </summary>

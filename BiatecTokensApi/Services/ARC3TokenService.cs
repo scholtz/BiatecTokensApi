@@ -1,9 +1,14 @@
 ﻿using Algorand;
 using Algorand.Algod;
+using Algorand.Algod.Model.Transactions;
 using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Models;
+using BiatecTokensApi.Models.ARC3;
+using BiatecTokensApi.Models.ARC3.Request;
+using BiatecTokensApi.Models.ARC3.Response;
 using BiatecTokensApi.Repositories;
+using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Options;
 using Nethereum.Signer;
 using System.Security.Cryptography;
@@ -16,16 +21,29 @@ namespace BiatecTokensApi.Services
     /// <summary>
     /// Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
     /// </summary>
-    public class ARC3FungibleTokenService : IARC3FungibleTokenService
+    public class ARC3TokenService : IARC3TokenService
     {
         private readonly IOptionsMonitor<AlgorandAuthenticationOptionsV2> _config;
-        private readonly ILogger<ARC3FungibleTokenService> _logger;
+        private readonly ILogger<ARC3TokenService> _logger;
         private readonly Dictionary<string, string> _genesisId2GenesisHash = new();
         private readonly IIPFSRepository _ipfsRepository;
-
-        public ARC3FungibleTokenService(
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ARC3TokenService"/> class, configuring it to interact
+        /// with Algorand nodes and IPFS repositories based on the provided options.
+        /// </summary>
+        /// <remarks>During initialization, the service attempts to connect to each allowed Algorand
+        /// network specified in the configuration. For each network, it validates the connection by retrieving
+        /// transaction parameters and logs the connection status. If a connection to any network fails, an exception is
+        /// thrown, and the service cannot be initialized.</remarks>
+        /// <param name="config">A monitor for <see cref="AlgorandAuthenticationOptionsV2"/> that provides configuration settings, including
+        /// allowed networks and authentication details for connecting to Algorand nodes.</param>
+        /// <param name="logger">An <see cref="ILogger{TCategoryName}"/> instance used for logging information, warnings, and errors related
+        /// to the service's operations.</param>
+        /// <param name="ipfsRepository">An implementation of <see cref="IIPFSRepository"/> used to interact with IPFS for managing decentralized
+        /// file storage.</param>
+        public ARC3TokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
-            ILogger<ARC3FungibleTokenService> logger,
+            ILogger<ARC3TokenService> logger,
             IIPFSRepository ipfsRepository)
         {
             _config = config;
@@ -56,7 +74,7 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Creates an ARC3 fungible token on Algorand blockchain
         /// </summary>
-        public async Task<ARC3TokenDeploymentResponse> CreateTokenAsync(ARC3FungibleTokenDeploymentRequest request)
+        public async Task<ARC3TokenDeploymentResponse> CreateARC3TokenAsync(IARC3TokenDeploymentRequest request, TokenType tokenType)
         {
             var response = new ARC3TokenDeploymentResponse { Success = false };
 
@@ -66,7 +84,7 @@ namespace BiatecTokensApi.Services
                     request.Name, request.UnitName, request.Network);
 
                 // Validate request
-                if (!ValidateRequest(request, out string validationError))
+                if (!ValidateRequest(request, tokenType, out string validationError))
                 {
                     response.ErrorMessage = validationError;
                     return response;
@@ -96,9 +114,10 @@ namespace BiatecTokensApi.Services
                 // Upload metadata if provided
                 string? metadataUrl = null;
                 string? metadataHash = null;
+                string? sha256Hash = null;
                 if (request.Metadata != null)
                 {
-                    (metadataUrl, metadataHash) = await UploadMetadataAsync(request.Metadata);
+                    (metadataUrl, metadataHash, sha256Hash) = await UploadMetadataAsync(request.Metadata);
                     if (string.IsNullOrEmpty(metadataUrl))
                     {
                         response.ErrorMessage = "Failed to upload metadata to IPFS";
@@ -107,7 +126,7 @@ namespace BiatecTokensApi.Services
                 }
 
                 // For now, create a placeholder response since we need the actual Algorand SDK
-                response = await CreateToken(request, algodApiInstance, metadataUrl, metadataHash);
+                response = await CreateToken(request, algodApiInstance, metadataUrl, sha256Hash);
 
             }
             catch (Exception ex)
@@ -118,6 +137,75 @@ namespace BiatecTokensApi.Services
 
             return response;
         }
+
+
+        /// <summary>
+        /// Creates an ARC3 fungible token on Algorand blockchain
+        /// </summary>
+        public async Task<ARC3TokenDeploymentResponse> CreateARC3TokenAsync(ARC3FractionalNonFungibleTokenDeploymentRequest request)
+        {
+
+            ValidateARC3Request(request, TokenType.ARC3_FNFT);
+
+            var response = new ARC3TokenDeploymentResponse { Success = false };
+
+            try
+            {
+                _logger.LogInformation("Creating ARC3 token {Name} ({Symbol}) on {Network}",
+                    request.Name, request.UnitName, request.Network);
+
+                // Validate metadata if provided
+                if (request.Metadata != null)
+                {
+                    var (isValid, metadataError) = ValidateMetadata(request.Metadata);
+                    if (!isValid)
+                    {
+                        response.ErrorMessage = $"Invalid metadata: {metadataError}";
+                        return response;
+                    }
+                }
+                var algodApiInstance = GetAlgod(request.Network);
+
+                // Upload metadata if provided
+                string? metadataUrl = null;
+                string? metadataHash = null;
+                string? sha256Hash = null;
+
+                if (request.Metadata != null)
+                {
+                    (metadataUrl, metadataHash, sha256Hash) = await UploadMetadataAsync(request.Metadata);
+                    if (string.IsNullOrEmpty(metadataUrl))
+                    {
+                        response.ErrorMessage = "Failed to upload metadata to IPFS";
+                        return response;
+                    }
+                }
+
+                // For now, create a placeholder response since we need the actual Algorand SDK
+                response = await CreateToken(request, algodApiInstance, metadataUrl, sha256Hash);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating ARC3 token: {Message}", ex.Message);
+                response.ErrorMessage = $"Failed to create token: {ex.Message}";
+            }
+
+            return response;
+        }
+
+
+        private DefaultApi GetAlgod(string network)
+        {
+            if (!_genesisId2GenesisHash.TryGetValue(network, out var genesisHash))
+            {
+                throw new ArgumentException($"Unsupported network: {network}");
+            }
+            var chain = _config.CurrentValue.AllowedNetworks[genesisHash];
+            using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
+            return new DefaultApi(httpClient);
+        }
+
 
         ///// <summary>
         ///// Gets information about an existing ARC3 token
@@ -270,7 +358,7 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Uploads ARC3 metadata to IPFS and returns the URL and hash
         /// </summary>
-        public async Task<(string? Url, string? Hash)> UploadMetadataAsync(ARC3TokenMetadata metadata)
+        public async Task<(string? Url, string? Hash, string? Sha256Hash)> UploadMetadataAsync(ARC3TokenMetadata metadata)
         {
             try
             {
@@ -282,18 +370,18 @@ namespace BiatecTokensApi.Services
                 if (uploadResult.Success && !string.IsNullOrEmpty(uploadResult.Hash))
                 {
                     _logger.LogInformation("Metadata uploaded to IPFS: {Hash} at {Url}", uploadResult.Hash, uploadResult.GatewayUrl);
-                    return (uploadResult.GatewayUrl, uploadResult.Hash);
+                    return (uploadResult.GatewayUrl, uploadResult.Hash, uploadResult.Sha256Hash);
                 }
                 else
                 {
                     _logger.LogError("Failed to upload metadata to IPFS: {Error}", uploadResult.ErrorMessage);
-                    return (null, null);
+                    return (null, null, null);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error uploading metadata: {Message}", ex.Message);
-                return (null, null);
+                return (null, null, null);
             }
         }
 
@@ -354,39 +442,238 @@ namespace BiatecTokensApi.Services
             }
         }
 
-        private bool ValidateRequest(ARC3FungibleTokenDeploymentRequest request, out string error)
+        private bool ValidateARC3Request(IARC3TokenDeploymentRequest request, TokenType tokenType)
         {
-            error = "";
-
-            if (string.IsNullOrWhiteSpace(request.Name))
+            switch (tokenType)
             {
-                error = "Token name is required";
-                return false;
+                case TokenType.ARC3_FNFT:
+                    if (true)
+                    {
+                        var r = request as ARC3FractionalNonFungibleTokenDeploymentRequest;
+
+                        if (r == null)
+                        {
+                            throw new ArgumentException("Invalid request type for ARC3 Fractional Non-Fungible Token");
+                        }
+
+                        if (string.IsNullOrWhiteSpace(r.Name))
+                        {
+                            throw new ArgumentException("Token name is required");
+                        }
+
+                        if (string.IsNullOrWhiteSpace(r.UnitName))
+                        {
+                            throw new ArgumentException("Unit name is required");
+                        }
+
+                        if (r.TotalSupply == 0)
+                        {
+                            throw new ArgumentException("Total supply must be greater than 0");
+                        }
+
+                        if (r.Decimals > 19)
+                        {
+                            throw new ArgumentException("Decimals cannot exceed 19");
+                        }
+                        if (r.Metadata == null)
+                        {
+                            throw new ArgumentException("Metadata is required for ARC3 Fractional Non-Fungible Token");
+                        }
+                        if (r.Metadata.Name == null || r.Metadata.Name.Length > 32)
+                        {
+                            throw new ArgumentException("Metadata name must be provided and cannot exceed 32 characters");
+                        }
+                        if (r.UnitName == null || r.UnitName.Length > 8)
+                        {
+                            throw new ArgumentException("Unit name must be provided and cannot exceed 8 characters");
+                        }
+                    }
+
+                    break;
+                case TokenType.ARC3_FT:
+                    if (true)
+                    {
+                        var r = request as ARC3FungibleTokenDeploymentRequest;
+
+                        if (r == null)
+                        {
+                            throw new ArgumentException("Invalid request type for ARC3 Fractional Fungible Token");
+                        }
+
+                        if (string.IsNullOrWhiteSpace(r.Name))
+                        {
+                            throw new ArgumentException("Token name is required");
+                        }
+
+                        if (string.IsNullOrWhiteSpace(r.UnitName))
+                        {
+                            throw new ArgumentException("Unit name is required");
+                        }
+
+                        if (r.TotalSupply == 0)
+                        {
+                            throw new ArgumentException("Total supply must be greater than 0");
+                        }
+
+                        if (r.Decimals > 19)
+                        {
+                            throw new ArgumentException("Decimals cannot exceed 19");
+                        }
+                        if (r.Metadata == null)
+                        {
+                            throw new ArgumentException("Metadata is required for ARC3 Fractional Non-Fungible Token");
+                        }
+                        if (r.Metadata.Name == null || r.Metadata.Name.Length > 32)
+                        {
+                            throw new ArgumentException("Metadata name must be provided and cannot exceed 32 characters");
+                        }
+                        if (r.UnitName == null || r.UnitName.Length > 8)
+                        {
+                            throw new ArgumentException("Unit name must be provided and cannot exceed 8 characters");
+                        }
+
+
+                    }
+                    break;
+                case TokenType.ARC3_NFT:
+                    if (true)
+                    {
+                        var r = request as ARC3NonFungibleTokenDeploymentRequest;
+
+                        if (r == null)
+                        {
+                            throw new ArgumentException("Invalid request type for ARC3 Non Fungible Token");
+                        }
+
+                        if (string.IsNullOrWhiteSpace(r.Name))
+                        {
+                            throw new ArgumentException("Token name is required");
+                        }
+
+                        if (string.IsNullOrWhiteSpace(r.UnitName))
+                        {
+                            throw new ArgumentException("Unit name is required");
+                        }
+
+                        if (r.Metadata == null)
+                        {
+                            throw new ArgumentException("Metadata is required for ARC3 Fractional Non-Fungible Token");
+                        }
+                        if (r.Metadata.Name == null || r.Metadata.Name.Length > 32)
+                        {
+                            throw new ArgumentException("Metadata name must be provided and cannot exceed 32 characters");
+                        }
+                        if (r.UnitName == null || r.UnitName.Length > 8)
+                        {
+                            throw new ArgumentException("Unit name must be provided and cannot exceed 8 characters");
+                        }
+
+
+                    }
+                    break;
+                default:
+                    throw new ArgumentException($"Unsupported token type: {tokenType}");
             }
 
-            if (string.IsNullOrWhiteSpace(request.UnitName))
-            {
-                error = "Unit name is required";
-                return false;
-            }
 
-            if (request.TotalSupply == 0)
-            {
-                error = "Total supply must be greater than 0";
-                return false;
-            }
+            //ulong qByDecimals = (ulong)Math.Pow(10, request.Decimals);
 
-            if (request.Decimals > 19)
-            {
-                error = "Decimals cannot exceed 19";
-                return false;
-            }
+            //switch (tokenType)
+            //{
+            //    case TokenType.ERC20_Mintable:
+            //        error = "ERC20 Mintable tokens are not supported in this service.";
+            //        return false;
+            //    case TokenType.ERC20_Preminted:
+            //        error = "ERC20 Preminted tokens are not supported in this service.";
+            //        return false;
+            //    case TokenType.ASA_FT:
+            //        if (request.Decimals == 0 && request.TotalSupply == 1)
+            //        {
+            //            error = "ASA_FT tokens must have total supply grater then 1";
+            //            return false;
+            //        }
+            //        if (request.TotalSupply == qByDecimals)
+            //        {
+            //            error = "ASA_FT tokens must have a total supply different than 1";
+            //            return false;
+            //        }
+            //        if (request.Metadata != null)
+            //        {
+            //            error = "ASA_FT tokens must NOT have metadata";
+            //            return false;
+            //        }
+            //        break;
+            //    case TokenType.ASA_NFT:
+            //        if (request.Decimals != 0 || request.TotalSupply != 1)
+            //        {
+            //            error = "ASA_NFT tokens must have total supply equal to 1 and decimals equal to 0";
+            //            return false;
+            //        }
+            //        if (request.Metadata != null)
+            //        {
+            //            error = "ASA_NFT tokens must NOT have metadata";
+            //            return false;
+            //        }
+            //        break;
+            //    case TokenType.ASA_FNFT:
+            //        if (request.TotalSupply == qByDecimals)
+            //        {
+            //            error = "ASA_FNFT tokens must have total supply equal to 1";
+            //            return false;
+            //        }
+            //        if (request.Metadata != null)
+            //        {
+            //            error = "ASA_FNFT tokens must NOT have metadata";
+            //            return false;
+            //        }
+            //        break;
+            //    case TokenType.ARC3_FT:
+            //        if (request.Decimals == 0 && request.TotalSupply == 1)
+            //        {
+            //            error = "ARC3_FT tokens must have total supply greater than 1";
+            //            return false;
+            //        }
+            //        if (request.TotalSupply == qByDecimals)
+            //        {
+            //            error = "ARC3_FT tokens must have a total supply different than 1";
+            //            return false;
+            //        }
+            //        if (request.Metadata == null)
+            //        {
+            //            error = "ASA_FT tokens must have metadata";
+            //            return false;
+            //        }
 
-            if (string.IsNullOrWhiteSpace(request.CreatorMnemonic))
-            {
-                error = "Creator mnemonic is required";
-                return false;
-            }
+            //        break;
+            //    case TokenType.ARC3_NFT:
+            //        if (request.Decimals != 0 || request.TotalSupply != 1)
+            //        {
+            //            error = "ARC3_NFT tokens must have total supply equal to 1 and decimals equal to 0";
+            //            return false;
+            //        }
+            //        if (request.Metadata == null)
+            //        {
+            //            error = "ARC3_NFT tokens must have metadata";
+            //            return false;
+            //        }
+            //        break;
+            //    case TokenType.ARC3_FNFT:
+            //        if (request.TotalSupply == qByDecimals)
+            //        {
+            //            error = "ARC3_FNFT tokens must have total supply equal to 1";
+            //            return false;
+            //        }
+            //        if (request.Metadata == null)
+            //        {
+            //            error = "ARC3_FNFT tokens must have metadata";
+            //            return false;
+            //        }
+            //        break;
+            //    case TokenType.ARC200_Mintable:
+            //    case TokenType.ARC200_Preminted:
+            //        // ok
+            //        break;
+            //}
 
             return true;
         }
@@ -424,7 +711,7 @@ namespace BiatecTokensApi.Services
         }
 
         private async Task<ARC3TokenDeploymentResponse> CreateToken(
-            ARC3FungibleTokenDeploymentRequest request,
+            ASABaseTokenDeploymentRequest request,
             DefaultApi algod,
             string? metadataUrl,
             string? metadataHash)
@@ -437,7 +724,24 @@ namespace BiatecTokensApi.Services
             // 4. Submit it to the network
             // 5. Wait for confirmation
 
-            await Task.Delay(1000); // Simulate processing time
+            var assetCreateTx = new AssetCreateTransaction()
+            {
+                AssetParams = new Algorand.Algod.Model.AssetParams()
+                {
+                    Name = request.Name,
+                    UnitName = request.UnitName,
+                    Total = request.TotalSupply,
+                    Manager = new Algorand.Address(request.ManagerAddress),
+                    Reserve = new Address(request.ReserveAddress),
+                    Freeze = new Address(request.FreezeAddress),
+                    Clawback = new Address(request.ClawbackAddress),
+                    Decimals = request.Decimals,
+                    DefaultFrozen = request.DefaultFrozen,
+                    Url = metadataUrl,
+                    MetadataHash = metadataHash != null ? Encoding.UTF8.GetBytes(metadataHash) : null
+
+                }
+            };
 
             // For demonstration, create a mock response
             var mockAssetId = (ulong)Random.Shared.NextInt64(1000000, 999999999);

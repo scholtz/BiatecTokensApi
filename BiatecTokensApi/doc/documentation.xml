@@ -59,7 +59,7 @@
             Whether to validate content hashes when retrieving data
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.IERC20TokenService,BiatecTokensApi.Services.IARC3FungibleTokenService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3FungibleTokenService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.TokenController"/> class.
             </summary>
@@ -140,21 +140,33 @@
             cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request response if
             the model state is invalid. - A 500 Internal Server Error response if an error occurs during token creation.</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200FractionalNFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200Mintable(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
             <summary>
-            Creates a fractional ARC200 NFT based on the provided deployment request.
+            Creates a new ARC200 mintable token based on the provided deployment request.
             </summary>
-            <remarks>This method processes the deployment request for an ARC200 fractional NFT and returns
-            the result of the operation. The request must be valid, as determined by model validation. If the operation
-            succeeds, the response contains details about the created token, including its asset ID and transaction
-            hash. If the operation fails, an error response is returned.</remarks>
-            <param name="request">The deployment request containing the necessary parameters for creating the ARC200 fractional NFT. This
-            includes details such as the network, token configuration, and other required metadata.</param>
-            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: <list type="bullet">
-            <item><description>A 200 OK response with the token creation details if successful.</description></item>
-            <item><description>A 400 Bad Request response if the request is invalid.</description></item>
-            <item><description>A 500 Internal Server Error response if an unexpected error occurs during
-            processing.</description></item> </list></returns>
+            <remarks>This method validates the input request and attempts to create an ARC200 mintable
+            token using the provided details. If the operation succeeds, the response includes the asset ID and
+            transaction details. In case of failure, an appropriate error response is returned.</remarks>
+            <param name="request">The deployment request containing the configuration details for the ARC200 mintable token. This includes
+            information such as the token name, symbol, initial supply, and network.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the token creation operation: - A 200 OK response
+            with an <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request
+            response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
+            during the operation.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200Preminted(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+            <summary>
+            Creates a new ARC200 preminted fungible token based on the provided deployment request.
+            </summary>
+            <remarks>This method validates the input request and attempts to create an ARC200 preminted
+            token using the provided details. If the operation is successful, the response includes the asset ID and
+            transaction details. If the operation fails, an appropriate error response is returned.</remarks>
+            <param name="request">The deployment request containing the details required to create the ARC200 preminted token, including
+            network information and token parameters. This parameter cannot be null and must pass model validation.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the token creation operation. Returns a 200 OK
+            response with an <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is created successfully, a 400 Bad
+            Request response if the request is invalid, or a 500 Internal Server Error response if an unexpected error
+            occurs.</returns>
         </member>
         <member name="T:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest">
             <summary>
@@ -407,6 +419,12 @@
             Content Identifier (CID) of the uploaded content
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Sha256Hash">
+            <summary>
+            Gets or sets the SHA-256 hash value as a hexadecimal string.
+            </summary>
+            <remarks>The hash value is typically used for verifying data integrity for example in token creation.</remarks>
+        </member>
         <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Name">
             <summary>
             Name of the uploaded file
@@ -584,6 +602,64 @@
             Address that received the initial token supply
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.TokenType">
+            <summary>
+            Represents the various types of tokens supported by the system.
+            </summary>
+            <remarks>This enumeration categorizes tokens based on their characteristics, such as quantity,
+            decimals,  and metadata standards. It includes support for both Algorand Standard Assets (ASA) and 
+            Ethereum-based ERC20 tokens, with further distinctions for fungibility and metadata.</remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ASA_FT">
+            <summary>
+            ASA where sum of quantity is not equal to 1
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ASA_NFT">
+            <summary>
+            ASA where quantity is equal to 1 and decimals is equal to 0
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ASA_FNFT">
+            <summary>
+            ASA where sum of quantity is equal to 1, but decimals are not 0        
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC3_FT">
+            <summary>
+            ASA_FT with ARC3 metadata pointing to json file with metadata
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC3_NFT">
+            <summary>
+            ASA_NFT with ARC3 metadata pointing to json file with metadata
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC3_FNFT">
+            <summary>
+            ASA_FNFT with ARC3 metadata pointing to json file with metadata
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC200_Mintable">
+            <summary>
+            AVM ARC200 token which supports minting functionality.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC200_Preminted">
+            <summary>
+            AVM ARC200 token which is fully preminted.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ERC20_Mintable">
+            <summary>
+            Represents an ERC20 token that supports minting functionality.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ERC20_Preminted">
+            <summary>
+            Represents an ERC20 token which is fully preminted.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
             Interface for IPFS repository operations
@@ -744,49 +820,66 @@
             Response model for IPFS API
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Services.ARC3FungibleTokenService">
+        <member name="T:BiatecTokensApi.Services.AVMTokenService">
             <summary>
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.AVMTokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.AVMTokenService},BiatecTokensApi.Repositories.IIPFSRepository)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.AVMTokenService"/> class, configuring it to interact
+            with Algorand nodes and IPFS repositories based on the provided options.
+            </summary>
+            <remarks>During initialization, the service attempts to connect to each allowed Algorand
+            network specified in the configuration. For each network, it validates the connection by retrieving
+            transaction parameters and logs the connection status. If a connection to any network fails, an exception is
+            thrown, and the service cannot be initialized.</remarks>
+            <param name="config">A monitor for <see cref="T:AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2"/> that provides configuration settings, including
+            allowed networks and authentication details for connecting to Algorand nodes.</param>
+            <param name="logger">An <see cref="T:Microsoft.Extensions.Logging.ILogger`1"/> instance used for logging information, warnings, and errors related
+            to the service's operations.</param>
+            <param name="ipfsRepository">An implementation of <see cref="T:BiatecTokensApi.Repositories.IIPFSRepository"/> used to interact with IPFS for managing decentralized
+            file storage.</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AVMTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
             Creates an ARC3 fungible token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
+        <member name="M:BiatecTokensApi.Services.AVMTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
             <summary>
             Transfers ARC3 tokens between accounts
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
+        <member name="M:BiatecTokensApi.Services.AVMTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
             <summary>
             Opts an account into receiving a specific ARC3 token
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.AVMTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
             <summary>
             Uploads ARC3 metadata to IPFS and returns the URL and hash
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.AVMTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
             <summary>
             Validates ARC3 metadata structure
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Services.IARC3FungibleTokenService">
+        <member name="T:BiatecTokensApi.Services.Interface.IARC3FungibleTokenService">
             <summary>
             Interface for ARC3 Fungible Token Service operations on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3FungibleTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
             Creates an ARC3 fungible token on Algorand blockchain
             </summary>
             <param name="request">Token creation parameters</param>
+            <param name="tokenType">Token type</param>
             <returns>Response with transaction details and asset ID</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3FungibleTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
             <summary>
             Transfers ARC3 tokens between accounts
             </summary>
@@ -797,7 +890,7 @@
             <param name="network">Network name</param>
             <returns>Transaction ID if successful</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3FungibleTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
             <summary>
             Opts an account into receiving a specific ARC3 token
             </summary>
@@ -806,21 +899,21 @@
             <param name="network">Network name</param>
             <returns>Transaction ID if successful</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3FungibleTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
             <summary>
             Uploads ARC3 metadata to IPFS and returns the URL and hash
             </summary>
             <param name="metadata">ARC3 metadata to upload</param>
             <returns>Tuple containing the IPFS URL and content hash</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3FungibleTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
             <summary>
             Validates ARC3 metadata structure
             </summary>
             <param name="metadata">Metadata to validate</param>
             <returns>True if valid, otherwise false with error message</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IERC20TokenService.DeployTokenAsync(BiatecTokensApi.Models.TokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.Interface.IERC20TokenService.DeployTokenAsync(BiatecTokensApi.Models.TokenDeploymentRequest)">
             <summary>
             Deploys an ERC20 token to the Base blockchain
             </summary>

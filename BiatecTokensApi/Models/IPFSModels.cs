@@ -13,6 +13,12 @@ namespace BiatecTokensApi.Models
         public string? Hash { get; set; }
 
         /// <summary>
+        /// Gets or sets the SHA-256 hash value as a hexadecimal string.
+        /// </summary>
+        /// <remarks>The hash value is typically used for verifying data integrity for example in token creation.</remarks>
+        public string? Sha256Hash { get; set; }
+
+        /// <summary>
         /// Name of the uploaded file
         /// </summary>
         public string? Name { get; set; }

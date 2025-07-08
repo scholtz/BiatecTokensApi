@@ -204,7 +204,6 @@ namespace BiatecTokensTests
         /// Run this with valid credentials to verify the IPFS connection
         /// </summary>
         [Test]
-        [Explicit("Manual test - requires valid IPFS credentials")]
         public async Task ManualTest_BasicIPFSOperations()
         {
             Assert.IsNotNull(_repository);

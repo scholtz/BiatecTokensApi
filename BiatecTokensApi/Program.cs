@@ -1,7 +1,9 @@
 using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
+using BiatecTokensApi.Models;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
+using BiatecTokensApi.Services.Interface;
 using Microsoft.OpenApi.Models;
 
 namespace BiatecTokensApi
@@ -40,11 +42,14 @@ namespace BiatecTokensApi
             });
 
             // Configure settings
-            builder.Services.Configure<BlockchainConfig>(
-                builder.Configuration.GetSection("BlockchainConfig"));
-            
+            builder.Services.Configure<EVMChains>(
+                builder.Configuration.GetSection("EVMChains"));
+
             builder.Services.Configure<IPFSConfig>(
                 builder.Configuration.GetSection("IPFSConfig"));
+
+            builder.Services.Configure<AppConfiguration>(
+                builder.Configuration.GetSection("App"));
 
             // Register HTTP client for API calls
             builder.Services.AddHttpClient();
@@ -54,7 +59,8 @@ namespace BiatecTokensApi
 
             // Register the token services
             builder.Services.AddScoped<IERC20TokenService, ERC20TokenService>();
-            builder.Services.AddScoped<IARC3FungibleTokenService, ARC3FungibleTokenService>();
+            builder.Services.AddScoped<IARC3TokenService, ARC3TokenService>();
+            builder.Services.AddScoped<IARC200TokenService, ARC200TokenService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");

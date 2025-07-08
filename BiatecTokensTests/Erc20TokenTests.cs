@@ -21,7 +21,7 @@ namespace BiatecTokensTests
         // Get default Ganache accounts
         private readonly (string Owner, string User) _accounts = TestHelper.GetDefaultGanachePrivateKeys();
         
-        private BlockchainConfig _blockchainConfig;
+        private EVMBlockchainConfig _blockchainConfig;
         private Mock<ILogger<ERC20TokenService>> _loggerMock;
         private ERC20TokenService _tokenService;
         private string _tokenContractAddress;
@@ -41,14 +41,14 @@ namespace BiatecTokensTests
             }
 
             // Configure for local blockchain
-            _blockchainConfig = new BlockchainConfig
+            _blockchainConfig = new EVMBlockchainConfig
             {
                 BaseRpcUrl = TestHelper.LocalBlockchainUrl,
                 ChainId = 31337, // Hardhat/modern Ganache chain ID
                 GasLimit = 10000000 // Increased gas limit for local deployment
             };
 
-            var configMock = new Mock<IOptions<BlockchainConfig>>();
+            var configMock = new Mock<IOptions<EVMBlockchainConfig>>();
             configMock.Setup(x => x.Value).Returns(_blockchainConfig);
             _loggerMock = new Mock<ILogger<ERC20TokenService>>();
             
@@ -73,7 +73,7 @@ namespace BiatecTokensTests
             }
             
             // Deploy the token using the TokenService (which now uses BiatecToken)
-            var deploymentRequest = new TokenDeploymentRequest
+            var deploymentRequest = new ERC20TokenDeploymentRequest
             {
                 Name = "Test BiatecToken",
                 Symbol = "TEST",
