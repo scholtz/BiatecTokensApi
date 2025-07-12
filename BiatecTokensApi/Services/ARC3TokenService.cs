@@ -28,7 +28,7 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<ARC3TokenService> _logger;
         private readonly Dictionary<string, string> _genesisId2GenesisHash = new();
         private readonly IIPFSRepository _ipfsRepository;
-        private readonly ASATokenService _asaTokenService;
+        private readonly IASATokenService _asaTokenService;
         /// <summary>
         /// Initializes a new instance of the <see cref="ARC3TokenService"/> class, configuring it to interact
         /// with Algorand nodes and IPFS repositories based on the provided options.
@@ -48,7 +48,7 @@ namespace BiatecTokensApi.Services
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             ILogger<ARC3TokenService> logger,
             IIPFSRepository ipfsRepository,
-            ASATokenService asaTokenService)
+            IASATokenService asaTokenService)
         {
             _config = config;
             _logger = logger;

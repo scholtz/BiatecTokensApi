@@ -131,15 +131,13 @@ namespace BiatecTokensApi.Services
         }
 
 
-        private DefaultApi GetAlgod(string network)
+        private AlgodConfig GetAlgod(string network)
         {
             if (!_genesisId2GenesisHash.TryGetValue(network, out var genesisHash))
             {
                 throw new ArgumentException($"Unsupported network: {network}");
             }
-            var chain = _config.CurrentValue.AllowedNetworks[genesisHash];
-            using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
-            return new DefaultApi(httpClient);
+            return _config.CurrentValue.AllowedNetworks[genesisHash];
         }
 
 
@@ -265,6 +263,7 @@ namespace BiatecTokensApi.Services
             ASAFungibleTokenDeploymentRequest request
             )
         {
+            var acc = ARC76.GetAccount(_appConfig.CurrentValue.Account);
             var assetCreateTx = new AssetCreateTransaction()
             {
                 AssetParams = new Algorand.Algod.Model.AssetParams()
@@ -272,26 +271,44 @@ namespace BiatecTokensApi.Services
                     Name = request.Name,
                     UnitName = request.UnitName,
                     Total = request.TotalSupply,
-                    Manager = request.ManagerAddress == null ? new Address(new byte[32]) : new Address(request.ManagerAddress),
-                    Reserve = request.ReserveAddress == null ? new Address(new byte[32]) : new Address(request.ReserveAddress),
-                    Freeze = request.FreezeAddress == null ? new Address(new byte[32]) : new Address(request.FreezeAddress),
-                    Clawback = request.ClawbackAddress == null ? new Address(new byte[32]) : new Address(request.ClawbackAddress),
+                    Creator = acc.Address,
                     Decimals = request.Decimals,
                     DefaultFrozen = request.DefaultFrozen,
                     Url = request.Url,
                     MetadataHash = request.MetadataHash
-                }
+                },
+                Sender = acc.Address,
             };
+            if (!string.IsNullOrEmpty(request.ManagerAddress)) assetCreateTx.AssetParams.Manager = new Address(request.ManagerAddress);
+            if (!string.IsNullOrEmpty(request.ReserveAddress)) assetCreateTx.AssetParams.Reserve = new Address(request.ReserveAddress);
+            if (!string.IsNullOrEmpty(request.ClawbackAddress)) assetCreateTx.AssetParams.Clawback = new Address(request.ClawbackAddress);
+            if (!string.IsNullOrEmpty(request.FreezeAddress)) assetCreateTx.AssetParams.Freeze = new Address(request.FreezeAddress);
 
-            var apiInstance = GetAlgod(request.Network);
+
+            var chain = GetAlgod(request.Network);
+            using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
+            var apiInstance = new DefaultApi(httpClient);
             var transParams = await apiInstance.TransactionParamsAsync();
             assetCreateTx.FillInParams(transParams);
 
-            var acc = ARC76.GetAccount(_appConfig.CurrentValue.Account);
 
             var signedTx = assetCreateTx.Sign(acc);
-            var response = await Utils.SubmitTransaction(apiInstance, signedTx);
-            var result = await Utils.WaitTransactionToComplete(apiInstance, response.Txid);
+            var txId = assetCreateTx.TxID();
+            try
+            {
+                var response = await Utils.SubmitTransaction(apiInstance, signedTx);
+            }
+            catch (ApiException<Algorand.Algod.Model.ErrorResponse> exc)
+            {
+                _logger.LogError(exc, "Error while creating token: " + exc.Result.Message);
+                throw new Exception("Error while creating token: " + exc.Result.Message);
+            }
+            catch (Exception exc)
+            {
+                _logger.LogError(exc, "Error while creating token: " + exc.Message);
+                throw;
+            }
+            var result = await Utils.WaitTransactionToComplete(apiInstance, txId);
             var assetResult = result as AssetCreateTransaction ?? throw new Exception("Unable to parse asset create transaction");
             var assetInfo = await apiInstance.GetAssetByIDAsync(assetResult.AssetIndex ?? throw new Exception("Unable to parse asset index after asset was created"));
 

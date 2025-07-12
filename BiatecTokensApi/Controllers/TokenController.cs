@@ -69,7 +69,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(EVMTokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeployToken([FromBody] ERC20TokenDeploymentRequest request)
+        public async Task<IActionResult> ERC20MintableTokenCreate([FromBody] ERC20MintableTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -79,6 +79,51 @@ namespace BiatecTokensApi.Controllers
             try
             {
                 var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Mintable);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("BiatecToken deployed successfully at address {Address} with transaction {TxHash}",
+                        result.ContractAddress, result.TransactionHash);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("BiatecToken deployment failed: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deploying BiatecToken");
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Deploys a new ERC20 preminted token based on the provided deployment request.
+        /// </summary>
+        /// <remarks>This method logs the deployment status and any errors encountered during the
+        /// process.</remarks>
+        /// <param name="request">The <see cref="ERC20TokenDeploymentRequest"/> containing the parameters for the token deployment. Must be a
+        /// valid model; otherwise, a 400 Bad Request response is returned.</param>
+        /// <returns>An <see cref="IActionResult"/> representing the result of the token deployment operation. Returns a 200 OK
+        /// response with an <see cref="EVMTokenDeploymentResponse"/> if the deployment is successful. Returns a 400 Bad
+        /// Request response if the request model is invalid. Returns a 500 Internal Server Error response if an error
+        /// occurs during deployment.</returns>
+        [HttpPost("erc20-preminted/create")]
+        [ProducesResponseType(typeof(EVMTokenDeploymentResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ERC20PremnitedTokenCreate([FromBody] ERC20PremintedTokenDeploymentRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Preminted);
 
                 if (result.Success)
                 {
@@ -115,7 +160,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ASATokenDeploymentResponse>> CreateASAToken([FromBody] ARC3FungibleTokenDeploymentRequest request)
+        public async Task<ActionResult<ASATokenDeploymentResponse>> CreateASAToken([FromBody] ASAFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -207,7 +252,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ASATokenDeploymentResponse>> CreateASAFNFT([FromBody] ASAFungibleTokenDeploymentRequest request)
+        public async Task<ActionResult<ASATokenDeploymentResponse>> CreateASAFNFT([FromBody] ASAFractionalNonFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -344,7 +389,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ARC3TokenDeploymentResponse>> CreateARC3FractionalNFT([FromBody] ARC3NonFungibleTokenDeploymentRequest request)
+        public async Task<ActionResult<ARC3TokenDeploymentResponse>> CreateARC3FractionalNFT([FromBody] ARC3FractionalNonFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {

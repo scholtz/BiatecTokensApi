@@ -40,7 +40,7 @@ namespace BiatecTokensApi
                 {
                     Title = "Biatec Tokens API",
                     Version = "v1",
-                    Description = "API for deploying and managing ERC20 tokens on EVM chains ARC3 tokens and ARC200 tokens on Algorand"
+                    Description = File.ReadAllText("README.md"),
                 });
                 c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
                 {
@@ -49,6 +49,10 @@ namespace BiatecTokensApi
                     Name = "Authorization",
                     Type = SecuritySchemeType.ApiKey,
                 });
+
+                c.SchemaFilter<BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample>();
+                c.SchemaFilter<BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample>();
+                
                 c.OperationFilter<Swashbuckle.AspNetCore.Filters.SecurityRequirementsOperationFilter>();
                 c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First()); //This line
                 var xmlFile = $"doc/documentation.xml";
@@ -66,17 +70,20 @@ namespace BiatecTokensApi
             builder.Services.Configure<AppConfiguration>(
                 builder.Configuration.GetSection("App"));
 
+            builder.Services.Configure<AlgorandAuthenticationOptionsV2>(
+                builder.Configuration.GetSection("AlgorandAuthentication"));
+            
             // Register HTTP client for API calls
             builder.Services.AddHttpClient();
 
             // Register repositories
-            builder.Services.AddScoped<IIPFSRepository, IPFSRepository>();
+            builder.Services.AddSingleton<IIPFSRepository, IPFSRepository>();
 
             // Register the token services
-            builder.Services.AddScoped<IERC20TokenService, ERC20TokenService>();
-            builder.Services.AddScoped<IARC3TokenService, ARC3TokenService>();
-            builder.Services.AddScoped<IASATokenService, ASATokenService>();
-            builder.Services.AddScoped<IARC200TokenService, ARC200TokenService>();
+            builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();
+            builder.Services.AddSingleton<IARC3TokenService, ARC3TokenService>();
+            builder.Services.AddSingleton<IASATokenService, ASATokenService>();
+            builder.Services.AddSingleton<IARC200TokenService, ARC200TokenService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
@@ -100,6 +107,12 @@ namespace BiatecTokensApi
             app.UseAuthorization();
 
             app.MapControllers();
+
+            _ = app.Services.GetService<IARC3TokenService>() ?? throw new Exception("ARC3 Token Service is not registered");
+            _ = app.Services.GetService<IARC200TokenService>() ?? throw new Exception("ARC200 Token Service is not registered");
+            _ = app.Services.GetService<IASATokenService>() ?? throw new Exception("ASA Token Service is not registered");
+            _ = app.Services.GetService<IERC20TokenService>() ?? throw new Exception("ERC20 Token Service is not registered");
+            _ = app.Services.GetService<IIPFSRepository>() ?? throw new Exception("IPFS Repository is not registered");
 
             app.Run();
         }

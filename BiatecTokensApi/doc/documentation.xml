@@ -101,7 +101,7 @@
             <param name="arc200TokenService">The service used to interact with ARC-200 tokens</param>
             <param name="logger">The logger instance used to log diagnostic and operational information.</param>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.DeployToken(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20MintableTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest)">
             <summary>
             Deploys a new BiatecToken on the Base blockchain.
             BiatecToken is an advanced ERC20 token with additional features:
@@ -115,7 +115,20 @@
             <param name="request">Token deployment parameters including optional initial supply receiver</param>
             <returns>Deployment result with contract address and initial supply receiver</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAToken(BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20PremnitedTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest)">
+            <summary>
+            Deploys a new ERC20 preminted token based on the provided deployment request.
+            </summary>
+            <remarks>This method logs the deployment status and any errors encountered during the
+            process.</remarks>
+            <param name="request">The <see cref="T:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest"/> containing the parameters for the token deployment. Must be a
+            valid model; otherwise, a 400 Bad Request response is returned.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the token deployment operation. Returns a 200 OK
+            response with an <see cref="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse"/> if the deployment is successful. Returns a 400 Bad
+            Request response if the request model is invalid. Returns a 500 Internal Server Error response if an error
+            occurs during deployment.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAToken(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest)">
             <summary>
             Creates an ARC3 fungible token on the specified network.
             </summary>
@@ -144,7 +157,7 @@
             response if the request is invalid.  Returns a 500 Internal Server Error response if an unexpected error
             occurs during the operation.</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAFNFT(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAFNFT(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest)">
             <summary>
             Creates an ASA NFT (Algorand Standard Asset Non-Fungible Token) based on the provided deployment request. It creates basic ASA token with quantity of 1. If you want to serve also the picture for the NFT token, use the ARC3 NFT standard instead.
             </summary>
@@ -187,7 +200,7 @@
             model is invalid.</description></item> <item><description>A 500 Internal Server Error response if an
             unexpected error occurs during token creation.</description></item> </list></returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3FractionalNFT(BiatecTokensApi.Models.ARC3.Request.ARC3NonFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3FractionalNFT(BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest)">
             <summary>
             Creates an ARC3 fractional non-fungible token (FNFT) based on the provided deployment request.
             </summary>
@@ -588,7 +601,7 @@
         </member>
         <member name="T:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest">
             <summary>
-            Request model for creating an ARC3 Fungible Token on Algorand
+            Request model for creating an ASA Token on Algorand
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.Name">
@@ -673,6 +686,16 @@
         <member name="P:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest.Decimals">
             <summary>
             Number of decimal places for the token (0-19)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample">
+            <summary>
+            Swagger doc
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample.Apply(Microsoft.OpenApi.Models.OpenApiSchema,Swashbuckle.AspNetCore.SwaggerGen.SchemaFilterContext)">
+            <summary>
+            Swagger doc
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest">
@@ -1254,7 +1277,7 @@
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.IIPFSRepository,BiatecTokensApi.Services.ASATokenService)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.IIPFSRepository,BiatecTokensApi.Services.Interface.IASATokenService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
             with Algorand nodes and IPFS repositories based on the provided options.

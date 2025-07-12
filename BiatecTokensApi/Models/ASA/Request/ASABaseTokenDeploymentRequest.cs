@@ -1,9 +1,11 @@
+using Swashbuckle.AspNetCore.Annotations;
+using Swashbuckle.AspNetCore.Filters;
 using System.ComponentModel.DataAnnotations;
 
 namespace BiatecTokensApi.Models.ASA.Request
 {
     /// <summary>
-    /// Request model for creating an ARC3 Fungible Token on Algorand
+    /// Request model for creating an ASA Token on Algorand
     /// </summary>
     public class ASABaseTokenDeploymentRequest
     {
@@ -63,6 +65,8 @@ namespace BiatecTokensApi.Models.ASA.Request
         /// Algorand network to deploy to (mainnet-v1.0, testnet-v1.0, betanet-v1.0, voimain-v1.0, aramidmain-v1.0)
         /// </summary>
         [Required]
+        
+
         public required string Network { get; set; } = "testnet-v1.0";
     }
 }
