@@ -1,4 +1,5 @@
 using BiatecTokensApi.Models;
+using BiatecTokensApi.Models.ARC1400.Request;
 using BiatecTokensApi.Models.ARC200.Request;
 using BiatecTokensApi.Models.ARC200.Response;
 using BiatecTokensApi.Models.ARC3.Request;
@@ -30,6 +31,7 @@ namespace BiatecTokensApi.Controllers
         private readonly IARC3TokenService _arc3TokenService;
         private readonly IASATokenService _asaTokenService;
         private readonly IARC200TokenService _arc200TokenService;
+        private readonly IARC1400TokenService _arc1400TokenService;
         private readonly ILogger<TokenController> _logger;
         /// <summary>
         /// Initializes a new instance of the <see cref="TokenController"/> class.
@@ -38,18 +40,21 @@ namespace BiatecTokensApi.Controllers
         /// <param name="arc3TokenService">The service used to interact with ARC-3 tokens.</param>
         /// <param name="asaTokenService">The service used to interact with ASA tokens.</param>
         /// <param name="arc200TokenService">The service used to interact with ARC-200 tokens</param>
+        /// <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
         /// <param name="logger">The logger instance used to log diagnostic and operational information.</param>
         public TokenController(
             IERC20TokenService erc20TokenService,
             IARC3TokenService arc3TokenService,
             IASATokenService asaTokenService,
             IARC200TokenService arc200TokenService,
+            IARC1400TokenService arc1400TokenService,
             ILogger<TokenController> logger)
         {
             _erc20TokenService = erc20TokenService;
             _arc3TokenService = arc3TokenService;
             _asaTokenService = asaTokenService;
             _arc200TokenService = arc200TokenService;
+            _arc1400TokenService = arc1400TokenService;
             _logger = logger;
         }
 
@@ -489,6 +494,51 @@ namespace BiatecTokensApi.Controllers
             try
             {
                 var result = await _arc200TokenService.CreateARC200TokenAsync(request, TokenType.ARC200_Preminted);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
+                        result.AssetId, result.TransactionId, request.Network);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating ARC3 token");
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+            }
+        }
+        /// <summary>
+        /// Creates a new ARC200 mintable token based on the provided deployment request.
+        /// </summary>
+        /// <remarks>This method validates the input request and attempts to create an ARC200 mintable
+        /// token using the provided details. If the operation succeeds, the response includes the asset ID and
+        /// transaction details. In case of failure, an appropriate error response is returned.</remarks>
+        /// <param name="request">The deployment request containing the configuration details for the ARC200 mintable token. This includes
+        /// information such as the token name, symbol, initial supply, and network.</param>
+        /// <returns>An <see cref="IActionResult"/> containing the result of the token creation operation: - A 200 OK response
+        /// with an <see cref="ARC200TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request
+        /// response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
+        /// during the operation.</returns>
+        [HttpPost("arc1400-mintable/create")]
+        [ProducesResponseType(typeof(ARC200TokenDeploymentResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<ARC200TokenDeploymentResponse>> ARC1400MintableTokenDeploymentRequest([FromBody] ARC1400MintableTokenDeploymentRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _arc1400TokenService.CreateARC1400TokenAsync(request, TokenType.ARC1400_Mintable);
 
                 if (result.Success)
                 {

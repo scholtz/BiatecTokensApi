@@ -84,6 +84,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IARC3TokenService, ARC3TokenService>();
             builder.Services.AddSingleton<IASATokenService, ASATokenService>();
             builder.Services.AddSingleton<IARC200TokenService, ARC200TokenService>();
+            builder.Services.AddSingleton<IARC1400TokenService, ARC1400TokenService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
@@ -110,6 +111,7 @@ namespace BiatecTokensApi
 
             _ = app.Services.GetService<IARC3TokenService>() ?? throw new Exception("ARC3 Token Service is not registered");
             _ = app.Services.GetService<IARC200TokenService>() ?? throw new Exception("ARC200 Token Service is not registered");
+            _ = app.Services.GetService<IARC1400TokenService>() ?? throw new Exception("ARC1400 Token Service is not registered");
             _ = app.Services.GetService<IASATokenService>() ?? throw new Exception("ASA Token Service is not registered");
             _ = app.Services.GetService<IERC20TokenService>() ?? throw new Exception("ERC20 Token Service is not registered");
             _ = app.Services.GetService<IIPFSRepository>() ?? throw new Exception("IPFS Repository is not registered");

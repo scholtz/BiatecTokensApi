@@ -41,6 +41,10 @@
         /// </summary>
         ARC200_Preminted,
         /// <summary>
+        /// AVM ARC1400 token which supports minting functionality.
+        /// </summary>
+        ARC1400_Mintable,
+        /// <summary>
         /// Represents an ERC20 token that supports minting functionality.
         /// </summary>
         ERC20_Mintable,

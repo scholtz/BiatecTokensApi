@@ -390,6 +390,14 @@ The API includes Swagger/OpenAPI documentation available at `/swagger` endpoint 
 4. Add tests for new functionality
 5. Submit a pull request
 
+## Client generators
+
+```
+cd BiatecTokensApi/Generated
+docker run --rm -v ".:/app/out" scholtz2/dotnet-avm-generated-client:latest dotnet client-generator.dll --namespace "BiatecTokensApi.Generated" --url https://raw.githubusercontent.com/scholtz/arc-1400/refs/heads/main/projects/arc-1400/smart_contracts/artifacts/security_token/Arc1644.arc56.json
+docker run --rm -v ".:/app/out" scholtz2/dotnet-avm-generated-client:latest dotnet client-generator.dll --namespace "BiatecTokensApi.Generated" --url https://raw.githubusercontent.com/scholtz/arc200/refs/heads/main/contracts/artifacts/Arc200.arc56.json
+```
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
