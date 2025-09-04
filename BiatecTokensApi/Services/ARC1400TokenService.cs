@@ -1,5 +1,6 @@
 using Algorand;
 using Algorand.Algod;
+using Algorand.Algod.Model.Transactions;
 using AlgorandARC76AccountDotNet;
 using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
@@ -165,7 +166,7 @@ namespace BiatecTokensApi.Services
                 throw new ArgumentException($"Unsupported network: {network}");
             }
             var chain = _config.CurrentValue.AllowedNetworks[genesisHash];
-            using var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
+            var httpClient = HttpClientConfigurator.ConfigureHttpClient(chain.Server, chain.Token, chain.Header);
             return new DefaultApi(httpClient);
         }
 
@@ -198,8 +199,26 @@ namespace BiatecTokensApi.Services
                 await client.CreateApplication(acc, 1000);
                 BigInteger initialSupplyBigint = new BigInteger(Math.Round(Convert.ToDouble(request.InitialSupply) * Math.Pow(10, request.Decimals)));
                 AVM.ClientGenerator.ABI.ARC4.Types.UInt256 initialSupply = new AVM.ClientGenerator.ABI.ARC4.Types.UInt256(initialSupplyBigint);
-                var txs = await client.Bootstrap_Transactions(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte)Convert.ToByte(request.Decimals), initialSupply, _tx_sender: acc, _tx_fee: 1000);
-                await client.Bootstrap(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte)Convert.ToByte(request.Decimals), initialSupply, _tx_sender: acc, _tx_fee: 1000);
+
+                //128500
+
+                var fundContract = new PaymentTransaction() { Amount = 128500, Receiver = client.AppAddress, Sender = acc.Address, Fee = 1000 };
+                await fundContract.FillInParams(algod);
+                var signed = fundContract.Sign(acc);
+                var txId = await algod.TransactionsAsync(new List<SignedTransaction>() { signed });
+
+                var boxes = new List<Algorand.Algod.Model.BoxRef>();
+                var boxName = new byte[1 + acc.Address.Bytes.Length];
+                boxName[0] = (byte)'b';
+                Buffer.BlockCopy(acc.Address.Bytes, 0, boxName, 1, acc.Address.Bytes.Length);
+                boxes.Add(new Algorand.Algod.Model.BoxRef()
+                {
+                    App = 0,
+                    Name = boxName
+                });
+
+                var txs = await client.Bootstrap_Transactions(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte)Convert.ToByte(request.Decimals), initialSupply, _tx_boxes: boxes, _tx_sender: acc, _tx_fee: 1000);
+                await client.Bootstrap(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte)Convert.ToByte(request.Decimals), initialSupply, _tx_boxes: boxes, _tx_sender: acc, _tx_fee: 1000);
 
                 var appInfo = await algod.GetApplicationByIDAsync(client.appId);
 
