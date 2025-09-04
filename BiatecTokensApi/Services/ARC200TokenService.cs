@@ -128,7 +128,7 @@ namespace BiatecTokensApi.Services
                     {
                         throw new ArgumentException("Name for ARC200 Mintable token must be 50 characters or less.");
                     }
-                    if (mintableRequest.InitialSupply <= 0)
+                    if (mintableRequest.InitialSupply < 0)
                     {
                         throw new ArgumentException("Initial supply for ARC200 Mintable token must be a non-negative value.");
                     }
@@ -218,9 +218,10 @@ namespace BiatecTokensApi.Services
                 var client = new Generated.Arc200Proxy(algod, 0);
 
                 await client.CreateApplication(acc, 1000);
-                AVM.ClientGenerator.ABI.ARC4.Types.UInt256 totalSupply = new AVM.ClientGenerator.ABI.ARC4.Types.UInt256(request.InitialSupply);
-                var txs = await client.Bootstrap_Transactions(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte)Convert.ToByte(request.Decimals), totalSupply, _tx_sender: acc, _tx_fee: 1000);
-                await client.Bootstrap(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte) Convert.ToByte(request.Decimals), totalSupply, _tx_sender: acc, _tx_fee: 1000);
+                BigInteger initialSupplyBigint = new BigInteger(Math.Round(Convert.ToDouble(request.InitialSupply) * Math.Pow(10, request.Decimals)));
+                AVM.ClientGenerator.ABI.ARC4.Types.UInt256 initialSupply = new AVM.ClientGenerator.ABI.ARC4.Types.UInt256(initialSupplyBigint);
+                var txs = await client.Bootstrap_Transactions(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte)Convert.ToByte(request.Decimals), initialSupply, _tx_sender: acc, _tx_fee: 1000);
+                await client.Bootstrap(Encoding.UTF8.GetBytes(request.Name), Encoding.UTF8.GetBytes(request.Symbol), (byte) Convert.ToByte(request.Decimals), initialSupply, _tx_sender: acc, _tx_fee: 1000);
 
                 var appInfo = await algod.GetApplicationByIDAsync(client.appId);
 
