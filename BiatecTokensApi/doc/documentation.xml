@@ -4,19 +4,41 @@
         <name>BiatecTokensApi</name>
     </assembly>
     <members>
-        <member name="P:BiatecTokensApi.Configuration.BlockchainConfig.BaseRpcUrl">
+        <member name="T:BiatecTokensApi.Configuration.EVMBlockchainConfig">
+            <summary>
+            Represents the configuration settings for an EVM-compatible blockchain, such as Base Mainnet or Base Sepolia
+            Testnet.
+            </summary>
+            <remarks>This class provides the necessary parameters to interact with an EVM-compatible blockchain,
+            including the RPC URL, chain ID, and gas limit. It is typically used to configure blockchain-related operations
+            or services.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.EVMBlockchainConfig.RpcUrl">
             <summary>
             RPC URL for the Base blockchain (can be mainnet or testnet)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Configuration.BlockchainConfig.ChainId">
+        <member name="P:BiatecTokensApi.Configuration.EVMBlockchainConfig.ChainId">
             <summary>
-            Chain ID for Base Mainnet (8453) or Base Sepolia Testnet (84532)
+            Chain ID for Base Mainnet (8453) or Base Sepolia Testnet (84532), or others
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Configuration.BlockchainConfig.GasLimit">
+        <member name="P:BiatecTokensApi.Configuration.EVMBlockchainConfig.GasLimit">
             <summary>
             Gas limit for token deployment
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Configuration.EVMChains">
+            <summary>
+            Represents a collection of blockchain configurations for supported Ethereum Virtual Machine (EVM) chains.
+            </summary>
+            <remarks>This class provides a centralized way to manage and access configurations for multiple
+            EVM-compatible blockchains. Each configuration in the <see cref="P:BiatecTokensApi.Configuration.EVMChains.Chains"/> property defines the settings and
+            parameters for a specific chain.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.EVMChains.Chains">
+            <summary>
+            Gets or sets the collection of blockchain configurations for supported EVM chains.
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Configuration.IPFSConfig">
@@ -59,15 +81,28 @@
             Whether to validate content hashes when retrieving data
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.IERC20TokenService,BiatecTokensApi.Services.IARC3FungibleTokenService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
+        <member name="T:BiatecTokensApi.Controllers.TokenController">
+            <summary>
+            Provides endpoints for creating and managing various types of tokens, including ERC-20, ARC3 fungible tokens,
+            ARC3 non-fungible tokens (NFTs), and ARC200 tokens.
+            </summary>
+            <remarks>This controller includes methods for deploying and managing tokens on different blockchain
+            networks. It supports advanced token standards such as ERC-20 and ARC3, offering features like minting, burning,
+            pausing, and metadata validation. Each endpoint validates the input request, interacts with the corresponding
+            token service, and returns appropriate responses based on the operation's success or failure.</remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3TokenService,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Services.Interface.IARC200TokenService,BiatecTokensApi.Services.Interface.IARC1400TokenService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.TokenController"/> class.
             </summary>
             <param name="erc20TokenService">The service used to interact with ERC-20 tokens.</param>
-            <param name="arc3TokenService">The service used to interact with ARC-3 fungible tokens.</param>
+            <param name="arc3TokenService">The service used to interact with ARC-3 tokens.</param>
+            <param name="asaTokenService">The service used to interact with ASA tokens.</param>
+            <param name="arc200TokenService">The service used to interact with ARC-200 tokens</param>
+            <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
             <param name="logger">The logger instance used to log diagnostic and operational information.</param>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.DeployToken(BiatecTokensApi.Models.TokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20MintableTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest)">
             <summary>
             Deploys a new BiatecToken on the Base blockchain.
             BiatecToken is an advanced ERC20 token with additional features:
@@ -81,7 +116,20 @@
             <param name="request">Token deployment parameters including optional initial supply receiver</param>
             <returns>Deployment result with contract address and initial supply receiver</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAToken(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20PremnitedTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest)">
+            <summary>
+            Deploys a new ERC20 preminted token based on the provided deployment request.
+            </summary>
+            <remarks>This method logs the deployment status and any errors encountered during the
+            process.</remarks>
+            <param name="request">The <see cref="T:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest"/> containing the parameters for the token deployment. Must be a
+            valid model; otherwise, a 400 Bad Request response is returned.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the token deployment operation. Returns a 200 OK
+            response with an <see cref="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse"/> if the deployment is successful. Returns a 400 Bad
+            Request response if the request model is invalid. Returns a 500 Internal Server Error response if an error
+            occurs during deployment.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAToken(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest)">
             <summary>
             Creates an ARC3 fungible token on the specified network.
             </summary>
@@ -92,11 +140,39 @@
             <param name="request">The deployment request containing the parameters required to create the ARC3 fungible token. This includes
             details such as the network, token properties, and other configuration settings.</param>
             <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the operation. Returns a 200 OK response with an
-            <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is created successfully. Returns a 400 Bad Request
+            <see cref="T:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse"/> if the token is created successfully. Returns a 400 Bad Request
             response if the request model is invalid. Returns a 500 Internal Server Error response if an error occurs
             during token creation.</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3Token(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASANFT(BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ASA NFT (Algorand Standard Asset Non-Fungible Token) based on the provided deployment request. It creates basic ASA token with quantity of 1. If you want to serve also the picture for the NFT token, use the ARC3 NFT standard instead.
+            </summary>
+            <remarks>This method validates the input request and attempts to create an ASA NFT using the
+            provided parameters.  If the operation is successful, the response includes details such as the asset ID and
+            transaction hash.  In case of failure, appropriate error information is returned.</remarks>
+            <param name="request">The deployment request containing the necessary parameters for creating the ASA NFT,  including network
+            details and token-specific configurations. This parameter cannot be null.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the operation.  Returns a 200 OK response with an
+            <see cref="T:BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse"/> if the token is created successfully.  Returns a 400 Bad Request
+            response if the request is invalid.  Returns a 500 Internal Server Error response if an unexpected error
+            occurs during the operation.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateASAFNFT(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ASA NFT (Algorand Standard Asset Non-Fungible Token) based on the provided deployment request. It creates basic ASA token with quantity of 1. If you want to serve also the picture for the NFT token, use the ARC3 NFT standard instead.
+            </summary>
+            <remarks>This method validates the input request and attempts to create an ASA NFT using the
+            provided parameters.  If the operation is successful, the response includes details such as the asset ID and
+            transaction hash.  In case of failure, appropriate error information is returned.</remarks>
+            <param name="request">The deployment request containing the necessary parameters for creating the ASA NFT,  including network
+            details and token-specific configurations. This parameter cannot be null.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the operation.  Returns a 200 OK response with an
+            <see cref="T:BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse"/> if the token is created successfully.  Returns a 400 Bad Request
+            response if the request is invalid.  Returns a 500 Internal Server Error response if an unexpected error
+            occurs during the operation.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3FungibleToken(BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest)">
             <summary>
             Creates a new ARC3 Fungible Token on the Algorand blockchain.
             ARC3 tokens are Algorand Standard Assets (ASAs) that comply with the ARC3 metadata standard:
@@ -109,7 +185,7 @@
             <param name="request">ARC3 token creation parameters including metadata</param>
             <returns>Creation result with asset ID and transaction details</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3NFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3NFT(BiatecTokensApi.Models.ARC3.Request.ARC3NonFungibleTokenDeploymentRequest)">
             <summary>
             Creates an ARC3-compliant non-fungible token (NFT) on the specified network.
             </summary>
@@ -120,12 +196,12 @@
             <param name="request">The deployment request containing the parameters required to create the ARC3 NFT. This includes details such
             as the network, metadata, and other token-specific configurations.</param>
             <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: <list type="bullet">
-            <item><description>A 200 OK response with an <see cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is
+            <item><description>A 200 OK response with an <see cref="T:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse"/> if the token is
             created successfully.</description></item> <item><description>A 400 Bad Request response if the request
             model is invalid.</description></item> <item><description>A 500 Internal Server Error response if an
             unexpected error occurs during token creation.</description></item> </list></returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3FractionalNFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC3FractionalNFT(BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest)">
             <summary>
             Creates an ARC3 fractional non-fungible token (FNFT) based on the provided deployment request.
             </summary>
@@ -135,266 +211,1108 @@
             the asset ID and transaction hash. If the operation fails, an appropriate error response is
             returned.</remarks>
             <param name="request">The deployment request containing the necessary parameters for creating the ARC3 fractional token. This must
-            be a valid <see cref="T:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest"/> object.</param>
+            be a valid <see cref="T:BiatecTokensApi.Models.ARC3.Request.ARC3NonFungibleTokenDeploymentRequest"/> object.</param>
             <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: - A 200 OK response with an <see
-            cref="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request response if
+            cref="T:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request response if
             the model state is invalid. - A 500 Internal Server Error response if an error occurs during token creation.</returns>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200FractionalNFT(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.ARC200MintableTokenDeploymentRequest(BiatecTokensApi.Models.ARC200.Request.ARC200MintableTokenDeploymentRequest)">
             <summary>
-            Creates a fractional ARC200 NFT based on the provided deployment request.
+            Creates a new ARC200 mintable token based on the provided deployment request.
             </summary>
-            <remarks>This method processes the deployment request for an ARC200 fractional NFT and returns
-            the result of the operation. The request must be valid, as determined by model validation. If the operation
-            succeeds, the response contains details about the created token, including its asset ID and transaction
-            hash. If the operation fails, an error response is returned.</remarks>
-            <param name="request">The deployment request containing the necessary parameters for creating the ARC200 fractional NFT. This
-            includes details such as the network, token configuration, and other required metadata.</param>
-            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the operation: <list type="bullet">
-            <item><description>A 200 OK response with the token creation details if successful.</description></item>
-            <item><description>A 400 Bad Request response if the request is invalid.</description></item>
-            <item><description>A 500 Internal Server Error response if an unexpected error occurs during
-            processing.</description></item> </list></returns>
+            <remarks>This method validates the input request and attempts to create an ARC200 mintable
+            token using the provided details. If the operation succeeds, the response includes the asset ID and
+            transaction details. In case of failure, an appropriate error response is returned.</remarks>
+            <param name="request">The deployment request containing the configuration details for the ARC200 mintable token. This includes
+            information such as the token name, symbol, initial supply, and network.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the token creation operation: - A 200 OK response
+            with an <see cref="T:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request
+            response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
+            during the operation.</returns>
         </member>
-        <member name="T:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.CreateARC200Preminted(BiatecTokensApi.Models.ARC200.Request.ARC200PremintedTokenDeploymentRequest)">
+            <summary>
+            Creates a new ARC200 preminted fungible token based on the provided deployment request.
+            </summary>
+            <remarks>This method validates the input request and attempts to create an ARC200 preminted
+            token using the provided details. If the operation is successful, the response includes the asset ID and
+            transaction details. If the operation fails, an appropriate error response is returned.</remarks>
+            <param name="request">The deployment request containing the details required to create the ARC200 preminted token, including
+            network information and token parameters. This parameter cannot be null and must pass model validation.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the token creation operation. Returns a 200 OK
+            response with an <see cref="T:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse"/> if the token is created successfully, a 400 Bad
+            Request response if the request is invalid, or a 500 Internal Server Error response if an unexpected error
+            occurs.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.ARC1400MintableTokenDeploymentRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400MintableTokenDeploymentRequest)">
+            <summary>
+            Creates a new ARC200 mintable token based on the provided deployment request.
+            </summary>
+            <remarks>This method validates the input request and attempts to create an ARC200 mintable
+            token using the provided details. If the operation succeeds, the response includes the asset ID and
+            transaction details. In case of failure, an appropriate error response is returned.</remarks>
+            <param name="request">The deployment request containing the configuration details for the ARC200 mintable token. This includes
+            information such as the token name, symbol, initial supply, and network.</param>
+            <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> containing the result of the token creation operation: - A 200 OK response
+            with an <see cref="T:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request
+            response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
+            during the operation.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetController(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="new_controller"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetControllable(System.Boolean,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="flag"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetRequireJustification(System.Boolean,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="flag"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetMinActionInterval(System.UInt64,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="interval"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644IsControllable(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644ControllerTransfer(Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="from"> </param>
+             <param name="to"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+             <param name="operator_data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644ControllerRedeem(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="from"> </param>
+             <param name="amount"> </param>
+             <param name="operator_data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1594SetIssuable(System.Boolean,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="flag"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1594Issue(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="to"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1594RedeemFrom(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="from"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1594Redeem(AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1594TransferWithData(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="to"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1594TransferFromWithData(Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="from"> </param>
+             <param name="to"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1594IsIssuable(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410BalanceOfPartition(Algorand.Address,Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="holder"> </param>
+             <param name="partition"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200Transfer(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="to"> </param>
+             <param name="value"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410TransferByPartition(Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Transfer an amount of tokens from partition to receiver. Sender must be msg.sender or authorized operator.
+            </summary>
+             <param name="partition"> </param>
+             <param name="to"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410PartitionsOf(Algorand.Address,System.UInt64,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="holder"> </param>
+             <param name="page"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410IsOperator(Algorand.Address,Algorand.Address,Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="holder"> </param>
+             <param name="operator"> </param>
+             <param name="partition"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410AuthorizeOperator(Algorand.Address,Algorand.Address,Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="holder"> </param>
+             <param name="operator"> </param>
+             <param name="partition"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410RevokeOperator(Algorand.Address,Algorand.Address,Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="holder"> </param>
+             <param name="operator"> </param>
+             <param name="partition"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410OperatorTransferByPartition(Algorand.Address,Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="from"> </param>
+             <param name="partition"> </param>
+             <param name="to"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410CanTransferByPartition(Algorand.Address,Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="from"> </param>
+             <param name="partition"> </param>
+             <param name="to"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410AuthorizeOperatorByPortion(Algorand.Address,Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="holder"> </param>
+             <param name="operator"> </param>
+             <param name="partition"> </param>
+             <param name="amount"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410IsOperatorByPortion(Algorand.Address,Algorand.Address,Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="holder"> </param>
+             <param name="operator"> </param>
+             <param name="partition"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410IssueByPartition(Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="to"> </param>
+             <param name="partition"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410RedeemByPartition(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="partition"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1410OperatorRedeemByPartition(Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,System.Byte[],Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="from"> </param>
+             <param name="partition"> </param>
+             <param name="amount"> </param>
+             <param name="data"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Bootstrap(System.Byte[],System.Byte[],System.Byte,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="name"> </param>
+             <param name="symbol"> </param>
+             <param name="decimals"> </param>
+             <param name="totalSupply"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200Name(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the name of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200Symbol(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the symbol of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200Decimals(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the decimals of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200TotalSupply(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the total supply of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200BalanceOf(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the current balance of the owner of the token
+            </summary>
+             <param name="owner">The address of the owner of the token </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200TransferFrom(Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Transfers tokens from source to destination as approved spender
+            </summary>
+             <param name="from">The source of the transfer </param>
+             <param name="to">The destination of the transfer </param>
+             <param name="value">Amount of tokens to transfer </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200Approve(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Approve spender for a token
+            </summary>
+             <param name="spender">Who is allowed to take tokens on owner's behalf </param>
+             <param name="value">Amount of tokens to be taken by spender </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc200Allowance(Algorand.Address,Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the current allowance of the spender of the tokens of the owner
+            </summary>
+             <param name="owner">Owner's account </param>
+             <param name="spender">Who is allowed to take tokens on owner's behalf </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88Owner(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88IsOwner(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="query"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88InitializeOwner(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Explicit initialization override (creation group recommended). Fails if already initialized.
+            </summary>
+             <param name="new_owner"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88TransferOwnership(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="new_owner"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88RenounceOwnership(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88TransferOwnershipRequest(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="pending"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88AcceptOwnership(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc88CancelOwnershipRequest(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.CreateApplication(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Constructor Bare Action
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Bootstrap(System.Byte[],System.Byte[],System.Byte,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            
+            </summary>
+             <param name="name"> </param>
+             <param name="symbol"> </param>
+             <param name="decimals"> </param>
+             <param name="totalSupply"> </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200Name(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the name of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200Symbol(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the symbol of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200Decimals(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the decimals of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200TotalSupply(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the total supply of the token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200BalanceOf(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the current balance of the owner of the token
+            </summary>
+             <param name="owner">The address of the owner of the token </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200Transfer(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Transfers tokens
+            </summary>
+             <param name="to">The destination of the transfer </param>
+             <param name="value">Amount of tokens to transfer </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200TransferFrom(Algorand.Address,Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Transfers tokens from source to destination as approved spender
+            </summary>
+             <param name="from">The source of the transfer </param>
+             <param name="to">The destination of the transfer </param>
+             <param name="value">Amount of tokens to transfer </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200Approve(Algorand.Address,AVM.ClientGenerator.ABI.ARC4.Types.UInt256,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Approve spender for a token
+            </summary>
+             <param name="spender">Who is allowed to take tokens on owner's behalf </param>
+             <param name="value">Amount of tokens to be taken by spender </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.Arc200Allowance(Algorand.Address,Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Returns the current allowance of the spender of the tokens of the owner
+            </summary>
+             <param name="owner">Owner's account </param>
+             <param name="spender">Who is allowed to take tokens on owner's behalf </param>
+        </member>
+        <member name="M:BiatecTokensApi.Generated.Arc200Proxy.CreateApplication(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
+            <summary>
+            Constructor Bare Action
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AppConfiguration">
+            <summary>
+            Represents the configuration settings for an application, including account-related information.
+            </summary>
+            <remarks>This class is typically used to store and manage application-level configuration
+            values.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AppConfiguration.Account">
+            <summary>
+            Deployer's account
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC1400.Request.ARC1400MintableTokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ERC-20 token with mintable functionality.
+            </summary>
+            <remarks>This class extends <see cref="T:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest"/> to include the mintable
+            property, indicating that the deployed token will support minting of additional tokens after
+            deployment.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400MintableTokenDeploymentRequest.IsMintable">
+            <summary>
+            Gets a value indicating whether the item can be minted.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400MintableTokenDeploymentRequest.Cap">
+            <summary>
+            Cap of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ARC1400 token contract on the blockchain.
+            </summary>
+            <remarks>This class encapsulates the necessary parameters for deploying an ARC1400 token, including the
+            token's name, symbol, initial supply, and other optional configuration details. Ensure all required properties
+            are set before using this request.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest.Name">
+            <summary>
+            The name of the ARC1400 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest.Symbol">
+            <summary>
+            The symbol of the ARC1400 token (ticker)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest.InitialSupply">
+            <summary>
+            Initial supply of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest.Decimals">
+            <summary>
+            Number of decimals for the token (typically 18)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest.InitialSupplyReceiver">
+            <summary>
+            Address that will receive the initial token supply. 
+            If not specified, the deployer address will be used.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest.Network">
+            <summary>
+            Algorand network to deploy to (mainnet-v1.0, testnet-v1.0, betanet-v1.0, voimain-v1.0, aramidmain-v1.0)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC1400.Response.ARC1400TokenDeploymentResponse">
+            <summary>
+            Represents the response received after deploying an ERC-20 token contract.
+            </summary>
+            <remarks>This response includes details about the deployed token contract, such as its
+            address.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC1400.Response.ARC1400TokenDeploymentResponse.AppId">
+            <summary>
+            Deployed token contract app id
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC200.Request.ARC200MintableTokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ERC-20 token with mintable functionality.
+            </summary>
+            <remarks>This class extends <see cref="T:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest"/> to include the mintable
+            property, indicating that the deployed token will support minting of additional tokens after
+            deployment.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200MintableTokenDeploymentRequest.IsMintable">
+            <summary>
+            Gets a value indicating whether the item can be minted.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200MintableTokenDeploymentRequest.Cap">
+            <summary>
+            Cap of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC200.Request.ARC200PremintedTokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy a non-mintable ARC200 token contract on the blockchain.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200PremintedTokenDeploymentRequest.IsMintable">
+            <summary>
+            Gets a value indicating whether the item can be minted.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ARC200 token contract on the blockchain.
+            </summary>
+            <remarks>This class encapsulates the necessary parameters for deploying an ARC200 token, including the
+            token's name, symbol, initial supply, and other optional configuration details. Ensure all required properties
+            are set before using this request.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest.Name">
+            <summary>
+            The name of the ARC200 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest.Symbol">
+            <summary>
+            The symbol of the ARC200 token (ticker)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest.InitialSupply">
+            <summary>
+            Initial supply of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest.Decimals">
+            <summary>
+            Number of decimals for the token (typically 18)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest.InitialSupplyReceiver">
+            <summary>
+            Address that will receive the initial token supply. 
+            If not specified, the deployer address will be used.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest.Network">
+            <summary>
+            Algorand network to deploy to (mainnet-v1.0, testnet-v1.0, betanet-v1.0, voimain-v1.0, aramidmain-v1.0)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse">
+            <summary>
+            Represents the response received after deploying an ERC-20 token contract.
+            </summary>
+            <remarks>This response includes details about the deployed token contract, such as its
+            address.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse.AppId">
+            <summary>
+            Deployed token contract app id
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.ARC3TokenInfo">
+            <summary>
+            Information about the created ARC3 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenInfo.Metadata">
+            <summary>
+            Gets or sets the ARC3 token metadata associated with this instance.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.ARC3TokenLocalization">
+            <summary>
+            Localization information for ARC3 token metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenLocalization.Uri">
+            <summary>
+            The URI pattern to fetch localized data from. This URI should contain the substring `{locale}`
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenLocalization.Default">
+            <summary>
+            The locale of the default data within the base JSON
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenLocalization.Locales">
+            <summary>
+            The list of locales for which data is available
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenLocalization.Integrity">
+            <summary>
+            The SHA-256 digests of the localized JSON files (except the default one)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata">
+            <summary>
+            ARC3 compliant token metadata structure
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.Name">
+            <summary>
+            Identifies the asset to which this token represents
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.Decimals">
+            <summary>
+            The number of decimal places that the token amount should display
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.Description">
+            <summary>
+            Describes the asset to which this token represents
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.Image">
+            <summary>
+            A URI pointing to a file with MIME type image/* representing the asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.ImageIntegrity">
+            <summary>
+            The SHA-256 digest of the file pointed by the URI image
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.ImageMimetype">
+            <summary>
+            The MIME type of the file pointed by the URI image. MUST be of the form 'image/*'
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.BackgroundColor">
+            <summary>
+            Background color to display the asset. MUST be a six-character hexadecimal without a pre-pended #
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.ExternalUrl">
+            <summary>
+            A URI pointing to an external website presenting the asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.ExternalUrlIntegrity">
+            <summary>
+            The SHA-256 digest of the file pointed by the URI external_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.ExternalUrlMimetype">
+            <summary>
+            The MIME type of the file pointed by the URI external_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.AnimationUrl">
+            <summary>
+            A URI pointing to a multi-media file representing the asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.AnimationUrlIntegrity">
+            <summary>
+            The SHA-256 digest of the file pointed by the URI animation_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.AnimationUrlMimetype">
+            <summary>
+            The MIME type of the file pointed by the URI animation_url
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.Properties">
+            <summary>
+            Arbitrary properties (also called attributes). Values may be strings, numbers, object or arrays
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.ExtraMetadata">
+            <summary>
+            Extra metadata in base64
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.ARC3TokenMetadata.Localization">
+            <summary>
+            Localization information for the metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ARC3-compliant non-fungible token (NFT).
+            </summary>
+            <remarks>This class encapsulates the necessary metadata required for deploying an ARC3-compliant NFT.
+            The metadata must adhere to the ARC3 standard to ensure compatibility with supported platforms and
+            tools.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest.Metadata">
+            <summary>
+            ARC3 compliant metadata for the token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest">
             <summary>
             Request model for creating an ARC3 Fungible Token on Algorand
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Name">
+        <member name="P:BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest.Metadata">
+            <summary>
+            ARC3 compliant metadata for the token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.Request.ARC3NonFungibleTokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ARC3-compliant non-fungible token (NFT).
+            </summary>
+            <remarks>This class encapsulates the necessary metadata required for deploying an ARC3-compliant NFT.
+            The metadata must adhere to the ARC3 standard to ensure compatibility with supported platforms and
+            tools.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.Request.ARC3NonFungibleTokenDeploymentRequest.Metadata">
+            <summary>
+            ARC3 compliant metadata for the token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ARC3 token.
+            </summary>
+            <remarks>This interface defines the contract for creating a deployment request for an ARC3 token. 
+            Implementations of this interface should provide the necessary details required for the deployment
+            process.</remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse">
+            <summary>
+            Response model for ARC3 token deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse.TokenInfo">
+            <summary>
+            Token configuration details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse.MetadataUrl">
+            <summary>
+            Generated metadata URL if metadata was uploaded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse.MetadataHash">
+            <summary>
+            Hash of the uploaded metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse">
+            <summary>
+            Response model for ARC3 token deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse.TokenInfo">
+            <summary>
+            Token configuration details
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ASA.ASATokenInfo">
+            <summary>
+            Information about the created ARC3 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.Id">
+            <summary>
+            Gets or sets the unique identifier for the ASA (Algorand Standard Asset).
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.Name">
             <summary>
             The name of the ARC3 token
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.UnitName">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.UnitName">
             <summary>
             The unit name (symbol) of the ARC3 token
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.TotalSupply">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.TotalSupply">
             <summary>
             Total supply of tokens
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Decimals">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.Decimals">
             <summary>
             Number of decimal places for the token (0-19)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Url">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.Url">
             <summary>
             Optional URL for token metadata
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.MetadataHash">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.MetadataHash">
             <summary>
             Optional metadata hash (32 bytes)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.DefaultFrozen">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.DefaultFrozen">
             <summary>
             Whether the asset can be frozen by the freeze address
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.ManagerAddress">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.ManagerAddress">
             <summary>
             Address that can manage the asset configuration (optional)
             If not provided, the creator will be the manager
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.ReserveAddress">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.ReserveAddress">
             <summary>
             Address that can reserve tokens (optional)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.FreezeAddress">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.FreezeAddress">
             <summary>
             Address that can freeze/unfreeze tokens (optional)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.ClawbackAddress">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.ClawbackAddress">
             <summary>
             Address that can clawback tokens (optional)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.CreatorMnemonic">
+        <member name="P:BiatecTokensApi.Models.ASA.ASATokenInfo.Network">
             <summary>
-            Mnemonic phrase for the creator account
+            Gets or sets the name of the network configuration.
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Network">
+        <member name="T:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest">
             <summary>
-            Algorand network to deploy to (mainnet, testnet, betanet)
+            Request model for creating an ASA Token on Algorand
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest.Metadata">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.Name">
             <summary>
-            ARC3 compliant metadata for the token
+            The name of the ARC3 token
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Models.ARC3TokenMetadata">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.UnitName">
             <summary>
-            ARC3 compliant token metadata structure
+            The unit name (symbol) of the ARC3 token
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Name">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.Url">
             <summary>
-            Identifies the asset to which this token represents
+            Optional URL for token metadata
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Decimals">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.MetadataHash">
             <summary>
-            The number of decimal places that the token amount should display
+            Optional metadata hash (32 bytes)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Description">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.DefaultFrozen">
             <summary>
-            Describes the asset to which this token represents
+            Whether the asset can be frozen by the freeze address
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Image">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.ManagerAddress">
             <summary>
-            A URI pointing to a file with MIME type image/* representing the asset
+            Address that can manage the asset configuration (optional)
+            If not provided, the creator will be the manager
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ImageIntegrity">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.ReserveAddress">
             <summary>
-            The SHA-256 digest of the file pointed by the URI image
+            Address that can reserve tokens (optional)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ImageMimetype">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.FreezeAddress">
             <summary>
-            The MIME type of the file pointed by the URI image. MUST be of the form 'image/*'
+            Address that can freeze/unfreeze tokens (optional)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.BackgroundColor">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.ClawbackAddress">
             <summary>
-            Background color to display the asset. MUST be a six-character hexadecimal without a pre-pended #
+            Address that can clawback tokens (optional)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExternalUrl">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.Network">
             <summary>
-            A URI pointing to an external website presenting the asset
+            Algorand network to deploy to (mainnet-v1.0, testnet-v1.0, betanet-v1.0, voimain-v1.0, aramidmain-v1.0)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExternalUrlIntegrity">
+        <member name="T:BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest">
             <summary>
-            The SHA-256 digest of the file pointed by the URI external_url
+            Request model for creating a Fractional Non-Fungible Token on Algorand
+            </summary>
+            <remarks>
+            This model extends the base token deployment request with additional properties specific to fractional non-fungible tokens.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest.TotalSupply">
+            <summary>
+            Total supply of tokens
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExternalUrlMimetype">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest.Decimals">
             <summary>
-            The MIME type of the file pointed by the URI external_url
+            Number of decimal places for the token (0-19)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.AnimationUrl">
+        <member name="T:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest">
             <summary>
-            A URI pointing to a multi-media file representing the asset
+            Request model for creating an ARC3 Fungible Token on Algorand
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.AnimationUrlIntegrity">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest.TotalSupply">
             <summary>
-            The SHA-256 digest of the file pointed by the URI animation_url
+            Total supply of tokens
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.AnimationUrlMimetype">
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest.Decimals">
             <summary>
-            The MIME type of the file pointed by the URI animation_url
+            Number of decimal places for the token (0-19)
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Properties">
+        <member name="T:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample">
             <summary>
-            Arbitrary properties (also called attributes). Values may be strings, numbers, object or arrays
+            Swagger doc
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.ExtraMetadata">
+        <member name="M:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample.Apply(Microsoft.OpenApi.Models.OpenApiSchema,Swashbuckle.AspNetCore.SwaggerGen.SchemaFilterContext)">
             <summary>
-            Extra metadata in base64
+            Swagger doc
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenMetadata.Localization">
+        <member name="T:BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest">
             <summary>
-            Localization information for the metadata
+            Decimals is equal to 0 for non-fungible tokens. Total quantity is equal to 1.
             </summary>
+            <remarks>
+            This model extends the base token deployment request with additional properties specific to fractional non-fungible tokens.
+            </remarks>
         </member>
-        <member name="T:BiatecTokensApi.Models.ARC3TokenLocalization">
+        <member name="T:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse">
             <summary>
-            Localization information for ARC3 token metadata
+            Represents the response of a token deployment operation in the AVM (Algorand Virtual Machine).
             </summary>
+            <remarks>This class provides details about the outcome of a token deployment, including the
+            transaction ID, asset ID, creator address, and deployment status. If the deployment fails, an error message is
+            provided.</remarks>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Uri">
-            <summary>
-            The URI pattern to fetch localized data from. This URI should contain the substring `{locale}`
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Default">
-            <summary>
-            The locale of the default data within the base JSON
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Locales">
-            <summary>
-            The list of locales for which data is available
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenLocalization.Integrity">
-            <summary>
-            The SHA-256 digests of the localized JSON files (except the default one)
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC3TokenDeploymentResponse">
-            <summary>
-            Response model for ARC3 token deployment
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.TransactionId">
+        <member name="P:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse.TransactionId">
             <summary>
             Transaction ID of the asset creation
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.AssetId">
+        <member name="P:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse.AssetId">
             <summary>
             Asset ID of the created token
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.CreatorAddress">
+        <member name="P:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse.CreatorAddress">
             <summary>
             Creator account address
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.ErrorMessage">
-            <summary>
-            Error message if deployment failed
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.Success">
-            <summary>
-            Status of the deployment
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.ConfirmedRound">
+        <member name="P:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse.ConfirmedRound">
             <summary>
             Round number when the transaction was confirmed
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.TokenInfo">
+        <member name="T:BiatecTokensApi.Models.BaseResponse">
             <summary>
-            Token configuration details
+            Base response model for token deployment operations
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.MetadataUrl">
+        <member name="P:BiatecTokensApi.Models.BaseResponse.ErrorMessage">
             <summary>
-            Generated metadata URL if metadata was uploaded
+            Error message if deployment failed
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.ARC3TokenDeploymentResponse.MetadataHash">
+        <member name="P:BiatecTokensApi.Models.BaseResponse.Success">
             <summary>
-            Hash of the uploaded metadata
+            Status of the deployment
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Models.ARC3TokenInfo">
+        <member name="T:BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest">
             <summary>
-            Information about the created ARC3 token
+            Represents a request to deploy an ERC-20 token with mintable functionality.
+            </summary>
+            <remarks>This class extends <see cref="T:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest"/> to include the mintable
+            property, indicating that the deployed token will support minting of additional tokens after
+            deployment.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest.IsMintable">
+            <summary>
+            Gets a value indicating whether the item can be minted.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest.Cap">
+            <summary>
+            Cap of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy a non-mintable ERC20 token contract on the blockchain.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest.IsMintable">
+            <summary>
+            Gets a value indicating whether the item can be minted.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest">
+            <summary>
+            Represents a request to deploy an ERC20 token contract on the blockchain.
+            </summary>
+            <remarks>This class encapsulates the necessary parameters for deploying an ERC20 token, including the
+            token's name, symbol, initial supply, and other optional configuration details. Ensure all required properties
+            are set before using this request.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest.Name">
+            <summary>
+            The name of the ERC20 token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest.Symbol">
+            <summary>
+            The symbol of the ERC20 token (ticker)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest.InitialSupply">
+            <summary>
+            Initial supply of tokens (will be multiplied by decimals)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest.Decimals">
+            <summary>
+            Number of decimals for the token (typically 18)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest.InitialSupplyReceiver">
+            <summary>
+            Address that will receive the initial token supply. 
+            If not specified, the deployer address will be used.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest.ChainId">
+            <summary>
+            EVM chain id
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse">
+            <summary>
+            Represents the response received after deploying an ERC-20 token contract.
+            </summary>
+            <remarks>This response includes details about the deployed token contract, such as its
+            address.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse.ContractAddress">
+            <summary>
+            Address of the deployed token contract
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
+            <summary>
+            Represents the response of an Ethereum Virtual Machine (EVM) token deployment operation.
+            </summary>
+            <remarks>This class encapsulates the details of a token deployment, including the transaction hash, 
+            the deployed contract address, the status of the deployment, and any error messages if the  deployment failed.
+            It also provides information about the address that received the initial  token supply.</remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse.TransactionHash">
+            <summary>
+            Transaction hash of the deployment
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.IPFSUploadResponse">
@@ -406,6 +1324,12 @@
             <summary>
             Content Identifier (CID) of the uploaded content
             </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Sha256Hash">
+            <summary>
+            Gets or sets the SHA-256 hash value as a hexadecimal string.
+            </summary>
+            <remarks>The hash value is typically used for verifying data integrity for example in token creation.</remarks>
         </member>
         <member name="P:BiatecTokensApi.Models.IPFSUploadResponse.Name">
             <summary>
@@ -527,62 +1451,87 @@
             Gateway URL to access the content
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.Name">
+        <member name="T:BiatecTokensApi.Models.TokenType">
             <summary>
-            The name of the ERC20 token
+            Represents the various types of tokens supported by the system.
+            </summary>
+            <remarks>This enumeration categorizes tokens based on their characteristics, such as quantity,
+            decimals,  and metadata standards. It includes support for both Algorand Standard Assets (ASA) and 
+            Ethereum-based ERC20 tokens, with further distinctions for fungibility and metadata.</remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenType.ASA_FT">
+            <summary>
+            ASA where sum of quantity is not equal to 1
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.Symbol">
+        <member name="F:BiatecTokensApi.Models.TokenType.ASA_NFT">
             <summary>
-            The symbol of the ERC20 token (ticker)
+            ASA where quantity is equal to 1 and decimals is equal to 0
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.InitialSupply">
+        <member name="F:BiatecTokensApi.Models.TokenType.ASA_FNFT">
             <summary>
-            Initial supply of tokens (will be multiplied by decimals)
+            ASA where sum of quantity is equal to 1, but decimals are not 0        
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.Decimals">
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC3_FT">
             <summary>
-            Number of decimals for the token (typically 18)
+            ASA_FT with ARC3 metadata pointing to json file with metadata
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.InitialSupplyReceiver">
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC3_NFT">
             <summary>
-            Address that will receive the initial token supply. 
-            If not specified, the deployer address will be used.
+            ASA_NFT with ARC3 metadata pointing to json file with metadata
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentRequest.DeployerPrivateKey">
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC3_FNFT">
             <summary>
-            Private key for the wallet deploying the contract
-            In production, consider more secure ways to handle this
+            ASA_FNFT with ARC3 metadata pointing to json file with metadata
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.TransactionHash">
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC200_Mintable">
             <summary>
-            Transaction hash of the deployment
+            AVM ARC200 token which supports minting functionality.
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.ContractAddress">
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC200_Preminted">
             <summary>
-            Address of the deployed token contract
+            AVM ARC200 token which is fully preminted.
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.ErrorMessage">
+        <member name="F:BiatecTokensApi.Models.TokenType.ARC1400_Mintable">
             <summary>
-            Error message if deployment failed
+            AVM ARC1400 token which supports minting functionality.
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.Success">
+        <member name="F:BiatecTokensApi.Models.TokenType.ERC20_Mintable">
             <summary>
-            Status of the deployment
+            Represents an ERC20 token that supports minting functionality.
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.TokenDeploymentResponse.InitialSupplyReceiver">
+        <member name="F:BiatecTokensApi.Models.TokenType.ERC20_Preminted">
             <summary>
-            Address that received the initial token supply
+            Represents an ERC20 token which is fully preminted.
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Program">
+            <summary>
+            Configures and runs the web application for the Biatec Tokens API.
+            </summary>
+            <remarks>This class sets up the necessary services, middleware, and configurations for the API,
+            including controllers, Swagger/OpenAPI documentation, authentication, and token services. It is the entry point
+            of the application and is responsible for building and starting the web host.</remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Program.Main(System.String[])">
+            <summary>
+            Configures and runs the web application.
+            </summary>
+            <remarks>This method sets up the web application by configuring services, middleware, and
+            endpoints. It initializes Swagger for API documentation, configures authentication using Algorand, and
+            registers various services and repositories required for the application. The method then builds and runs
+            the application.</remarks>
+            <param name="args">The command-line arguments used to configure the application.</param>
+            <exception cref="T:System.Exception"></exception>
         </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
@@ -744,87 +1693,383 @@
             Response model for IPFS API
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Services.ARC3FungibleTokenService">
+        <member name="T:BiatecTokensApi.Services.ARC1400TokenService">
+            <summary>
+            Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
+            </summary>
+            <remarks>The <see cref="T:BiatecTokensApi.Services.ARC1400TokenService"/> class is designed to facilitate the deployment of ERC-20
+            token contracts and manage interactions with the BiatecToken smart contract. It loads the ABI and bytecode for
+            the BiatecToken contract from a JSON file and uses this information to deploy contracts and perform related
+            operations.  This service relies on blockchain configuration settings and application-specific settings provided
+            via dependency injection. It also logs relevant information and errors during operations.  Ensure that the
+            required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
+            base directory.</remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC1400TokenService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC1400TokenService"/> class,  loading the ABI and bytecode for
+            the BiatecToken contract and configuring the service.
+            </summary>
+            <remarks>This constructor reads the ABI and bytecode for the BiatecToken contract from a JSON
+            file  located in the "ABI" directory under the application's base directory. The loaded ABI and  bytecode
+            are used to interact with the BiatecToken smart contract. Ensure that the  "BiatecToken.json" file is
+            present and correctly formatted in the expected location.</remarks>
+            <param name="config">The configuration monitor for blockchain-related settings.</param>
+            <param name="appConfig">The configuration monitor for application-specific settings.</param>
+            <param name="logger">The logger used to log information and errors for this service.</param>
+            <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.ValidateRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Validates the deployment request for an ARC1400 token based on the specified token type.
+            </summary>
+            <param name="request"></param>
+            <param name="tokenType"></param>
+            <exception cref="T:System.ArgumentException"></exception>
+            <exception cref="T:System.ArgumentOutOfRangeException"></exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.GetAlgod(System.String)">
+            <summary>
+            
+            </summary>
+            <param name="network"></param>
+            <returns></returns>
+            <exception cref="T:System.ArgumentException"></exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.CreateARC1400TokenAsync(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Deploys an ERC-20 token contract to the specified blockchain network.
+            </summary>
+            <remarks>This method deploys an ERC-20 token contract using the provided deployment
+            parameters. The initial supply is allocated to the specified receiver address, or to the deployer's address
+            if no receiver is provided. The method handles exceptions and logs relevant information about the deployment
+            process.</remarks>
+            <param name="request">The deployment request containing the token details, such as name, symbol, decimals, initial supply, and the
+            blockchain configuration (e.g., chain ID and RPC URL).</param>
+            <param name="tokenType">Token type</param>
+            <returns>A <see cref="T:BiatecTokensApi.Models.ARC1400.Response.ARC1400TokenDeploymentResponse"/> containing the deployment result, including the contract
+            address, transaction hash, and success status. If the deployment fails, the response includes an error
+            message.</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ARC200TokenService">
+            <summary>
+            Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
+            </summary>
+            <remarks>The <see cref="T:BiatecTokensApi.Services.ARC200TokenService"/> class is designed to facilitate the deployment of ERC-20
+            token contracts and manage interactions with the BiatecToken smart contract. It loads the ABI and bytecode for
+            the BiatecToken contract from a JSON file and uses this information to deploy contracts and perform related
+            operations.  This service relies on blockchain configuration settings and application-specific settings provided
+            via dependency injection. It also logs relevant information and errors during operations.  Ensure that the
+            required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
+            base directory.</remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC200TokenService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC200TokenService"/> class,  loading the ABI and bytecode for
+            the BiatecToken contract and configuring the service.
+            </summary>
+            <remarks>This constructor reads the ABI and bytecode for the BiatecToken contract from a JSON
+            file  located in the "ABI" directory under the application's base directory. The loaded ABI and  bytecode
+            are used to interact with the BiatecToken smart contract. Ensure that the  "BiatecToken.json" file is
+            present and correctly formatted in the expected location.</remarks>
+            <param name="config">The configuration monitor for blockchain-related settings.</param>
+            <param name="appConfig">The configuration monitor for application-specific settings.</param>
+            <param name="logger">The logger used to log information and errors for this service.</param>
+            <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Validates the deployment request for an ARC200 token based on the specified token type.
+            </summary>
+            <param name="request"></param>
+            <param name="tokenType"></param>
+            <exception cref="T:System.ArgumentException"></exception>
+            <exception cref="T:System.ArgumentOutOfRangeException"></exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.GetAlgod(System.String)">
+            <summary>
+            
+            </summary>
+            <param name="network"></param>
+            <returns></returns>
+            <exception cref="T:System.ArgumentException"></exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.CreateARC200TokenAsync(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Deploys an ERC-20 token contract to the specified blockchain network.
+            </summary>
+            <remarks>This method deploys an ERC-20 token contract using the provided deployment
+            parameters. The initial supply is allocated to the specified receiver address, or to the deployer's address
+            if no receiver is provided. The method handles exceptions and logs relevant information about the deployment
+            process.</remarks>
+            <param name="request">The deployment request containing the token details, such as name, symbol, decimals, initial supply, and the
+            blockchain configuration (e.g., chain ID and RPC URL).</param>
+            <param name="tokenType">Token type</param>
+            <returns>A <see cref="T:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse"/> containing the deployment result, including the contract
+            address, transaction hash, and success status. If the deployment fails, the response includes an error
+            message.</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ARC3TokenService">
             <summary>
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.IIPFSRepository,BiatecTokensApi.Services.Interface.IASATokenService)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
+            with Algorand nodes and IPFS repositories based on the provided options.
+            </summary>
+            <remarks>During initialization, the service attempts to connect to each allowed Algorand
+            network specified in the configuration. For each network, it validates the connection by retrieving
+            transaction parameters and logs the connection status. If a connection to any network fails, an exception is
+            thrown, and the service cannot be initialized.</remarks>
+            <param name="config">A monitor for <see cref="T:AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2"/> that provides configuration settings, including
+            allowed networks and authentication details for connecting to Algorand nodes.</param>
+            <param name="logger">An <see cref="T:Microsoft.Extensions.Logging.ILogger`1"/> instance used for logging information, warnings, and errors related
+            to the service's operations.</param>
+            <param name="ipfsRepository">An implementation of <see cref="T:BiatecTokensApi.Repositories.IIPFSRepository"/> used to interact with IPFS for managing decentralized
+            file storage.</param>
+            <param name="asaTokenService">Token service to create ASAs</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.CreateARC3TokenAsync(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
             Creates an ARC3 fungible token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.CreateARC3FNFTTokenAsync(BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest)">
             <summary>
-            Transfers ARC3 tokens between accounts
+            Creates an ARC3 fractional non fungible token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.CreateARC3FTTokenAsync(BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest)">
             <summary>
-            Opts an account into receiving a specific ARC3 token
+            Creates an ARC3 fungible token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.CreateARC3NFTTokenAsync(BiatecTokensApi.Models.ARC3.Request.ARC3NonFungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ARC3 fungible token on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)">
             <summary>
             Uploads ARC3 metadata to IPFS and returns the URL and hash
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3FungibleTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)">
             <summary>
             Validates ARC3 metadata structure
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Services.IARC3FungibleTokenService">
+        <member name="T:BiatecTokensApi.Services.ASATokenService">
+            <summary>
+            Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
+            with Algorand nodes and IPFS repositories based on the provided options.
+            </summary>
+            <remarks>During initialization, the service attempts to connect to each allowed Algorand
+            network specified in the configuration. For each network, it validates the connection by retrieving
+            transaction parameters and logs the connection status. If a connection to any network fails, an exception is
+            thrown, and the service cannot be initialized.</remarks>
+            <param name="config">A monitor for <see cref="T:AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2"/> that provides configuration settings, including
+            allowed networks and authentication details for connecting to Algorand nodes.</param>
+            <param name="appConfig"></param>
+            <param name="logger">An <see cref="T:Microsoft.Extensions.Logging.ILogger`1"/> instance used for logging information, warnings, and errors related
+            to the service's operations.</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Creates an ARC3 fungible token on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFNFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ASA fractional nft token on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ASA fungible token on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateNFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest)">
+            <summary>
+            Creates an ASA non fungible token on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFTAsync(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest)">
+            <summary>
+            Deploys a new Algorand Standard Asset (ASA) fungible token based on the provided deployment request.
+            </summary>
+            <remarks>This method creates a new fungible token on the specified Algorand network using the
+            parameters provided in the request. It signs the transaction with the configured account and waits for the
+            transaction to be confirmed.</remarks>
+            <param name="request">The request containing parameters for the fungible token deployment, including name, unit name, total
+            supply, and various addresses.</param>
+            <returns>A task that represents the asynchronous operation. The task result contains an <see
+            cref="T:BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse"/> with details of the deployed token, including asset ID and transaction
+            ID.</returns>
+            <exception cref="T:System.Exception">Thrown if the asset creation transaction or asset index cannot be parsed after creation.</exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateNFTAsync(BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest)">
+            <summary>
+            Creates a non-fungible token (NFT) based on the specified deployment request.
+            </summary>
+            <remarks>This method configures the NFT with a total supply of 1 and 0 decimals, as required
+            for non-fungible tokens. It uses the provided request details to set up the NFT's properties and delegates
+            the creation to the <c>CreateFT</c> method.</remarks>
+            <param name="request">The deployment request containing the parameters for the NFT, such as the manager address, metadata hash,
+            and network details. The request must specify a total supply of 1 and 0 decimals to conform to NFT
+            standards.</param>
+            <returns>A task representing the asynchronous operation, with a result of type <see
+            cref="T:BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse"/> that contains the details of the deployed NFT.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFNFTAsync(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest)">
+            <summary>
+            Initiates the deployment of a fractional non-fungible token (FNFT) based on the specified request
+            parameters.
+            </summary>
+            <remarks>This method constructs a fungible token deployment request from the provided
+            fractional non-fungible token request and initiates the deployment process.</remarks>
+            <param name="request">The request containing the parameters for deploying the fractional non-fungible token, including addresses,
+            metadata, and supply details.</param>
+            <returns>A task that represents the asynchronous operation. The task result contains the response of the FNFT
+            deployment, including deployment details and status.</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ERC20TokenService">
+            <summary>
+            Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
+            </summary>
+            <remarks>The <see cref="T:BiatecTokensApi.Services.ERC20TokenService"/> class is designed to facilitate the deployment of ERC-20
+            token contracts and manage interactions with the BiatecToken smart contract. It loads the ABI and bytecode for
+            the BiatecToken contract from a JSON file and uses this information to deploy contracts and perform related
+            operations.  This service relies on blockchain configuration settings and application-specific settings provided
+            via dependency injection. It also logs relevant information and errors during operations.  Ensure that the
+            required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
+            base directory.</remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ERC20TokenService"/> class,  loading the ABI and bytecode for
+            the BiatecToken contract and configuring the service.
+            </summary>
+            <remarks>This constructor reads the ABI and bytecode for the BiatecToken contract from a JSON
+            file  located in the "ABI" directory under the application's base directory. The loaded ABI and  bytecode
+            are used to interact with the BiatecToken smart contract. Ensure that the  "BiatecToken.json" file is
+            present and correctly formatted in the expected location.</remarks>
+            <param name="config">The configuration monitor for blockchain-related settings.</param>
+            <param name="appConfig">The configuration monitor for application-specific settings.</param>
+            <param name="logger">The logger used to log information and errors for this service.</param>
+            <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Validates the deployment request for an ERC20 token based on the specified token type.
+            </summary>
+            <param name="request"></param>
+            <param name="tokenType"></param>
+            <exception cref="T:System.ArgumentException"></exception>
+            <exception cref="T:System.ArgumentOutOfRangeException"></exception>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.DeployERC20TokenAsync(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Deploys an ERC-20 token contract to the specified blockchain network.
+            </summary>
+            <remarks>This method deploys an ERC-20 token contract using the provided deployment
+            parameters. The initial supply is allocated to the specified receiver address, or to the deployer's address
+            if no receiver is provided. The method handles exceptions and logs relevant information about the deployment
+            process.</remarks>
+            <param name="request">The deployment request containing the token details, such as name, symbol, decimals, initial supply, and the
+            blockchain configuration (e.g., chain ID and RPC URL).</param>
+            <param name="tokenType">Token type</param>
+            <returns>A <see cref="T:BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse"/> containing the deployment result, including the contract
+            address, transaction hash, and success status. If the deployment fails, the response includes an error
+            message.</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IARC1400TokenService">
+            <summary>
+            Service interface for deploying ARC1400 tokens on the blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC1400TokenService.CreateARC1400TokenAsync(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Deploys an ARC1400 token
+            </summary>
+            <param name="request">Token deployment parameters</param>
+            <param name="tokenType">Token type</param>
+            <returns>Response with transaction details</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IARC200TokenService">
+            <summary>
+            Service interface for deploying ARC200 tokens on the blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC200TokenService.CreateARC200TokenAsync(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Deploys an ARC200 token
+            </summary>
+            <param name="request">Token deployment parameters</param>
+            <param name="tokenType">Token type</param>
+            <returns>Response with transaction details</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IARC3TokenService">
             <summary>
             Interface for ARC3 Fungible Token Service operations on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.CreateTokenAsync(BiatecTokensApi.Models.ARC3FungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3TokenService.CreateARC3TokenAsync(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
-            Creates an ARC3 fungible token on Algorand blockchain
+            Creates an ARC3 token on Algorand blockchain
             </summary>
             <param name="request">Token creation parameters</param>
+            <param name="tokenType">Token type</param>
             <returns>Response with transaction details and asset ID</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.TransferTokenAsync(System.UInt64,System.String,System.String,System.UInt64,System.String)">
-            <summary>
-            Transfers ARC3 tokens between accounts
-            </summary>
-            <param name="assetId">Asset ID of the token to transfer</param>
-            <param name="fromMnemonic">Mnemonic of the sender account</param>
-            <param name="toAddress">Recipient address</param>
-            <param name="amount">Amount to transfer</param>
-            <param name="network">Network name</param>
-            <returns>Transaction ID if successful</returns>
-        </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.OptInToTokenAsync(System.UInt64,System.String,System.String)">
-            <summary>
-            Opts an account into receiving a specific ARC3 token
-            </summary>
-            <param name="assetId">Asset ID of the token</param>
-            <param name="accountMnemonic">Mnemonic of the account to opt in</param>
-            <param name="network">Network name</param>
-            <returns>Transaction ID if successful</returns>
-        </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3TokenService.UploadMetadataAsync(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)">
             <summary>
             Uploads ARC3 metadata to IPFS and returns the URL and hash
             </summary>
             <param name="metadata">ARC3 metadata to upload</param>
             <returns>Tuple containing the IPFS URL and content hash</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IARC3FungibleTokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3TokenMetadata)">
+        <member name="M:BiatecTokensApi.Services.Interface.IARC3TokenService.ValidateMetadata(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)">
             <summary>
             Validates ARC3 metadata structure
             </summary>
             <param name="metadata">Metadata to validate</param>
             <returns>True if valid, otherwise false with error message</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.IERC20TokenService.DeployTokenAsync(BiatecTokensApi.Models.TokenDeploymentRequest)">
+        <member name="T:BiatecTokensApi.Services.Interface.IASATokenService">
             <summary>
-            Deploys an ERC20 token to the Base blockchain
+            Interface for ARC3 Fungible Token Service operations on Algorand blockchain
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Creates an ASA token on Algorand type blockchain
+            </summary>
+            <param name="request">Token creation parameters</param>
+            <param name="tokenType">Token type</param>
+            <returns>Response with transaction details and asset ID</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
+            <summary>
+            Defines methods for interacting with and managing ERC20 tokens, including deployment functionality.
+            </summary>
+            <remarks>This interface provides an abstraction for operations related to ERC20 tokens, such as
+            deploying new tokens. Implementations of this interface are expected to handle the underlying blockchain
+            interactions required for these operations.</remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IERC20TokenService.DeployERC20TokenAsync(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+            <summary>
+            Deploys an ERC20 token
             </summary>
             <param name="request">Token deployment parameters</param>
+            <param name="tokenType">Token type</param>
             <returns>Response with transaction details</returns>
         </member>
     </members>

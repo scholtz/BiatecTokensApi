@@ -10,11 +10,12 @@
 
 	<ItemGroup>
 		<PackageReference Include="Algorand4" Version="4.0.3.2025051817" />
-		<PackageReference Include="AlgorandARC76Account" Version="1.0.2" />
+		<PackageReference Include="AlgorandARC76Account" Version="1.1.0" />
 		<PackageReference Include="AlgorandAuthentication" Version="2.0.1" />
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1-Preview.1" />
 		<PackageReference Include="Nethereum.Web3" Version="5.0.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="9.0.3" />
 		<PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="9.0.0" />
 	</ItemGroup>
 
@@ -31,11 +32,15 @@
 
 	<ItemGroup>
 		<Folder Include="doc\" />
+		<Folder Include="Generated\" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <None Update="doc\documentation.xml">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	  <None Update="README.md">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
 	</ItemGroup>
 
