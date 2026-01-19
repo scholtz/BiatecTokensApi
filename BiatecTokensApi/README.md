@@ -1,5 +1,7 @@
 # Biatec Tokens API
 
+[![Test Pull Request](https://github.com/scholtz/BiatecTokensApi/actions/workflows/test-pr.yml/badge.svg)](https://github.com/scholtz/BiatecTokensApi/actions/workflows/test-pr.yml)
+
 A comprehensive API for deploying and managing various types of tokens on different blockchain networks, including ERC20 tokens on EVM chains, ARC3 tokens, and ARC200 tokens on Algorand.
 
 ## Features
@@ -374,9 +376,54 @@ Please be mindful of blockchain network limitations and transaction fees when ma
 
 ## Development and Testing
 
+### Continuous Integration
+
+This project uses GitHub Actions for continuous integration. On every pull request, the CI pipeline:
+- Builds the solution in Release configuration
+- Runs all unit and integration tests
+- Reports test results
+
+The test pipeline ensures code quality and prevents breaking changes from being merged.
+
 ### Running Tests
+
+Run all tests:
 ```bash
 dotnet test BiatecTokensTests
+```
+
+Run tests with detailed output:
+```bash
+dotnet test BiatecTokensTests --verbosity detailed
+```
+
+Run tests in Release configuration:
+```bash
+dotnet test BiatecTokensTests --configuration Release
+```
+
+### Test-Driven Development (TDD)
+
+We follow TDD practices for new features:
+
+1. **Write failing tests first** - Define expected behavior through tests
+2. **Implement the minimum code** - Make the tests pass
+3. **Refactor** - Clean up code while keeping tests green
+
+### Test Structure
+
+The test suite includes:
+- **Unit Tests**: Test individual components in isolation (services, repositories)
+- **Integration Tests**: Test interactions between components
+- **Mock Tests**: Use Moq to isolate dependencies
+
+Example test file structure:
+```
+BiatecTokensTests/
+├── TokenServiceTests.cs       # Service layer tests
+├── IPFSRepositoryTests.cs     # Repository unit tests
+├── TokenControllerTests.cs    # Controller tests
+└── Erc20TokenTests.cs         # ERC20 functionality tests
 ```
 
 ### Development Environment
@@ -384,11 +431,23 @@ The API includes Swagger/OpenAPI documentation available at `/swagger` endpoint 
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
+We welcome contributions! Please follow these guidelines:
+
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/your-feature`)
+3. **Follow TDD practices**:
+   - Write tests first (they should fail initially)
+   - Implement the feature to make tests pass
+   - Refactor while keeping tests green
+4. **Add tests for new functionality** - All new code should include appropriate tests
+5. **Run tests locally** - Ensure all tests pass before submitting
+6. **Open a Pull Request** - The CI pipeline will automatically run tests
+
+### Pull Request Requirements
+- All tests must pass
+- Code should build without errors
+- Include test coverage for new features
+- Follow existing code style and conventions
 
 ## Client generators
 
