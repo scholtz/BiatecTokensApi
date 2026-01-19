@@ -30,13 +30,6 @@ jobs:
         run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
       
       - name: Run tests
-        run: dotnet test BiatecTokensApi.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
-      
-      - name: Publish test results
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: .NET Tests
-          path: '**/test-results.trx'
-          reporter: dotnet-trx
-          fail-on-error: true
+        run: |
+          dotnet test BiatecTokensApi.sln --configuration Release --no-build --verbosity normal
+          echo "Test execution completed with exit code: $?"
