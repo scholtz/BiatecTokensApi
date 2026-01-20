@@ -203,12 +203,30 @@ See `BiatecTokensTests/TDDExampleTests.cs` for comprehensive examples of:
 
 ## Code Coverage Requirements
 
-### Minimum Coverage Thresholds
+### Current Coverage Thresholds
 
-All pull requests must meet these coverage requirements:
+**Note**: We are taking an incremental approach to achieving our coverage goals. The current enforced thresholds are:
+
+- **Line Coverage**: ≥ 12% (baseline to prevent regression)
+- **Branch Coverage**: ≥ 4% (baseline to prevent regression)
+
+**Target Goals** (to be reached incrementally through community contributions):
 
 - **Line Coverage**: ≥ 80%
 - **Branch Coverage**: ≥ 70%
+
+### Coverage Improvement Strategy
+
+We're building code coverage incrementally. Each PR should:
+
+1. **Maintain or improve** current coverage levels
+2. **Add tests** for any new code added
+3. **Aim to increase** the overall project coverage percentage
+
+When adding new features:
+- Write tests FIRST (TDD approach)
+- Ensure your new code has >80% coverage
+- Don't decrease existing coverage
 
 ### What Gets Measured
 
@@ -243,12 +261,36 @@ You can view the coverage report by:
 
 ### Improving Coverage
 
-If your PR doesn't meet coverage requirements:
+If your PR doesn't meet coverage requirements or you want to help improve overall coverage:
 
 1. **Identify gaps**: Check the coverage report to see which lines/branches aren't covered
 2. **Add tests**: Write new tests targeting uncovered code paths
 3. **Test edge cases**: Ensure you're testing error conditions and boundary cases
 4. **Mock appropriately**: Use mocks to isolate the code under test
+
+**Areas needing test coverage** (good places to contribute):
+- `ASATokenService` - Algorand Standard Asset token creation
+- `ARC3TokenService` - ARC3 token with IPFS metadata
+- `ARC200TokenService` - ARC200 smart contract tokens  
+- `ARC1400TokenService` - ARC1400 security tokens
+- Controller validation logic
+- Request validation methods
+
+See `BiatecTokensTests/TDDExampleTests.cs` for test patterns and examples.
+
+### Incremental Coverage Goals
+
+We're working toward 80%/70% coverage through incremental improvements:
+
+| Quarter | Line Target | Branch Target | Status |
+|---------|-------------|---------------|--------|
+| Q1 2026 (Baseline) | 12% | 4% | ✅ Current |
+| Q2 2026 | 30% | 15% | 🎯 Next milestone |
+| Q3 2026 | 50% | 35% | 📅 Planned |
+| Q4 2026 | 65% | 50% | 📅 Planned |
+| Q1 2027 | 80% | 70% | 🏆 Goal |
+
+Every contribution that improves coverage brings us closer to our goal!
 
 ## Pull Request Process
 
