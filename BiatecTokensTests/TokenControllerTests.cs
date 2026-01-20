@@ -48,5 +48,87 @@ namespace BiatecTokensTests
             // Set up controller for testing validation
             _controller.ModelState.Clear();
         }
+
+        [Test]
+        public async Task ERC20MintableTokenCreate_WithValidRequest_ReturnsOkResult()
+        {
+            // Arrange
+            var expectedResponse = new BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse
+            {
+                Success = true,
+                ContractAddress = "0x1234567890123456789012345678901234567890",
+                TransactionHash = "0xabcdef"
+            };
+
+            _tokenServiceMock
+                .Setup(x => x.DeployERC20TokenAsync(It.IsAny<ERC20MintableTokenDeploymentRequest>(), BiatecTokensApi.Models.TokenType.ERC20_Mintable))
+                .ReturnsAsync(expectedResponse);
+
+            // Act
+            var result = await _controller.ERC20MintableTokenCreate(_validDeploymentRequest);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            Assert.That(okResult, Is.Not.Null);
+            Assert.That(okResult!.Value, Is.EqualTo(expectedResponse));
+        }
+
+        [Test]
+        public async Task ERC20MintableTokenCreate_WithInvalidModelState_ReturnsBadRequest()
+        {
+            // Arrange
+            _controller.ModelState.AddModelError("Name", "Name is required");
+
+            // Act
+            var result = await _controller.ERC20MintableTokenCreate(_validDeploymentRequest);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+        }
+
+        [Test]
+        public async Task ERC20MintableTokenCreate_WithServiceFailure_ReturnsInternalServerError()
+        {
+            // Arrange
+            var expectedResponse = new BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse
+            {
+                Success = false,
+                ErrorMessage = "Deployment failed",
+                ContractAddress = "",
+                TransactionHash = ""
+            };
+
+            _tokenServiceMock
+                .Setup(x => x.DeployERC20TokenAsync(It.IsAny<ERC20MintableTokenDeploymentRequest>(), BiatecTokensApi.Models.TokenType.ERC20_Mintable))
+                .ReturnsAsync(expectedResponse);
+
+            // Act
+            var result = await _controller.ERC20MintableTokenCreate(_validDeploymentRequest);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult, Is.Not.Null);
+            Assert.That(objectResult!.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        }
+
+        [Test]
+        public async Task ERC20MintableTokenCreate_WithException_ReturnsInternalServerError()
+        {
+            // Arrange
+            _tokenServiceMock
+                .Setup(x => x.DeployERC20TokenAsync(It.IsAny<ERC20MintableTokenDeploymentRequest>(), BiatecTokensApi.Models.TokenType.ERC20_Mintable))
+                .ThrowsAsync(new Exception("Network error"));
+
+            // Act
+            var result = await _controller.ERC20MintableTokenCreate(_validDeploymentRequest);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult, Is.Not.Null);
+            Assert.That(objectResult!.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        }
     }
 }
