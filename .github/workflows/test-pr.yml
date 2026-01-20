@@ -65,9 +65,9 @@ jobs:
           LINE_RATE=$(grep -oP 'line-rate="\K[0-9.]+' coveragereport/Cobertura.xml | head -1)
           BRANCH_RATE=$(grep -oP 'branch-rate="\K[0-9.]+' coveragereport/Cobertura.xml | head -1)
           
-          # Convert to percentage
-          LINE_COVERAGE=$(echo "$LINE_RATE * 100" | bc)
-          BRANCH_COVERAGE=$(echo "$BRANCH_RATE * 100" | bc)
+          # Convert to percentage using awk
+          LINE_COVERAGE=$(echo "$LINE_RATE" | awk '{printf "%.2f", $1 * 100}')
+          BRANCH_COVERAGE=$(echo "$BRANCH_RATE" | awk '{printf "%.2f", $1 * 100}')
           
           echo "Line Coverage: ${LINE_COVERAGE}%"
           echo "Branch Coverage: ${BRANCH_COVERAGE}%"
@@ -77,14 +77,14 @@ jobs:
           BRANCH_THRESHOLD=70
           
           FAIL=0
-          if (( $(echo "$LINE_COVERAGE < $LINE_THRESHOLD" | bc -l) )); then
+          if (( $(echo "$LINE_COVERAGE $LINE_THRESHOLD" | awk '{print ($1 < $2)}') )); then
             echo "❌ Line coverage ${LINE_COVERAGE}% is below threshold of ${LINE_THRESHOLD}%"
             FAIL=1
           else
             echo "✅ Line coverage ${LINE_COVERAGE}% meets threshold of ${LINE_THRESHOLD}%"
           fi
           
-          if (( $(echo "$BRANCH_COVERAGE < $BRANCH_THRESHOLD" | bc -l) )); then
+          if (( $(echo "$BRANCH_COVERAGE $BRANCH_THRESHOLD" | awk '{print ($1 < $2)}') )); then
             echo "❌ Branch coverage ${BRANCH_COVERAGE}% is below threshold of ${BRANCH_THRESHOLD}%"
             FAIL=1
           else

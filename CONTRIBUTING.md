@@ -187,10 +187,13 @@ The test project is organized as follows:
 ```
 BiatecTokensTests/
 ├── ApiIntegrationTests.cs          # End-to-end API tests
-├── TokenServiceTests.cs            # ERC20 token service tests
+├── Erc20TokenTests.cs              # ERC20 token functionality tests
+├── TokenServiceTests.cs            # Token service unit tests
 ├── TokenControllerTests.cs         # Controller endpoint tests
 ├── IPFSRepositoryTests.cs          # IPFS integration tests
+├── IPFSRepositoryIntegrationTests.cs  # IPFS integration with mocks
 ├── IPFSRepositoryRealEndpointTests.cs  # Real IPFS endpoint tests (excluded from CI)
+├── TDDExampleTests.cs              # TDD examples and patterns
 └── TestHelper.cs                   # Shared test utilities
 ```
 
