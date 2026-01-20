@@ -6,16 +6,21 @@ The Biatec Tokens API provides a comprehensive OpenAPI (Swagger) specification t
 
 ## Accessing the OpenAPI Specification
 
-### During Development (Local)
+### Recommended: During Runtime (Local or Deployed)
 
-When running the API locally, the OpenAPI specification is available at:
+The best way to access the complete OpenAPI specification is from a running instance of the API:
 
-- **Interactive Swagger UI**: https://localhost:7000/swagger
-- **OpenAPI JSON**: https://localhost:7000/swagger/v1/swagger.json
+- **Interactive Swagger UI**: https://localhost:7000/swagger (local) or https://your-api-url/swagger (deployed)
+- **OpenAPI JSON**: https://localhost:7000/swagger/v1/swagger.json (local) or https://your-api-url/swagger/v1/swagger.json (deployed)
+
+**Why runtime is recommended:**
+- The OpenAPI spec is generated dynamically from the actual API code
+- Always reflects the current state of the API
+- No configuration issues or external dependencies needed
 
 ### From CI/CD Pipeline
 
-The OpenAPI specification is automatically generated and published as a GitHub Actions artifact on every pull request and push to main/master branches.
+⚠️ **Note**: The CI/CD pipeline attempts to generate a standalone OpenAPI specification, but this requires the API to initialize all services. If the artifact shows a placeholder message, use the runtime method above instead.
 
 #### Downloading from GitHub Actions:
 
@@ -23,6 +28,7 @@ The OpenAPI specification is automatically generated and published as a GitHub A
 2. Click on the latest successful workflow run
 3. Download the `openapi-specification` artifact
 4. Extract the `openapi.json` file
+5. If the file contains a placeholder message, start the API locally and download from `/swagger/v1/swagger.json`
 
 ### Using the OpenAPI Specification
 
