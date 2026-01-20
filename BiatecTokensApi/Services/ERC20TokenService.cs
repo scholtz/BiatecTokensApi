@@ -116,7 +116,7 @@ namespace BiatecTokensApi.Services
                     }
                     if (mintableRequest.InitialSupply <= 0)
                     {
-                        throw new ArgumentException("Initial supply for ERC20 Mintable token must be a non-negative value.");
+                        throw new ArgumentException("Initial supply for ERC20 Mintable token must be a positive value.");
                     }
                     if (mintableRequest.Decimals < 0 || mintableRequest.Decimals > 18)
                     {

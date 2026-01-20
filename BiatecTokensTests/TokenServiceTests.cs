@@ -109,7 +109,7 @@ namespace BiatecTokensTests
             // Act & Assert
             var ex = Assert.Throws<ArgumentException>(() => 
                 _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
-            Assert.That(ex.Message, Does.Contain("Initial supply").And.Contain("non-negative"));
+            Assert.That(ex.Message, Does.Contain("Initial supply").And.Contain("positive"));
         }
 
         [Test]
@@ -121,7 +121,7 @@ namespace BiatecTokensTests
             // Act & Assert
             var ex = Assert.Throws<ArgumentException>(() => 
                 _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
-            Assert.That(ex.Message, Does.Contain("Initial supply"));
+            Assert.That(ex.Message, Does.Contain("Initial supply").And.Contain("positive"));
         }
 
         [Test]

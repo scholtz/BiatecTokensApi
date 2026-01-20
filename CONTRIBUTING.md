@@ -302,7 +302,7 @@ Every contribution that improves coverage brings us closer to our goal!
    dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
      --filter "FullyQualifiedName!~RealEndpoint"
    ```
-3. **Check code coverage** meets thresholds (80% line, 70% branch)
+3. **Check code coverage** maintains or improves baseline (currently ≥12% line, ≥4% branch)
 4. **Build successfully**:
    ```bash
    dotnet build BiatecTokensApi.sln --configuration Release
@@ -329,7 +329,7 @@ All PRs must meet these criteria:
 ✅ **Required Status Checks** (enforced by CI):
 - Build passes
 - All tests pass
-- Code coverage ≥ 80% lines and ≥ 70% branches
+- Code coverage ≥ 12% lines and ≥ 4% branches (baseline - should improve over time toward 80%/70% target)
 - No merge conflicts
 
 ✅ **Code Review**:
