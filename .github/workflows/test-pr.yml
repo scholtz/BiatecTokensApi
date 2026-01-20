@@ -1,0 +1,35 @@
+name: Test Pull Request
+
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore dependencies
+        run: dotnet restore BiatecTokensApi.sln
+      
+      - name: Build solution
+        run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
+      
+      - name: Run tests
+        run: |
+          dotnet test BiatecTokensApi.sln --configuration Release --no-build --verbosity normal
+          echo "Test execution completed with exit code: $?"
