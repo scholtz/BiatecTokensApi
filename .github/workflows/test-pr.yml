@@ -37,6 +37,7 @@ jobs:
             --verbosity normal \
             --logger "trx;LogFileName=test-results.trx" \
             --collect:"XPlat Code Coverage" \
+            --filter "FullyQualifiedName!~RealEndpoint" \
             -- NUnit.DefaultTestNamePattern={m}{a}
       
       - name: Publish test results
