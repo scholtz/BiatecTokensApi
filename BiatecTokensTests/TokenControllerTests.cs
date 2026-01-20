@@ -130,5 +130,61 @@ namespace BiatecTokensTests
             Assert.That(objectResult, Is.Not.Null);
             Assert.That(objectResult!.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
         }
+
+        [Test]
+        public async Task ERC20PremintedTokenCreate_WithValidRequest_ReturnsOkResult()
+        {
+            // Arrange
+            var premintedRequest = new BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest
+            {
+                Name = "Preminted Token",
+                Symbol = "PREM",
+                InitialSupply = 5000000,
+                Decimals = 18,
+                ChainId = 31337
+            };
+
+            var expectedResponse = new BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse
+            {
+                Success = true,
+                ContractAddress = "0x9876543210987654321098765432109876543210",
+                TransactionHash = "0xfedcba"
+            };
+
+            _tokenServiceMock
+                .Setup(x => x.DeployERC20TokenAsync(It.IsAny<BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest>(), BiatecTokensApi.Models.TokenType.ERC20_Preminted))
+                .ReturnsAsync(expectedResponse);
+
+            // Act
+            var result = await _controller.ERC20PremnitedTokenCreate(premintedRequest);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            Assert.That(okResult, Is.Not.Null);
+            Assert.That(okResult!.Value, Is.EqualTo(expectedResponse));
+        }
+
+        [Test]
+        public async Task ERC20PremintedTokenCreate_WithInvalidModelState_ReturnsBadRequest()
+        {
+            // Arrange
+            var premintedRequest = new BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest
+            {
+                Name = "Preminted Token",
+                Symbol = "PREM",
+                InitialSupply = 5000000,
+                Decimals = 18,
+                ChainId = 31337
+            };
+
+            _controller.ModelState.AddModelError("Symbol", "Symbol is required");
+
+            // Act
+            var result = await _controller.ERC20PremnitedTokenCreate(premintedRequest);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+        }
     }
 }
