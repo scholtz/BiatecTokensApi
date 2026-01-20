@@ -47,6 +47,114 @@ jobs:
           files: '**/test-results.trx'
           check_name: 'Test Results'
       
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+      
+      - name: Generate coverage report
+        run: |
+          reportgenerator \
+            -reports:"**/coverage.cobertura.xml" \
+            -targetdir:"coveragereport" \
+            -reporttypes:"Html;Cobertura;MarkdownSummaryGithub" \
+            -classfilters:"-BiatecTokensApi.Generated.*"
+      
+      - name: Check coverage thresholds
+        run: |
+          # Parse the Cobertura XML to extract coverage percentages
+          LINE_RATE=$(grep -oP 'line-rate="\K[0-9.]+' coveragereport/Cobertura.xml | head -1)
+          BRANCH_RATE=$(grep -oP 'branch-rate="\K[0-9.]+' coveragereport/Cobertura.xml | head -1)
+          
+          # Convert to percentage
+          LINE_COVERAGE=$(echo "$LINE_RATE * 100" | bc)
+          BRANCH_COVERAGE=$(echo "$BRANCH_RATE * 100" | bc)
+          
+          echo "Line Coverage: ${LINE_COVERAGE}%"
+          echo "Branch Coverage: ${BRANCH_COVERAGE}%"
+          
+          # Check thresholds (80% line, 70% branch)
+          LINE_THRESHOLD=80
+          BRANCH_THRESHOLD=70
+          
+          FAIL=0
+          if (( $(echo "$LINE_COVERAGE < $LINE_THRESHOLD" | bc -l) )); then
+            echo "❌ Line coverage ${LINE_COVERAGE}% is below threshold of ${LINE_THRESHOLD}%"
+            FAIL=1
+          else
+            echo "✅ Line coverage ${LINE_COVERAGE}% meets threshold of ${LINE_THRESHOLD}%"
+          fi
+          
+          if (( $(echo "$BRANCH_COVERAGE < $BRANCH_THRESHOLD" | bc -l) )); then
+            echo "❌ Branch coverage ${BRANCH_COVERAGE}% is below threshold of ${BRANCH_THRESHOLD}%"
+            FAIL=1
+          else
+            echo "✅ Branch coverage ${BRANCH_COVERAGE}% meets threshold of ${BRANCH_THRESHOLD}%"
+          fi
+          
+          if [ $FAIL -eq 1 ]; then
+            echo ""
+            echo "Coverage thresholds not met. Please add more tests to increase coverage."
+            exit 1
+          fi
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coveragereport
+          retention-days: 30
+      
+      - name: Add coverage comment to PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let coverageContent = '';
+            const summaryPath = 'coveragereport/SummaryGithub.md';
+            
+            if (fs.existsSync(summaryPath)) {
+              coverageContent = fs.readFileSync(summaryPath, 'utf8');
+            } else {
+              coverageContent = '⚠️ Coverage report not generated. Check test execution logs.';
+            }
+            
+            const message = `## 📊 Code Coverage Report\n\n${coverageContent}\n\n` +
+              `### Coverage Thresholds\n` +
+              `- ✅ Line Coverage: **80%** minimum\n` +
+              `- ✅ Branch Coverage: **70%** minimum\n\n` +
+              `[View detailed coverage report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+            
+            // Find existing coverage comment
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            const coverageComment = comments.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('📊 Code Coverage Report')
+            );
+            
+            if (coverageComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                comment_id: coverageComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: message
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: message
+              });
+            }
+      
       - name: Generate OpenAPI Specification
         run: |
           # Install Swashbuckle CLI
