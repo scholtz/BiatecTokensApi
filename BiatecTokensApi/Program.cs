@@ -14,7 +14,7 @@ namespace BiatecTokensApi
     /// <remarks>This class sets up the necessary services, middleware, and configurations for the API,
     /// including controllers, Swagger/OpenAPI documentation, authentication, and token services. It is the entry point
     /// of the application and is responsible for building and starting the web host.</remarks>
-    public class Program
+    public partial class Program
     {
         /// <summary>
         /// Configures and runs the web application.

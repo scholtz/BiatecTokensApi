@@ -427,7 +427,55 @@ BiatecTokensTests/
 ```
 
 ### Development Environment
-The API includes Swagger/OpenAPI documentation available at `/swagger` endpoint when running in development mode.
+
+The API includes comprehensive Swagger/OpenAPI documentation:
+- Interactive API explorer available at `/swagger` endpoint
+- OpenAPI JSON specification at `/swagger/v1/swagger.json`
+
+#### Running the API Locally
+
+Use the provided script for easy local development:
+
+```bash
+./run-local.sh
+```
+
+The script will:
+1. Check for required .NET SDK installation
+2. Prompt for user secrets configuration
+3. Restore dependencies and build the project
+4. Start the API server
+
+The API will be available at:
+- HTTPS: https://localhost:7000
+- HTTP: http://localhost:5000
+- Swagger UI: https://localhost:7000/swagger
+
+#### Sample Data for Testing
+
+The `sample-seed-data.json` file contains sample request payloads for all token types. Use these as templates when testing the API endpoints.
+
+#### OpenAPI Contract
+
+The OpenAPI specification is automatically generated and can be used by frontend developers for:
+- Generating type-safe API clients
+- Creating mock servers for testing
+- Validating requests and responses
+- API documentation
+
+See [OPENAPI.md](OPENAPI.md) for detailed information about accessing and using the OpenAPI contract.
+
+#### CI/CD Integration
+
+On every pull request and push to main/master:
+- The OpenAPI specification is generated and published as a GitHub Actions artifact
+- All tests (unit and integration) are run
+- Test results are reported in the PR
+
+To download the OpenAPI specification from CI:
+1. Go to the Actions tab in GitHub
+2. Select the latest workflow run
+3. Download the `openapi-specification` artifact
 
 ## Contributing
 
