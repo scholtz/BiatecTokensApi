@@ -51,7 +51,8 @@ namespace BiatecTokensTests
             // Verify credentials are present
             if (string.IsNullOrEmpty(config.Username) || string.IsNullOrEmpty(config.Password))
             {
-                Assert.Fail("IPFS credentials not found. Ensure user secrets are set: IPFSConfig:Username and IPFSConfig:Password");
+                Assert.Ignore("IPFS credentials not found. These tests require IPFSConfig:Username and IPFSConfig:Password in user secrets.");
+                return;
             }
 
             var options = Options.Create(config);
