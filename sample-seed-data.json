@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sample Seed Data for Biatec Tokens API Testing",
+  "description": "This file contains sample request data for testing various token creation endpoints",
+  
+  "erc20_mintable_token": {
+    "name": "Sample Mintable Token",
+    "symbol": "SMT",
+    "initialSupply": 1000000,
+    "decimals": 18,
+    "chainId": 8453,
+    "cap": 10000000,
+    "initialSupplyReceiver": "0x742d35Cc6634C0532925a3b8D162000dDba02C79",
+    "description": "ERC20 mintable token with minting, burning, and pausable functionality"
+  },
+  
+  "erc20_preminted_token": {
+    "name": "Sample Preminted Token",
+    "symbol": "SPT",
+    "totalSupply": 1000000,
+    "decimals": 18,
+    "chainId": 8453,
+    "description": "ERC20 token with fixed supply"
+  },
+  
+  "asa_fungible_token": {
+    "network": "testnet",
+    "assetName": "Sample ASA Token",
+    "unitName": "SAT",
+    "total": 1000000,
+    "decimals": 6,
+    "url": "https://example.com/token",
+    "manager": "",
+    "reserve": "",
+    "freeze": "",
+    "clawback": "",
+    "description": "Basic Algorand Standard Asset fungible token"
+  },
+  
+  "asa_nft": {
+    "network": "testnet",
+    "assetName": "Sample NFT",
+    "unitName": "NFT",
+    "url": "https://example.com/nft",
+    "manager": "",
+    "reserve": "",
+    "freeze": "",
+    "clawback": "",
+    "description": "Basic Algorand Standard Asset NFT with quantity of 1"
+  },
+  
+  "asa_fractional_nft": {
+    "network": "testnet",
+    "assetName": "Sample Fractional NFT",
+    "unitName": "FNFT",
+    "total": 100,
+    "decimals": 2,
+    "url": "https://example.com/fnft",
+    "manager": "",
+    "reserve": "",
+    "freeze": "",
+    "clawback": "",
+    "description": "Fractional NFT with custom supply"
+  },
+  
+  "arc3_fungible_token": {
+    "network": "testnet",
+    "assetName": "Sample ARC3 Token",
+    "unitName": "ARC3",
+    "total": 1000000,
+    "decimals": 6,
+    "metadata": {
+      "name": "Sample ARC3 Token",
+      "description": "An ARC3-compliant fungible token with rich metadata",
+      "image": "https://example.com/images/token.png",
+      "image_integrity": "sha256-...",
+      "image_mimetype": "image/png",
+      "properties": {
+        "category": "Fungible Token",
+        "creator": "Sample Creator"
+      }
+    },
+    "description": "ARC3 fungible token with IPFS metadata storage"
+  },
+  
+  "arc3_nft": {
+    "network": "testnet",
+    "assetName": "Sample ARC3 NFT",
+    "unitName": "ANFT",
+    "metadata": {
+      "name": "Sample ARC3 NFT #1",
+      "description": "A unique ARC3-compliant NFT",
+      "image": "https://example.com/images/nft1.png",
+      "image_integrity": "sha256-...",
+      "image_mimetype": "image/png",
+      "properties": {
+        "rarity": "Common",
+        "edition": 1
+      }
+    },
+    "description": "ARC3 NFT with metadata stored on IPFS"
+  },
+  
+  "arc3_fractional_nft": {
+    "network": "testnet",
+    "assetName": "Sample ARC3 Fractional NFT",
+    "unitName": "AFNFT",
+    "total": 100,
+    "decimals": 2,
+    "metadata": {
+      "name": "Sample Fractional ARC3 NFT",
+      "description": "A fractional ARC3-compliant NFT",
+      "image": "https://example.com/images/fnft.png",
+      "image_integrity": "sha256-...",
+      "image_mimetype": "image/png",
+      "properties": {
+        "type": "Fractional",
+        "totalShares": 100
+      }
+    },
+    "description": "ARC3 fractional NFT with multiple owners possible"
+  },
+  
+  "arc200_mintable_token": {
+    "network": "testnet",
+    "name": "Sample ARC200 Mintable",
+    "symbol": "ARC200M",
+    "decimals": 6,
+    "description": "ARC200 smart contract token with minting capabilities"
+  },
+  
+  "arc200_preminted_token": {
+    "network": "testnet",
+    "name": "Sample ARC200 Preminted",
+    "symbol": "ARC200P",
+    "decimals": 6,
+    "totalSupply": 1000000,
+    "description": "ARC200 smart contract token with fixed supply"
+  },
+  
+  "arc1400_mintable_token": {
+    "network": "testnet",
+    "name": "Sample Security Token",
+    "symbol": "SECT",
+    "decimals": 6,
+    "description": "ARC1400 security token with compliance features"
+  },
+  
+  "test_configuration": {
+    "notes": [
+      "Replace 'testnet' with your desired network (mainnet, testnet, betanet, etc.)",
+      "For EVM tokens, ensure ChainId matches your target network (8453 for Base mainnet)",
+      "Set manager, reserve, freeze, and clawback addresses as needed for ASA tokens",
+      "For ARC3 tokens, ensure image URLs are accessible and provide valid integrity hashes",
+      "Adjust total supply and decimals based on your token economics",
+      "For production, use proper IPFS URLs and content integrity hashes"
+    ],
+    "authentication": {
+      "type": "ARC-0014",
+      "realm": "BiatecTokens#ARC14",
+      "description": "All endpoints require ARC-0014 Algorand authentication",
+      "header": "Authorization: SigTx <signed-transaction>"
+    }
+  }
+}

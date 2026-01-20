@@ -29,7 +29,44 @@ jobs:
       - name: Build solution
         run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
       
-      - name: Run tests
+      - name: Run unit tests
         run: |
-          dotnet test BiatecTokensApi.sln --configuration Release --no-build --verbosity normal
-          echo "Test execution completed with exit code: $?"
+          dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- NUnit.DefaultTestNamePattern={m}{a}
+      
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/test-results.trx'
+          check_name: 'Test Results'
+      
+      - name: Generate OpenAPI Specification
+        run: |
+          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.5.0 || true
+          dotnet build BiatecTokensApi/BiatecTokensApi.csproj --configuration Release
+          dotnet swagger tofile --output ./openapi.json BiatecTokensApi/bin/Release/net8.0/BiatecTokensApi.dll v1
+      
+      - name: Upload OpenAPI Specification
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-specification
+          path: openapi.json
+          retention-days: 90
+      
+      - name: Comment PR with OpenAPI artifact link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ OpenAPI specification generated and available as workflow artifact: `openapi-specification`'
+            })
