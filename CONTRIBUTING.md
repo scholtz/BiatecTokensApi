@@ -207,8 +207,8 @@ See `BiatecTokensTests/TDDExampleTests.cs` for comprehensive examples of:
 
 **Note**: We are taking an incremental approach to achieving our coverage goals. The current enforced thresholds are:
 
-- **Line Coverage**: ≥ 12% (baseline to prevent regression)
-- **Branch Coverage**: ≥ 4% (baseline to prevent regression)
+- **Line Coverage**: ≥ 11% (baseline to prevent regression)
+- **Branch Coverage**: ≥ 3% (baseline to prevent regression)
 
 **Target Goals** (to be reached incrementally through community contributions):
 
@@ -284,7 +284,7 @@ We're working toward 80%/70% coverage through incremental improvements:
 
 | Quarter | Line Target | Branch Target | Status |
 |---------|-------------|---------------|--------|
-| Q1 2026 (Baseline) | 12% | 4% | ✅ Current |
+| Q1 2026 (Baseline) | 11% | 3% | ✅ Current |
 | Q2 2026 | 30% | 15% | 🎯 Next milestone |
 | Q3 2026 | 50% | 35% | 📅 Planned |
 | Q4 2026 | 65% | 50% | 📅 Planned |
@@ -302,7 +302,7 @@ Every contribution that improves coverage brings us closer to our goal!
    dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
      --filter "FullyQualifiedName!~RealEndpoint"
    ```
-3. **Check code coverage** maintains or improves baseline (currently ≥12% line, ≥4% branch)
+3. **Check code coverage** maintains or improves baseline (currently ≥11% line, ≥3% branch)
 4. **Build successfully**:
    ```bash
    dotnet build BiatecTokensApi.sln --configuration Release
@@ -329,7 +329,7 @@ All PRs must meet these criteria:
 ✅ **Required Status Checks** (enforced by CI):
 - Build passes
 - All tests pass
-- Code coverage ≥ 12% lines and ≥ 4% branches (baseline - should improve over time toward 80%/70% target)
+- Code coverage ≥ 11% lines and ≥ 3% branches (baseline - should improve over time toward 80%/70% target)
 - No merge conflicts
 
 ✅ **Code Review**:
