@@ -1,457 +1,341 @@
 # Contributing to BiatecTokensApi
 
-Welcome! We're excited that you're interested in contributing to BiatecTokensApi. This document provides guidelines and instructions for contributing to this project.
+Thank you for your interest in contributing to BiatecTokensApi! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
-- [Testing Guidelines](#testing-guidelines)
-- [Code Coverage Requirements](#code-coverage-requirements)
-- [Pull Request Process](#pull-request-process)
-- [Coding Standards](#coding-standards)
-- [Branch Protection Rules](#branch-protection-rules)
+- [Testing](#testing)
+- [Submitting Changes](#submitting-changes)
+- [Code Style](#code-style)
 
 ## Code of Conduct
 
-By participating in this project, you agree to maintain a respectful and collaborative environment. Please be kind, constructive, and professional in all interactions.
+By participating in this project, you agree to maintain a respectful and inclusive environment for all contributors.
 
 ## Getting Started
 
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/BiatecTokensApi.git`
-3. Create a feature branch: `git checkout -b feature/your-feature-name`
-4. Make your changes following our guidelines
-5. Push to your fork and submit a pull request
+1. Fork the repository on GitHub
+2. Clone your fork locally
+3. Create a new branch for your feature or bug fix
+4. Make your changes
+5. Submit a pull request
 
 ## Development Setup
 
 ### Prerequisites
 
 - .NET 8.0 SDK or later
-- Visual Studio 2022, VS Code, or JetBrains Rider
+- Visual Studio 2022 or Visual Studio Code
 - Docker (optional, for containerized deployment)
 
-### Initial Setup
+### Building the Project
 
 ```bash
-# Clone the repository
-git clone https://github.com/scholtz/BiatecTokensApi.git
-cd BiatecTokensApi
-
 # Restore dependencies
 dotnet restore BiatecTokensApi.sln
 
 # Build the solution
 dotnet build BiatecTokensApi.sln --configuration Release
 
-# Set up user secrets for local development (recommended)
-cd BiatecTokensApi
-dotnet user-secrets set "App:Account" "your-test-mnemonic-for-development"
-dotnet user-secrets set "IPFSConfig:Username" "your-ipfs-username"
-dotnet user-secrets set "IPFSConfig:Password" "your-ipfs-password"
-cd ..
+# Build in Debug mode with XML documentation
+dotnet build BiatecTokensApi.sln --configuration Debug
 ```
 
-## Testing Guidelines
+### Running the API Locally
 
-### Our Testing Philosophy
+```bash
+# Run the API
+dotnet run --project BiatecTokensApi/BiatecTokensApi.csproj
 
-We follow **Test-Driven Development (TDD)** principles:
+# The API will be available at https://localhost:7000
+# Swagger documentation: https://localhost:7000/swagger
+```
 
-1. **Red**: Write a failing test that describes the desired behavior
-2. **Green**: Implement minimal code to make the test pass
-3. **Refactor**: Improve code while keeping tests green
+### Configuration
+
+The API requires configuration for:
+- Algorand networks and authentication (ARC-0014)
+- IPFS integration for ARC3 metadata
+- EVM blockchain settings for ERC20 tokens
+
+For local development, use user secrets:
+
+```bash
+dotnet user-secrets set "App:Account" "your-mnemonic-phrase"
+dotnet user-secrets set "IPFSConfig:Username" "your-ipfs-username"
+dotnet user-secrets set "IPFSConfig:Password" "your-ipfs-password"
+```
+
+**⚠️ NEVER commit secrets, private keys, or mnemonics to the repository.**
+
+## Testing
 
 ### Running Tests Locally
+
+The project uses NUnit for unit and integration testing. We maintain high test coverage standards to ensure code quality and reliability.
 
 #### Run All Tests
 
 ```bash
-# Run all tests (excluding real endpoint tests)
+# Run all tests
+dotnet test BiatecTokensTests/BiatecTokensTests.csproj --verbosity normal
+
+# Run tests excluding integration tests that require real endpoints
 dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
-  --filter "FullyQualifiedName!~RealEndpoint"
+  --filter "FullyQualifiedName!~RealEndpoint" \
+  --verbosity normal
 ```
 
-#### Run Tests with Verbose Output
+#### Run Tests with Coverage
 
 ```bash
-# Run tests with detailed output
-dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
-  --verbosity detailed \
-  --filter "FullyQualifiedName!~RealEndpoint"
-```
-
-#### Run Specific Test Class
-
-```bash
-# Run tests from a specific test class
-dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
-  --filter "FullyQualifiedName~TokenServiceTests"
-```
-
-#### Run Tests with Code Coverage
-
-```bash
-# Run tests and generate code coverage report
+# Run tests with code coverage collection
 dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
   --collect:"XPlat Code Coverage" \
-  --results-directory ./TestResults \
-  --filter "FullyQualifiedName!~RealEndpoint"
+  --filter "FullyQualifiedName!~RealEndpoint" \
+  --verbosity normal
 
-# Install ReportGenerator (one-time)
+# Generate HTML coverage report (requires reportgenerator tool)
 dotnet tool install --global dotnet-reportgenerator-globaltool
-
-# Generate HTML coverage report
 reportgenerator \
-  "-reports:./TestResults/*/coverage.cobertura.xml" \
-  "-targetdir:./CoverageReport" \
-  "-reporttypes:Html;TextSummary"
-
-# View summary in terminal
-cat ./CoverageReport/Summary.txt
-
-# Open HTML report in browser
-# On Linux/Mac:
-xdg-open ./CoverageReport/index.html
-# On Windows:
-start ./CoverageReport/index.html
+  -reports:"**/coverage.cobertura.xml" \
+  -targetdir:"coveragereport" \
+  -reporttypes:Html
 ```
 
-### Writing Good Tests
+#### Run Specific Test Classes
 
-#### Test Structure (AAA Pattern)
+```bash
+# Run specific test class
+dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
+  --filter "FullyQualifiedName~TokenServiceTests" \
+  --verbosity detailed
 
-Follow the **Arrange-Act-Assert** (AAA) pattern:
+# Run specific test method
+dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
+  --filter "FullyQualifiedName~TokenServiceTests.SpecificTestMethod" \
+  --verbosity detailed
+```
+
+### Coverage Requirements
+
+The project enforces the following code coverage thresholds in CI:
+
+- **Line Coverage**: Minimum 80%
+- **Branch Coverage**: Minimum 70%
+
+Pull requests that reduce coverage below these thresholds will fail CI checks.
+
+### Writing Tests
+
+#### Test Structure
+
+Follow the AAA (Arrange-Act-Assert) pattern:
 
 ```csharp
 [Test]
-public void MethodName_Scenario_ExpectedBehavior()
+public void MethodName_Scenario_ExpectedResult()
 {
-    // Arrange: Set up test data and dependencies
-    var service = new MyService();
-    var input = new MyInput { Value = 42 };
-
-    // Act: Execute the behavior being tested
-    var result = service.ProcessInput(input);
-
-    // Assert: Verify the expected outcome
+    // Arrange - Set up test data and dependencies
+    var mockService = new Mock<IService>();
+    var sut = new SystemUnderTest(mockService.Object);
+    
+    // Act - Execute the method being tested
+    var result = sut.MethodName(input);
+    
+    // Assert - Verify the expected outcome
+    Assert.That(result, Is.Not.Null);
     Assert.That(result.Success, Is.True);
-    Assert.That(result.Value, Is.EqualTo(42));
 }
 ```
 
 #### Test Naming Convention
 
-- Use descriptive names: `MethodName_Scenario_ExpectedResult`
-- Examples:
-  - `CreateToken_ValidRequest_ReturnsSuccess`
-  - `ValidateRequest_NullName_ThrowsArgumentException`
-  - `DeployERC20_InvalidChainId_ReturnsError`
+Use descriptive test names that clearly indicate:
+- The method being tested
+- The scenario or condition
+- The expected outcome
 
-#### Use NUnit Constraints
+Examples:
+- `CreateToken_ValidRequest_ReturnsSuccess`
+- `CreateToken_NullRequest_ThrowsArgumentNullException`
+- `CreateToken_InvalidChainId_ReturnsError`
 
-Prefer the constraint model over classic assertions:
+#### Mocking Dependencies
 
-```csharp
-// ✅ Good - Use constraint model
-Assert.That(result.Success, Is.True);
-Assert.That(result.TransactionId, Is.Not.Null);
-Assert.That(result.ErrorMessage, Is.Null.Or.Empty);
-
-// ❌ Avoid - Classic assertions
-Assert.AreEqual(true, result.Success);
-Assert.IsNotNull(result.TransactionId);
-```
-
-#### Mock External Dependencies
-
-Use Moq to mock external dependencies:
+Use Moq for mocking dependencies:
 
 ```csharp
-[Test]
-public void ServiceMethod_WithMockedDependency_BehavesCorrectly()
-{
-    // Arrange
-    var mockLogger = new Mock<ILogger<MyService>>();
-    var mockConfig = new Mock<IOptionsMonitor<MyConfig>>();
-    mockConfig.Setup(x => x.CurrentValue).Returns(new MyConfig());
-    
-    var service = new MyService(mockConfig.Object, mockLogger.Object);
-
-    // Act & Assert
-    // ...
-}
+var mockLogger = new Mock<ILogger<MyService>>();
+var mockConfig = new Mock<IOptionsMonitor<MyConfig>>();
+mockConfig.Setup(x => x.CurrentValue).Returns(new MyConfig { /* setup */ });
 ```
 
-#### Test Edge Cases
+#### Test Categories
 
-Always test:
-- Valid inputs (happy path)
-- Invalid inputs (null, empty, out of range)
-- Boundary conditions
-- Error conditions
+- **Unit Tests**: Test individual methods and classes in isolation with mocked dependencies
+- **Integration Tests**: Test interactions between components
+- **Real Endpoint Tests**: Tests that require actual network connections (excluded from CI by default)
 
-#### Example Test File
+### Test Files
 
-See `BiatecTokensTests/TDDExampleTests.cs` for comprehensive examples of:
-- Basic test structure
-- Parameterized tests with `[TestCase]`
-- Setup and teardown methods
-- Mocking dependencies
+The test project is organized as follows:
 
-## Code Coverage Requirements
+```
+BiatecTokensTests/
+├── ApiIntegrationTests.cs          # End-to-end API tests
+├── Erc20TokenTests.cs              # ERC20 token functionality tests
+├── TokenServiceTests.cs            # Token service unit tests
+├── TokenControllerTests.cs         # Controller endpoint tests
+├── IPFSRepositoryTests.cs          # IPFS integration tests
+├── IPFSRepositoryIntegrationTests.cs  # IPFS integration with mocks
+├── IPFSRepositoryRealEndpointTests.cs  # Real IPFS endpoint tests (excluded from CI)
+├── TDDExampleTests.cs              # TDD examples and patterns
+└── TestHelper.cs                   # Shared test utilities
+```
 
-### Current Coverage Thresholds
+### Debugging Tests
 
-**Note**: We are taking an incremental approach to achieving our coverage goals. The current enforced thresholds are:
+In Visual Studio:
+1. Open Test Explorer (Test > Test Explorer)
+2. Right-click a test and select "Debug"
 
-- **Line Coverage**: ≥ 11% (baseline to prevent regression)
-- **Branch Coverage**: ≥ 3% (baseline to prevent regression)
+In Visual Studio Code:
+1. Install the ".NET Core Test Explorer" extension
+2. Use the Test Explorer sidebar to run/debug tests
 
-**Target Goals** (to be reached incrementally through community contributions):
+From command line:
+```bash
+# Run tests in debug mode with detailed output
+dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
+  --verbosity detailed \
+  --logger "console;verbosity=detailed"
+```
 
-- **Line Coverage**: ≥ 80%
-- **Branch Coverage**: ≥ 70%
+## Submitting Changes
 
-### Coverage Improvement Strategy
+### Pull Request Process
 
-We're building code coverage incrementally. Each PR should:
-
-1. **Maintain or improve** current coverage levels
-2. **Add tests** for any new code added
-3. **Aim to increase** the overall project coverage percentage
-
-When adding new features:
-- Write tests FIRST (TDD approach)
-- Ensure your new code has >80% coverage
-- Don't decrease existing coverage
-
-### What Gets Measured
-
-Coverage is measured for:
-- Service layer (`BiatecTokensApi/Services/`)
-- Controller layer (`BiatecTokensApi/Controllers/`)
-- Repository layer (`BiatecTokensApi/Repositories/`)
-- Model validation logic
-
-### What's Excluded
-
-The following are excluded from coverage requirements:
-- Generated code (`BiatecTokensApi/Generated/`)
-- Program.cs (application startup)
-- Model classes (DTOs)
-- Configuration classes
-
-### CI Coverage Checks
-
-The CI pipeline automatically:
-1. Runs all tests with coverage collection
-2. Generates a coverage report
-3. Checks coverage thresholds
-4. **Fails the build** if thresholds are not met
-5. Uploads coverage report as an artifact
-
-You can view the coverage report by:
-1. Going to the Actions tab in GitHub
-2. Clicking on your PR's workflow run
-3. Downloading the "coverage-report" artifact
-4. Opening `index.html` in a browser
-
-### Improving Coverage
-
-If your PR doesn't meet coverage requirements or you want to help improve overall coverage:
-
-1. **Identify gaps**: Check the coverage report to see which lines/branches aren't covered
-2. **Add tests**: Write new tests targeting uncovered code paths
-3. **Test edge cases**: Ensure you're testing error conditions and boundary cases
-4. **Mock appropriately**: Use mocks to isolate the code under test
-
-**Areas needing test coverage** (good places to contribute):
-- `ASATokenService` - Algorand Standard Asset token creation
-- `ARC3TokenService` - ARC3 token with IPFS metadata
-- `ARC200TokenService` - ARC200 smart contract tokens  
-- `ARC1400TokenService` - ARC1400 security tokens
-- Controller validation logic
-- Request validation methods
-
-See `BiatecTokensTests/TDDExampleTests.cs` for test patterns and examples.
-
-### Incremental Coverage Goals
-
-We're working toward 80%/70% coverage through incremental improvements:
-
-| Quarter | Line Target | Branch Target | Status |
-|---------|-------------|---------------|--------|
-| Q1 2026 (Baseline) | 11% | 3% | ✅ Current |
-| Q2 2026 | 30% | 15% | 🎯 Next milestone |
-| Q3 2026 | 50% | 35% | 📅 Planned |
-| Q4 2026 | 65% | 50% | 📅 Planned |
-| Q1 2027 | 80% | 70% | 🏆 Goal |
-
-Every contribution that improves coverage brings us closer to our goal!
-
-## Pull Request Process
-
-### Before Submitting
-
-1. **Write tests first** (TDD approach)
-2. **Ensure all tests pass locally**:
+1. **Create a feature branch** from `master`
    ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make your changes** following the code style guidelines
+
+3. **Add tests** for new functionality
+   - Ensure all new code has adequate test coverage
+   - Run tests locally before submitting
+
+4. **Update documentation** if needed
+   - Update XML documentation comments
+   - Update README.md if adding new features
+   - Update OPENAPI.md for API changes
+
+5. **Run all checks locally**
+   ```bash
+   # Build
+   dotnet build BiatecTokensApi.sln --configuration Release
+   
+   # Run tests with coverage
    dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
+     --collect:"XPlat Code Coverage" \
      --filter "FullyQualifiedName!~RealEndpoint"
    ```
-3. **Check code coverage** maintains or improves baseline (currently ≥11% line, ≥3% branch)
-4. **Build successfully**:
+
+6. **Commit your changes** with clear, descriptive commit messages
    ```bash
-   dotnet build BiatecTokensApi.sln --configuration Release
+   git add .
+   git commit -m "Add feature: description of change"
    ```
-5. **Follow coding standards** (see below)
-6. **Update documentation** if adding new features or changing APIs
-7. **Add XML documentation comments** for all public APIs
 
-### Submitting a PR
+7. **Push to your fork**
+   ```bash
+   git push origin feature/your-feature-name
+   ```
 
-1. **Push to your fork**
-2. **Create a pull request** against the `master` branch
-3. **Fill out the PR template** with:
-   - Clear description of changes
-   - Link to related issue (if any)
-   - Testing performed
-   - Screenshots (for UI changes)
-4. **Tag reviewers** including `@copilot` for automated review
+8. **Open a Pull Request** on GitHub
+   - Provide a clear title and description
+   - Reference any related issues
+   - Tag reviewers if needed
 
-### PR Requirements
+### Pull Request Requirements
 
-All PRs must meet these criteria:
+Before your pull request can be merged, it must:
 
-✅ **Required Status Checks** (enforced by CI):
-- Build passes
-- All tests pass
-- Code coverage ≥ 11% lines and ≥ 3% branches (baseline - should improve over time toward 80%/70% target)
-- No merge conflicts
+- ✅ Pass all CI checks
+- ✅ Meet code coverage thresholds (80% line, 70% branch)
+- ✅ Have no merge conflicts with `master`
+- ✅ Include tests for new functionality
+- ✅ Follow the project's code style
+- ✅ Have clear, descriptive commit messages
+- ✅ Include updated documentation if needed
 
-✅ **Code Review**:
-- At least **1 approval** from a maintainer required
-- Address all review comments
-- Resolve all conversations
+## Code Style
 
-✅ **Quality Standards**:
-- Code follows project conventions
-- XML documentation added for public APIs
-- No compiler warnings introduced
-- Security vulnerabilities addressed
+### C# Coding Conventions
 
-### After Approval
-
-Once your PR is approved and all checks pass:
-1. A maintainer will merge your PR
-2. Your changes will be automatically deployed via CI/CD
-3. You'll be credited as a contributor!
-
-## Coding Standards
-
-### C# Conventions
-
-- Follow [C# Coding Conventions](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
-- Use PascalCase for public members, camelCase for private fields
-- Enable nullable reference types
-- Use explicit types when type is not obvious
-- Avoid `var` for non-obvious types
+Follow standard C# naming conventions:
+- **PascalCase** for public members, classes, methods, properties
+- **camelCase** for private fields, local variables, parameters
+- Prefix private fields with underscore: `_privateField`
 
 ### Documentation
 
 - Add XML documentation comments (`///`) for all public APIs
 - Include `<summary>`, `<param>`, `<returns>`, and `<exception>` tags
-- Document complex logic with inline comments
-- Update README.md for significant feature additions
+- Documentation is generated in Debug builds to `doc/documentation.xml`
 
-### Example
-
+Example:
 ```csharp
 /// <summary>
-/// Creates a new ERC20 mintable token on the specified EVM chain.
+/// Creates a new ERC20 token with the specified parameters.
 /// </summary>
-/// <param name="request">The token creation request containing token parameters.</param>
-/// <returns>The transaction result including contract address and transaction hash.</returns>
+/// <param name="request">The token creation request.</param>
+/// <returns>The deployment response with transaction details.</returns>
 /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
-/// <exception cref="InvalidOperationException">Thrown when chain configuration is not found.</exception>
-public async Task<ERC20TokenDeploymentResponse> CreateERC20MintableAsync(
-    ERC20MintableTokenDeploymentRequest request)
+public async Task<TokenCreationResponse> CreateTokenAsync(CreateTokenRequest request)
 {
-    // Implementation...
+    // Implementation
 }
 ```
 
-### File Organization
+### General Guidelines
 
-- One class per file
-- Organize using folders by feature/layer:
-  - `/Controllers` - API endpoints
-  - `/Services` - Business logic
-  - `/Repositories` - Data access
-  - `/Models` - DTOs and data models
-  - `/Configuration` - Configuration classes
+- Use explicit types instead of `var` when type is not obvious
+- Enable and address nullable reference types warnings
+- Keep methods focused and single-purpose
+- Prefer composition over inheritance
+- Use dependency injection for services
+- Validate all input parameters
+- Handle exceptions appropriately
+- Log important operations and errors
+- Never expose sensitive information in logs or errors
 
-### Error Handling
+### Security Best Practices
 
-- Catch specific exceptions
-- Log errors with appropriate context
-- Return user-friendly error messages
-- Never expose internal details in responses
-
-## Branch Protection Rules
-
-### Required Status Checks
-
-The following checks must pass before merging:
-
-1. ✅ **Build and Test** (`build-and-test` job)
-   - Build succeeds
-   - All tests pass
-   - Code coverage thresholds met
-
-2. ✅ **Code Quality**
-   - No new compiler warnings
-   - XML documentation present
-   - Follows coding standards
-
-### Required Approvals
-
-- **1 approval** from a code owner or maintainer is required
-- Approvals automatically dismissed on new commits (if configured)
-
-### Branch Settings
-
-To maintain code quality, the `master` branch has these protections:
-
-- Cannot force push
-- Cannot delete the branch
-- Status checks must pass before merging
-- At least 1 approval required
-- Stale approvals dismissed on new commits
-
-**Note**: Branch protection rules are configured in the GitHub repository settings by repository administrators. Contributors cannot change these settings.
+- ⚠️ Never commit secrets, API keys, or private keys
+- Use user secrets for local development
+- Use environment variables for production
+- Validate and sanitize all inputs
+- Use proper authentication and authorization
+- Follow blockchain security best practices
+- Test on testnet before mainnet
 
 ## Getting Help
 
-- **Questions?** Open a [GitHub Discussion](https://github.com/scholtz/BiatecTokensApi/discussions)
-- **Found a bug?** Open an [Issue](https://github.com/scholtz/BiatecTokensApi/issues)
-- **Security concern?** See [SECURITY.md](SECURITY.md) (if it exists) or contact maintainers privately
+If you have questions or need help:
 
-## Additional Resources
-
-- [.NET Documentation](https://learn.microsoft.com/en-us/dotnet/)
-- [NUnit Documentation](https://docs.nunit.org/)
-- [Moq Documentation](https://github.com/moq/moq4)
-- [Algorand Developer Documentation](https://developer.algorand.org/)
-- [Nethereum Documentation](https://docs.nethereum.com/)
+1. Check existing issues on GitHub
+2. Review the documentation in README.md and OPENAPI.md
+3. Ask questions in pull request discussions
+4. Review the custom instructions in `.github/copilot-instructions.md`
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same license as the project.
-
----
+By contributing to this project, you agree that your contributions will be licensed under the same license as the project.
 
 Thank you for contributing to BiatecTokensApi! 🚀
