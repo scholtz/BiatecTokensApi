@@ -52,5 +52,19 @@ namespace BiatecTokensApi.Repositories
         /// <param name="address">The Algorand address</param>
         /// <returns>True if the address is actively whitelisted</returns>
         Task<bool> IsWhitelistedAsync(ulong assetId, string address);
+
+        /// <summary>
+        /// Adds an audit log entry for a whitelist change
+        /// </summary>
+        /// <param name="auditEntry">The audit log entry to add</param>
+        /// <returns>True if the audit entry was added successfully</returns>
+        Task<bool> AddAuditLogEntryAsync(WhitelistAuditLogEntry auditEntry);
+
+        /// <summary>
+        /// Gets audit log entries for a specific asset with optional filters
+        /// </summary>
+        /// <param name="request">The audit log request with filters and pagination</param>
+        /// <returns>List of audit log entries</returns>
+        Task<List<WhitelistAuditLogEntry>> GetAuditLogAsync(GetWhitelistAuditLogRequest request);
     }
 }

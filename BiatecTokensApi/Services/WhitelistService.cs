@@ -52,6 +52,8 @@ namespace BiatecTokensApi.Services
                     _logger.LogInformation("Whitelist entry already exists for address {Address} on asset {AssetId}, updating status", 
                         request.Address, request.AssetId);
                     
+                    var oldStatus = existingEntry.Status;
+                    
                     // Update existing entry
                     existingEntry.Status = request.Status;
                     existingEntry.UpdatedAt = DateTime.UtcNow;
@@ -67,6 +69,18 @@ namespace BiatecTokensApi.Services
                             ErrorMessage = "Failed to update existing whitelist entry"
                         };
                     }
+                    
+                    // Record audit log for update
+                    await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                    {
+                        AssetId = request.AssetId,
+                        Address = existingEntry.Address,
+                        ActionType = WhitelistActionType.Update,
+                        PerformedBy = createdBy,
+                        PerformedAt = DateTime.UtcNow,
+                        OldStatus = oldStatus,
+                        NewStatus = request.Status
+                    });
                     
                     return new WhitelistResponse
                     {
@@ -95,6 +109,18 @@ namespace BiatecTokensApi.Services
                         ErrorMessage = "Failed to add whitelist entry"
                     };
                 }
+
+                // Record audit log for add
+                await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                {
+                    AssetId = entry.AssetId,
+                    Address = entry.Address,
+                    ActionType = WhitelistActionType.Add,
+                    PerformedBy = createdBy,
+                    PerformedAt = DateTime.UtcNow,
+                    OldStatus = null,
+                    NewStatus = entry.Status
+                });
 
                 _logger.LogInformation("Successfully added whitelist entry for address {Address} on asset {AssetId} by {CreatedBy}", 
                     entry.Address, entry.AssetId, createdBy);
@@ -137,6 +163,9 @@ namespace BiatecTokensApi.Services
                     };
                 }
 
+                // Get the entry before removing to capture its status for audit log
+                var existingEntry = await _repository.GetEntryAsync(request.AssetId, request.Address.ToUpperInvariant());
+                
                 var removed = await _repository.RemoveEntryAsync(request.AssetId, request.Address.ToUpperInvariant());
 
                 if (!removed)
@@ -149,6 +178,18 @@ namespace BiatecTokensApi.Services
                         ErrorMessage = "Whitelist entry not found"
                     };
                 }
+
+                // Record audit log for remove (use system if no user context available)
+                await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                {
+                    AssetId = request.AssetId,
+                    Address = request.Address.ToUpperInvariant(),
+                    ActionType = WhitelistActionType.Remove,
+                    PerformedBy = existingEntry?.UpdatedBy ?? existingEntry?.CreatedBy ?? "SYSTEM",
+                    PerformedAt = DateTime.UtcNow,
+                    OldStatus = existingEntry?.Status,
+                    NewStatus = null
+                });
 
                 _logger.LogInformation("Successfully removed whitelist entry for address {Address} on asset {AssetId}", 
                     request.Address, request.AssetId);
@@ -209,6 +250,8 @@ namespace BiatecTokensApi.Services
                     var existingEntry = await _repository.GetEntryAsync(request.AssetId, address);
                     if (existingEntry != null)
                     {
+                        var oldStatus = existingEntry.Status;
+                        
                         // Update existing entry
                         existingEntry.Status = request.Status;
                         existingEntry.UpdatedAt = DateTime.UtcNow;
@@ -217,6 +260,19 @@ namespace BiatecTokensApi.Services
                         var updated = await _repository.UpdateEntryAsync(existingEntry);
                         if (updated)
                         {
+                            // Record audit log for update
+                            await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                            {
+                                AssetId = request.AssetId,
+                                Address = address,
+                                ActionType = WhitelistActionType.Update,
+                                PerformedBy = createdBy,
+                                PerformedAt = DateTime.UtcNow,
+                                OldStatus = oldStatus,
+                                NewStatus = request.Status,
+                                Notes = "Bulk operation"
+                            });
+                            
                             response.SuccessfulEntries.Add(existingEntry);
                             response.SuccessCount++;
                         }
@@ -243,6 +299,19 @@ namespace BiatecTokensApi.Services
 
                     if (added)
                     {
+                        // Record audit log for add
+                        await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                        {
+                            AssetId = entry.AssetId,
+                            Address = entry.Address,
+                            ActionType = WhitelistActionType.Add,
+                            PerformedBy = createdBy,
+                            PerformedAt = DateTime.UtcNow,
+                            OldStatus = null,
+                            NewStatus = entry.Status,
+                            Notes = "Bulk operation"
+                        });
+                        
                         response.SuccessfulEntries.Add(entry);
                         response.SuccessCount++;
                     }
@@ -345,6 +414,64 @@ namespace BiatecTokensApi.Services
             catch
             {
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets audit log entries for a token's whitelist
+        /// </summary>
+        /// <param name="request">The audit log request with filters and pagination</param>
+        /// <returns>The audit log response with entries and pagination info</returns>
+        public async Task<WhitelistAuditLogResponse> GetAuditLogAsync(GetWhitelistAuditLogRequest request)
+        {
+            try
+            {
+                // Validate pagination parameters
+                if (request.Page < 1)
+                {
+                    request.Page = 1;
+                }
+                if (request.PageSize < 1)
+                {
+                    request.PageSize = 50;
+                }
+                if (request.PageSize > 100)
+                {
+                    request.PageSize = 100;
+                }
+
+                var allEntries = await _repository.GetAuditLogAsync(request);
+                
+                var totalCount = allEntries.Count;
+                var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+                
+                // Apply pagination
+                var pagedEntries = allEntries
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                _logger.LogInformation("Retrieved {Count} audit log entries for asset {AssetId} (page {Page} of {TotalPages})", 
+                    pagedEntries.Count, request.AssetId, request.Page, totalPages);
+
+                return new WhitelistAuditLogResponse
+                {
+                    Success = true,
+                    Entries = pagedEntries,
+                    TotalCount = totalCount,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving audit log for asset {AssetId}", request.AssetId);
+                return new WhitelistAuditLogResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
             }
         }
     }

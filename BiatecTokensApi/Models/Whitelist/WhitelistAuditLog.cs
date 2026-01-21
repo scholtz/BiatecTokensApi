@@ -1,0 +1,155 @@
+namespace BiatecTokensApi.Models.Whitelist
+{
+    /// <summary>
+    /// Represents an audit log entry for whitelist changes
+    /// </summary>
+    /// <remarks>
+    /// This model tracks all changes to the whitelist for compliance and regulatory reporting.
+    /// Each entry represents a single action (add, update, or remove) performed on a whitelist entry.
+    /// </remarks>
+    public class WhitelistAuditLogEntry
+    {
+        /// <summary>
+        /// Unique identifier for the audit log entry
+        /// </summary>
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// The asset ID (token ID) for which the whitelist change occurred
+        /// </summary>
+        public ulong AssetId { get; set; }
+
+        /// <summary>
+        /// The Algorand address affected by this change
+        /// </summary>
+        public string Address { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The type of action performed (Add, Update, Remove)
+        /// </summary>
+        public WhitelistActionType ActionType { get; set; }
+
+        /// <summary>
+        /// The address of the user who performed the action
+        /// </summary>
+        public string PerformedBy { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Timestamp when the action was performed
+        /// </summary>
+        public DateTime PerformedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// The status before the change (null for new entries)
+        /// </summary>
+        public WhitelistStatus? OldStatus { get; set; }
+
+        /// <summary>
+        /// The status after the change (null for removed entries)
+        /// </summary>
+        public WhitelistStatus? NewStatus { get; set; }
+
+        /// <summary>
+        /// Additional notes or context about the change
+        /// </summary>
+        public string? Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Type of action performed on a whitelist entry
+    /// </summary>
+    public enum WhitelistActionType
+    {
+        /// <summary>
+        /// Address was added to the whitelist
+        /// </summary>
+        Add,
+
+        /// <summary>
+        /// Whitelist entry was updated (e.g., status change)
+        /// </summary>
+        Update,
+
+        /// <summary>
+        /// Address was removed from the whitelist
+        /// </summary>
+        Remove
+    }
+
+    /// <summary>
+    /// Request to retrieve audit log for a token's whitelist
+    /// </summary>
+    public class GetWhitelistAuditLogRequest
+    {
+        /// <summary>
+        /// The asset ID (token ID) for which to retrieve audit log
+        /// </summary>
+        public ulong AssetId { get; set; }
+
+        /// <summary>
+        /// Optional filter by address
+        /// </summary>
+        public string? Address { get; set; }
+
+        /// <summary>
+        /// Optional filter by action type
+        /// </summary>
+        public WhitelistActionType? ActionType { get; set; }
+
+        /// <summary>
+        /// Optional filter by user who performed the action
+        /// </summary>
+        public string? PerformedBy { get; set; }
+
+        /// <summary>
+        /// Optional start date filter
+        /// </summary>
+        public DateTime? FromDate { get; set; }
+
+        /// <summary>
+        /// Optional end date filter
+        /// </summary>
+        public DateTime? ToDate { get; set; }
+
+        /// <summary>
+        /// Page number for pagination (1-based)
+        /// </summary>
+        public int Page { get; set; } = 1;
+
+        /// <summary>
+        /// Page size for pagination
+        /// </summary>
+        public int PageSize { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// Response containing whitelist audit log entries
+    /// </summary>
+    public class WhitelistAuditLogResponse : BaseResponse
+    {
+        /// <summary>
+        /// List of audit log entries
+        /// </summary>
+        public List<WhitelistAuditLogEntry> Entries { get; set; } = new();
+
+        /// <summary>
+        /// Total number of entries matching the filter
+        /// </summary>
+        public int TotalCount { get; set; }
+
+        /// <summary>
+        /// Current page number
+        /// </summary>
+        public int Page { get; set; }
+
+        /// <summary>
+        /// Page size
+        /// </summary>
+        public int PageSize { get; set; }
+
+        /// <summary>
+        /// Total number of pages
+        /// </summary>
+        public int TotalPages { get; set; }
+    }
+}

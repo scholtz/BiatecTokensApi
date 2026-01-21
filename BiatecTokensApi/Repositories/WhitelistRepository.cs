@@ -13,6 +13,7 @@ namespace BiatecTokensApi.Repositories
     public class WhitelistRepository : IWhitelistRepository
     {
         private readonly ConcurrentDictionary<string, WhitelistEntry> _whitelist;
+        private readonly ConcurrentBag<WhitelistAuditLogEntry> _auditLog;
         private readonly ILogger<WhitelistRepository> _logger;
 
         /// <summary>
@@ -22,6 +23,7 @@ namespace BiatecTokensApi.Repositories
         public WhitelistRepository(ILogger<WhitelistRepository> logger)
         {
             _whitelist = new ConcurrentDictionary<string, WhitelistEntry>();
+            _auditLog = new ConcurrentBag<WhitelistAuditLogEntry>();
             _logger = logger;
         }
 
@@ -159,6 +161,72 @@ namespace BiatecTokensApi.Repositories
             }
             
             return Task.FromResult(false);
+        }
+
+        /// <summary>
+        /// Adds an audit log entry for a whitelist change
+        /// </summary>
+        /// <param name="auditEntry">The audit log entry to add</param>
+        /// <returns>True if the audit entry was added successfully</returns>
+        public Task<bool> AddAuditLogEntryAsync(WhitelistAuditLogEntry auditEntry)
+        {
+            try
+            {
+                _auditLog.Add(auditEntry);
+                _logger.LogDebug("Added audit log entry for {ActionType} on address {Address} for asset {AssetId}",
+                    auditEntry.ActionType, auditEntry.Address, auditEntry.AssetId);
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to add audit log entry");
+                return Task.FromResult(false);
+            }
+        }
+
+        /// <summary>
+        /// Gets audit log entries for a specific asset with optional filters
+        /// </summary>
+        /// <param name="request">The audit log request with filters and pagination</param>
+        /// <returns>List of audit log entries</returns>
+        public Task<List<WhitelistAuditLogEntry>> GetAuditLogAsync(GetWhitelistAuditLogRequest request)
+        {
+            var query = _auditLog.Where(e => e.AssetId == request.AssetId);
+
+            // Apply filters
+            if (!string.IsNullOrEmpty(request.Address))
+            {
+                query = query.Where(e => e.Address.Equals(request.Address, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.ActionType.HasValue)
+            {
+                query = query.Where(e => e.ActionType == request.ActionType.Value);
+            }
+
+            if (!string.IsNullOrEmpty(request.PerformedBy))
+            {
+                query = query.Where(e => e.PerformedBy.Equals(request.PerformedBy, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(e => e.PerformedAt >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(e => e.PerformedAt <= request.ToDate.Value);
+            }
+
+            // Sort by most recent first
+            var entries = query
+                .OrderByDescending(e => e.PerformedAt)
+                .ToList();
+
+            _logger.LogDebug("Retrieved {Count} audit log entries for asset {AssetId}", entries.Count, request.AssetId);
+
+            return Task.FromResult(entries);
         }
 
         private static string GetKey(ulong assetId, string address)
