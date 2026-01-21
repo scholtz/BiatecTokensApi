@@ -132,7 +132,8 @@ namespace BiatecTokensTests
             var result = await _controller.CreateASAToken(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -155,7 +156,8 @@ namespace BiatecTokensTests
             var result = await _controller.CreateASANFT(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -179,7 +181,8 @@ namespace BiatecTokensTests
             var result = await _controller.CreateASAFNFT(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -204,7 +207,8 @@ namespace BiatecTokensTests
             var result = await _controller.CreateARC3FungibleToken(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -228,7 +232,8 @@ namespace BiatecTokensTests
             var result = await _controller.CreateARC3NFT(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -253,7 +258,8 @@ namespace BiatecTokensTests
             var result = await _controller.CreateARC3FractionalNFT(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -280,7 +286,8 @@ namespace BiatecTokensTests
             var result = await _controller.ARC200MintableTokenDeploymentRequest(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -305,7 +312,8 @@ namespace BiatecTokensTests
             var result = await _controller.CreateARC200Preminted(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
@@ -332,7 +340,8 @@ namespace BiatecTokensTests
             var result = await _controller.ARC1400MintableTokenDeploymentRequest(request);
 
             // Assert
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var actionResult = result.Result;
+            Assert.That(actionResult, Is.InstanceOf<BadRequestObjectResult>());
         }
 
         #endregion
