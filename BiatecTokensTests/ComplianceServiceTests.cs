@@ -1,6 +1,8 @@
 using BiatecTokensApi.Models.Compliance;
+using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
+using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -11,6 +13,7 @@ namespace BiatecTokensTests
     {
         private Mock<IComplianceRepository> _repositoryMock;
         private Mock<ILogger<ComplianceService>> _loggerMock;
+        private Mock<ISubscriptionMeteringService> _meteringServiceMock;
         private ComplianceService _service;
 
         [SetUp]
@@ -18,7 +21,8 @@ namespace BiatecTokensTests
         {
             _repositoryMock = new Mock<IComplianceRepository>();
             _loggerMock = new Mock<ILogger<ComplianceService>>();
-            _service = new ComplianceService(_repositoryMock.Object, _loggerMock.Object);
+            _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
+            _service = new ComplianceService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object);
         }
 
         #region UpsertMetadataAsync Tests
@@ -512,6 +516,116 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Does.Contain("Aramid"));
+        }
+
+        #endregion
+
+        #region Metering Tests
+
+        [Test]
+        public async Task UpsertMetadataAsync_Success_ShouldEmitMeteringEvent()
+        {
+            // Arrange
+            var request = new UpsertComplianceMetadataRequest
+            {
+                AssetId = 12345,
+                Network = "voimain",
+                KycProvider = "Sumsub",
+                VerificationStatus = VerificationStatus.Verified,
+                Jurisdiction = "US"
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            _repositoryMock.Setup(r => r.GetMetadataByAssetIdAsync(request.AssetId))
+                .ReturnsAsync((ComplianceMetadata?)null);
+            _repositoryMock.Setup(r => r.UpsertMetadataAsync(It.IsAny<ComplianceMetadata>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.UpsertMetadataAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.Category == MeteringCategory.Compliance &&
+                         e.OperationType == MeteringOperationType.Upsert &&
+                         e.AssetId == request.AssetId &&
+                         e.Network == request.Network &&
+                         e.PerformedBy == createdBy &&
+                         e.ItemCount == 1
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task UpsertMetadataAsync_Failure_ShouldNotEmitMeteringEvent()
+        {
+            // Arrange
+            var request = new UpsertComplianceMetadataRequest
+            {
+                AssetId = 12345,
+                Network = "voimain",
+                Jurisdiction = "US"
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            _repositoryMock.Setup(r => r.GetMetadataByAssetIdAsync(request.AssetId))
+                .ReturnsAsync((ComplianceMetadata?)null);
+            _repositoryMock.Setup(r => r.UpsertMetadataAsync(It.IsAny<ComplianceMetadata>()))
+                .ReturnsAsync(false);
+
+            // Act
+            var result = await _service.UpsertMetadataAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteMetadataAsync_Success_ShouldEmitMeteringEvent()
+        {
+            // Arrange
+            var assetId = 12345ul;
+
+            _repositoryMock.Setup(r => r.DeleteMetadataAsync(assetId))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.DeleteMetadataAsync(assetId);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.Category == MeteringCategory.Compliance &&
+                         e.OperationType == MeteringOperationType.Delete &&
+                         e.AssetId == assetId &&
+                         e.ItemCount == 1
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DeleteMetadataAsync_Failure_ShouldNotEmitMeteringEvent()
+        {
+            // Arrange
+            var assetId = 12345ul;
+
+            _repositoryMock.Setup(r => r.DeleteMetadataAsync(assetId))
+                .ReturnsAsync(false);
+
+            // Act
+            var result = await _service.DeleteMetadataAsync(assetId);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()),
+                Times.Never);
         }
 
         #endregion

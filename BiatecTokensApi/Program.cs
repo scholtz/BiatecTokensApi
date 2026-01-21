@@ -40,7 +40,11 @@ namespace BiatecTokensApi
                 {
                     Title = "Biatec Tokens API",
                     Version = "v1",
-                    Description = File.ReadAllText("README.md"),
+                    Description = File.ReadAllText("README.md") + 
+                        "\n\n## Subscription Metering\n\n" +
+                        "This API includes subscription metering for compliance and whitelist operations. " +
+                        "Metering events are emitted as structured logs for billing analytics. " +
+                        "See SUBSCRIPTION_METERING.md for detailed documentation on the metering schema and integration.",
                 });
                 c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
                 {
@@ -80,6 +84,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IIPFSRepository, IPFSRepository>();
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceRepository, BiatecTokensApi.Repositories.ComplianceRepository>();
+
+            // Register metering service
+            builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
 
             // Register the token services
             builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();

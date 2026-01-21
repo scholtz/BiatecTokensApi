@@ -1,4 +1,5 @@
 using Algorand;
+using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Models.Whitelist;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services.Interface;
@@ -12,16 +13,23 @@ namespace BiatecTokensApi.Services
     {
         private readonly IWhitelistRepository _repository;
         private readonly ILogger<WhitelistService> _logger;
+        private readonly ISubscriptionMeteringService _meteringService;
+        private const string NetworkNotAvailable = null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WhitelistService"/> class.
         /// </summary>
         /// <param name="repository">The whitelist repository</param>
         /// <param name="logger">The logger instance</param>
-        public WhitelistService(IWhitelistRepository repository, ILogger<WhitelistService> logger)
+        /// <param name="meteringService">The subscription metering service</param>
+        public WhitelistService(
+            IWhitelistRepository repository, 
+            ILogger<WhitelistService> logger,
+            ISubscriptionMeteringService meteringService)
         {
             _repository = repository;
             _logger = logger;
+            _meteringService = meteringService;
         }
 
         /// <summary>
@@ -87,6 +95,17 @@ namespace BiatecTokensApi.Services
                         NewStatus = request.Status
                     });
                     
+                    // Emit metering event for billing analytics
+                    _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                    {
+                        Category = MeteringCategory.Whitelist,
+                        OperationType = MeteringOperationType.Update,
+                        AssetId = request.AssetId,
+                        Network = NetworkNotAvailable,
+                        PerformedBy = createdBy,
+                        ItemCount = 1
+                    });
+                    
                     return new WhitelistResponse
                     {
                         Success = true,
@@ -130,6 +149,17 @@ namespace BiatecTokensApi.Services
                     PerformedAt = DateTime.UtcNow,
                     OldStatus = null,
                     NewStatus = entry.Status
+                });
+
+                // Emit metering event for billing analytics
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Whitelist,
+                    OperationType = MeteringOperationType.Add,
+                    AssetId = entry.AssetId,
+                    Network = NetworkNotAvailable,
+                    PerformedBy = createdBy,
+                    ItemCount = 1
                 });
 
                 _logger.LogInformation("Successfully added whitelist entry for address {Address} on asset {AssetId} by {CreatedBy}", 
@@ -199,6 +229,17 @@ namespace BiatecTokensApi.Services
                     PerformedAt = DateTime.UtcNow,
                     OldStatus = existingEntry?.Status,
                     NewStatus = null
+                });
+
+                // Emit metering event for billing analytics
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Whitelist,
+                    OperationType = MeteringOperationType.Remove,
+                    AssetId = request.AssetId,
+                    Network = NetworkNotAvailable,
+                    PerformedBy = existingEntry?.UpdatedBy ?? existingEntry?.CreatedBy,
+                    ItemCount = 1
                 });
 
                 _logger.LogInformation("Successfully removed whitelist entry for address {Address} on asset {AssetId}", 
@@ -345,6 +386,20 @@ namespace BiatecTokensApi.Services
 
                 _logger.LogInformation("Bulk add completed: {SuccessCount} succeeded, {FailedCount} failed for asset {AssetId}", 
                     response.SuccessCount, response.FailedCount, request.AssetId);
+
+                // Emit metering event for billing analytics (only for successful operations)
+                if (response.SuccessCount > 0)
+                {
+                    _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                    {
+                        Category = MeteringCategory.Whitelist,
+                        OperationType = MeteringOperationType.BulkAdd,
+                        AssetId = request.AssetId,
+                        Network = NetworkNotAvailable,
+                        PerformedBy = createdBy,
+                        ItemCount = response.SuccessCount
+                    });
+                }
 
                 if (response.FailedCount > 0)
                 {

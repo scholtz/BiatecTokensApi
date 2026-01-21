@@ -99,6 +99,14 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="request">The add whitelist entry request</param>
         /// <returns>The created whitelist entry</returns>
+        /// <remarks>
+        /// This operation emits a metering event for billing analytics with the following details:
+        /// - Category: Whitelist
+        /// - OperationType: Add (for new entries) or Update (for existing entries)
+        /// - Network: Not available
+        /// - PerformedBy: Authenticated user
+        /// - ItemCount: 1
+        /// </remarks>
         [HttpPost]
         [ProducesResponseType(typeof(WhitelistResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -157,6 +165,14 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="request">The remove whitelist entry request</param>
         /// <returns>The result of the removal operation</returns>
+        /// <remarks>
+        /// This operation emits a metering event for billing analytics with the following details:
+        /// - Category: Whitelist
+        /// - OperationType: Remove
+        /// - Network: Not available
+        /// - PerformedBy: User who last modified the entry
+        /// - ItemCount: 1
+        /// </remarks>
         [HttpDelete]
         [ProducesResponseType(typeof(WhitelistResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -222,6 +238,16 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="request">The bulk add whitelist request</param>
         /// <returns>The result of the bulk operation including success and failure counts</returns>
+        /// <remarks>
+        /// This operation emits a metering event for billing analytics with the following details:
+        /// - Category: Whitelist
+        /// - OperationType: BulkAdd
+        /// - Network: Not available
+        /// - PerformedBy: Authenticated user
+        /// - ItemCount: Number of successfully added/updated entries (not failed ones)
+        /// 
+        /// Note: Metering event is only emitted if at least one entry succeeds.
+        /// </remarks>
         [HttpPost("bulk")]
         [ProducesResponseType(typeof(BulkWhitelistResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

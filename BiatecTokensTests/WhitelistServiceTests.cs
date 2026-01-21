@@ -1,6 +1,8 @@
+using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Models.Whitelist;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
+using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -11,6 +13,7 @@ namespace BiatecTokensTests
     {
         private Mock<IWhitelistRepository> _repositoryMock;
         private Mock<ILogger<WhitelistService>> _loggerMock;
+        private Mock<ISubscriptionMeteringService> _meteringServiceMock;
         private WhitelistService _service;
 
         [SetUp]
@@ -18,7 +21,8 @@ namespace BiatecTokensTests
         {
             _repositoryMock = new Mock<IWhitelistRepository>();
             _loggerMock = new Mock<ILogger<WhitelistService>>();
-            _service = new WhitelistService(_repositoryMock.Object, _loggerMock.Object);
+            _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
+            _service = new WhitelistService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object);
         }
 
         #region Address Validation Tests
@@ -694,6 +698,239 @@ namespace BiatecTokensTests
                      e.OldStatus == WhitelistStatus.Active &&
                      e.NewStatus == null
             )), Times.Once);
+        }
+
+        #endregion
+
+        #region Metering Tests
+
+        [Test]
+        public async Task AddEntryAsync_Success_ShouldEmitMeteringEvent()
+        {
+            // Arrange
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "CREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.Category == MeteringCategory.Whitelist &&
+                         e.OperationType == MeteringOperationType.Add &&
+                         e.AssetId == request.AssetId &&
+                         e.PerformedBy == createdBy &&
+                         e.ItemCount == 1
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task AddEntryAsync_UpdateExisting_ShouldEmitUpdateMeteringEvent()
+        {
+            // Arrange
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "CREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+
+            var existingEntry = new WhitelistEntry
+            {
+                AssetId = request.AssetId,
+                Address = request.Address.ToUpperInvariant(),
+                Status = WhitelistStatus.Inactive,
+                CreatedBy = "OLDUSER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+                CreatedAt = DateTime.UtcNow.AddDays(-10)
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, request.Address.ToUpperInvariant()))
+                .ReturnsAsync(existingEntry);
+            _repositoryMock.Setup(r => r.UpdateEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.Category == MeteringCategory.Whitelist &&
+                         e.OperationType == MeteringOperationType.Update &&
+                         e.AssetId == request.AssetId &&
+                         e.PerformedBy == createdBy &&
+                         e.ItemCount == 1
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task RemoveEntryAsync_Success_ShouldEmitMeteringEvent()
+        {
+            // Arrange
+            var request = new RemoveWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"
+            };
+
+            var existingEntry = new WhitelistEntry
+            {
+                AssetId = request.AssetId,
+                Address = request.Address.ToUpperInvariant(),
+                Status = WhitelistStatus.Active,
+                CreatedBy = "CREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, request.Address.ToUpperInvariant()))
+                .ReturnsAsync(existingEntry);
+            _repositoryMock.Setup(r => r.RemoveEntryAsync(request.AssetId, request.Address.ToUpperInvariant()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.RemoveEntryAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.Category == MeteringCategory.Whitelist &&
+                         e.OperationType == MeteringOperationType.Remove &&
+                         e.AssetId == request.AssetId &&
+                         e.ItemCount == 1
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task BulkAddEntriesAsync_Success_ShouldEmitMeteringEventWithCount()
+        {
+            // Arrange
+            var request = new BulkAddWhitelistRequest
+            {
+                AssetId = 12345,
+                Addresses = new List<string>
+                {
+                    "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+                    "7777777777777777777777777777777777777777777777777774MSJUVU"
+                },
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.BulkAddEntriesAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True, $"Expected success but got: {result.ErrorMessage}");
+            Assert.That(result.SuccessCount, Is.EqualTo(3));
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.Category == MeteringCategory.Whitelist &&
+                         e.OperationType == MeteringOperationType.BulkAdd &&
+                         e.AssetId == request.AssetId &&
+                         e.PerformedBy == createdBy &&
+                         e.ItemCount == 3
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task BulkAddEntriesAsync_PartialSuccess_ShouldEmitMeteringEventWithSuccessCount()
+        {
+            // Arrange
+            var request = new BulkAddWhitelistRequest
+            {
+                AssetId = 12345,
+                Addresses = new List<string>
+                {
+                    "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                    "INVALIDADDRESS",
+                    "7777777777777777777777777777777777777777777777777774MSJUVU"
+                },
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.BulkAddEntriesAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.False); // Partial failure
+            Assert.That(result.SuccessCount, Is.EqualTo(2)); // Only valid addresses
+            Assert.That(result.FailedCount, Is.EqualTo(1));
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.Category == MeteringCategory.Whitelist &&
+                         e.OperationType == MeteringOperationType.BulkAdd &&
+                         e.AssetId == request.AssetId &&
+                         e.PerformedBy == createdBy &&
+                         e.ItemCount == 2 // Only successful items
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task BulkAddEntriesAsync_AllFailed_ShouldNotEmitMeteringEvent()
+        {
+            // Arrange
+            var request = new BulkAddWhitelistRequest
+            {
+                AssetId = 12345,
+                Addresses = new List<string>
+                {
+                    "INVALIDADDRESS1",
+                    "INVALIDADDRESS2"
+                },
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "ADMIN1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+
+            // Act
+            var result = await _service.BulkAddEntriesAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.SuccessCount, Is.EqualTo(0));
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()),
+                Times.Never);
         }
 
         #endregion

@@ -78,6 +78,14 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="request">The compliance metadata request</param>
         /// <returns>The created or updated compliance metadata</returns>
+        /// <remarks>
+        /// This operation emits a metering event for billing analytics with the following details:
+        /// - Category: Compliance
+        /// - OperationType: Upsert
+        /// - Network: From request
+        /// - PerformedBy: Authenticated user
+        /// - ItemCount: 1
+        /// </remarks>
         [HttpPost]
         [ProducesResponseType(typeof(ComplianceMetadataResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -139,6 +147,14 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="assetId">The asset ID (token ID)</param>
         /// <returns>The result of the deletion operation</returns>
+        /// <remarks>
+        /// This operation emits a metering event for billing analytics with the following details:
+        /// - Category: Compliance
+        /// - OperationType: Delete
+        /// - Network: Not available
+        /// - PerformedBy: Not available
+        /// - ItemCount: 1
+        /// </remarks>
         [HttpDelete("{assetId}")]
         [ProducesResponseType(typeof(ComplianceMetadataResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
