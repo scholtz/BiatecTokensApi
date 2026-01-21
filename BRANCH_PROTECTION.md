@@ -2,6 +2,14 @@
 
 This document provides instructions for repository administrators to configure branch protection rules and required status checks for the BiatecTokensApi repository.
 
+## ⚠️ Administrator Action Required
+
+**STATUS**: Branch protection rules must be configured by a repository administrator with appropriate GitHub permissions. This configuration cannot be done via code or pull requests.
+
+**WHO**: @scholtz or other repository administrators
+**WHEN**: Before merging PRs that require enforcement
+**WHERE**: https://github.com/scholtz/BiatecTokensApi/settings/branches
+
 ## Overview
 
 Branch protection rules help maintain code quality by enforcing certain conditions before code can be merged into protected branches. This ensures all changes go through proper review and testing processes.
