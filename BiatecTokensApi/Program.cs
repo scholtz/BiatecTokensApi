@@ -81,6 +81,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceRepository, BiatecTokensApi.Repositories.ComplianceRepository>();
 
+            // Register metering service
+            builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
+
             // Register the token services
             builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();
             builder.Services.AddSingleton<IARC3TokenService, ARC3TokenService>();

@@ -1,4 +1,5 @@
 using BiatecTokensApi.Models.Compliance;
+using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 
@@ -11,18 +12,22 @@ namespace BiatecTokensApi.Services
     {
         private readonly IComplianceRepository _complianceRepository;
         private readonly ILogger<ComplianceService> _logger;
+        private readonly ISubscriptionMeteringService _meteringService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ComplianceService"/> class.
         /// </summary>
         /// <param name="complianceRepository">The compliance repository</param>
         /// <param name="logger">The logger instance</param>
+        /// <param name="meteringService">The subscription metering service</param>
         public ComplianceService(
             IComplianceRepository complianceRepository,
-            ILogger<ComplianceService> logger)
+            ILogger<ComplianceService> logger,
+            ISubscriptionMeteringService meteringService)
         {
             _complianceRepository = complianceRepository;
             _logger = logger;
+            _meteringService = meteringService;
         }
 
         /// <inheritdoc/>
@@ -78,6 +83,17 @@ namespace BiatecTokensApi.Services
                         "Upserted compliance metadata for asset {AssetId} by {User}",
                         request.AssetId,
                         createdBy);
+
+                    // Emit metering event for billing analytics
+                    _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                    {
+                        Category = MeteringCategory.Compliance,
+                        OperationType = MeteringOperationType.Upsert,
+                        AssetId = request.AssetId,
+                        Network = request.Network,
+                        PerformedBy = createdBy,
+                        ItemCount = 1
+                    });
 
                     return new ComplianceMetadataResponse
                     {
@@ -148,6 +164,18 @@ namespace BiatecTokensApi.Services
                 if (success)
                 {
                     _logger.LogInformation("Deleted compliance metadata for asset {AssetId}", assetId);
+                    
+                    // Emit metering event for billing analytics
+                    _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                    {
+                        Category = MeteringCategory.Compliance,
+                        OperationType = MeteringOperationType.Delete,
+                        AssetId = assetId,
+                        Network = null, // Network info not available in delete context
+                        PerformedBy = null, // User context not available in delete operation
+                        ItemCount = 1
+                    });
+                    
                     return new ComplianceMetadataResponse
                     {
                         Success = true

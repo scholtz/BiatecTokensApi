@@ -1912,6 +1912,110 @@
             Gateway URL to access the content
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent">
+            <summary>
+            Represents a subscription metering event for billing and analytics purposes
+            </summary>
+            <remarks>
+            This model captures metered operations for compliance metadata and whitelist changes.
+            Events are emitted to enable billing analytics and usage tracking.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.EventId">
+            <summary>
+            Unique identifier for the metering event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.Timestamp">
+            <summary>
+            Timestamp when the event occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.Network">
+            <summary>
+            Network where the operation occurred (e.g., "voimain", "aramidmain", "testnet")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.AssetId">
+            <summary>
+            Asset ID associated with the operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.OperationType">
+            <summary>
+            Type of operation performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.Category">
+            <summary>
+            Category of the operation (Compliance or Whitelist)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.PerformedBy">
+            <summary>
+            User who performed the operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.ItemCount">
+            <summary>
+            Number of items affected by the operation (e.g., count of addresses in bulk operations)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent.Metadata">
+            <summary>
+            Additional metadata about the operation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Metering.MeteringCategory">
+            <summary>
+            Categories of metered operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringCategory.Compliance">
+            <summary>
+            Compliance metadata operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringCategory.Whitelist">
+            <summary>
+            Whitelist operations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Metering.MeteringOperationType">
+            <summary>
+            Types of metered operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Upsert">
+            <summary>
+            Create or update operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Delete">
+            <summary>
+            Delete operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Add">
+            <summary>
+            Add operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Update">
+            <summary>
+            Update operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Remove">
+            <summary>
+            Remove operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.BulkAdd">
+            <summary>
+            Bulk add operation
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.TokenType">
             <summary>
             Represents the various types of tokens supported by the system.
@@ -3060,12 +3164,13 @@
             Service for managing compliance metadata with network-specific validation
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService})">
+        <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ComplianceService"/> class.
             </summary>
             <param name="complianceRepository">The compliance repository</param>
             <param name="logger">The logger instance</param>
+            <param name="meteringService">The subscription metering service</param>
         </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.UpsertMetadataAsync(BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest,System.String)">
             <inheritdoc/>
@@ -3256,6 +3361,17 @@
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ISubscriptionMeteringService">
+            <summary>
+            Service for emitting subscription metering events for billing and analytics
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionMeteringService.EmitMeteringEvent(BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent)">
+            <summary>
+            Emits a metering event for a compliance or whitelist operation
+            </summary>
+            <param name="meteringEvent">The metering event to emit</param>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IWhitelistService">
             <summary>
             Interface for whitelist service operations
@@ -3305,17 +3421,37 @@
             <param name="request">The audit log request with filters and pagination</param>
             <returns>The audit log response with entries and pagination info</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.SubscriptionMeteringService">
+            <summary>
+            Service for emitting subscription metering events for billing and analytics
+            </summary>
+            <remarks>
+            This service emits structured log events that can be consumed by monitoring
+            and analytics systems for billing purposes. Events include network, asset ID,
+            operation type, and item count for accurate usage tracking.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionMeteringService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.SubscriptionMeteringService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.SubscriptionMeteringService"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionMeteringService.EmitMeteringEvent(BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.WhitelistService">
             <summary>
             Service for managing whitelist operations
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.WhitelistService.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistService})">
+        <member name="M:BiatecTokensApi.Services.WhitelistService.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.WhitelistService"/> class.
             </summary>
             <param name="repository">The whitelist repository</param>
             <param name="logger">The logger instance</param>
+            <param name="meteringService">The subscription metering service</param>
         </member>
         <member name="M:BiatecTokensApi.Services.WhitelistService.AddEntryAsync(BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest,System.String)">
             <summary>
