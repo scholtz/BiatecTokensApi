@@ -196,5 +196,217 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region ERC20 Preminted Token Validation Tests
+
+        [Test]
+        public void ValidateRequest_ValidPremintedRequest_DoesNotThrow()
+        {
+            // Arrange
+            var premintedRequest = new ERC20PremintedTokenDeploymentRequest
+            {
+                Name = "Test Token",
+                Symbol = "TEST",
+                InitialSupply = 1000000,
+                Decimals = 18,
+                ChainId = 31337,
+                InitialSupplyReceiver = "0x742d35Cc6634C0532925a3b8D162000dDba02C79"
+            };
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(premintedRequest, TokenType.ARC200_Preminted));
+        }
+
+        [Test]
+        public void ValidateRequest_PremintedSymbolTooLong_ThrowsArgumentException()
+        {
+            // Arrange
+            var premintedRequest = new ERC20PremintedTokenDeploymentRequest
+            {
+                Name = "Test Token",
+                Symbol = "VERYLONGSYM", // 11 characters
+                InitialSupply = 1000000,
+                Decimals = 18,
+                ChainId = 31337,
+                InitialSupplyReceiver = "0x742d35Cc6634C0532925a3b8D162000dDba02C79"
+            };
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(premintedRequest, TokenType.ARC200_Preminted));
+            Assert.That(ex.Message, Does.Contain("Symbol").And.Contain("10 characters"));
+        }
+
+        [Test]
+        public void ValidateRequest_PremintedZeroInitialSupply_ThrowsArgumentException()
+        {
+            // Arrange
+            var premintedRequest = new ERC20PremintedTokenDeploymentRequest
+            {
+                Name = "Test Token",
+                Symbol = "TEST",
+                InitialSupply = 0,
+                Decimals = 18,
+                ChainId = 31337,
+                InitialSupplyReceiver = "0x742d35Cc6634C0532925a3b8D162000dDba02C79"
+            };
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(premintedRequest, TokenType.ARC200_Preminted));
+            Assert.That(ex.Message, Does.Contain("non-negative"));
+        }
+
+        [Test]
+        public void ValidateRequest_WrongRequestTypeForPreminted_ThrowsArgumentException()
+        {
+            // Arrange
+            var wrongRequest = new ERC20MintableTokenDeploymentRequest
+            {
+                Name = "Test",
+                Symbol = "TST",
+                InitialSupply = 1000,
+                Decimals = 18,
+                ChainId = 31337,
+                InitialSupplyReceiver = "0x742d35Cc6634C0532925a3b8D162000dDba02C79",
+                Cap = 10000
+            };
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(wrongRequest, TokenType.ARC200_Preminted));
+            Assert.That(ex.Message, Does.Contain("ERC20PremintedTokenDeploymentRequest"));
+        }
+
+        #endregion
+
+        #region Edge Cases
+
+        [Test]
+        public void ValidateRequest_MaximumDecimals_DoesNotThrow()
+        {
+            // Arrange
+            _validRequest.Decimals = 18; // Maximum
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        [Test]
+        public void ValidateRequest_ZeroDecimals_DoesNotThrow()
+        {
+            // Arrange
+            _validRequest.Decimals = 0; // Minimum
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        [Test]
+        public void ValidateRequest_CapEqualsInitialSupply_DoesNotThrow()
+        {
+            // Arrange
+            _validRequest.InitialSupply = 1000000;
+            _validRequest.Cap = 1000000; // Same as initial supply
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        [Test]
+        public void ValidateRequest_MaxSymbolLength_DoesNotThrow()
+        {
+            // Arrange
+            _validRequest.Symbol = "ABCDEFGHIJ"; // Exactly 10 characters
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        [Test]
+        public void ValidateRequest_MaxNameLength_DoesNotThrow()
+        {
+            // Arrange
+            _validRequest.Name = new string('A', 50); // Exactly 50 characters
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        [Test]
+        public void ValidateRequest_SingleCharacterSymbol_DoesNotThrow()
+        {
+            // Arrange
+            _validRequest.Symbol = "T"; // Single character
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        [Test]
+        public void ValidateRequest_SingleCharacterName_DoesNotThrow()
+        {
+            // Arrange
+            _validRequest.Name = "T"; // Single character
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        #endregion
+
+        #region Unsupported Token Type Tests
+
+        [Test]
+        public void ValidateRequest_UnsupportedTokenType_ThrowsArgumentOutOfRangeException()
+        {
+            // Arrange - use a valid request but wrong token type
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentOutOfRangeException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ASA_FT));
+            Assert.That(ex.Message, Does.Contain("Unsupported token type"));
+        }
+
+        #endregion
+
+        #region GetBlockchainConfig Tests
+
+        [Test]
+        public void GetBlockchainConfig_ValidChainId_ReturnsConfig()
+        {
+            // Arrange
+            var chainId = 31337;
+
+            // Act
+            var method = typeof(ERC20TokenService).GetMethod("GetBlockchainConfig",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var result = method?.Invoke(_tokenService, new object[] { chainId });
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.InstanceOf<EVMBlockchainConfig>());
+            var config = (EVMBlockchainConfig)result!;
+            Assert.That(config.ChainId, Is.EqualTo(chainId));
+        }
+
+        [Test]
+        public void GetBlockchainConfig_InvalidChainId_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var invalidChainId = 99999;
+
+            // Act & Assert
+            var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() =>
+            {
+                var method = typeof(ERC20TokenService).GetMethod("GetBlockchainConfig",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                method?.Invoke(_tokenService, new object[] { invalidChainId });
+            });
+            Assert.That(ex.InnerException, Is.InstanceOf<InvalidOperationException>());
+            Assert.That(ex.InnerException?.Message, Does.Contain("No configuration found"));
+        }
+
+        #endregion
     }
 }

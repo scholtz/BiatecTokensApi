@@ -122,12 +122,23 @@ dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
 
 ### Coverage Requirements
 
-The project enforces the following code coverage thresholds in CI:
+The project enforces code coverage thresholds in CI to maintain and improve code quality. We are on an incremental path to reach target coverage levels.
 
-- **Line Coverage**: Minimum 80%
-- **Branch Coverage**: Minimum 70%
+**Current Thresholds** (enforced in CI):
+- **Line Coverage**: Minimum 34%
+- **Branch Coverage**: Minimum 28%
 
-Pull requests that reduce coverage below these thresholds will fail CI checks.
+**Target Coverage** (to be reached incrementally):
+- **Line Coverage**: 80%
+- **Branch Coverage**: 70%
+
+Pull requests that reduce coverage below the current thresholds will fail CI checks. We encourage contributors to add comprehensive tests with each PR to help us reach the target coverage levels.
+
+**Coverage Progress**:
+- ✅ Initial: 11.66% line / 3.32% branch
+- ✅ Phase 1: 34% line / 28% branch (Current)
+- 🎯 Phase 2: 50% line / 40% branch (Next milestone)
+- 🎯 Phase 3: 80% line / 70% branch (Target)
 
 ### Writing Tests
 
@@ -266,13 +277,17 @@ dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
 
 Before your pull request can be merged, it must:
 
-- ✅ Pass all CI checks
-- ✅ Meet code coverage thresholds (80% line, 70% branch)
+- ✅ Pass all CI checks (build, tests, coverage thresholds)
+- ✅ Meet code coverage thresholds (current: 34% line, 28% branch; target: 80% line, 70% branch)
+- ✅ Receive at least **1 approval** from a maintainer or code owner
+- ✅ Have all conversations resolved
 - ✅ Have no merge conflicts with `master`
 - ✅ Include tests for new functionality
 - ✅ Follow the project's code style
 - ✅ Have clear, descriptive commit messages
 - ✅ Include updated documentation if needed
+
+**Note**: Branch protection rules enforce these requirements. See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for configuration details.
 
 ## Code Style
 
