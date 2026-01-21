@@ -1,0 +1,68 @@
+Summary
+  Generated on: 01/21/2026 - 11:29:42
+  Coverage date: 01/21/2026 - 11:29:31
+  Parser: Cobertura
+  Assemblies: 1
+  Classes: 46
+  Files: 43
+  Line coverage: 21.1%
+  Covered lines: 848
+  Uncovered lines: 3154
+  Coverable lines: 4002
+  Total lines: 7451
+  Branch coverage: 15.5% (268 of 1728)
+  Covered branches: 268
+  Total branches: 1728
+  Method coverage: 30.3% (149 of 491)
+  Full method coverage: 24.4% (120 of 491)
+  Covered methods: 149
+  Fully covered methods: 120
+  Total methods: 491
+
+BiatecTokensApi                                                                         21.1%
+  BiatecTokensApi.Configuration.EVMBlockchainConfig                                      100%
+  BiatecTokensApi.Configuration.EVMChains                                                100%
+  BiatecTokensApi.Configuration.IPFSConfig                                               100%
+  BiatecTokensApi.Controllers.TokenController                                           33.9%
+  BiatecTokensApi.Generated.Arc1644Proxy                                                   0%
+  BiatecTokensApi.Generated.Arc200Proxy                                                    0%
+  BiatecTokensApi.Models.AppConfiguration                                                100%
+  BiatecTokensApi.Models.ARC1400.Request.ARC1400MintableTokenDeploymentRequest           100%
+  BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest                   100%
+  BiatecTokensApi.Models.ARC1400.Response.ARC1400TokenDeploymentResponse                   0%
+  BiatecTokensApi.Models.ARC200.Request.ARC200MintableTokenDeploymentRequest             100%
+  BiatecTokensApi.Models.ARC200.Request.ARC200PremintedTokenDeploymentRequest            100%
+  BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest                     100%
+  BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse                     0%
+  BiatecTokensApi.Models.ARC3.ARC3TokenInfo                                                0%
+  BiatecTokensApi.Models.ARC3.ARC3TokenLocalization                                       75%
+  BiatecTokensApi.Models.ARC3.ARC3TokenMetadata                                          100%
+  BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest    100%
+  BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest                 100%
+  BiatecTokensApi.Models.ARC3.Request.ARC3NonFungibleTokenDeploymentRequest              100%
+  BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse                         0%
+  BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse                          0%
+  BiatecTokensApi.Models.ASA.ASATokenInfo                                                  0%
+  BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest                       100%
+  BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample               16.6%
+  BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest      100%
+  BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest                   100%
+  BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample            100%
+  BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse                                    0%
+  BiatecTokensApi.Models.BaseResponse                                                    100%
+  BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest               100%
+  BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest              100%
+  BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest                       100%
+  BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse                       0%
+  BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse                                  100%
+  BiatecTokensApi.Models.IPFSContentInfo                                                66.6%
+  BiatecTokensApi.Models.IPFSRetrieveResponse                                           66.6%
+  BiatecTokensApi.Models.IPFSUploadRequest                                               100%
+  BiatecTokensApi.Models.IPFSUploadResponse                                              100%
+  BiatecTokensApi.Program                                                                100%
+  BiatecTokensApi.Repositories.IPFSRepository                                           65.4%
+  BiatecTokensApi.Services.ARC1400TokenService                                          41.2%
+  BiatecTokensApi.Services.ARC200TokenService                                             53%
+  BiatecTokensApi.Services.ARC3TokenService                                             30.4%
+  BiatecTokensApi.Services.ASATokenService                                              33.9%
+  BiatecTokensApi.Services.ERC20TokenService                                            53.6%
