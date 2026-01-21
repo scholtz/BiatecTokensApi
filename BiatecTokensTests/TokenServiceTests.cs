@@ -64,5 +64,137 @@ namespace BiatecTokensTests
                 InitialSupplyReceiver = "0x742d35Cc6634C0532925a3b8D162000dDba02C79" // Sample address
             };
         }
+
+        #region Validation Tests
+
+        [Test]
+        public void ValidateRequest_ValidMintableRequest_DoesNotThrow()
+        {
+            // Arrange - use the valid request from Setup
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+        }
+
+        [Test]
+        public void ValidateRequest_SymbolTooLong_ThrowsArgumentException()
+        {
+            // Arrange
+            _validRequest.Symbol = "VERYLONGSYM"; // 11 characters
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Symbol").And.Contain("10 characters"));
+        }
+
+        [Test]
+        public void ValidateRequest_NameTooLong_ThrowsArgumentException()
+        {
+            // Arrange
+            _validRequest.Name = new string('A', 51); // 51 characters
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Name").And.Contain("50 characters"));
+        }
+
+        [Test]
+        public void ValidateRequest_InitialSupplyZero_ThrowsArgumentException()
+        {
+            // Arrange
+            _validRequest.InitialSupply = 0;
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Initial supply").And.Contain("positive"));
+        }
+
+        [Test]
+        public void ValidateRequest_InitialSupplyNegative_ThrowsArgumentException()
+        {
+            // Arrange
+            _validRequest.InitialSupply = -100;
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Initial supply").And.Contain("positive"));
+        }
+
+        [Test]
+        [TestCase(-1, Description = "Decimals below 0")]
+        [TestCase(19, Description = "Decimals above 18")]
+        public void ValidateRequest_InvalidDecimals_ThrowsArgumentException(int decimals)
+        {
+            // Arrange
+            _validRequest.Decimals = decimals;
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Decimals").And.Contain("between 0 and 18"));
+        }
+
+        [Test]
+        public void ValidateRequest_EmptyReceiverAddress_ThrowsArgumentException()
+        {
+            // Arrange
+            _validRequest.InitialSupplyReceiver = string.Empty;
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Initial supply receiver"));
+        }
+
+        [Test]
+        public void ValidateRequest_NullReceiverAddress_ThrowsArgumentException()
+        {
+            // Arrange
+            _validRequest.InitialSupplyReceiver = null!;
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Initial supply receiver"));
+        }
+
+        [Test]
+        public void ValidateRequest_CapLessThanInitialSupply_ThrowsArgumentException()
+        {
+            // Arrange
+            _validRequest.InitialSupply = 10000000;
+            _validRequest.Cap = 5000000; // Cap less than initial supply
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(_validRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("Cap").And.Contain("at least the initial supply"));
+        }
+
+        [Test]
+        public void ValidateRequest_WrongRequestTypeForMintable_ThrowsArgumentException()
+        {
+            // Arrange
+            var wrongRequest = new ERC20PremintedTokenDeploymentRequest
+            {
+                Name = "Test",
+                Symbol = "TST",
+                InitialSupply = 1000,
+                Decimals = 18,
+                ChainId = 31337,
+                InitialSupplyReceiver = "0x742d35Cc6634C0532925a3b8D162000dDba02C79"
+            };
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => 
+                _tokenService.ValidateRequest(wrongRequest, TokenType.ERC20_Mintable));
+            Assert.That(ex.Message, Does.Contain("ERC20MintableTokenDeploymentRequest"));
+        }
+
+        #endregion
     }
 }
