@@ -15,6 +15,7 @@ namespace BiatecTokensApi.Services
     public class SubscriptionMeteringService : ISubscriptionMeteringService
     {
         private readonly ILogger<SubscriptionMeteringService> _logger;
+        private const string EmptyMetadata = "{}";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SubscriptionMeteringService"/> class.
@@ -35,6 +36,10 @@ namespace BiatecTokensApi.Services
             }
 
             // Emit structured log event for analytics systems to consume
+            var metadataJson = meteringEvent.Metadata != null && meteringEvent.Metadata.Count > 0
+                ? JsonSerializer.Serialize(meteringEvent.Metadata)
+                : EmptyMetadata;
+
             _logger.LogInformation(
                 "METERING_EVENT: {EventId} | Category: {Category} | Operation: {OperationType} | " +
                 "AssetId: {AssetId} | Network: {Network} | ItemCount: {ItemCount} | PerformedBy: {PerformedBy} | " +
@@ -47,7 +52,7 @@ namespace BiatecTokensApi.Services
                 meteringEvent.ItemCount,
                 meteringEvent.PerformedBy ?? "unknown",
                 meteringEvent.Timestamp,
-                meteringEvent.Metadata != null ? JsonSerializer.Serialize(meteringEvent.Metadata) : "{}"
+                metadataJson
             );
         }
     }

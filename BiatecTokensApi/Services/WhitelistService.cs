@@ -14,6 +14,7 @@ namespace BiatecTokensApi.Services
         private readonly IWhitelistRepository _repository;
         private readonly ILogger<WhitelistService> _logger;
         private readonly ISubscriptionMeteringService _meteringService;
+        private const string NetworkNotAvailable = null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WhitelistService"/> class.
@@ -100,7 +101,7 @@ namespace BiatecTokensApi.Services
                         Category = MeteringCategory.Whitelist,
                         OperationType = MeteringOperationType.Update,
                         AssetId = request.AssetId,
-                        Network = null, // Network info not available in this context
+                        Network = NetworkNotAvailable,
                         PerformedBy = createdBy,
                         ItemCount = 1
                     });
@@ -156,7 +157,7 @@ namespace BiatecTokensApi.Services
                     Category = MeteringCategory.Whitelist,
                     OperationType = MeteringOperationType.Add,
                     AssetId = entry.AssetId,
-                    Network = null, // Network info not available in this context
+                    Network = NetworkNotAvailable,
                     PerformedBy = createdBy,
                     ItemCount = 1
                 });
@@ -236,7 +237,7 @@ namespace BiatecTokensApi.Services
                     Category = MeteringCategory.Whitelist,
                     OperationType = MeteringOperationType.Remove,
                     AssetId = request.AssetId,
-                    Network = null, // Network info not available in this context
+                    Network = NetworkNotAvailable,
                     PerformedBy = existingEntry?.UpdatedBy ?? existingEntry?.CreatedBy,
                     ItemCount = 1
                 });
@@ -394,7 +395,7 @@ namespace BiatecTokensApi.Services
                         Category = MeteringCategory.Whitelist,
                         OperationType = MeteringOperationType.BulkAdd,
                         AssetId = request.AssetId,
-                        Network = null, // Network info not available in this context
+                        Network = NetworkNotAvailable,
                         PerformedBy = createdBy,
                         ItemCount = response.SuccessCount
                     });

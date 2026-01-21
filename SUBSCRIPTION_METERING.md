@@ -114,7 +114,7 @@ METERING_EVENT: 660e9511-f30c-52e5-b827-557766551111 | Category: Whitelist | Ope
 
 #### Whitelist Bulk Add
 ```
-METERING_EVENT: 770f0622-g41d-63f6-c938-668877662222 | Category: Whitelist | Operation: BulkAdd | AssetId: 11111 | Network: unknown | ItemCount: 50 | PerformedBy: VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA | Timestamp: 2024-01-21T10:40:00.000Z | Metadata: {}
+METERING_EVENT: 770f0622-041d-63f6-c938-668877662222 | Category: Whitelist | Operation: BulkAdd | AssetId: 11111 | Network: unknown | ItemCount: 50 | PerformedBy: VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA | Timestamp: 2024-01-21T10:40:00.000Z | Metadata: {}
 ```
 
 ## Integration with Analytics Systems
