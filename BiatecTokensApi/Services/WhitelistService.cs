@@ -58,6 +58,11 @@ namespace BiatecTokensApi.Services
                     existingEntry.Status = request.Status;
                     existingEntry.UpdatedAt = DateTime.UtcNow;
                     existingEntry.UpdatedBy = createdBy;
+                    existingEntry.Reason = request.Reason ?? existingEntry.Reason;
+                    existingEntry.ExpirationDate = request.ExpirationDate ?? existingEntry.ExpirationDate;
+                    existingEntry.KycVerified = request.KycVerified;
+                    existingEntry.KycVerificationDate = request.KycVerificationDate ?? existingEntry.KycVerificationDate;
+                    existingEntry.KycProvider = request.KycProvider ?? existingEntry.KycProvider;
                     
                     var updated = await _repository.UpdateEntryAsync(existingEntry);
                     
@@ -96,7 +101,12 @@ namespace BiatecTokensApi.Services
                     Address = request.Address.ToUpperInvariant(),
                     Status = request.Status,
                     CreatedBy = createdBy,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    Reason = request.Reason,
+                    ExpirationDate = request.ExpirationDate,
+                    KycVerified = request.KycVerified,
+                    KycVerificationDate = request.KycVerificationDate,
+                    KycProvider = request.KycProvider
                 };
 
                 var added = await _repository.AddEntryAsync(entry);
@@ -256,6 +266,11 @@ namespace BiatecTokensApi.Services
                         existingEntry.Status = request.Status;
                         existingEntry.UpdatedAt = DateTime.UtcNow;
                         existingEntry.UpdatedBy = createdBy;
+                        existingEntry.Reason = request.Reason ?? existingEntry.Reason;
+                        existingEntry.ExpirationDate = request.ExpirationDate ?? existingEntry.ExpirationDate;
+                        existingEntry.KycVerified = request.KycVerified;
+                        existingEntry.KycVerificationDate = request.KycVerificationDate ?? existingEntry.KycVerificationDate;
+                        existingEntry.KycProvider = request.KycProvider ?? existingEntry.KycProvider;
                         
                         var updated = await _repository.UpdateEntryAsync(existingEntry);
                         if (updated)
@@ -292,7 +307,12 @@ namespace BiatecTokensApi.Services
                         Address = address,
                         Status = request.Status,
                         CreatedBy = createdBy,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+                        Reason = request.Reason,
+                        ExpirationDate = request.ExpirationDate,
+                        KycVerified = request.KycVerified,
+                        KycVerificationDate = request.KycVerificationDate,
+                        KycProvider = request.KycProvider
                     };
 
                     var added = await _repository.AddEntryAsync(entry);

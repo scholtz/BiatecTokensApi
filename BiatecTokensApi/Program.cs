@@ -79,6 +79,7 @@ namespace BiatecTokensApi
             // Register repositories
             builder.Services.AddSingleton<IIPFSRepository, IPFSRepository>();
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceRepository, BiatecTokensApi.Repositories.ComplianceRepository>();
 
             // Register the token services
             builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();
@@ -87,6 +88,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IARC200TokenService, ARC200TokenService>();
             builder.Services.AddSingleton<IARC1400TokenService, ARC1400TokenService>();
             builder.Services.AddSingleton<IWhitelistService, WhitelistService>();
+            builder.Services.AddSingleton<IComplianceService, ComplianceService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");

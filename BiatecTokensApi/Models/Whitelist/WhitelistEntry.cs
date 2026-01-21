@@ -44,6 +44,31 @@ namespace BiatecTokensApi.Models.Whitelist
         /// The address of the user who last updated this whitelist entry
         /// </summary>
         public string? UpdatedBy { get; set; }
+
+        /// <summary>
+        /// Reason for whitelisting this address (e.g., "KYC verified", "Accredited investor")
+        /// </summary>
+        public string? Reason { get; set; }
+
+        /// <summary>
+        /// Date when the whitelist entry expires (optional)
+        /// </summary>
+        public DateTime? ExpirationDate { get; set; }
+
+        /// <summary>
+        /// Whether KYC verification has been completed for this address
+        /// </summary>
+        public bool KycVerified { get; set; }
+
+        /// <summary>
+        /// Date when KYC verification was completed
+        /// </summary>
+        public DateTime? KycVerificationDate { get; set; }
+
+        /// <summary>
+        /// Name of the KYC provider
+        /// </summary>
+        public string? KycProvider { get; set; }
     }
 
     /// <summary>

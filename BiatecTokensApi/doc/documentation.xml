@@ -81,6 +81,61 @@
             Whether to validate content hashes when retrieving data
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.ComplianceController">
+            <summary>
+            Provides endpoints for managing RWA token compliance metadata
+            </summary>
+            <remarks>
+            This controller manages compliance metadata operations for RWA tokens including creating,
+            updating, retrieving, and deleting compliance information. All endpoints require ARC-0014 authentication.
+            Enforces network-specific compliance rules for VOI and Aramid networks.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.#ctor(BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ComplianceController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.ComplianceController"/> class.
+            </summary>
+            <param name="complianceService">The compliance service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetComplianceMetadata(System.UInt64)">
+            <summary>
+            Gets compliance metadata for a specific token
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <returns>The compliance metadata</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.UpsertComplianceMetadata(BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest)">
+            <summary>
+            Creates or updates compliance metadata for a token
+            </summary>
+            <param name="request">The compliance metadata request</param>
+            <returns>The created or updated compliance metadata</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.DeleteComplianceMetadata(System.UInt64)">
+            <summary>
+            Deletes compliance metadata for a specific token
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <returns>The result of the deletion operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ListComplianceMetadata(System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceStatus},System.Nullable{BiatecTokensApi.Models.Compliance.VerificationStatus},System.String,System.Int32,System.Int32)">
+            <summary>
+            Lists compliance metadata with optional filtering
+            </summary>
+            <param name="complianceStatus">Optional filter by compliance status</param>
+            <param name="verificationStatus">Optional filter by verification status</param>
+            <param name="network">Optional filter by network</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of compliance metadata entries with pagination</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetUserAddress">
+            <summary>
+            Gets the authenticated user's Algorand address from the claims
+            </summary>
+            <returns>The user's Algorand address or empty string if not found</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.TokenController">
             <summary>
             Provides endpoints for creating and managing various types of tokens, including ERC-20, ARC3 fungible tokens,
@@ -1290,6 +1345,345 @@
             Status of the deployment
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMetadata">
+            <summary>
+            Represents compliance metadata for an RWA token
+            </summary>
+            <remarks>
+            This model stores regulatory and compliance information for Real World Asset tokens,
+            including KYC/AML verification details, jurisdiction information, and regulatory status.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.Id">
+            <summary>
+            Unique identifier for the compliance metadata entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.AssetId">
+            <summary>
+            The asset ID (token ID) for which this compliance metadata applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.KycProvider">
+            <summary>
+            Name of the KYC/AML provider used for verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.KycVerificationDate">
+            <summary>
+            Date when KYC/AML verification was completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.VerificationStatus">
+            <summary>
+            KYC/AML verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.Jurisdiction">
+            <summary>
+            Jurisdiction(s) where the token is compliant (comma-separated country codes)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.RegulatoryFramework">
+            <summary>
+            Regulatory framework(s) the token complies with (e.g., "SEC Reg D", "MiFID II")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.ComplianceStatus">
+            <summary>
+            Compliance status of the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.LastComplianceReview">
+            <summary>
+            Date when compliance review was last performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.NextComplianceReview">
+            <summary>
+            Date when the next compliance review is due
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.AssetType">
+            <summary>
+            Type of asset being tokenized
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.TransferRestrictions">
+            <summary>
+            Restrictions on token transfers (if any)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.MaxHolders">
+            <summary>
+            Maximum number of token holders allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.RequiresAccreditedInvestors">
+            <summary>
+            Whether the token requires accredited investors only
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.Notes">
+            <summary>
+            Additional compliance notes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.CreatedBy">
+            <summary>
+            Address of the user who created this compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.CreatedAt">
+            <summary>
+            Timestamp when the metadata was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.UpdatedAt">
+            <summary>
+            Timestamp when the metadata was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.UpdatedBy">
+            <summary>
+            Address of the user who last updated this metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.VerificationStatus">
+            <summary>
+            KYC/AML verification status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.VerificationStatus.Pending">
+            <summary>
+            Verification is pending
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.VerificationStatus.InProgress">
+            <summary>
+            Verification is in progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.VerificationStatus.Verified">
+            <summary>
+            Verification completed successfully
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.VerificationStatus.Failed">
+            <summary>
+            Verification failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.VerificationStatus.Expired">
+            <summary>
+            Verification expired and needs renewal
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceStatus">
+            <summary>
+            Compliance status of the token
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceStatus.UnderReview">
+            <summary>
+            Compliance review is under review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceStatus.Compliant">
+            <summary>
+            Token is compliant with regulations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceStatus.NonCompliant">
+            <summary>
+            Token is non-compliant
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceStatus.Suspended">
+            <summary>
+            Compliance status is suspended
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceStatus.Exempt">
+            <summary>
+            Token is exempt from certain regulations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest">
+            <summary>
+            Request to create or update compliance metadata for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to set compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.KycProvider">
+            <summary>
+            Name of the KYC/AML provider used for verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.KycVerificationDate">
+            <summary>
+            Date when KYC/AML verification was completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.VerificationStatus">
+            <summary>
+            KYC/AML verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.Jurisdiction">
+            <summary>
+            Jurisdiction(s) where the token is compliant (comma-separated country codes)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.RegulatoryFramework">
+            <summary>
+            Regulatory framework(s) the token complies with
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.ComplianceStatus">
+            <summary>
+            Compliance status of the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.LastComplianceReview">
+            <summary>
+            Date when compliance review was last performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.NextComplianceReview">
+            <summary>
+            Date when the next compliance review is due
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.AssetType">
+            <summary>
+            Type of asset being tokenized
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.TransferRestrictions">
+            <summary>
+            Restrictions on token transfers (if any)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.MaxHolders">
+            <summary>
+            Maximum number of token holders allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.RequiresAccreditedInvestors">
+            <summary>
+            Whether the token requires accredited investors only
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.Network">
+            <summary>
+            Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest.Notes">
+            <summary>
+            Additional compliance notes
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetComplianceMetadataRequest">
+            <summary>
+            Request to get compliance metadata for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceMetadataRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to retrieve compliance metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.DeleteComplianceMetadataRequest">
+            <summary>
+            Request to delete compliance metadata for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DeleteComplianceMetadataRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to delete compliance metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest">
+            <summary>
+            Request to list compliance metadata with filtering
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest.ComplianceStatus">
+            <summary>
+            Optional filter by compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest.VerificationStatus">
+            <summary>
+            Optional filter by verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMetadataResponse">
+            <summary>
+            Response for compliance metadata operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadataResponse.Metadata">
+            <summary>
+            The compliance metadata that was created, retrieved, or modified
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse">
+            <summary>
+            Response for listing compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse.Metadata">
+            <summary>
+            List of compliance metadata entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse.TotalCount">
+            <summary>
+            Total number of entries matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest">
             <summary>
             Represents a request to deploy an ERC-20 token with mintable functionality.
@@ -1775,6 +2169,31 @@
             The address of the user who last updated this whitelist entry
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.Reason">
+            <summary>
+            Reason for whitelisting this address (e.g., "KYC verified", "Accredited investor")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.ExpirationDate">
+            <summary>
+            Date when the whitelist entry expires (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.KycVerified">
+            <summary>
+            Whether KYC verification has been completed for this address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.KycVerificationDate">
+            <summary>
+            Date when KYC verification was completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.KycProvider">
+            <summary>
+            Name of the KYC provider
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistStatus">
             <summary>
             Status of a whitelist entry
@@ -1815,6 +2234,31 @@
             The status of the whitelist entry (defaults to Active)
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.Reason">
+            <summary>
+            Reason for whitelisting this address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.ExpirationDate">
+            <summary>
+            Date when the whitelist entry expires (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.KycVerified">
+            <summary>
+            Whether KYC verification has been completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.KycVerificationDate">
+            <summary>
+            Date when KYC verification was completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.KycProvider">
+            <summary>
+            Name of the KYC provider
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest">
             <summary>
             Request to remove an address from a token's whitelist
@@ -1848,6 +2292,31 @@
         <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.Status">
             <summary>
             The status for all entries (defaults to Active)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.Reason">
+            <summary>
+            Reason for whitelisting these addresses (applies to all)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.ExpirationDate">
+            <summary>
+            Date when the whitelist entries expire (optional, applies to all)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.KycVerified">
+            <summary>
+            Whether KYC verification has been completed for all addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.KycVerificationDate">
+            <summary>
+            Date when KYC verification was completed (applies to all)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.KycProvider">
+            <summary>
+            Name of the KYC provider (applies to all)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.ListWhitelistRequest">
@@ -1969,6 +2438,36 @@
             <param name="args">The command-line arguments used to configure the application.</param>
             <exception cref="T:System.Exception"></exception>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.ComplianceRepository">
+            <summary>
+            In-memory repository for compliance metadata
+            </summary>
+            <remarks>
+            This implementation uses thread-safe concurrent collections for production-grade concurrency.
+            Can be replaced with a database-backed implementation without API changes.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.ComplianceRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.ComplianceRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.UpsertMetadataAsync(BiatecTokensApi.Models.Compliance.ComplianceMetadata)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetMetadataByAssetIdAsync(System.UInt64)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.DeleteMetadataAsync(System.UInt64)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.ListMetadataAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetMetadataCountAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
             Interface for IPFS repository operations
@@ -2056,6 +2555,46 @@
             </summary>
             <param name="cid">Content Identifier</param>
             <returns>True if unpinning was successful</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IComplianceRepository">
+            <summary>
+            Repository interface for managing compliance metadata
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.UpsertMetadataAsync(BiatecTokensApi.Models.Compliance.ComplianceMetadata)">
+            <summary>
+            Creates or updates compliance metadata for a token
+            </summary>
+            <param name="metadata">The compliance metadata to save</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetMetadataByAssetIdAsync(System.UInt64)">
+            <summary>
+            Gets compliance metadata for a specific token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>The compliance metadata or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.DeleteMetadataAsync(System.UInt64)">
+            <summary>
+            Deletes compliance metadata for a specific token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>True if deleted, false if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.ListMetadataAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
+            <summary>
+            Lists all compliance metadata with optional filtering
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>List of compliance metadata entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetMetadataCountAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
+            <summary>
+            Gets the total count of metadata entries matching the filter
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Total count</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.IPFSRepository">
             <summary>
@@ -2516,6 +3055,33 @@
             <returns>A task that represents the asynchronous operation. The task result contains the response of the FNFT
             deployment, including deployment details and status.</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.ComplianceService">
+            <summary>
+            Service for managing compliance metadata with network-specific validation
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ComplianceService"/> class.
+            </summary>
+            <param name="complianceRepository">The compliance repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.UpsertMetadataAsync(BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetMetadataAsync(System.UInt64)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.DeleteMetadataAsync(System.UInt64)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ListMetadataAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateNetworkRules(System.String,BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -2631,6 +3197,48 @@
             <param name="request">Token creation parameters</param>
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details and asset ID</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IComplianceService">
+            <summary>
+            Service interface for managing compliance metadata
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.UpsertMetadataAsync(BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest,System.String)">
+            <summary>
+            Creates or updates compliance metadata for a token
+            </summary>
+            <param name="request">The compliance metadata request</param>
+            <param name="createdBy">The address of the user creating/updating the metadata</param>
+            <returns>Response with the created/updated metadata</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetMetadataAsync(System.UInt64)">
+            <summary>
+            Gets compliance metadata for a specific token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>Response with the compliance metadata</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.DeleteMetadataAsync(System.UInt64)">
+            <summary>
+            Deletes compliance metadata for a specific token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>Response indicating success or failure</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ListMetadataAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
+            <summary>
+            Lists compliance metadata with optional filtering
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Response with list of compliance metadata</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ValidateNetworkRules(System.String,BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest)">
+            <summary>
+            Validates network-specific compliance rules
+            </summary>
+            <param name="network">The network name</param>
+            <param name="metadata">The compliance metadata to validate</param>
+            <returns>Validation error message, or null if valid</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
             <summary>
