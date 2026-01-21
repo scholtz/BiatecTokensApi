@@ -21,7 +21,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
       
       - name: Restore dependencies
         run: dotnet restore BiatecTokensApi.sln
@@ -152,7 +152,7 @@ jobs:
           
           # Generate OpenAPI spec with the test configuration
           export ASPNETCORE_ENVIRONMENT="OpenAPI"
-          swagger tofile --output ./openapi.json BiatecTokensApi/bin/Release/net8.0/BiatecTokensApi.dll v1 2>&1 || {
+          swagger tofile --output ./openapi.json BiatecTokensApi/bin/Release/net10.0/BiatecTokensApi.dll v1 2>&1 || {
             echo "⚠️ OpenAPI generation failed. This is expected if services require network access during initialization."
             echo "OpenAPI spec is available at runtime via /swagger/v1/swagger.json endpoint"
             echo '{"info": {"title": "BiatecTokens API", "version": "v1"}, "note": "OpenAPI spec available at /swagger/v1/swagger.json when API is running"}' > ./openapi.json

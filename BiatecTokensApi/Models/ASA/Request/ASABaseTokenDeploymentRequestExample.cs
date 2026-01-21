@@ -1,16 +1,17 @@
 using Swashbuckle.AspNetCore.SwaggerGen;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace BiatecTokensApi.Models.ASA.Request
 {
     public class ASABaseTokenDeploymentRequestExample : ISchemaFilter
     {
-        public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+        public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
         {
-            if (context.Type == typeof(ASABaseTokenDeploymentRequest))
+            if (context.Type == typeof(ASABaseTokenDeploymentRequest) && schema is OpenApiSchema openApiSchema)
             {
-                schema.Example = OpenApiAnyFactory.CreateFromJson(JsonSerializer.Serialize(new ASABaseTokenDeploymentRequest
+                openApiSchema.Example = JsonNode.Parse(JsonSerializer.Serialize(new ASABaseTokenDeploymentRequest
                 {
                     Name = "MyToken",
                     UnitName = "MTKN",
