@@ -105,7 +105,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _controller.ERC20PremintedTokenCreate(request);
+            var result = await _controller.ERC20PremnitedTokenCreate(request);
 
             // Assert
             Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
