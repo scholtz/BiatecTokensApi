@@ -833,12 +833,12 @@ namespace BiatecTokensTests
                 Addresses = new List<string>
                 {
                     "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
-                    "CREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
-                    "UPDATER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+                    "7777777777777777777777777777777777777777777777777774MSJUVU"
                 },
                 Status = WhitelistStatus.Active
             };
-            var createdBy = "ADMIN1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
 
             _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
                 .ReturnsAsync((WhitelistEntry?)null);
@@ -851,7 +851,7 @@ namespace BiatecTokensTests
             var result = await _service.BulkAddEntriesAsync(request, createdBy);
 
             // Assert
-            Assert.That(result.Success, Is.True);
+            Assert.That(result.Success, Is.True, $"Expected success but got: {result.ErrorMessage}");
             Assert.That(result.SuccessCount, Is.EqualTo(3));
             _meteringServiceMock.Verify(
                 m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
@@ -875,11 +875,11 @@ namespace BiatecTokensTests
                 {
                     "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
                     "INVALIDADDRESS",
-                    "UPDATER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+                    "7777777777777777777777777777777777777777777777777774MSJUVU"
                 },
                 Status = WhitelistStatus.Active
             };
-            var createdBy = "ADMIN1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
 
             _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
                 .ReturnsAsync((WhitelistEntry?)null);

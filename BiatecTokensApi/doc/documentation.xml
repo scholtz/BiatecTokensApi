@@ -111,6 +111,14 @@
             </summary>
             <param name="request">The compliance metadata request</param>
             <returns>The created or updated compliance metadata</returns>
+            <remarks>
+            This operation emits a metering event for billing analytics with the following details:
+            - Category: Compliance
+            - OperationType: Upsert
+            - Network: From request
+            - PerformedBy: Authenticated user
+            - ItemCount: 1
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.DeleteComplianceMetadata(System.UInt64)">
             <summary>
@@ -118,6 +126,14 @@
             </summary>
             <param name="assetId">The asset ID (token ID)</param>
             <returns>The result of the deletion operation</returns>
+            <remarks>
+            This operation emits a metering event for billing analytics with the following details:
+            - Category: Compliance
+            - OperationType: Delete
+            - Network: Not available
+            - PerformedBy: Not available
+            - ItemCount: 1
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.ListComplianceMetadata(System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceStatus},System.Nullable{BiatecTokensApi.Models.Compliance.VerificationStatus},System.String,System.Int32,System.Int32)">
             <summary>
@@ -345,6 +361,14 @@
             </summary>
             <param name="request">The add whitelist entry request</param>
             <returns>The created whitelist entry</returns>
+            <remarks>
+            This operation emits a metering event for billing analytics with the following details:
+            - Category: Whitelist
+            - OperationType: Add (for new entries) or Update (for existing entries)
+            - Network: Not available
+            - PerformedBy: Authenticated user
+            - ItemCount: 1
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.RemoveWhitelistEntry(BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest)">
             <summary>
@@ -352,6 +376,14 @@
             </summary>
             <param name="request">The remove whitelist entry request</param>
             <returns>The result of the removal operation</returns>
+            <remarks>
+            This operation emits a metering event for billing analytics with the following details:
+            - Category: Whitelist
+            - OperationType: Remove
+            - Network: Not available
+            - PerformedBy: User who last modified the entry
+            - ItemCount: 1
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.BulkAddWhitelistEntries(BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest)">
             <summary>
@@ -359,6 +391,16 @@
             </summary>
             <param name="request">The bulk add whitelist request</param>
             <returns>The result of the bulk operation including success and failure counts</returns>
+            <remarks>
+            This operation emits a metering event for billing analytics with the following details:
+            - Category: Whitelist
+            - OperationType: BulkAdd
+            - Network: Not available
+            - PerformedBy: Authenticated user
+            - ItemCount: Number of successfully added/updated entries (not failed ones)
+            
+            Note: Metering event is only emitted if at least one entry succeeds.
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetAuditLog(System.UInt64,System.String,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistActionType},System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
             <summary>
