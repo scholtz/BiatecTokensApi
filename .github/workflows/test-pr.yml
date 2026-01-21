@@ -29,7 +29,7 @@ jobs:
       - name: Build solution
         run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
       
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         run: |
           dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
             --configuration Release \
@@ -39,7 +39,72 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --settings coverage.runsettings \
             --filter "FullyQualifiedName!~RealEndpoint" \
-            -- NUnit.DefaultTestNamePattern={m}{a}
+            --results-directory ./TestResults \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool || true
+      
+      - name: Generate coverage report
+        run: |
+          reportgenerator \
+            "-reports:./TestResults/*/coverage.opencover.xml" \
+            "-targetdir:./CoverageReport" \
+            "-reporttypes:Html;Cobertura;TextSummary" \
+            "-verbosity:Info"
+      
+      - name: Display coverage summary
+        run: |
+          echo "## Code Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat ./CoverageReport/Summary.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Check coverage thresholds
+        run: |
+          # Extract line and branch coverage from the Cobertura XML
+          LINE_RATE=$(grep -oP 'line-rate="\K[0-9.]+' ./CoverageReport/Cobertura.xml | head -1)
+          BRANCH_RATE=$(grep -oP 'branch-rate="\K[0-9.]+' ./CoverageReport/Cobertura.xml | head -1)
+          
+          # Convert to percentage
+          LINE_PERCENT=$(echo "$LINE_RATE * 100" | bc)
+          BRANCH_PERCENT=$(echo "$BRANCH_RATE * 100" | bc)
+          
+          echo "Line Coverage: ${LINE_PERCENT}%"
+          echo "Branch Coverage: ${BRANCH_PERCENT}%"
+          
+          # Initial thresholds - will be increased incrementally
+          # Starting point based on current coverage (11.66% line, 3.32% branch)
+          # Target: 80% line, 70% branch (to be reached incrementally)
+          THRESHOLD_LINE=11
+          THRESHOLD_BRANCH=3
+          
+          # Use awk for floating point comparison
+          LINE_PASS=$(echo "$LINE_PERCENT >= $THRESHOLD_LINE" | bc -l)
+          BRANCH_PASS=$(echo "$BRANCH_PERCENT >= $THRESHOLD_BRANCH" | bc -l)
+          
+          if [ "$LINE_PASS" -eq 0 ]; then
+            echo "❌ Line coverage ${LINE_PERCENT}% is below threshold of ${THRESHOLD_LINE}%"
+            echo "⚠️ This PR decreased code coverage. Please add tests."
+            exit 1
+          fi
+          
+          if [ "$BRANCH_PASS" -eq 0 ]; then
+            echo "❌ Branch coverage ${BRANCH_PERCENT}% is below threshold of ${THRESHOLD_BRANCH}%"
+            echo "⚠️ This PR decreased code coverage. Please add tests."
+            exit 1
+          fi
+          
+          echo "✅ Coverage thresholds met: Line ${LINE_PERCENT}% (>=${THRESHOLD_LINE}%), Branch ${BRANCH_PERCENT}% (>=${THRESHOLD_BRANCH}%)"
+          echo "📊 Target coverage: Line 80%, Branch 70% - Please help improve coverage with your PRs!"
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: ./CoverageReport
+          retention-days: 30
       
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
