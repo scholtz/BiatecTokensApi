@@ -10,10 +10,10 @@ This document summarizes the test coverage improvements made to the BiatecTokens
 
 ## Current Status (After Improvements)
 - **Total Tests**: 189 (+93 new tests)
-- **Overall Line Coverage**: 21.1%
-- **Overall Branch Coverage**: 15.5%
+- **Overall Line Coverage**: 15.1%
+- **Overall Branch Coverage**: 8%
 
-**Note**: The overall coverage percentage appears lower because it now includes all project files. Service-specific validation logic has significantly improved coverage.
+**Note**: Coverage metrics are calculated on the entire BiatecTokensApi assembly. The new tests focus on validation logic, models, and request handling. Service methods that interact with blockchain APIs (which are the bulk of the codebase) require more complex integration tests with mocked blockchain clients to improve overall coverage.
 
 ## New Test Files Added
 
@@ -132,32 +132,36 @@ Tests for ARC1400 security token service:
 
 ## Service-Specific Coverage
 
-### High Coverage Services (50%+)
+### Service Coverage by Component
+
+**Note**: The coverage percentages below reflect the actual measured code coverage from the coverage report. The new tests focus primarily on validation logic and model objects. Service methods that make blockchain API calls have 0% coverage as they require complex integration testing with mocked blockchain clients.
+
+#### High Coverage Services (50%+)
 1. **ARC200TokenService**: 53%
-   - Input validation: ✓ Comprehensive
+   - Input validation: ✓ Comprehensive (tested)
    - Error handling: ✓ Well tested
-   - Edge cases: ✓ Covered
+   - Token deployment methods: ✗ Not covered (requires blockchain mocking)
 
-2. **ERC20TokenService**: 53.6%
-   - Input validation: ✓ Comprehensive
+2. **ERC20TokenService**: 50.7%
+   - Input validation: ✓ Comprehensive (tested)
    - Configuration lookup: ✓ Tested
-   - Edge cases: ✓ Covered
+   - Token deployment methods: ✗ Not covered (requires blockchain mocking)
 
-### Medium Coverage Services (30-50%)
-3. **ARC1400TokenService**: 41.2%
-   - Input validation: ✓ Comprehensive
-   - Edge cases: ✓ Extensive coverage
-   - Token deployment: ⚠ Requires blockchain mocking
+#### Services Requiring Integration Tests (0% method coverage)
+3. **ARC1400TokenService**: 0%
+   - Input validation: ✓ Well tested (models at 100%)
+   - Service constructor: ✗ Not covered (requires Algorand API mocking)
+   - Token deployment methods: ✗ Not covered
 
-4. **ASATokenService**: 33.9%
-   - Input validation: ✓ Well tested
-   - Multiple token types: ✓ Covered
-   - Blockchain integration: ⚠ Lower coverage
+4. **ASATokenService**: 0%
+   - Input validation: ✓ Well tested (models at 100%)
+   - Service constructor: ✗ Not covered (requires Algorand API mocking)
+   - Token creation methods: ✗ Not covered
 
-5. **ARC3TokenService**: 30.4%
-   - Input validation: ✓ Comprehensive
-   - Metadata validation: ✓ Extensive
-   - IPFS integration: ⚠ Requires mocking
+5. **ARC3TokenService**: 0%
+   - Input validation: ✓ Comprehensive (models at 100%)
+   - Service constructor: ✗ Not covered (requires Algorand API + IPFS mocking)
+   - IPFS metadata methods: ✗ Not covered
 
 ## Testing Patterns Used
 
