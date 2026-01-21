@@ -4,7 +4,7 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace BiatecTokensApi
 {
@@ -36,7 +36,7 @@ namespace BiatecTokensApi
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+                c.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "Biatec Tokens API",
                     Version = "v1",

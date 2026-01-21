@@ -1,6 +1,7 @@
 using Swashbuckle.AspNetCore.SwaggerGen;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace BiatecTokensApi.Models.ASA.Request
 {
@@ -12,11 +13,11 @@ namespace BiatecTokensApi.Models.ASA.Request
         /// <summary>
         /// Swagger doc
         /// </summary>
-        public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+        public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
         {
-            if (context.Type == typeof(ASAFungibleTokenDeploymentRequest))
+            if (context.Type == typeof(ASAFungibleTokenDeploymentRequest) && schema is OpenApiSchema openApiSchema)
             {
-                schema.Example = OpenApiAnyFactory.CreateFromJson(JsonSerializer.Serialize(new ASAFungibleTokenDeploymentRequest
+                openApiSchema.Example = JsonNode.Parse(JsonSerializer.Serialize(new ASAFungibleTokenDeploymentRequest
                 {
                     Name = "MyToken",
                     UnitName = "MTKN",
