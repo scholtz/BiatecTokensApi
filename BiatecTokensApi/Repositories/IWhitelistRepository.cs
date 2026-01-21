@@ -1,0 +1,56 @@
+using BiatecTokensApi.Models.Whitelist;
+
+namespace BiatecTokensApi.Repositories
+{
+    /// <summary>
+    /// Interface for whitelist repository operations
+    /// </summary>
+    public interface IWhitelistRepository
+    {
+        /// <summary>
+        /// Adds a new whitelist entry
+        /// </summary>
+        /// <param name="entry">The whitelist entry to add</param>
+        /// <returns>True if the entry was added successfully</returns>
+        Task<bool> AddEntryAsync(WhitelistEntry entry);
+
+        /// <summary>
+        /// Gets all whitelist entries for a specific asset
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <param name="status">Optional status filter</param>
+        /// <returns>List of whitelist entries</returns>
+        Task<List<WhitelistEntry>> GetEntriesByAssetIdAsync(ulong assetId, WhitelistStatus? status = null);
+
+        /// <summary>
+        /// Gets a specific whitelist entry by asset ID and address
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <param name="address">The Algorand address</param>
+        /// <returns>The whitelist entry if found, null otherwise</returns>
+        Task<WhitelistEntry?> GetEntryAsync(ulong assetId, string address);
+
+        /// <summary>
+        /// Updates an existing whitelist entry
+        /// </summary>
+        /// <param name="entry">The whitelist entry to update</param>
+        /// <returns>True if the entry was updated successfully</returns>
+        Task<bool> UpdateEntryAsync(WhitelistEntry entry);
+
+        /// <summary>
+        /// Removes a whitelist entry
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <param name="address">The Algorand address</param>
+        /// <returns>True if the entry was removed successfully</returns>
+        Task<bool> RemoveEntryAsync(ulong assetId, string address);
+
+        /// <summary>
+        /// Checks if an address is whitelisted for a specific asset
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <param name="address">The Algorand address</param>
+        /// <returns>True if the address is actively whitelisted</returns>
+        Task<bool> IsWhitelistedAsync(ulong assetId, string address);
+    }
+}

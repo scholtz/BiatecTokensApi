@@ -258,6 +258,59 @@
             response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
             during the operation.</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.WhitelistController">
+            <summary>
+            Provides endpoints for managing RWA token whitelists
+            </summary>
+            <remarks>
+            This controller manages whitelist operations for RWA tokens including adding, removing,
+            listing, and bulk uploading addresses. All endpoints require ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.#ctor(BiatecTokensApi.Services.Interface.IWhitelistService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.WhitelistController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.WhitelistController"/> class.
+            </summary>
+            <param name="whitelistService">The whitelist service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ListWhitelist(System.UInt64,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistStatus},System.Int32,System.Int32)">
+            <summary>
+            Lists whitelist entries for a specific token
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <param name="status">Optional status filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of whitelist entries with pagination</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.AddWhitelistEntry(BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest)">
+            <summary>
+            Adds a single address to the whitelist
+            </summary>
+            <param name="request">The add whitelist entry request</param>
+            <returns>The created whitelist entry</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.RemoveWhitelistEntry(BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest)">
+            <summary>
+            Removes an address from the whitelist
+            </summary>
+            <param name="request">The remove whitelist entry request</param>
+            <returns>The result of the removal operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.BulkAddWhitelistEntries(BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest)">
+            <summary>
+            Bulk adds addresses to the whitelist
+            </summary>
+            <param name="request">The bulk add whitelist request</param>
+            <returns>The result of the bulk operation including success and failure counts</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetUserAddress">
+            <summary>
+            Gets the authenticated user's Algorand address from the claims
+            </summary>
+            <returns>The user's Algorand address or empty string if not found</returns>
+        </member>
         <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetController(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
             <summary>
             
@@ -1514,6 +1567,226 @@
             Represents an ERC20 token which is fully preminted.
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistEntry">
+            <summary>
+            Represents a whitelist entry for an RWA token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.Id">
+            <summary>
+            Unique identifier for the whitelist entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.AssetId">
+            <summary>
+            The asset ID (token ID) for which this whitelist entry applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.Address">
+            <summary>
+            The Algorand address being whitelisted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.Status">
+            <summary>
+            The status of the whitelist entry (Active, Inactive, Revoked)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.CreatedBy">
+            <summary>
+            The address of the user who created this whitelist entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.CreatedAt">
+            <summary>
+            Timestamp when the whitelist entry was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.UpdatedAt">
+            <summary>
+            Timestamp when the whitelist entry was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.UpdatedBy">
+            <summary>
+            The address of the user who last updated this whitelist entry
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistStatus">
+            <summary>
+            Status of a whitelist entry
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistStatus.Active">
+            <summary>
+            The address is actively whitelisted
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistStatus.Inactive">
+            <summary>
+            The address is temporarily inactive
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistStatus.Revoked">
+            <summary>
+            The address has been permanently revoked
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest">
+            <summary>
+            Request to add a single address to a token's whitelist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to add the whitelist entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.Address">
+            <summary>
+            The Algorand address to whitelist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.Status">
+            <summary>
+            The status of the whitelist entry (defaults to Active)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest">
+            <summary>
+            Request to remove an address from a token's whitelist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to remove the whitelist entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest.Address">
+            <summary>
+            The Algorand address to remove from the whitelist
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest">
+            <summary>
+            Request to bulk upload whitelist entries for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to add the whitelist entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.Addresses">
+            <summary>
+            List of addresses to whitelist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.Status">
+            <summary>
+            The status for all entries (defaults to Active)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ListWhitelistRequest">
+            <summary>
+            Request to list whitelist entries for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to list whitelist entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRequest.Status">
+            <summary>
+            Optional status filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistResponse">
+            <summary>
+            Response for whitelist operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistResponse.Entry">
+            <summary>
+            The whitelist entry that was created or modified
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistResponse.AffectedCount">
+            <summary>
+            Number of entries affected (for bulk operations)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistListResponse">
+            <summary>
+            Response for listing whitelist entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistListResponse.Entries">
+            <summary>
+            List of whitelist entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistListResponse.TotalCount">
+            <summary>
+            Total number of entries matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistListResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistListResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistListResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse">
+            <summary>
+            Response for bulk whitelist operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse.SuccessfulEntries">
+            <summary>
+            List of successfully added/updated entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse.FailedAddresses">
+            <summary>
+            List of addresses that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse.SuccessCount">
+            <summary>
+            Number of entries successfully processed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse.FailedCount">
+            <summary>
+            Number of entries that failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse.ValidationErrors">
+            <summary>
+            List of validation errors
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Program">
             <summary>
             Configures and runs the web application for the Biatec Tokens API.
@@ -1692,6 +1965,118 @@
             <summary>
             Response model for IPFS API
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.IWhitelistRepository">
+            <summary>
+            Interface for whitelist repository operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.AddEntryAsync(BiatecTokensApi.Models.Whitelist.WhitelistEntry)">
+            <summary>
+            Adds a new whitelist entry
+            </summary>
+            <param name="entry">The whitelist entry to add</param>
+            <returns>True if the entry was added successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.GetEntriesByAssetIdAsync(System.UInt64,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistStatus})">
+            <summary>
+            Gets all whitelist entries for a specific asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="status">Optional status filter</param>
+            <returns>List of whitelist entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.GetEntryAsync(System.UInt64,System.String)">
+            <summary>
+            Gets a specific whitelist entry by asset ID and address
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="address">The Algorand address</param>
+            <returns>The whitelist entry if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.UpdateEntryAsync(BiatecTokensApi.Models.Whitelist.WhitelistEntry)">
+            <summary>
+            Updates an existing whitelist entry
+            </summary>
+            <param name="entry">The whitelist entry to update</param>
+            <returns>True if the entry was updated successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.RemoveEntryAsync(System.UInt64,System.String)">
+            <summary>
+            Removes a whitelist entry
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="address">The Algorand address</param>
+            <returns>True if the entry was removed successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.IsWhitelistedAsync(System.UInt64,System.String)">
+            <summary>
+            Checks if an address is whitelisted for a specific asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="address">The Algorand address</param>
+            <returns>True if the address is actively whitelisted</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.WhitelistRepository">
+            <summary>
+            In-memory implementation of whitelist repository
+            </summary>
+            <remarks>
+            This implementation uses concurrent collections for thread-safe operations.
+            In a production environment, this should be replaced with a proper database implementation.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.WhitelistRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.WhitelistRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.AddEntryAsync(BiatecTokensApi.Models.Whitelist.WhitelistEntry)">
+            <summary>
+            Adds a new whitelist entry
+            </summary>
+            <param name="entry">The whitelist entry to add</param>
+            <returns>True if the entry was added successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.GetEntriesByAssetIdAsync(System.UInt64,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistStatus})">
+            <summary>
+            Gets all whitelist entries for a specific asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="status">Optional status filter</param>
+            <returns>List of whitelist entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.GetEntryAsync(System.UInt64,System.String)">
+            <summary>
+            Gets a specific whitelist entry by asset ID and address
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="address">The Algorand address</param>
+            <returns>The whitelist entry if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.UpdateEntryAsync(BiatecTokensApi.Models.Whitelist.WhitelistEntry)">
+            <summary>
+            Updates an existing whitelist entry
+            </summary>
+            <param name="entry">The whitelist entry to update</param>
+            <returns>True if the entry was updated successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.RemoveEntryAsync(System.UInt64,System.String)">
+            <summary>
+            Removes a whitelist entry
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="address">The Algorand address</param>
+            <returns>True if the entry was removed successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.IsWhitelistedAsync(System.UInt64,System.String)">
+            <summary>
+            Checks if an address is whitelisted for a specific asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="address">The Algorand address</param>
+            <returns>True if the address is actively whitelisted</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.ARC1400TokenService">
             <summary>
@@ -2071,6 +2456,97 @@
             <param name="request">Token deployment parameters</param>
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IWhitelistService">
+            <summary>
+            Interface for whitelist service operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.AddEntryAsync(BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest,System.String)">
+            <summary>
+            Adds a single address to the whitelist
+            </summary>
+            <param name="request">The add whitelist entry request</param>
+            <param name="createdBy">The address of the user creating the entry</param>
+            <returns>The whitelist response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.RemoveEntryAsync(BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest)">
+            <summary>
+            Removes an address from the whitelist
+            </summary>
+            <param name="request">The remove whitelist entry request</param>
+            <returns>The whitelist response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.BulkAddEntriesAsync(BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest,System.String)">
+            <summary>
+            Bulk adds addresses to the whitelist
+            </summary>
+            <param name="request">The bulk add whitelist request</param>
+            <param name="createdBy">The address of the user creating the entries</param>
+            <returns>The bulk whitelist response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.ListEntriesAsync(BiatecTokensApi.Models.Whitelist.ListWhitelistRequest)">
+            <summary>
+            Lists whitelist entries for a token
+            </summary>
+            <param name="request">The list whitelist request</param>
+            <returns>The whitelist list response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.IsValidAlgorandAddress(System.String)">
+            <summary>
+            Validates an Algorand address format
+            </summary>
+            <param name="address">The address to validate</param>
+            <returns>True if the address is valid</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.WhitelistService">
+            <summary>
+            Service for managing whitelist operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.WhitelistService"/> class.
+            </summary>
+            <param name="repository">The whitelist repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.AddEntryAsync(BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest,System.String)">
+            <summary>
+            Adds a single address to the whitelist
+            </summary>
+            <param name="request">The add whitelist entry request</param>
+            <param name="createdBy">The address of the user creating the entry</param>
+            <returns>The whitelist response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.RemoveEntryAsync(BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest)">
+            <summary>
+            Removes an address from the whitelist
+            </summary>
+            <param name="request">The remove whitelist entry request</param>
+            <returns>The whitelist response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.BulkAddEntriesAsync(BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest,System.String)">
+            <summary>
+            Bulk adds addresses to the whitelist
+            </summary>
+            <param name="request">The bulk add whitelist request</param>
+            <param name="createdBy">The address of the user creating the entries</param>
+            <returns>The bulk whitelist response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.ListEntriesAsync(BiatecTokensApi.Models.Whitelist.ListWhitelistRequest)">
+            <summary>
+            Lists whitelist entries for a token
+            </summary>
+            <param name="request">The list whitelist request</param>
+            <returns>The whitelist list response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.IsValidAlgorandAddress(System.String)">
+            <summary>
+            Validates an Algorand address format
+            </summary>
+            <param name="address">The address to validate</param>
+            <returns>True if the address is valid</returns>
         </member>
     </members>
 </doc>

@@ -1,0 +1,284 @@
+using BiatecTokensApi.Models.Whitelist;
+using BiatecTokensApi.Services.Interface;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+
+namespace BiatecTokensApi.Controllers
+{
+    /// <summary>
+    /// Provides endpoints for managing RWA token whitelists
+    /// </summary>
+    /// <remarks>
+    /// This controller manages whitelist operations for RWA tokens including adding, removing,
+    /// listing, and bulk uploading addresses. All endpoints require ARC-0014 authentication.
+    /// </remarks>
+    [Authorize]
+    [ApiController]
+    [Route("api/v1/whitelist")]
+    public class WhitelistController : ControllerBase
+    {
+        private readonly IWhitelistService _whitelistService;
+        private readonly ILogger<WhitelistController> _logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WhitelistController"/> class.
+        /// </summary>
+        /// <param name="whitelistService">The whitelist service</param>
+        /// <param name="logger">The logger instance</param>
+        public WhitelistController(
+            IWhitelistService whitelistService,
+            ILogger<WhitelistController> logger)
+        {
+            _whitelistService = whitelistService;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Lists whitelist entries for a specific token
+        /// </summary>
+        /// <param name="assetId">The asset ID (token ID)</param>
+        /// <param name="status">Optional status filter</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 20, max: 100)</param>
+        /// <returns>List of whitelist entries with pagination</returns>
+        [HttpGet("{assetId}")]
+        [ProducesResponseType(typeof(WhitelistListResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ListWhitelist(
+            [FromRoute] ulong assetId,
+            [FromQuery] WhitelistStatus? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var request = new ListWhitelistRequest
+                {
+                    AssetId = assetId,
+                    Status = status,
+                    Page = page,
+                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                };
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _whitelistService.ListEntriesAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Listed {Count} whitelist entries for asset {AssetId}", 
+                        result.Entries.Count, assetId);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to list whitelist entries for asset {AssetId}: {Error}", 
+                        assetId, result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception listing whitelist entries for asset {AssetId}", assetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistListResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Adds a single address to the whitelist
+        /// </summary>
+        /// <param name="request">The add whitelist entry request</param>
+        /// <returns>The created whitelist entry</returns>
+        [HttpPost]
+        [ProducesResponseType(typeof(WhitelistResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> AddWhitelistEntry([FromBody] AddWhitelistEntryRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var createdBy = GetUserAddress();
+                
+                if (string.IsNullOrEmpty(createdBy))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context");
+                    return Unauthorized(new WhitelistResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User address not found in authentication context"
+                    });
+                }
+
+                var result = await _whitelistService.AddEntryAsync(request, createdBy);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Added whitelist entry for address {Address} on asset {AssetId} by {CreatedBy}", 
+                        request.Address, request.AssetId, createdBy);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to add whitelist entry for address {Address} on asset {AssetId}: {Error}", 
+                        request.Address, request.AssetId, result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception adding whitelist entry for address {Address} on asset {AssetId}", 
+                    request.Address, request.AssetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Removes an address from the whitelist
+        /// </summary>
+        /// <param name="request">The remove whitelist entry request</param>
+        /// <returns>The result of the removal operation</returns>
+        [HttpDelete]
+        [ProducesResponseType(typeof(WhitelistResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> RemoveWhitelistEntry([FromBody] RemoveWhitelistEntryRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var userAddress = GetUserAddress();
+                
+                if (string.IsNullOrEmpty(userAddress))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context");
+                    return Unauthorized(new WhitelistResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User address not found in authentication context"
+                    });
+                }
+
+                var result = await _whitelistService.RemoveEntryAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Removed whitelist entry for address {Address} on asset {AssetId} by {UserAddress}", 
+                        request.Address, request.AssetId, userAddress);
+                    return Ok(result);
+                }
+                else if (result.ErrorMessage == "Whitelist entry not found")
+                {
+                    _logger.LogWarning("Whitelist entry not found for address {Address} on asset {AssetId}", 
+                        request.Address, request.AssetId);
+                    return NotFound(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to remove whitelist entry for address {Address} on asset {AssetId}: {Error}", 
+                        request.Address, request.AssetId, result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception removing whitelist entry for address {Address} on asset {AssetId}", 
+                    request.Address, request.AssetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Bulk adds addresses to the whitelist
+        /// </summary>
+        /// <param name="request">The bulk add whitelist request</param>
+        /// <returns>The result of the bulk operation including success and failure counts</returns>
+        [HttpPost("bulk")]
+        [ProducesResponseType(typeof(BulkWhitelistResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> BulkAddWhitelistEntries([FromBody] BulkAddWhitelistRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var createdBy = GetUserAddress();
+                
+                if (string.IsNullOrEmpty(createdBy))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context");
+                    return Unauthorized(new BulkWhitelistResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User address not found in authentication context"
+                    });
+                }
+
+                var result = await _whitelistService.BulkAddEntriesAsync(request, createdBy);
+
+                _logger.LogInformation("Bulk add completed for asset {AssetId}: {SuccessCount} succeeded, {FailedCount} failed by {CreatedBy}", 
+                    request.AssetId, result.SuccessCount, result.FailedCount, createdBy);
+
+                // Return 200 even if partially successful - client should check SuccessCount and FailedCount
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception during bulk add for asset {AssetId}", request.AssetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new BulkWhitelistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets the authenticated user's Algorand address from the claims
+        /// </summary>
+        /// <returns>The user's Algorand address or empty string if not found</returns>
+        private string GetUserAddress()
+        {
+            // ARC-0014 authentication stores the address in the "sub" claim
+            var address = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? User.FindFirst("sub")?.Value 
+                ?? string.Empty;
+            
+            return address;
+        }
+    }
+}
