@@ -470,5 +470,166 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region GetAuditLog Tests
+
+        [Test]
+        public async Task GetAuditLog_ValidRequest_ShouldReturnOk()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var response = new WhitelistAuditLogResponse
+            {
+                Success = true,
+                Entries = new List<WhitelistAuditLogEntry>
+                {
+                    new WhitelistAuditLogEntry
+                    {
+                        AssetId = assetId,
+                        Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                        ActionType = WhitelistActionType.Add,
+                        PerformedBy = TestUserAddress,
+                        PerformedAt = DateTime.UtcNow,
+                        NewStatus = WhitelistStatus.Active
+                    }
+                },
+                TotalCount = 1,
+                Page = 1,
+                PageSize = 50,
+                TotalPages = 1
+            };
+
+            _whitelistServiceMock
+                .Setup(s => s.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.GetAuditLog(assetId);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            Assert.That(okResult?.Value, Is.InstanceOf<WhitelistAuditLogResponse>());
+            var auditResponse = okResult?.Value as WhitelistAuditLogResponse;
+            Assert.That(auditResponse?.Success, Is.True);
+            Assert.That(auditResponse?.Entries, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task GetAuditLog_WithFilters_ShouldPassFiltersToService()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var address = "ADDRESS1123456789012345678901234567890123456789012345";
+            var actionType = WhitelistActionType.Add;
+            var performedBy = TestUserAddress;
+            var fromDate = DateTime.UtcNow.AddDays(-7);
+            var toDate = DateTime.UtcNow;
+
+            var response = new WhitelistAuditLogResponse
+            {
+                Success = true,
+                Entries = new List<WhitelistAuditLogEntry>(),
+                TotalCount = 0,
+                Page = 1,
+                PageSize = 50,
+                TotalPages = 0
+            };
+
+            GetWhitelistAuditLogRequest? capturedRequest = null;
+            _whitelistServiceMock
+                .Setup(s => s.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .Callback<GetWhitelistAuditLogRequest>(r => capturedRequest = r)
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.GetAuditLog(assetId, address, actionType, performedBy, fromDate, toDate, 2, 25);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            Assert.That(capturedRequest, Is.Not.Null);
+            Assert.That(capturedRequest?.AssetId, Is.EqualTo(assetId));
+            Assert.That(capturedRequest?.Address, Is.EqualTo(address));
+            Assert.That(capturedRequest?.ActionType, Is.EqualTo(actionType));
+            Assert.That(capturedRequest?.PerformedBy, Is.EqualTo(performedBy));
+            Assert.That(capturedRequest?.FromDate, Is.EqualTo(fromDate));
+            Assert.That(capturedRequest?.ToDate, Is.EqualTo(toDate));
+            Assert.That(capturedRequest?.Page, Is.EqualTo(2));
+            Assert.That(capturedRequest?.PageSize, Is.EqualTo(25));
+        }
+
+        [Test]
+        public async Task GetAuditLog_ServiceFailure_ShouldReturnInternalServerError()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var response = new WhitelistAuditLogResponse
+            {
+                Success = false,
+                ErrorMessage = "Database error"
+            };
+
+            _whitelistServiceMock
+                .Setup(s => s.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.GetAuditLog(assetId);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult?.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        }
+
+        [Test]
+        public async Task GetAuditLog_Exception_ShouldReturnInternalServerError()
+        {
+            // Arrange
+            var assetId = 12345UL;
+
+            _whitelistServiceMock
+                .Setup(s => s.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .ThrowsAsync(new Exception("Unexpected error"));
+
+            // Act
+            var result = await _controller.GetAuditLog(assetId);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult?.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        }
+
+        [Test]
+        public async Task GetAuditLog_PageSizeExceedsMax_ShouldCapAt100()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var response = new WhitelistAuditLogResponse
+            {
+                Success = true,
+                Entries = new List<WhitelistAuditLogEntry>(),
+                TotalCount = 0,
+                Page = 1,
+                PageSize = 100,
+                TotalPages = 0
+            };
+
+            GetWhitelistAuditLogRequest? capturedRequest = null;
+            _whitelistServiceMock
+                .Setup(s => s.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .Callback<GetWhitelistAuditLogRequest>(r => capturedRequest = r)
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.GetAuditLog(assetId, pageSize: 200);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            Assert.That(capturedRequest?.PageSize, Is.EqualTo(100));
+        }
+
+        #endregion
     }
 }

@@ -435,5 +435,267 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region Audit Log Tests
+
+        [Test]
+        public async Task GetAuditLogAsync_ValidRequest_ShouldReturnSuccess()
+        {
+            // Arrange
+            var auditEntries = new List<WhitelistAuditLogEntry>
+            {
+                new WhitelistAuditLogEntry
+                {
+                    AssetId = 12345,
+                    Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                    ActionType = WhitelistActionType.Add,
+                    PerformedBy = "CREATOR123456789012345678901234567890123456789012345",
+                    PerformedAt = DateTime.UtcNow.AddMinutes(-10),
+                    NewStatus = WhitelistStatus.Active
+                },
+                new WhitelistAuditLogEntry
+                {
+                    AssetId = 12345,
+                    Address = "ADDRESS2123456789012345678901234567890123456789012345",
+                    ActionType = WhitelistActionType.Update,
+                    PerformedBy = "UPDATER123456789012345678901234567890123456789012345",
+                    PerformedAt = DateTime.UtcNow.AddMinutes(-5),
+                    OldStatus = WhitelistStatus.Active,
+                    NewStatus = WhitelistStatus.Inactive
+                }
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(auditEntries);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                Page = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _service.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entries, Has.Count.EqualTo(2));
+            Assert.That(result.TotalCount, Is.EqualTo(2));
+            Assert.That(result.Page, Is.EqualTo(1));
+            Assert.That(result.PageSize, Is.EqualTo(10));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_WithPagination_ShouldReturnCorrectPage()
+        {
+            // Arrange
+            var auditEntries = Enumerable.Range(1, 25)
+                .Select(i => new WhitelistAuditLogEntry
+                {
+                    AssetId = 12345,
+                    Address = $"ADDRESS{i}1234567890123456789012345678901234567890123",
+                    ActionType = WhitelistActionType.Add,
+                    PerformedBy = "CREATOR123456789012345678901234567890123456789012345"
+                })
+                .ToList();
+
+            _repositoryMock
+                .Setup(r => r.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(auditEntries);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                Page = 2,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _service.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entries, Has.Count.EqualTo(10));
+            Assert.That(result.TotalCount, Is.EqualTo(25));
+            Assert.That(result.TotalPages, Is.EqualTo(3));
+            Assert.That(result.Page, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_InvalidPage_ShouldDefaultToPageOne()
+        {
+            // Arrange
+            var auditEntries = new List<WhitelistAuditLogEntry>();
+
+            _repositoryMock
+                .Setup(r => r.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(auditEntries);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                Page = 0, // Invalid page
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _service.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Page, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_PageSizeTooLarge_ShouldCapAt100()
+        {
+            // Arrange
+            var auditEntries = new List<WhitelistAuditLogEntry>();
+
+            _repositoryMock
+                .Setup(r => r.GetAuditLogAsync(It.IsAny<GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(auditEntries);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                Page = 1,
+                PageSize = 200 // Too large
+            };
+
+            // Act
+            var result = await _service.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.PageSize, Is.EqualTo(100));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_NewEntry_ShouldRecordAuditLog()
+        {
+            // Arrange
+            _repositoryMock
+                .Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+
+            _repositoryMock
+                .Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+
+            _repositoryMock
+                .Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active
+            };
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "CREATOR123456789012345678901234567890123456789012345");
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _repositoryMock.Verify(r => r.AddAuditLogEntryAsync(It.Is<WhitelistAuditLogEntry>(
+                e => e.ActionType == WhitelistActionType.Add &&
+                     e.AssetId == 12345 &&
+                     e.NewStatus == WhitelistStatus.Active &&
+                     e.OldStatus == null
+            )), Times.Once);
+        }
+
+        [Test]
+        public async Task AddEntryAsync_ExistingEntry_ShouldRecordUpdateAuditLog()
+        {
+            // Arrange
+            var existingEntry = new WhitelistEntry
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                CreatedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync(existingEntry);
+
+            _repositoryMock
+                .Setup(r => r.UpdateEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+
+            _repositoryMock
+                .Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Inactive
+            };
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "UPDATER123456789012345678901234567890123456789012345");
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _repositoryMock.Verify(r => r.AddAuditLogEntryAsync(It.Is<WhitelistAuditLogEntry>(
+                e => e.ActionType == WhitelistActionType.Update &&
+                     e.AssetId == 12345 &&
+                     e.OldStatus == WhitelistStatus.Active &&
+                     e.NewStatus == WhitelistStatus.Inactive
+            )), Times.Once);
+        }
+
+        [Test]
+        public async Task RemoveEntryAsync_ExistingEntry_ShouldRecordRemoveAuditLog()
+        {
+            // Arrange
+            var existingEntry = new WhitelistEntry
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                CreatedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync(existingEntry);
+
+            _repositoryMock
+                .Setup(r => r.RemoveEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync(true);
+
+            _repositoryMock
+                .Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+
+            var request = new RemoveWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"
+            };
+
+            // Act
+            var result = await _service.RemoveEntryAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            _repositoryMock.Verify(r => r.AddAuditLogEntryAsync(It.Is<WhitelistAuditLogEntry>(
+                e => e.ActionType == WhitelistActionType.Remove &&
+                     e.AssetId == 12345 &&
+                     e.OldStatus == WhitelistStatus.Active &&
+                     e.NewStatus == null
+            )), Times.Once);
+        }
+
+        #endregion
     }
 }

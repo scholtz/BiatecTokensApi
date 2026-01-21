@@ -268,6 +268,78 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Gets the audit log for a specific token's whitelist
+        /// </summary>
+        /// <param name="assetId">The asset ID (token ID)</param>
+        /// <param name="address">Optional filter by address</param>
+        /// <param name="actionType">Optional filter by action type</param>
+        /// <param name="performedBy">Optional filter by user who performed the action</param>
+        /// <param name="fromDate">Optional start date filter</param>
+        /// <param name="toDate">Optional end date filter</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 50, max: 100)</param>
+        /// <returns>Audit log entries with pagination</returns>
+        [HttpGet("{assetId}/audit-log")]
+        [ProducesResponseType(typeof(WhitelistAuditLogResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetAuditLog(
+            [FromRoute] ulong assetId,
+            [FromQuery] string? address = null,
+            [FromQuery] WhitelistActionType? actionType = null,
+            [FromQuery] string? performedBy = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            try
+            {
+                var request = new GetWhitelistAuditLogRequest
+                {
+                    AssetId = assetId,
+                    Address = address,
+                    ActionType = actionType,
+                    PerformedBy = performedBy,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = page,
+                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                };
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _whitelistService.GetAuditLogAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved {Count} audit log entries for asset {AssetId}", 
+                        result.Entries.Count, assetId);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to retrieve audit log for asset {AssetId}: {Error}", 
+                        assetId, result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving audit log for asset {AssetId}", assetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistAuditLogResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
         /// Gets the authenticated user's Algorand address from the claims
         /// </summary>
         /// <returns>The user's Algorand address or empty string if not found</returns>

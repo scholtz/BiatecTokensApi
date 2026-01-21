@@ -312,5 +312,230 @@ namespace BiatecTokensTests
             Assert.That(firstAdd, Is.True);
             Assert.That(secondAdd, Is.False);
         }
+
+        #region Audit Log Tests
+
+        [Test]
+        public async Task AddAuditLogEntryAsync_NewEntry_ShouldSucceed()
+        {
+            // Arrange
+            var auditEntry = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "TESTADDRESS123456789012345678901234567890123456789012",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345",
+                PerformedAt = DateTime.UtcNow,
+                OldStatus = null,
+                NewStatus = WhitelistStatus.Active
+            };
+
+            // Act
+            var result = await _repository.AddAuditLogEntryAsync(auditEntry);
+
+            // Assert
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_WithEntries_ShouldReturnAll()
+        {
+            // Arrange
+            var audit1 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345",
+                PerformedAt = DateTime.UtcNow.AddMinutes(-10),
+                NewStatus = WhitelistStatus.Active
+            };
+            var audit2 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS2123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Update,
+                PerformedBy = "UPDATER123456789012345678901234567890123456789012345",
+                PerformedAt = DateTime.UtcNow.AddMinutes(-5),
+                OldStatus = WhitelistStatus.Active,
+                NewStatus = WhitelistStatus.Inactive
+            };
+
+            await _repository.AddAuditLogEntryAsync(audit1);
+            await _repository.AddAuditLogEntryAsync(audit2);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                Page = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _repository.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(2));
+            // Should be sorted by most recent first
+            Assert.That(result[0].ActionType, Is.EqualTo(WhitelistActionType.Update));
+            Assert.That(result[1].ActionType, Is.EqualTo(WhitelistActionType.Add));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_FilterByAddress_ShouldReturnMatchingOnly()
+        {
+            // Arrange
+            var audit1 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+            var audit2 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS2123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+
+            await _repository.AddAuditLogEntryAsync(audit1);
+            await _repository.AddAuditLogEntryAsync(audit2);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                Page = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _repository.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0].Address, Is.EqualTo("ADDRESS1123456789012345678901234567890123456789012345"));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_FilterByActionType_ShouldReturnMatchingOnly()
+        {
+            // Arrange
+            var audit1 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+            var audit2 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Remove,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+
+            await _repository.AddAuditLogEntryAsync(audit1);
+            await _repository.AddAuditLogEntryAsync(audit2);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                ActionType = WhitelistActionType.Add,
+                Page = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _repository.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0].ActionType, Is.EqualTo(WhitelistActionType.Add));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_FilterByDateRange_ShouldReturnMatchingOnly()
+        {
+            // Arrange
+            var now = DateTime.UtcNow;
+            var audit1 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345",
+                PerformedAt = now.AddDays(-5)
+            };
+            var audit2 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS2123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345",
+                PerformedAt = now.AddDays(-1)
+            };
+
+            await _repository.AddAuditLogEntryAsync(audit1);
+            await _repository.AddAuditLogEntryAsync(audit2);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                FromDate = now.AddDays(-2),
+                ToDate = now,
+                Page = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _repository.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0].Address, Is.EqualTo("ADDRESS2123456789012345678901234567890123456789012345"));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_DifferentAssets_ShouldReturnOnlyMatchingAsset()
+        {
+            // Arrange
+            var audit1 = new WhitelistAuditLogEntry
+            {
+                AssetId = 12345,
+                Address = "ADDRESS1123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+            var audit2 = new WhitelistAuditLogEntry
+            {
+                AssetId = 67890,
+                Address = "ADDRESS2123456789012345678901234567890123456789012345",
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = "CREATOR123456789012345678901234567890123456789012345"
+            };
+
+            await _repository.AddAuditLogEntryAsync(audit1);
+            await _repository.AddAuditLogEntryAsync(audit2);
+
+            var request = new GetWhitelistAuditLogRequest
+            {
+                AssetId = 12345,
+                Page = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _repository.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0].AssetId, Is.EqualTo(12345UL));
+        }
+
+        #endregion
     }
 }

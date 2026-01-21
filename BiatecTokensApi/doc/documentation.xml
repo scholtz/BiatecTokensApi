@@ -305,6 +305,20 @@
             <param name="request">The bulk add whitelist request</param>
             <returns>The result of the bulk operation including success and failure counts</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetAuditLog(System.UInt64,System.String,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistActionType},System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Gets the audit log for a specific token's whitelist
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <param name="address">Optional filter by address</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 50, max: 100)</param>
+            <returns>Audit log entries with pagination</returns>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetUserAddress">
             <summary>
             Gets the authenticated user's Algorand address from the claims
@@ -1567,6 +1581,155 @@
             Represents an ERC20 token which is fully preminted.
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry">
+            <summary>
+            Represents an audit log entry for whitelist changes
+            </summary>
+            <remarks>
+            This model tracks all changes to the whitelist for compliance and regulatory reporting.
+            Each entry represents a single action (add, update, or remove) performed on a whitelist entry.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Id">
+            <summary>
+            Unique identifier for the audit log entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.AssetId">
+            <summary>
+            The asset ID (token ID) for which the whitelist change occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Address">
+            <summary>
+            The Algorand address affected by this change
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.ActionType">
+            <summary>
+            The type of action performed (Add, Update, Remove)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.PerformedBy">
+            <summary>
+            The address of the user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.PerformedAt">
+            <summary>
+            Timestamp when the action was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.OldStatus">
+            <summary>
+            The status before the change (null for new entries)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.NewStatus">
+            <summary>
+            The status after the change (null for removed entries)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Notes">
+            <summary>
+            Additional notes or context about the change
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistActionType">
+            <summary>
+            Type of action performed on a whitelist entry
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistActionType.Add">
+            <summary>
+            Address was added to the whitelist
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistActionType.Update">
+            <summary>
+            Whitelist entry was updated (e.g., status change)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistActionType.Remove">
+            <summary>
+            Address was removed from the whitelist
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest">
+            <summary>
+            Request to retrieve audit log for a token's whitelist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to retrieve audit log
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.Address">
+            <summary>
+            Optional filter by address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.ActionType">
+            <summary>
+            Optional filter by action type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.PerformedBy">
+            <summary>
+            Optional filter by user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.FromDate">
+            <summary>
+            Optional start date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.ToDate">
+            <summary>
+            Optional end date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse">
+            <summary>
+            Response containing whitelist audit log entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse.Entries">
+            <summary>
+            List of audit log entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse.TotalCount">
+            <summary>
+            Total number of entries matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistEntry">
             <summary>
             Represents a whitelist entry for an RWA token
@@ -2017,6 +2180,20 @@
             <param name="address">The Algorand address</param>
             <returns>True if the address is actively whitelisted</returns>
         </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.AddAuditLogEntryAsync(BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry)">
+            <summary>
+            Adds an audit log entry for a whitelist change
+            </summary>
+            <param name="auditEntry">The audit log entry to add</param>
+            <returns>True if the audit entry was added successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.GetAuditLogAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest)">
+            <summary>
+            Gets audit log entries for a specific asset with optional filters
+            </summary>
+            <param name="request">The audit log request with filters and pagination</param>
+            <returns>List of audit log entries</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.WhitelistRepository">
             <summary>
             In-memory implementation of whitelist repository
@@ -2077,6 +2254,20 @@
             <param name="assetId">The asset ID</param>
             <param name="address">The Algorand address</param>
             <returns>True if the address is actively whitelisted</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.AddAuditLogEntryAsync(BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry)">
+            <summary>
+            Adds an audit log entry for a whitelist change
+            </summary>
+            <param name="auditEntry">The audit log entry to add</param>
+            <returns>True if the audit entry was added successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.GetAuditLogAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest)">
+            <summary>
+            Gets audit log entries for a specific asset with optional filters
+            </summary>
+            <param name="request">The audit log request with filters and pagination</param>
+            <returns>List of audit log entries</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.ARC1400TokenService">
             <summary>
@@ -2499,6 +2690,13 @@
             <param name="address">The address to validate</param>
             <returns>True if the address is valid</returns>
         </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.GetAuditLogAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest)">
+            <summary>
+            Gets audit log entries for a token's whitelist
+            </summary>
+            <param name="request">The audit log request with filters and pagination</param>
+            <returns>The audit log response with entries and pagination info</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.WhitelistService">
             <summary>
             Service for managing whitelist operations
@@ -2547,6 +2745,13 @@
             </summary>
             <param name="address">The address to validate</param>
             <returns>True if the address is valid</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.GetAuditLogAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest)">
+            <summary>
+            Gets audit log entries for a token's whitelist
+            </summary>
+            <param name="request">The audit log request with filters and pagination</param>
+            <returns>The audit log response with entries and pagination info</returns>
         </member>
     </members>
 </doc>

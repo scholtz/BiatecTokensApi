@@ -43,5 +43,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="address">The address to validate</param>
         /// <returns>True if the address is valid</returns>
         bool IsValidAlgorandAddress(string address);
+
+        /// <summary>
+        /// Gets audit log entries for a token's whitelist
+        /// </summary>
+        /// <param name="request">The audit log request with filters and pagination</param>
+        /// <returns>The audit log response with entries and pagination info</returns>
+        Task<WhitelistAuditLogResponse> GetAuditLogAsync(GetWhitelistAuditLogRequest request);
     }
 }
