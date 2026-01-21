@@ -422,6 +422,11 @@ namespace BiatecTokensApi.Services
         /// </summary>
         /// <param name="request">The audit log request with filters and pagination</param>
         /// <returns>The audit log response with entries and pagination info</returns>
+        /// <remarks>
+        /// Note: For the in-memory implementation, the repository returns all filtered entries
+        /// and pagination is applied at the service level. In a production database implementation,
+        /// pagination should be moved to the repository layer for better performance.
+        /// </remarks>
         public async Task<WhitelistAuditLogResponse> GetAuditLogAsync(GetWhitelistAuditLogRequest request)
         {
             try
