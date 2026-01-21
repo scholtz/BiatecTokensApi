@@ -1,25 +1,24 @@
 Summary
-  Generated on: 01/21/2026 - 11:29:42
-  Coverage date: 01/21/2026 - 11:29:31
-  Parser: Cobertura
+  Generated on: 01/21/2026 - 11:34:53
+  Parser: OpenCover
   Assemblies: 1
   Classes: 46
   Files: 43
-  Line coverage: 21.1%
-  Covered lines: 848
-  Uncovered lines: 3154
+  Line coverage: 15.1%
+  Covered lines: 605
+  Uncovered lines: 3397
   Coverable lines: 4002
   Total lines: 7451
-  Branch coverage: 15.5% (268 of 1728)
-  Covered branches: 268
+  Branch coverage: 8% (139 of 1728)
+  Covered branches: 139
   Total branches: 1728
-  Method coverage: 30.3% (149 of 491)
-  Full method coverage: 24.4% (120 of 491)
-  Covered methods: 149
-  Fully covered methods: 120
+  Method coverage: 27.4% (135 of 491)
+  Full method coverage: 23% (113 of 491)
+  Covered methods: 135
+  Fully covered methods: 113
   Total methods: 491
 
-BiatecTokensApi                                                                         21.1%
+BiatecTokensApi                                                                         15.1%
   BiatecTokensApi.Configuration.EVMBlockchainConfig                                      100%
   BiatecTokensApi.Configuration.EVMChains                                                100%
   BiatecTokensApi.Configuration.IPFSConfig                                               100%
@@ -35,7 +34,7 @@ BiatecTokensApi                                                                 
   BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest                     100%
   BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse                     0%
   BiatecTokensApi.Models.ARC3.ARC3TokenInfo                                                0%
-  BiatecTokensApi.Models.ARC3.ARC3TokenLocalization                                       75%
+  BiatecTokensApi.Models.ARC3.ARC3TokenLocalization                                        0%
   BiatecTokensApi.Models.ARC3.ARC3TokenMetadata                                          100%
   BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest    100%
   BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest                 100%
@@ -61,8 +60,8 @@ BiatecTokensApi                                                                 
   BiatecTokensApi.Models.IPFSUploadResponse                                              100%
   BiatecTokensApi.Program                                                                100%
   BiatecTokensApi.Repositories.IPFSRepository                                           65.4%
-  BiatecTokensApi.Services.ARC1400TokenService                                          41.2%
+  BiatecTokensApi.Services.ARC1400TokenService                                             0%
   BiatecTokensApi.Services.ARC200TokenService                                             53%
-  BiatecTokensApi.Services.ARC3TokenService                                             30.4%
-  BiatecTokensApi.Services.ASATokenService                                              33.9%
-  BiatecTokensApi.Services.ERC20TokenService                                            53.6%
+  BiatecTokensApi.Services.ARC3TokenService                                                0%
+  BiatecTokensApi.Services.ASATokenService                                                 0%
+  BiatecTokensApi.Services.ERC20TokenService                                            50.7%

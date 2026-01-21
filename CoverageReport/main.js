@@ -228,7 +228,7 @@ var assemblies = [
       { "name": "BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest", "rp": "BiatecTokensApi_ARC200TokenDeploymentRequest.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 49, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse", "rp": "BiatecTokensApi_ARC200TokenDeploymentResponse.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenInfo", "rp": "BiatecTokensApi_ARC3TokenInfo.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 16, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenLocalization", "rp": "BiatecTokensApi_ARC3TokenLocalization.html", "cl": 3, "ucl": 1, "cal": 4, "tl": 33, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenLocalization", "rp": "BiatecTokensApi_ARC3TokenLocalization.html", "cl": 0, "ucl": 4, "cal": 4, "tl": 33, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenMetadata", "rp": "BiatecTokensApi_ARC3TokenMetadata.html", "cl": 16, "ucl": 0, "cal": 16, "tl": 91, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest", "rp": "BiatecTokensApi_ARC3FractionalNonFungibleTokenDeploymentRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest", "rp": "BiatecTokensApi_ARC3FungibleTokenDeploymentRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 16, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -254,533 +254,353 @@ var assemblies = [
       { "name": "BiatecTokensApi.Models.IPFSUploadResponse", "rp": "BiatecTokensApi_IPFSUploadResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 145, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Program", "rp": "BiatecTokensApi_Program.html", "cl": 69, "ucl": 0, "cal": 69, "tl": 122, "cb": 7, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Repositories.IPFSRepository", "rp": "BiatecTokensApi_IPFSRepository.html", "cl": 205, "ucl": 108, "cal": 313, "tl": 505, "cb": 39, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ARC1400TokenService", "rp": "BiatecTokensApi_ARC1400TokenService.html", "cl": 52, "ucl": 74, "cal": 126, "tl": 265, "cb": 25, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ARC1400TokenService", "rp": "BiatecTokensApi_ARC1400TokenService.html", "cl": 0, "ucl": 126, "cal": 126, "tl": 265, "cb": 0, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Services.ARC200TokenService", "rp": "BiatecTokensApi_ARC200TokenService.html", "cl": 69, "ucl": 61, "cal": 130, "tl": 268, "cb": 38, "tb": 48, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ARC3TokenService", "rp": "BiatecTokensApi_ARC3TokenService.html", "cl": 109, "ucl": 249, "cal": 358, "tl": 580, "cb": 64, "tb": 134, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ASATokenService", "rp": "BiatecTokensApi_ASATokenService.html", "cl": 75, "ucl": 146, "cal": 221, "tl": 389, "cb": 38, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ERC20TokenService", "rp": "BiatecTokensApi_ERC20TokenService.html", "cl": 74, "ucl": 64, "cal": 138, "tl": 277, "cb": 39, "tb": 66, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ARC3TokenService", "rp": "BiatecTokensApi_ARC3TokenService.html", "cl": 0, "ucl": 358, "cal": 358, "tl": 580, "cb": 0, "tb": 134, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ASATokenService", "rp": "BiatecTokensApi_ASATokenService.html", "cl": 0, "ucl": 221, "cal": 221, "tl": 389, "cb": 0, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ERC20TokenService", "rp": "BiatecTokensApi_ERC20TokenService.html", "cl": 70, "ucl": 68, "cal": 138, "tl": 277, "cb": 37, "tb": 66, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
-var metrics = [{ "name": "Crap Score", "abbreviation": "crp", "explanationUrl": "https://googletesting.blogspot.de/2011/02/this-code-is-crap.html" }, { "name": "Cyclomatic complexity", "abbreviation": "cc", "explanationUrl": "https://en.wikipedia.org/wiki/Cyclomatic_complexity" }, { "name": "Line coverage", "abbreviation": "cov", "explanationUrl": "https://en.wikipedia.org/wiki/Code_coverage" }, { "name": "Branch coverage", "abbreviation": "bcov", "explanationUrl": "https://en.wikipedia.org/wiki/Code_coverage" }];
+var metrics = [{ "name": "Cyclomatic complexity", "abbreviation": "cc", "explanationUrl": "https://en.wikipedia.org/wiki/Cyclomatic_complexity" }, { "name": "NPath complexity", "abbreviation": "npth", "explanationUrl": "https://modess.io/npath-complexity-cyclomatic-complexity-explained" }, { "name": "Sequence coverage", "abbreviation": "seq", "explanationUrl": "https://en.wikipedia.org/wiki/Code_coverage" }, { "name": "Branch coverage", "abbreviation": "bcov", "explanationUrl": "https://en.wikipedia.org/wiki/Code_coverage" }];
 
 var historicCoverageExecutionTimes = [];
 
 var riskHotspotMetrics = [
-      { "name": "Crap Score", "explanationUrl": "https://googletesting.blogspot.de/2011/02/this-code-is-crap.html" },
       { "name": "Cyclomatic complexity", "explanationUrl": "https://en.wikipedia.org/wiki/Cyclomatic_complexity" },
+      { "name": "NPath complexity", "explanationUrl": "https://modess.io/npath-complexity-cyclomatic-complexity-explained" },
 ];
 
 var riskHotspots = [
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 1278,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "System.Boolean BiatecTokensApi.Services.ARC3TokenService::ValidateARC3Request(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateARC3Request(...)", "fileIndex": 0, "line": 412,
     "metrics": [
-      { "value": 1190, "exceeded": true },
+      { "value": 60, "exceeded": true },
+      { "value": 60, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ASATokenService", "reportPath": "BiatecTokensApi_ASATokenService.html", "methodName": "System.Boolean BiatecTokensApi.Services.ASATokenService::ValidateASARequest(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateASARequest(...)", "fileIndex": 0, "line": 145,
+    "metrics": [
+      { "value": 42, "exceeded": true },
+      { "value": 42, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerTransferEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerTransferEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 1278,
+    "metrics": [
       { "value": 34, "exceeded": true },
+      { "value": 34, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 1159,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC200TokenService", "reportPath": "BiatecTokensApi_ARC200TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ARC200TokenService::ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 114,
     "metrics": [
-      { "value": 702, "exceeded": true },
+      { "value": 32, "exceeded": true },
+      { "value": 32, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ERC20TokenService", "reportPath": "BiatecTokensApi_ERC20TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ERC20TokenService::ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 100,
+    "metrics": [
+      { "value": 32, "exceeded": true },
+      { "value": 32, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerRedeemEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerRedeemEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 1159,
+    "metrics": [
       { "value": 26, "exceeded": true },
+      { "value": 26, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 792,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionTransfer BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionTransfer::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 792,
     "metrics": [
-      { "value": 600, "exceeded": true },
       { "value": 24, "exceeded": true },
+      { "value": 24, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 589,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.IPFSRepository", "reportPath": "BiatecTokensApi_IPFSRepository.html", "methodName": "BiatecTokensApi.Repositories.IPFSRepository/IPFSApiResponse BiatecTokensApi.Repositories.IPFSRepository::ParseNDJsonResponse(System.String)", "methodShortName": "ParseNDJsonResponse(...)", "fileIndex": 0, "line": 140,
     "metrics": [
-      { "value": 420, "exceeded": true },
-      { "value": 20, "exceeded": true },
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 688,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionIssue BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionIssue::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 589,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionRedeem BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionRedeem::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 688,
+    "metrics": [
+      { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410BalanceOfPartition()", "methodShortName": "Arc1410BalanceOfPartition()", "fileIndex": 0, "line": 1811,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410IsOperator()", "methodShortName": "Arc1410IsOperator()", "fileIndex": 0, "line": 1957,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410IsOperatorByPortion()", "methodShortName": "Arc1410IsOperatorByPortion()", "fileIndex": 0, "line": 2183,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410OperatorTransferByPartition()", "methodShortName": "Arc1410OperatorTransferByPartition()", "fileIndex": 0, "line": 2067,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410TransferByPartition()", "methodShortName": "Arc1410TransferByPartition()", "fileIndex": 0, "line": 1885,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594IsIssuable()", "methodShortName": "Arc1594IsIssuable()", "fileIndex": 0, "line": 1779,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594TransferFromWithData()", "methodShortName": "Arc1594TransferFromWithData()", "fileIndex": 0, "line": 1742,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594TransferWithData()", "methodShortName": "Arc1594TransferWithData()", "fileIndex": 0, "line": 1703,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644ControllerRedeem()", "methodShortName": "Arc1644ControllerRedeem()", "fileIndex": 0, "line": 1546,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644ControllerTransfer()", "methodShortName": "Arc1644ControllerTransfer()", "fileIndex": 0, "line": 1504,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644IsControllable()", "methodShortName": "Arc1644IsControllable()", "fileIndex": 0, "line": 1469,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Allowance()", "methodShortName": "Arc200Allowance()", "fileIndex": 0, "line": 2591,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Approve()", "methodShortName": "Arc200Approve()", "fileIndex": 0, "line": 2556,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200BalanceOf()", "methodShortName": "Arc200BalanceOf()", "fileIndex": 0, "line": 2483,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Decimals()", "methodShortName": "Arc200Decimals()", "fileIndex": 0, "line": 2422,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Name()", "methodShortName": "Arc200Name()", "fileIndex": 0, "line": 2362,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Symbol()", "methodShortName": "Arc200Symbol()", "fileIndex": 0, "line": 2392,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200TotalSupply()", "methodShortName": "Arc200TotalSupply()", "fileIndex": 0, "line": 2452,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Transfer()", "methodShortName": "Arc200Transfer()", "fileIndex": 0, "line": 1848,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200TransferFrom()", "methodShortName": "Arc200TransferFrom()", "fileIndex": 0, "line": 2519,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88IsOwner()", "methodShortName": "Arc88IsOwner()", "fileIndex": 0, "line": 2657,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88Owner()", "methodShortName": "Arc88Owner()", "fileIndex": 0, "line": 2626,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Bootstrap()", "methodShortName": "Bootstrap()", "fileIndex": 0, "line": 2326,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Allowance()", "methodShortName": "Arc200Allowance()", "fileIndex": 0, "line": 433,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Approve()", "methodShortName": "Arc200Approve()", "fileIndex": 0, "line": 398,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200BalanceOf()", "methodShortName": "Arc200BalanceOf()", "fileIndex": 0, "line": 290,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Decimals()", "methodShortName": "Arc200Decimals()", "fileIndex": 0, "line": 229,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Name()", "methodShortName": "Arc200Name()", "fileIndex": 0, "line": 169,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Symbol()", "methodShortName": "Arc200Symbol()", "fileIndex": 0, "line": 199,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200TotalSupply()", "methodShortName": "Arc200TotalSupply()", "fileIndex": 0, "line": 259,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Transfer()", "methodShortName": "Arc200Transfer()", "fileIndex": 0, "line": 325,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200TransferFrom()", "methodShortName": "Arc200TransferFrom()", "fileIndex": 0, "line": 361,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Bootstrap()", "methodShortName": "Bootstrap()", "fileIndex": 0, "line": 133,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "System.ValueTuple`2<System.Boolean,System.String> BiatecTokensApi.Services.ARC3TokenService::ValidateMetadata(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)", "methodShortName": "ValidateMetadata(...)", "fileIndex": 0, "line": 358,
+    "metrics": [
+      { "value": 20, "exceeded": true },
+      { "value": 20, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ERC20TokenService", "reportPath": "BiatecTokensApi_ERC20TokenService.html", "methodName": "DeployERC20TokenAsync()", "methodShortName": "DeployERC20TokenAsync()", "fileIndex": 0, "line": 178,
     "metrics": [
-      { "value": 420, "exceeded": true },
       { "value": 20, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 233,
-    "metrics": [
-      { "value": 342, "exceeded": true },
-      { "value": 18, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 323,
-    "metrics": [
-      { "value": 342, "exceeded": true },
-      { "value": 18, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 494,
-    "metrics": [
-      { "value": 342, "exceeded": true },
-      { "value": 18, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 64,
-    "metrics": [
-      { "value": 272, "exceeded": true },
-      { "value": 16, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 148,
-    "metrics": [
-      { "value": 272, "exceeded": true },
-      { "value": 16, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 891,
-    "metrics": [
-      { "value": 272, "exceeded": true },
-      { "value": 16, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 980,
-    "metrics": [
-      { "value": 272, "exceeded": true },
-      { "value": 16, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 67,
-    "metrics": [
-      { "value": 272, "exceeded": true },
-      { "value": 16, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 408,
-    "metrics": [
-      { "value": 210, "exceeded": true },
-      { "value": 14, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 1064,
-    "metrics": [
-      { "value": 210, "exceeded": true },
-      { "value": 14, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "CreateARC3FNFTTokenAsync()", "methodShortName": "CreateARC3FNFTTokenAsync()", "fileIndex": 0, "line": 98,
-    "metrics": [
-      { "value": 156, "exceeded": true },
-      { "value": 12, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "CreateARC3FTTokenAsync()", "methodShortName": "CreateARC3FTTokenAsync()", "fileIndex": 0, "line": 171,
-    "metrics": [
-      { "value": 156, "exceeded": true },
-      { "value": 12, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "CreateARC3NFTTokenAsync()", "methodShortName": "CreateARC3NFTTokenAsync()", "fileIndex": 0, "line": 244,
-    "metrics": [
-      { "value": 156, "exceeded": true },
-      { "value": 12, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ASATokenService", "reportPath": "BiatecTokensApi_ASATokenService.html", "methodName": "CreateFTAsync()", "methodShortName": "CreateFTAsync()", "fileIndex": 0, "line": 265,
-    "metrics": [
-      { "value": 156, "exceeded": true },
-      { "value": 12, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "ValidateARC3Request(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateARC3Request(...)", "fileIndex": 0, "line": 412,
-    "metrics": [
-      { "value": 138, "exceeded": true },
-      { "value": 60, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.IPFSRepository", "reportPath": "BiatecTokensApi_IPFSRepository.html", "methodName": "ParseNDJsonResponse(System.String)", "methodShortName": "ParseNDJsonResponse(...)", "fileIndex": 0, "line": 140,
-    "metrics": [
-      { "value": 117, "exceeded": true },
-      { "value": 22, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410AuthorizeOperator()", "methodShortName": "Arc1410AuthorizeOperator()", "fileIndex": 0, "line": 1997,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410AuthorizeOperatorByPortion()", "methodShortName": "Arc1410AuthorizeOperatorByPortion()", "fileIndex": 0, "line": 2149,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410CanTransferByPartition()", "methodShortName": "Arc1410CanTransferByPartition()", "fileIndex": 0, "line": 2111,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410IssueByPartition()", "methodShortName": "Arc1410IssueByPartition()", "fileIndex": 0, "line": 2224,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410OperatorRedeemByPartition()", "methodShortName": "Arc1410OperatorRedeemByPartition()", "fileIndex": 0, "line": 2291,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410RedeemByPartition()", "methodShortName": "Arc1410RedeemByPartition()", "fileIndex": 0, "line": 2258,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410RevokeOperator()", "methodShortName": "Arc1410RevokeOperator()", "fileIndex": 0, "line": 2031,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594Issue()", "methodShortName": "Arc1594Issue()", "fileIndex": 0, "line": 1611,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594Redeem()", "methodShortName": "Arc1594Redeem()", "fileIndex": 0, "line": 1674,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594RedeemFrom()", "methodShortName": "Arc1594RedeemFrom()", "fileIndex": 0, "line": 1643,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594SetIssuable()", "methodShortName": "Arc1594SetIssuable()", "fileIndex": 0, "line": 1582,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644SetControllable()", "methodShortName": "Arc1644SetControllable()", "fileIndex": 0, "line": 1389,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644SetController()", "methodShortName": "Arc1644SetController()", "fileIndex": 0, "line": 1361,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644SetMinActionInterval()", "methodShortName": "Arc1644SetMinActionInterval()", "fileIndex": 0, "line": 1443,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644SetRequireJustification()", "methodShortName": "Arc1644SetRequireJustification()", "fileIndex": 0, "line": 1416,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88AcceptOwnership()", "methodShortName": "Arc88AcceptOwnership()", "fileIndex": 0, "line": 2798,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88CancelOwnershipRequest()", "methodShortName": "Arc88CancelOwnershipRequest()", "fileIndex": 0, "line": 2822,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88InitializeOwner()", "methodShortName": "Arc88InitializeOwner()", "fileIndex": 0, "line": 2691,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88RenounceOwnership()", "methodShortName": "Arc88RenounceOwnership()", "fileIndex": 0, "line": 2746,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88TransferOwnership()", "methodShortName": "Arc88TransferOwnership()", "fileIndex": 0, "line": 2719,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88TransferOwnershipRequest()", "methodShortName": "Arc88TransferOwnershipRequest()", "fileIndex": 0, "line": 2771,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "CreateApplication()", "methodShortName": "CreateApplication()", "fileIndex": 0, "line": 2846,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "CreateApplication()", "methodShortName": "CreateApplication()", "fileIndex": 0, "line": 468,
-    "metrics": [
-      { "value": 110, "exceeded": true },
-      { "value": 10, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ASATokenService", "reportPath": "BiatecTokensApi_ASATokenService.html", "methodName": "CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "CreateASATokenAsync(...)", "fileIndex": 0, "line": 81,
-    "metrics": [
-      { "value": 76, "exceeded": true },
-      { "value": 12, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ASATokenService", "reportPath": "BiatecTokensApi_ASATokenService.html", "methodName": "ValidateASARequest(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateASARequest(...)", "fileIndex": 0, "line": 145,
-    "metrics": [
-      { "value": 48, "exceeded": true },
-      { "value": 42, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC200TokenService", "reportPath": "BiatecTokensApi_ARC200TokenService.html", "methodName": "ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 114,
-    "metrics": [
-      { "value": 32, "exceeded": true },
-      { "value": 32, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ERC20TokenService", "reportPath": "BiatecTokensApi_ERC20TokenService.html", "methodName": "ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 100,
-    "metrics": [
-      { "value": 32, "exceeded": true },
-      { "value": 32, "exceeded": true },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "ValidateMetadata(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)", "methodShortName": "ValidateMetadata(...)", "fileIndex": 0, "line": 358,
-    "metrics": [
       { "value": 20, "exceeded": false },
-      { "value": 20, "exceeded": true },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorKey BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorKey::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 233,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorPortionKey BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorPortionKey::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 323,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410CanTransferByPartitionReturn BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410CanTransferByPartitionReturn::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 494,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
     ]},
   {
     "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.IPFSRepository", "reportPath": "BiatecTokensApi_IPFSRepository.html", "methodName": "UploadAsync()", "methodShortName": "UploadAsync()", "fileIndex": 0, "line": 52,
     "metrics": [
-      { "value": 19, "exceeded": false },
       { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC1400TokenService", "reportPath": "BiatecTokensApi_ARC1400TokenService.html", "methodName": "ValidateRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 116,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC1400TokenService", "reportPath": "BiatecTokensApi_ARC1400TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ARC1400TokenService::ValidateRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 116,
     "metrics": [
-      { "value": 18, "exceeded": false },
       { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/ApprovalStruct BiatecTokensApi.Generated.Arc1644Proxy/Structs/ApprovalStruct::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 64,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410HoldingPartitionsPaginatedKey BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410HoldingPartitionsPaginatedKey::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 148,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594IssueEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594IssueEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 891,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594RedeemEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594RedeemEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 980,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc200Proxy/Structs/ApprovalStruct BiatecTokensApi.Generated.Arc200Proxy/Structs/ApprovalStruct::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 67,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
     ]},
 ];
 
