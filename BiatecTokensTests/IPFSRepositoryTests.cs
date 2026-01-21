@@ -85,11 +85,11 @@ namespace BiatecTokensTests
             var result = await _repository.UploadAsync(request);
 
             // Assert
-            Assert.IsTrue(result.Success);
-            Assert.AreEqual("QmTestHash123", result.Hash);
-            Assert.AreEqual("test.txt", result.Name);
-            Assert.AreEqual(content.Length, result.Size);
-            Assert.AreEqual("https://ipfs.biatec.io/ipfs/QmTestHash123", result.GatewayUrl);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Hash, Is.EqualTo("QmTestHash123"));
+            Assert.That(result.Name, Is.EqualTo("test.txt"));
+            Assert.That(result.Size, Is.EqualTo(content.Length));
+            Assert.That(result.GatewayUrl, Is.EqualTo("https://ipfs.biatec.io/ipfs/QmTestHash123"));
         }
 
         [Test]
@@ -106,8 +106,8 @@ namespace BiatecTokensTests
             var result = await _repository.UploadAsync(request);
 
             // Assert
-            Assert.IsFalse(result.Success);
-            Assert.AreEqual("Content cannot be null or empty", result.ErrorMessage);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Is.EqualTo("Content cannot be null or empty"));
         }
 
         [Test]
@@ -125,8 +125,8 @@ namespace BiatecTokensTests
             var result = await _repository.UploadAsync(request);
 
             // Assert
-            Assert.IsFalse(result.Success);
-            Assert.IsTrue(result.ErrorMessage?.Contains("exceeds maximum allowed size"));
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage?.Contains("exceeds maximum allowed size"), Is.True);
         }
 
         [Test]
@@ -159,8 +159,8 @@ namespace BiatecTokensTests
             var result = await _repository.UploadTextAsync(text, "hello.txt");
 
             // Assert
-            Assert.IsTrue(result.Success);
-            Assert.AreEqual("QmTextHash456", result.Hash);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Hash, Is.EqualTo("QmTextHash456"));
         }
 
         [Test]
@@ -193,8 +193,8 @@ namespace BiatecTokensTests
             var result = await _repository.UploadObjectAsync(testObject, "test.json");
 
             // Assert
-            Assert.IsTrue(result.Success);
-            Assert.AreEqual("QmObjectHash789", result.Hash);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Hash, Is.EqualTo("QmObjectHash789"));
         }
 
         [Test]
@@ -221,10 +221,10 @@ namespace BiatecTokensTests
             var result = await _repository.RetrieveAsync(cid);
 
             // Assert
-            Assert.IsTrue(result.Success);
-            Assert.IsNotNull(result.Content);
-            Assert.AreEqual("Retrieved content", Encoding.UTF8.GetString(result.Content));
-            Assert.AreEqual(content.Length, result.Size);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Content, Is.Not.Null);
+            Assert.That(Encoding.UTF8.GetString(result.Content), Is.EqualTo("Retrieved content"));
+            Assert.That(result.Size, Is.EqualTo(content.Length));
         }
 
         [Test]
@@ -251,8 +251,8 @@ namespace BiatecTokensTests
             var result = await _repository.RetrieveTextAsync(cid);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(textContent, result);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.EqualTo(textContent));
         }
 
         [Test]
@@ -287,9 +287,9 @@ namespace BiatecTokensTests
             var result = await _repository.RetrieveObjectAsync<TestClass>(cid);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(testObject.Name, result.Name);
-            Assert.AreEqual(testObject.Value, result.Value);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Name, Is.EqualTo(testObject.Name));
+            Assert.That(result.Value, Is.EqualTo(testObject.Value));
         }
 
         [Test]
@@ -315,7 +315,7 @@ namespace BiatecTokensTests
             var result = await _repository.ExistsAsync(cid);
 
             // Assert
-            Assert.IsTrue(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -337,7 +337,7 @@ namespace BiatecTokensTests
             var result = await _repository.ExistsAsync(cid);
 
             // Assert
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         [Test]
@@ -361,7 +361,7 @@ namespace BiatecTokensTests
             var result = await _repository.PinAsync(cid);
 
             // Assert
-            Assert.IsTrue(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -385,7 +385,7 @@ namespace BiatecTokensTests
             var result = await _repository.UnpinAsync(cid);
 
             // Assert
-            Assert.IsTrue(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -412,11 +412,11 @@ namespace BiatecTokensTests
             var result = await _repository.GetContentInfoAsync(cid);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(cid, result.Hash);
-            Assert.AreEqual(500, result.Size);
-            Assert.AreEqual("application/json", result.ContentType);
-            Assert.AreEqual($"https://ipfs.biatec.io/ipfs/{cid}", result.GatewayUrl);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Hash, Is.EqualTo(cid));
+            Assert.That(result.Size, Is.EqualTo(500));
+            Assert.That(result.ContentType, Is.EqualTo("application/json"));
+            Assert.That(result.GatewayUrl, Is.EqualTo($"https://ipfs.biatec.io/ipfs/{cid}"));
         }
 
         [Test]

@@ -51,14 +51,14 @@ namespace BiatecTokensTests
                 return;
             }
 
-            Assert.IsNotNull(_repository);
+            Assert.That(_repository, Is.Not.Null);
 
             // Upload text content
             var uploadResult = await _repository.UploadTextAsync(TestText, "integration-test.txt");
             
-            Assert.IsTrue(uploadResult.Success, $"Upload failed: {uploadResult.ErrorMessage}");
-            Assert.IsNotNull(uploadResult.Hash);
-            Assert.IsNotNull(uploadResult.GatewayUrl);
+            Assert.That(uploadResult.Success, Is.True, $"Upload failed: {uploadResult.ErrorMessage}");
+            Assert.That(uploadResult.Hash, Is.Not.Null);
+            Assert.That(uploadResult.GatewayUrl, Is.Not.Null);
             
             Console.WriteLine($"Uploaded to IPFS with hash: {uploadResult.Hash}");
             Console.WriteLine($"Gateway URL: {uploadResult.GatewayUrl}");
@@ -69,8 +69,8 @@ namespace BiatecTokensTests
             // Retrieve the content
             var retrievedText = await _repository.RetrieveTextAsync(uploadResult.Hash!);
             
-            Assert.IsNotNull(retrievedText);
-            Assert.AreEqual(TestText, retrievedText);
+            Assert.That(retrievedText, Is.Not.Null);
+            Assert.That(retrievedText, Is.EqualTo(TestText));
             
             Console.WriteLine($"Successfully retrieved: {retrievedText}");
         }
@@ -86,7 +86,7 @@ namespace BiatecTokensTests
                 return;
             }
 
-            Assert.IsNotNull(_repository);
+            Assert.That(_repository, Is.Not.Null);
 
             // Create test object
             var testObject = new
@@ -104,8 +104,8 @@ namespace BiatecTokensTests
             // Upload object as JSON
             var uploadResult = await _repository.UploadObjectAsync(testObject, "test-object.json");
             
-            Assert.IsTrue(uploadResult.Success, $"Upload failed: {uploadResult.ErrorMessage}");
-            Assert.IsNotNull(uploadResult.Hash);
+            Assert.That(uploadResult.Success, Is.True, $"Upload failed: {uploadResult.ErrorMessage}");
+            Assert.That(uploadResult.Hash, Is.Not.Null);
             
             Console.WriteLine($"Uploaded JSON object with hash: {uploadResult.Hash}");
 
@@ -115,8 +115,8 @@ namespace BiatecTokensTests
             // Retrieve as JSON string
             var retrievedJson = await _repository.RetrieveTextAsync(uploadResult.Hash!);
             
-            Assert.IsNotNull(retrievedJson);
-            Assert.IsTrue(retrievedJson.Contains("IPFS Integration Test"));
+            Assert.That(retrievedJson, Is.Not.Null);
+            Assert.That(retrievedJson.Contains("IPFS Integration Test"), Is.True);
             
             Console.WriteLine($"Retrieved JSON: {retrievedJson}");
         }
@@ -132,16 +132,16 @@ namespace BiatecTokensTests
                 return;
             }
 
-            Assert.IsNotNull(_repository);
+            Assert.That(_repository, Is.Not.Null);
 
             // First upload some content
             var uploadResult = await _repository.UploadTextAsync("Content to pin", "pin-test.txt");
-            Assert.IsTrue(uploadResult.Success);
-            Assert.IsNotNull(uploadResult.Hash);
+            Assert.That(uploadResult.Success, Is.True);
+            Assert.That(uploadResult.Hash, Is.Not.Null);
 
             // Pin the content
             var pinResult = await _repository.PinAsync(uploadResult.Hash!);
-            Assert.IsTrue(pinResult, "Pinning should succeed");
+            Assert.That(pinResult, Is.True, "Pinning should succeed");
             
             Console.WriteLine($"Successfully pinned content with hash: {uploadResult.Hash}");
         }
@@ -149,30 +149,30 @@ namespace BiatecTokensTests
         [Test]
         public async Task Exists_WithKnownInvalidCid_ShouldReturnFalse()
         {
-            Assert.IsNotNull(_repository);
+            Assert.That(_repository, Is.Not.Null);
 
             // Test with a well-formed but non-existent CID
             var invalidCid = "QmInvalidHashThatDoesNotExist123456789";
             var exists = await _repository.ExistsAsync(invalidCid);
             
-            Assert.IsFalse(exists);
+            Assert.That(exists, Is.False);
         }
 
         [Test]
         public async Task GetContentInfo_WithInvalidCid_ShouldReturnNull()
         {
-            Assert.IsNotNull(_repository);
+            Assert.That(_repository, Is.Not.Null);
 
             var invalidCid = "QmInvalidHashForContentInfo";
             var info = await _repository.GetContentInfoAsync(invalidCid);
             
-            Assert.IsNull(info);
+            Assert.That(info, Is.Null);
         }
 
         [Test]
         public async Task UploadLargeContent_ShouldFailWithConfiguredLimit()
         {
-            Assert.IsNotNull(_repository);
+            Assert.That(_repository, Is.Not.Null);
 
             // Create content larger than the configured limit (10MB)
             var largeContent = new byte[11 * 1024 * 1024]; // 11MB
@@ -184,8 +184,8 @@ namespace BiatecTokensTests
 
             var result = await _repository.UploadAsync(request);
             
-            Assert.IsFalse(result.Success);
-            Assert.IsTrue(result.ErrorMessage?.Contains("exceeds maximum allowed size"));
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage?.Contains("exceeds maximum allowed size"), Is.True);
         }
 
         /// <summary>
@@ -206,7 +206,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task ManualTest_BasicIPFSOperations()
         {
-            Assert.IsNotNull(_repository);
+            Assert.That(_repository, Is.Not.Null);
 
             Console.WriteLine("Starting manual IPFS test...");
 
