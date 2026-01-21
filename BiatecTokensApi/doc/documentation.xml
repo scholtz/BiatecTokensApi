@@ -1167,7 +1167,7 @@
             Swagger doc
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample.Apply(Microsoft.OpenApi.Models.OpenApiSchema,Swashbuckle.AspNetCore.SwaggerGen.SchemaFilterContext)">
+        <member name="M:BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample.Apply(Microsoft.OpenApi.IOpenApiSchema,Swashbuckle.AspNetCore.SwaggerGen.SchemaFilterContext)">
             <summary>
             Swagger doc
             </summary>
