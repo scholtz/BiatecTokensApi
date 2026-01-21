@@ -10,6 +10,8 @@ A comprehensive API for deploying and managing various types of tokens on differ
 - **Algorand Standard Assets (ASA)**: Create fungible tokens, NFTs, and fractional NFTs on Algorand
 - **ARC3 Token Support**: Deploy ARC3-compliant tokens with rich metadata and IPFS integration
 - **ARC200 Token Support**: Create ARC200 tokens with mintable and preminted variants
+- **RWA Compliance Management**: Comprehensive compliance metadata and whitelist management for Real World Asset tokens
+- **Network-Specific Validation**: Enforce compliance rules for VOI and Aramid networks
 - **Authentication**: Secure API access using ARC-0014 Algorand authentication
 - **Multi-Network Support**: Support for various Algorand networks and EVM chains
 
@@ -476,6 +478,37 @@ To download the OpenAPI specification from CI:
 1. Go to the Actions tab in GitHub
 2. Select the latest workflow run
 3. Download the `openapi-specification` artifact
+
+## RWA Compliance Management
+
+The API provides comprehensive compliance metadata management for Real World Asset (RWA) tokens, including KYC/AML verification tracking, jurisdiction management, and regulatory compliance monitoring.
+
+### Compliance Endpoints
+
+- `GET /api/v1/compliance/{assetId}` - Get compliance metadata for a token
+- `POST /api/v1/compliance` - Create or update compliance metadata
+- `DELETE /api/v1/compliance/{assetId}` - Delete compliance metadata
+- `GET /api/v1/compliance` - List compliance metadata with filtering
+
+### Whitelist Management
+
+- `GET /api/v1/whitelist/{assetId}` - List whitelisted addresses
+- `POST /api/v1/whitelist` - Add address to whitelist (with KYC fields)
+- `DELETE /api/v1/whitelist` - Remove address from whitelist
+- `POST /api/v1/whitelist/bulk` - Bulk add addresses
+- `GET /api/v1/whitelist/{assetId}/audit-log` - Get compliance audit trail
+
+### Network-Specific Compliance Rules
+
+#### VOI Network
+- Requires KYC verification for accredited investor tokens
+- Jurisdiction must be specified
+
+#### Aramid Network
+- Requires regulatory framework for compliant tokens
+- Requires max holders specification for security tokens
+
+For detailed documentation, see [COMPLIANCE_API.md](COMPLIANCE_API.md)
 
 ## Contributing
 

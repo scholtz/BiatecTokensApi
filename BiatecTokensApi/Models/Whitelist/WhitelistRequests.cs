@@ -23,6 +23,31 @@ namespace BiatecTokensApi.Models.Whitelist
         /// The status of the whitelist entry (defaults to Active)
         /// </summary>
         public WhitelistStatus Status { get; set; } = WhitelistStatus.Active;
+
+        /// <summary>
+        /// Reason for whitelisting this address
+        /// </summary>
+        public string? Reason { get; set; }
+
+        /// <summary>
+        /// Date when the whitelist entry expires (optional)
+        /// </summary>
+        public DateTime? ExpirationDate { get; set; }
+
+        /// <summary>
+        /// Whether KYC verification has been completed
+        /// </summary>
+        public bool KycVerified { get; set; }
+
+        /// <summary>
+        /// Date when KYC verification was completed
+        /// </summary>
+        public DateTime? KycVerificationDate { get; set; }
+
+        /// <summary>
+        /// Name of the KYC provider
+        /// </summary>
+        public string? KycProvider { get; set; }
     }
 
     /// <summary>
@@ -65,6 +90,31 @@ namespace BiatecTokensApi.Models.Whitelist
         /// The status for all entries (defaults to Active)
         /// </summary>
         public WhitelistStatus Status { get; set; } = WhitelistStatus.Active;
+
+        /// <summary>
+        /// Reason for whitelisting these addresses (applies to all)
+        /// </summary>
+        public string? Reason { get; set; }
+
+        /// <summary>
+        /// Date when the whitelist entries expire (optional, applies to all)
+        /// </summary>
+        public DateTime? ExpirationDate { get; set; }
+
+        /// <summary>
+        /// Whether KYC verification has been completed for all addresses
+        /// </summary>
+        public bool KycVerified { get; set; }
+
+        /// <summary>
+        /// Date when KYC verification was completed (applies to all)
+        /// </summary>
+        public DateTime? KycVerificationDate { get; set; }
+
+        /// <summary>
+        /// Name of the KYC provider (applies to all)
+        /// </summary>
+        public string? KycProvider { get; set; }
     }
 
     /// <summary>
