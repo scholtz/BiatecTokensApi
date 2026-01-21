@@ -105,27 +105,24 @@
 <col class="column105" />
 <col class="column105" />
 </colgroup>
-<thead><tr><th>Method</th><th>Branch coverage <a href="https://en.wikipedia.org/wiki/Code_coverage" target="_blank"><i class="icon-info-circled"></i></a></th><th>Crap Score <a href="https://googletesting.blogspot.de/2011/02/this-code-is-crap.html" target="_blank"><i class="icon-info-circled"></i></a></th><th>Cyclomatic complexity <a href="https://en.wikipedia.org/wiki/Cyclomatic_complexity" target="_blank"><i class="icon-info-circled"></i></a></th><th>Line coverage <a href="https://en.wikipedia.org/wiki/Code_coverage" target="_blank"><i class="icon-info-circled"></i></a></th></tr></thead>
+<thead><tr><th>Method</th><th>Branch coverage <a href="https://en.wikipedia.org/wiki/Code_coverage" target="_blank"><i class="icon-info-circled"></i></a></th><th>Cyclomatic complexity <a href="https://en.wikipedia.org/wiki/Cyclomatic_complexity" target="_blank"><i class="icon-info-circled"></i></a></th><th>NPath complexity <a href="https://modess.io/npath-complexity-cyclomatic-complexity-explained" target="_blank"><i class="icon-info-circled"></i></a></th><th>Sequence coverage <a href="https://en.wikipedia.org/wiki/Code_coverage" target="_blank"><i class="icon-info-circled"></i></a></th></tr></thead>
 <tbody>
-<tr><td title=".ctor(Microsoft.Extensions.Options.IOptions`1&lt;BiatecTokensApi.Configuration.IPFSConfig&gt;,System.Net.Http.HttpClient,Microsoft.Extensions.Logging.ILogger`1&lt;BiatecTokensApi.Repositories.IPFSRepository&gt;)"><a href="#file0_line22" class="navigatetohash">.ctor(...)</a></td><td>100%</td><td>4</td><td>4</td><td>100%</td></tr>
-<tr><td title="UploadAsync()"><a href="#file0_line52" class="navigatetohash">UploadAsync()</a></td><td>72.22%</td><td>19</td><td>18</td><td>84.74%</td></tr>
-<tr><td title="ParseNDJsonResponse(System.String)"><a href="#file0_line140" class="navigatetohash">ParseNDJsonResponse(...)</a></td><td>31.81%</td><td>117</td><td>22</td><td>41.89%</td></tr>
-<tr><td title="CalculateSha256(System.Byte[])"><a href="#file0_line247" class="navigatetohash">CalculateSha256(...)</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
+<tr><td title="System.Void BiatecTokensApi.Repositories.IPFSRepository::.ctor(Microsoft.Extensions.Options.IOptions`1&lt;BiatecTokensApi.Configuration.IPFSConfig&gt;,System.Net.Http.HttpClient,Microsoft.Extensions.Logging.ILogger`1&lt;BiatecTokensApi.Repositories.IPFSRepository&gt;)"><a href="#file0_line22" class="navigatetohash">.ctor(...)</a></td><td>100%</td><td>4</td><td>4</td><td>100%</td></tr>
+<tr><td title="UploadAsync()"><a href="#file0_line52" class="navigatetohash">UploadAsync()</a></td><td>72.22%</td><td>18</td><td>18</td><td>84.74%</td></tr>
+<tr><td title="BiatecTokensApi.Repositories.IPFSRepository/IPFSApiResponse BiatecTokensApi.Repositories.IPFSRepository::ParseNDJsonResponse(System.String)"><a href="#file0_line140" class="navigatetohash">ParseNDJsonResponse(...)</a></td><td>31.81%</td><td>22</td><td>22</td><td>41.89%</td></tr>
+<tr><td title="System.String BiatecTokensApi.Repositories.IPFSRepository::CalculateSha256(System.Byte[])"><a href="#file0_line247" class="navigatetohash">CalculateSha256(...)</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="UploadTextAsync()"><a href="#file0_line256" class="navigatetohash">UploadTextAsync()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="UploadJsonAsync()"><a href="#file0_line272" class="navigatetohash">UploadJsonAsync()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="UploadObjectAsync()"><a href="#file0_line280" class="navigatetohash">UploadObjectAsync()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
-<tr><td title="RetrieveAsync()"><a href="#file0_line289" class="navigatetohash">RetrieveAsync()</a></td><td>50%</td><td>23</td><td>10</td><td>50%</td></tr>
+<tr><td title="RetrieveAsync()"><a href="#file0_line289" class="navigatetohash">RetrieveAsync()</a></td><td>50%</td><td>10</td><td>10</td><td>50%</td></tr>
 <tr><td title="RetrieveTextAsync()"><a href="#file0_line343" class="navigatetohash">RetrieveTextAsync()</a></td><td>50%</td><td>4</td><td>4</td><td>85.71%</td></tr>
 <tr><td title="RetrieveObjectAsync()"><a href="#file0_line356" class="navigatetohash">RetrieveObjectAsync()</a></td><td>50%</td><td>2</td><td>2</td><td>53.84%</td></tr>
 <tr><td title="GetContentInfoAsync()"><a href="#file0_line376" class="navigatetohash">GetContentInfoAsync()</a></td><td>100%</td><td>4</td><td>4</td><td>100%</td></tr>
 <tr><td title="ExistsAsync()"><a href="#file0_line406" class="navigatetohash">ExistsAsync()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
-<tr><td title="PinAsync()"><a href="#file0_line415" class="navigatetohash">PinAsync()</a></td><td>50%</td><td>3</td><td>2</td><td>50%</td></tr>
-<tr><td title="UnpinAsync()"><a href="#file0_line443" class="navigatetohash">UnpinAsync()</a></td><td>50%</td><td>3</td><td>2</td><td>50%</td></tr>
-<tr><td title="VerifyContentHashAsync()"><a href="#file0_line468" class="navigatetohash">VerifyContentHashAsync()</a></td><td>100%</td><td>2</td><td>1</td><td>0%</td></tr>
-<tr><td title="get_Hash()"><a href="#file0_line493" class="navigatetohash">get_Hash()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
-<tr><td title="get_Name()"><a href="#file0_line494" class="navigatetohash">get_Name()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
-<tr><td title="get_Size()"><a href="#file0_line495" class="navigatetohash">get_Size()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
-<tr><td title="GetSizeAsLong()"><a href="#file0_line498" class="navigatetohash">GetSizeAsLong()</a></td><td>50%</td><td>2</td><td>2</td><td>80%</td></tr>
+<tr><td title="PinAsync()"><a href="#file0_line415" class="navigatetohash">PinAsync()</a></td><td>50%</td><td>2</td><td>2</td><td>50%</td></tr>
+<tr><td title="UnpinAsync()"><a href="#file0_line443" class="navigatetohash">UnpinAsync()</a></td><td>50%</td><td>2</td><td>2</td><td>50%</td></tr>
+<tr><td title="VerifyContentHashAsync()"><a href="#file0_line468" class="navigatetohash">VerifyContentHashAsync()</a></td><td>100%</td><td>1</td><td>1</td><td>0%</td></tr>
+<tr><td title="System.Int64 BiatecTokensApi.Repositories.IPFSRepository/IPFSApiResponse::GetSizeAsLong()"><a href="#file0_line498" class="navigatetohash">GetSizeAsLong()</a></td><td>50%</td><td>2</td><td>2</td><td>80%</td></tr>
 </tbody>
 </table>
 </div>
@@ -643,7 +640,7 @@
 </tbody>
 </table>
 </div>
-<div class="footer">Generated by: ReportGenerator 5.5.1.0<br />01/21/2026 - 11:29:42<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div>
+<div class="footer">Generated by: ReportGenerator 5.5.1.0<br />01/21/2026 - 11:34:52<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div>
 <div class="containerright">
 <div class="containerrightfixed">
 <h1>Methods/Properties</h1>
@@ -662,9 +659,9 @@
 <a href="#file0_line415" class="navigatetohash percentagebar percentagebar50" title="Line coverage: 50% - PinAsync()"><i class="icon-cube"></i>PinAsync()</a><br />
 <a href="#file0_line443" class="navigatetohash percentagebar percentagebar50" title="Line coverage: 50% - UnpinAsync()"><i class="icon-cube"></i>UnpinAsync()</a><br />
 <a href="#file0_line468" class="navigatetohash percentagebar percentagebar0" title="Line coverage: 0% - VerifyContentHashAsync()"><i class="icon-cube"></i>VerifyContentHashAsync()</a><br />
-<a href="#file0_line493" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - get_Hash()"><i class="icon-wrench"></i>get_Hash()</a><br />
-<a href="#file0_line494" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - get_Name()"><i class="icon-wrench"></i>get_Name()</a><br />
-<a href="#file0_line495" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - get_Size()"><i class="icon-wrench"></i>get_Size()</a><br />
+<a href="#file0_line493" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - Hash()"><i class="icon-wrench"></i>Hash()</a><br />
+<a href="#file0_line494" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - Name()"><i class="icon-wrench"></i>Name()</a><br />
+<a href="#file0_line495" class="navigatetohash percentagebar percentagebar100" title="Line coverage: 100% - Size()"><i class="icon-wrench"></i>Size()</a><br />
 <a href="#file0_line498" class="navigatetohash percentagebar percentagebar80" title="Line coverage: 80% - GetSizeAsLong()"><i class="icon-cube"></i>GetSizeAsLong()</a><br />
 <br/></div>
 </div></div>

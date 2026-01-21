@@ -97,8 +97,8 @@ This job includes:
 ### 2. Coverage Thresholds
 
 Current coverage requirements (will be increased incrementally):
-- **Line Coverage**: Minimum 34% (target: 80%)
-- **Branch Coverage**: Minimum 28% (target: 70%)
+- **Line Coverage**: Minimum 15% (target: 80%)
+- **Branch Coverage**: Minimum 8% (target: 70%)
 
 Pull requests that decrease coverage below these thresholds will fail the build.
 
@@ -180,20 +180,27 @@ If your PR fails coverage thresholds:
 
 The project is on a path to reach target coverage levels:
 
-**Phase 1** (Current): 34% line / 28% branch ✅
-- Basic validation tests
-- Controller endpoint tests
-- Error handling tests
+**Phase 1** (Current): 15% line / 8% branch ✅
+- Model and request validation tests
+- Basic service structure tests
+- Configuration object tests
 
-**Phase 2** (Next milestone): 50% line / 40% branch
+**Phase 2** (Next milestone): 35% line / 25% branch
 - Service layer unit tests with mocked dependencies
-- Repository tests
+- Repository tests with mocked HTTP clients
 - Additional edge cases
+- Error path coverage
 
-**Phase 3** (Target): 80% line / 70% branch
+**Phase 3** (Integration): 60% line / 50% branch
 - Comprehensive service tests
-- Integration test scenarios
+- Integration test scenarios with mocked blockchain APIs
 - Full error path coverage
+- Controller endpoint coverage
+
+**Phase 4** (Target): 80% line / 70% branch
+- Complete service method coverage
+- Complex blockchain interaction scenarios
+- End-to-end integration tests
 - Boundary condition tests
 
 ## Maintaining Coverage

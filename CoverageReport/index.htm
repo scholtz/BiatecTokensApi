@@ -17,7 +17,7 @@
 <table>
 <tr>
 <th>Parser:</th>
-<td class="limit-width " title="Cobertura">Cobertura</td>
+<td class="limit-width " title="OpenCover">OpenCover</td>
 </tr>
 <tr>
 <th>Assemblies:</th>
@@ -31,10 +31,6 @@
 <th>Files:</th>
 <td class="limit-width right" title="43">43</td>
 </tr>
-<tr>
-<th>Coverage date:</th>
-<td class="limit-width " title="01/21/2026 - 11:29:31">01/21/2026 - 11:29:31</td>
-</tr>
 </table>
 </div>
 </div>
@@ -42,16 +38,16 @@
 <div class="card">
 <div class="card-header">Line coverage</div>
 <div class="card-body">
-<div class="large cardpercentagebar cardpercentagebar79">21%</div>
+<div class="large cardpercentagebar cardpercentagebar85">15%</div>
 <div class="table">
 <table>
 <tr>
 <th>Covered lines:</th>
-<td class="limit-width right" title="848">848</td>
+<td class="limit-width right" title="605">605</td>
 </tr>
 <tr>
 <th>Uncovered lines:</th>
-<td class="limit-width right" title="3154">3154</td>
+<td class="limit-width right" title="3397">3397</td>
 </tr>
 <tr>
 <th>Coverable lines:</th>
@@ -63,7 +59,7 @@
 </tr>
 <tr>
 <th>Line coverage:</th>
-<td class="limit-width right" title="848 of 4002">21.1%</td>
+<td class="limit-width right" title="605 of 4002">15.1%</td>
 </tr>
 </table>
 </div>
@@ -72,12 +68,12 @@
 <div class="card">
 <div class="card-header">Branch coverage</div>
 <div class="card-body">
-<div class="large cardpercentagebar cardpercentagebar84">15%</div>
+<div class="large cardpercentagebar cardpercentagebar92">8%</div>
 <div class="table">
 <table>
 <tr>
 <th>Covered branches:</th>
-<td class="limit-width right" title="268">268</td>
+<td class="limit-width right" title="139">139</td>
 </tr>
 <tr>
 <th>Total branches:</th>
@@ -85,7 +81,7 @@
 </tr>
 <tr>
 <th>Branch coverage:</th>
-<td class="limit-width right" title="268 of 1728">15.5%</td>
+<td class="limit-width right" title="139 of 1728">8%</td>
 </tr>
 </table>
 </div>
@@ -115,129 +111,129 @@
 <thead><tr><th>Assembly</th>
 <th>Class</th>
 <th>Method</th>
-<th>Crap Score <a href="https://googletesting.blogspot.de/2011/02/this-code-is-crap.html" target="_blank"><i class="icon-info-circled"></i></a></th>
 <th>Cyclomatic complexity <a href="https://en.wikipedia.org/wiki/Cyclomatic_complexity" target="_blank"><i class="icon-info-circled"></i></a></th>
+<th>NPath complexity <a href="https://modess.io/npath-complexity-cyclomatic-complexity-explained" target="_blank"><i class="icon-info-circled"></i></a></th>
 </tr></thead>
 <tbody>
 <tr>
 <td>BiatecTokensApi</td>
-<td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1278">Parse(...)</a></td><td class="lightred right">1190</td>
-<td class="lightred right">34</td>
+<td><a href="BiatecTokensApi_ARC3TokenService.html">BiatecTokensApi.Services.ARC3TokenService</a></td>
+<td title="System.Boolean BiatecTokensApi.Services.ARC3TokenService::ValidateARC3Request(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)"><a href="BiatecTokensApi_ARC3TokenService.html#file0_line412">ValidateARC3Request(...)</a></td><td class="lightred right">60</td>
+<td class="lightgreen right">60</td>
+</tr>
+<tr>
+<td>BiatecTokensApi</td>
+<td><a href="BiatecTokensApi_ASATokenService.html">BiatecTokensApi.Services.ASATokenService</a></td>
+<td title="System.Boolean BiatecTokensApi.Services.ASATokenService::ValidateASARequest(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)"><a href="BiatecTokensApi_ASATokenService.html#file0_line145">ValidateASARequest(...)</a></td><td class="lightred right">42</td>
+<td class="lightgreen right">42</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1159">Parse(...)</a></td><td class="lightred right">702</td>
-<td class="lightred right">26</td>
+<td title="BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerTransferEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerTransferEvent::Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1278">Parse(...)</a></td><td class="lightred right">34</td>
+<td class="lightgreen right">34</td>
+</tr>
+<tr>
+<td>BiatecTokensApi</td>
+<td><a href="BiatecTokensApi_ARC200TokenService.html">BiatecTokensApi.Services.ARC200TokenService</a></td>
+<td title="System.Void BiatecTokensApi.Services.ARC200TokenService::ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)"><a href="BiatecTokensApi_ARC200TokenService.html#file0_line114">ValidateRequest(...)</a></td><td class="lightred right">32</td>
+<td class="lightgreen right">32</td>
+</tr>
+<tr>
+<td>BiatecTokensApi</td>
+<td><a href="BiatecTokensApi_ERC20TokenService.html">BiatecTokensApi.Services.ERC20TokenService</a></td>
+<td title="System.Void BiatecTokensApi.Services.ERC20TokenService::ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)"><a href="BiatecTokensApi_ERC20TokenService.html#file0_line100">ValidateRequest(...)</a></td><td class="lightred right">32</td>
+<td class="lightgreen right">32</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line792">Parse(...)</a></td><td class="lightred right">600</td>
-<td class="lightred right">24</td>
+<td title="BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerRedeemEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerRedeemEvent::Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1159">Parse(...)</a></td><td class="lightred right">26</td>
+<td class="lightgreen right">26</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line589">Parse(...)</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionTransfer BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionTransfer::Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line792">Parse(...)</a></td><td class="lightred right">24</td>
+<td class="lightgreen right">24</td>
+</tr>
+<tr>
+<td>BiatecTokensApi</td>
+<td><a href="BiatecTokensApi_IPFSRepository.html">BiatecTokensApi.Repositories.IPFSRepository</a></td>
+<td title="BiatecTokensApi.Repositories.IPFSRepository/IPFSApiResponse BiatecTokensApi.Repositories.IPFSRepository::ParseNDJsonResponse(System.String)"><a href="BiatecTokensApi_IPFSRepository.html#file0_line140">ParseNDJsonResponse(...)</a></td><td class="lightred right">22</td>
+<td class="lightgreen right">22</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line688">Parse(...)</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionIssue BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionIssue::Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line589">Parse(...)</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1410BalanceOfPartition()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1811">Arc1410BalanceOfPartition()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionRedeem BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionRedeem::Parse(System.Byte[])"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line688">Parse(...)</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1410IsOperator()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1957">Arc1410IsOperator()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1410BalanceOfPartition()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1811">Arc1410BalanceOfPartition()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1410IsOperatorByPortion()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2183">Arc1410IsOperatorByPortion()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1410IsOperator()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1957">Arc1410IsOperator()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1410OperatorTransferByPartition()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2067">Arc1410OperatorTransferByPartition()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1410IsOperatorByPortion()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2183">Arc1410IsOperatorByPortion()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1410TransferByPartition()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1885">Arc1410TransferByPartition()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1410OperatorTransferByPartition()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2067">Arc1410OperatorTransferByPartition()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1594IsIssuable()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1779">Arc1594IsIssuable()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1410TransferByPartition()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1885">Arc1410TransferByPartition()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1594TransferFromWithData()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1742">Arc1594TransferFromWithData()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1594IsIssuable()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1779">Arc1594IsIssuable()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1594TransferWithData()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1703">Arc1594TransferWithData()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1594TransferFromWithData()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1742">Arc1594TransferFromWithData()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1644ControllerRedeem()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1546">Arc1644ControllerRedeem()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1594TransferWithData()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1703">Arc1594TransferWithData()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1644ControllerTransfer()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1504">Arc1644ControllerTransfer()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1644ControllerRedeem()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1546">Arc1644ControllerRedeem()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 <tr>
 <td>BiatecTokensApi</td>
 <td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc1644IsControllable()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1469">Arc1644IsControllable()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
-</tr>
-<tr>
-<td>BiatecTokensApi</td>
-<td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc200Allowance()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2591">Arc200Allowance()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
-</tr>
-<tr>
-<td>BiatecTokensApi</td>
-<td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc200Approve()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2556">Arc200Approve()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
-</tr>
-<tr>
-<td>BiatecTokensApi</td>
-<td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc200BalanceOf()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2483">Arc200BalanceOf()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
-</tr>
-<tr>
-<td>BiatecTokensApi</td>
-<td><a href="BiatecTokensApi_Arc1644Proxy.html">BiatecTokensApi.Generated.Arc1644Proxy</a></td>
-<td title="Arc200Decimals()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line2422">Arc200Decimals()</a></td><td class="lightred right">420</td>
-<td class="lightred right">20</td>
+<td title="Arc1644ControllerTransfer()"><a href="BiatecTokensApi_Arc1644Proxy.html#file0_line1504">Arc1644ControllerTransfer()</a></td><td class="lightred right">20</td>
+<td class="lightgreen right">20</td>
 </tr>
 </tbody>
 </table>
@@ -264,7 +260,7 @@
 <tr class="header"><th></th><th colspan="6" class="center">Line coverage</th><th colspan="4" class="center">Branch coverage</th></tr>
 <tr><th>Name</th><th class="right">Covered</th><th class="right">Uncovered</th><th class="right">Coverable</th><th class="right">Total</th><th class="center" colspan="2">Percentage</th><th class="right">Covered</th><th class="right">Total</th><th class="center" colspan="2">Percentage</th></tr></thead>
 <tbody>
-<tr><th>BiatecTokensApi</th><th class="right">848</th><th class="right">3154</th><th class="right">4002</th><th class="right">7886</th><th title="848/4002" class="right">21.1%</th><th><table class="coverage"><tr><td class="green covered21">&nbsp;</td><td class="red covered79">&nbsp;</td></tr></table></th><th class="right">268</th><th class="right">1728</th><th class="right" title="268/1728">15.5%</th><th><table class="coverage"><tr><td class="green covered16">&nbsp;</td><td class="red covered84">&nbsp;</td></tr></table></th></tr>
+<tr><th>BiatecTokensApi</th><th class="right">605</th><th class="right">3397</th><th class="right">4002</th><th class="right">7886</th><th title="605/4002" class="right">15.1%</th><th><table class="coverage"><tr><td class="green covered15">&nbsp;</td><td class="red covered85">&nbsp;</td></tr></table></th><th class="right">139</th><th class="right">1728</th><th class="right" title="139/1728">8%</th><th><table class="coverage"><tr><td class="green covered8">&nbsp;</td><td class="red covered92">&nbsp;</td></tr></table></th></tr>
 <tr><td><a href="BiatecTokensApi_EVMBlockchainConfig.html">BiatecTokensApi.Configuration.EVMBlockchainConfig</a></td><td class="right">3</td><td class="right">0</td><td class="right">3</td><td class="right">27</td><td title="3/3" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_EVMChains.html">BiatecTokensApi.Configuration.EVMChains</a></td><td class="right">1</td><td class="right">0</td><td class="right">1</td><td class="right">16</td><td title="1/1" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_IPFSConfig.html">BiatecTokensApi.Configuration.IPFSConfig</a></td><td class="right">7</td><td class="right">0</td><td class="right">7</td><td class="right">43</td><td title="7/7" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
@@ -280,7 +276,7 @@
 <tr><td><a href="BiatecTokensApi_ARC200TokenDeploymentRequest.html">BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest</a></td><td class="right">6</td><td class="right">0</td><td class="right">6</td><td class="right">49</td><td title="6/6" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_ARC200TokenDeploymentResponse.html">BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse</a></td><td class="right">0</td><td class="right">1</td><td class="right">1</td><td class="right">18</td><td title="0/1" class="right">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_ARC3TokenInfo.html">BiatecTokensApi.Models.ARC3.ARC3TokenInfo</a></td><td class="right">0</td><td class="right">1</td><td class="right">1</td><td class="right">16</td><td title="0/1" class="right">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
-<tr><td><a href="BiatecTokensApi_ARC3TokenLocalization.html">BiatecTokensApi.Models.ARC3.ARC3TokenLocalization</a></td><td class="right">3</td><td class="right">1</td><td class="right">4</td><td class="right">33</td><td title="3/4" class="right">75%</td><td><table class="coverage"><tr><td class="green covered75">&nbsp;</td><td class="red covered25">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
+<tr><td><a href="BiatecTokensApi_ARC3TokenLocalization.html">BiatecTokensApi.Models.ARC3.ARC3TokenLocalization</a></td><td class="right">0</td><td class="right">4</td><td class="right">4</td><td class="right">33</td><td title="0/4" class="right">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_ARC3TokenMetadata.html">BiatecTokensApi.Models.ARC3.ARC3TokenMetadata</a></td><td class="right">16</td><td class="right">0</td><td class="right">16</td><td class="right">91</td><td title="16/16" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_ARC3FractionalNonFungibleTokenDeploymentRequest.html">BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest</a></td><td class="right">1</td><td class="right">0</td><td class="right">1</td><td class="right">18</td><td title="1/1" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_ARC3FungibleTokenDeploymentRequest.html">BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest</a></td><td class="right">1</td><td class="right">0</td><td class="right">1</td><td class="right">16</td><td title="1/1" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
@@ -306,16 +302,16 @@
 <tr><td><a href="BiatecTokensApi_IPFSUploadResponse.html">BiatecTokensApi.Models.IPFSUploadResponse</a></td><td class="right">7</td><td class="right">0</td><td class="right">7</td><td class="right">145</td><td title="7/7" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">0</td><td class="right" title="-"></td><td><table class="coverage"><tr><td class="gray covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_Program.html">BiatecTokensApi.Program</a></td><td class="right">69</td><td class="right">0</td><td class="right">69</td><td class="right">122</td><td title="69/69" class="right">100%</td><td><table class="coverage"><tr><td class="green covered100">&nbsp;</td></tr></table></td><td class="right">7</td><td class="right">14</td><td class="right" title="7/14">50%</td><td><table class="coverage"><tr><td class="green covered50">&nbsp;</td><td class="red covered50">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_IPFSRepository.html">BiatecTokensApi.Repositories.IPFSRepository</a></td><td class="right">205</td><td class="right">108</td><td class="right">313</td><td class="right">505</td><td title="205/313" class="right">65.4%</td><td><table class="coverage"><tr><td class="green covered65">&nbsp;</td><td class="red covered35">&nbsp;</td></tr></table></td><td class="right">39</td><td class="right">70</td><td class="right" title="39/70">55.7%</td><td><table class="coverage"><tr><td class="green covered56">&nbsp;</td><td class="red covered44">&nbsp;</td></tr></table></td></tr>
-<tr><td><a href="BiatecTokensApi_ARC1400TokenService.html">BiatecTokensApi.Services.ARC1400TokenService</a></td><td class="right">52</td><td class="right">74</td><td class="right">126</td><td class="right">265</td><td title="52/126" class="right">41.2%</td><td><table class="coverage"><tr><td class="green covered41">&nbsp;</td><td class="red covered59">&nbsp;</td></tr></table></td><td class="right">25</td><td class="right">34</td><td class="right" title="25/34">73.5%</td><td><table class="coverage"><tr><td class="green covered74">&nbsp;</td><td class="red covered26">&nbsp;</td></tr></table></td></tr>
+<tr><td><a href="BiatecTokensApi_ARC1400TokenService.html">BiatecTokensApi.Services.ARC1400TokenService</a></td><td class="right">0</td><td class="right">126</td><td class="right">126</td><td class="right">265</td><td title="0/126" class="right">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">34</td><td class="right" title="0/34">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td></tr>
 <tr><td><a href="BiatecTokensApi_ARC200TokenService.html">BiatecTokensApi.Services.ARC200TokenService</a></td><td class="right">69</td><td class="right">61</td><td class="right">130</td><td class="right">268</td><td title="69/130" class="right">53%</td><td><table class="coverage"><tr><td class="green covered53">&nbsp;</td><td class="red covered47">&nbsp;</td></tr></table></td><td class="right">38</td><td class="right">48</td><td class="right" title="38/48">79.1%</td><td><table class="coverage"><tr><td class="green covered79">&nbsp;</td><td class="red covered21">&nbsp;</td></tr></table></td></tr>
-<tr><td><a href="BiatecTokensApi_ARC3TokenService.html">BiatecTokensApi.Services.ARC3TokenService</a></td><td class="right">109</td><td class="right">249</td><td class="right">358</td><td class="right">580</td><td title="109/358" class="right">30.4%</td><td><table class="coverage"><tr><td class="green covered30">&nbsp;</td><td class="red covered70">&nbsp;</td></tr></table></td><td class="right">64</td><td class="right">134</td><td class="right" title="64/134">47.7%</td><td><table class="coverage"><tr><td class="green covered48">&nbsp;</td><td class="red covered52">&nbsp;</td></tr></table></td></tr>
-<tr><td><a href="BiatecTokensApi_ASATokenService.html">BiatecTokensApi.Services.ASATokenService</a></td><td class="right">75</td><td class="right">146</td><td class="right">221</td><td class="right">389</td><td title="75/221" class="right">33.9%</td><td><table class="coverage"><tr><td class="green covered34">&nbsp;</td><td class="red covered66">&nbsp;</td></tr></table></td><td class="right">38</td><td class="right">70</td><td class="right" title="38/70">54.2%</td><td><table class="coverage"><tr><td class="green covered54">&nbsp;</td><td class="red covered46">&nbsp;</td></tr></table></td></tr>
-<tr><td><a href="BiatecTokensApi_ERC20TokenService.html">BiatecTokensApi.Services.ERC20TokenService</a></td><td class="right">74</td><td class="right">64</td><td class="right">138</td><td class="right">277</td><td title="74/138" class="right">53.6%</td><td><table class="coverage"><tr><td class="green covered54">&nbsp;</td><td class="red covered46">&nbsp;</td></tr></table></td><td class="right">39</td><td class="right">66</td><td class="right" title="39/66">59%</td><td><table class="coverage"><tr><td class="green covered59">&nbsp;</td><td class="red covered41">&nbsp;</td></tr></table></td></tr>
+<tr><td><a href="BiatecTokensApi_ARC3TokenService.html">BiatecTokensApi.Services.ARC3TokenService</a></td><td class="right">0</td><td class="right">358</td><td class="right">358</td><td class="right">580</td><td title="0/358" class="right">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">134</td><td class="right" title="0/134">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td></tr>
+<tr><td><a href="BiatecTokensApi_ASATokenService.html">BiatecTokensApi.Services.ASATokenService</a></td><td class="right">0</td><td class="right">221</td><td class="right">221</td><td class="right">389</td><td title="0/221" class="right">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td><td class="right">0</td><td class="right">70</td><td class="right" title="0/70">0%</td><td><table class="coverage"><tr><td class="red covered100">&nbsp;</td></tr></table></td></tr>
+<tr><td><a href="BiatecTokensApi_ERC20TokenService.html">BiatecTokensApi.Services.ERC20TokenService</a></td><td class="right">70</td><td class="right">68</td><td class="right">138</td><td class="right">277</td><td title="70/138" class="right">50.7%</td><td><table class="coverage"><tr><td class="green covered51">&nbsp;</td><td class="red covered49">&nbsp;</td></tr></table></td><td class="right">37</td><td class="right">66</td><td class="right" title="37/66">56%</td><td><table class="coverage"><tr><td class="green covered56">&nbsp;</td><td class="red covered44">&nbsp;</td></tr></table></td></tr>
 </tbody>
 </table>
 </div>
 </coverage-info>
-<div class="footer">Generated by: ReportGenerator 5.5.1.0<br />01/21/2026 - 11:29:42<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div></div>
+<div class="footer">Generated by: ReportGenerator 5.5.1.0<br />01/21/2026 - 11:34:52<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div></div>
 <script type="text/javascript">
 /* <![CDATA[ */
 (function() {
