@@ -279,7 +279,7 @@ dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
 Before your pull request can be merged, it must:
 
 - ✅ Pass all CI checks (build, tests, coverage thresholds)
-- ✅ Meet code coverage thresholds (current: 34% line, 28% branch; target: 80% line, 70% branch)
+- ✅ Meet code coverage thresholds (current: 15% line, 8% branch; target: 80% line, 70% branch)
 - ✅ Receive at least **1 approval** from a maintainer or code owner
 - ✅ Have all conversations resolved
 - ✅ Have no merge conflicts with `master`
@@ -288,7 +288,7 @@ Before your pull request can be merged, it must:
 - ✅ Have clear, descriptive commit messages
 - ✅ Include updated documentation if needed
 
-**Note**: Branch protection rules enforce these requirements. See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for configuration details.
+**Note**: Branch protection rules should be configured by repository administrators to enforce these requirements. See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for configuration details.
 
 ## Code Style
 
