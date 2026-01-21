@@ -1,0 +1,439 @@
+using BiatecTokensApi.Models.Whitelist;
+using BiatecTokensApi.Repositories;
+using BiatecTokensApi.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
+
+namespace BiatecTokensTests
+{
+    [TestFixture]
+    public class WhitelistServiceTests
+    {
+        private Mock<IWhitelistRepository> _repositoryMock;
+        private Mock<ILogger<WhitelistService>> _loggerMock;
+        private WhitelistService _service;
+
+        [SetUp]
+        public void Setup()
+        {
+            _repositoryMock = new Mock<IWhitelistRepository>();
+            _loggerMock = new Mock<ILogger<WhitelistService>>();
+            _service = new WhitelistService(_repositoryMock.Object, _loggerMock.Object);
+        }
+
+        #region Address Validation Tests
+
+        [Test]
+        public void IsValidAlgorandAddress_ValidAddress_ShouldReturnTrue()
+        {
+            // Arrange - Valid Algorand address (58 characters)
+            var validAddress = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            // Act
+            var result = _service.IsValidAlgorandAddress(validAddress);
+
+            // Assert
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void IsValidAlgorandAddress_InvalidLength_ShouldReturnFalse()
+        {
+            // Arrange - Too short
+            var invalidAddress = "SHORT";
+
+            // Act
+            var result = _service.IsValidAlgorandAddress(invalidAddress);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void IsValidAlgorandAddress_EmptyString_ShouldReturnFalse()
+        {
+            // Act
+            var result = _service.IsValidAlgorandAddress(string.Empty);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void IsValidAlgorandAddress_Null_ShouldReturnFalse()
+        {
+            // Act
+            var result = _service.IsValidAlgorandAddress(null!);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void IsValidAlgorandAddress_InvalidChecksum_ShouldReturnFalse()
+        {
+            // Arrange - Invalid checksum (all A's is not a valid address)
+            var invalidAddress = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+            // Act
+            var result = _service.IsValidAlgorandAddress(invalidAddress);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        #endregion
+
+        #region AddEntry Tests
+
+        [Test]
+        public async Task AddEntryAsync_ValidRequest_ShouldSucceed()
+        {
+            // Arrange
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "CREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entry, Is.Not.Null);
+            Assert.That(result.Entry?.AssetId, Is.EqualTo(12345));
+            Assert.That(result.Entry?.CreatedBy, Is.EqualTo(createdBy));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_InvalidAddress_ShouldFail()
+        {
+            // Arrange
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "INVALID",
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "CREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+
+            // Act
+            var result = await _service.AddEntryAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("Invalid Algorand address"));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_ExistingEntry_ShouldUpdateStatus()
+        {
+            // Arrange
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "CREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+
+            var existingEntry = new WhitelistEntry
+            {
+                AssetId = 12345,
+                Address = request.Address.ToUpperInvariant(),
+                Status = WhitelistStatus.Inactive,
+                CreatedBy = "OLDCREATOR",
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync(existingEntry);
+            _repositoryMock.Setup(r => r.UpdateEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entry?.Status, Is.EqualTo(WhitelistStatus.Active));
+            Assert.That(result.Entry?.UpdatedBy, Is.EqualTo(createdBy));
+            Assert.That(result.Entry?.UpdatedAt, Is.Not.Null);
+        }
+
+        #endregion
+
+        #region RemoveEntry Tests
+
+        [Test]
+        public async Task RemoveEntryAsync_ValidRequest_ShouldSucceed()
+        {
+            // Arrange
+            var request = new RemoveWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"
+            };
+
+            _repositoryMock.Setup(r => r.RemoveEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.RemoveEntryAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task RemoveEntryAsync_InvalidAddress_ShouldFail()
+        {
+            // Arrange
+            var request = new RemoveWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "INVALID"
+            };
+
+            // Act
+            var result = await _service.RemoveEntryAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("Invalid Algorand address"));
+        }
+
+        [Test]
+        public async Task RemoveEntryAsync_NonExistentEntry_ShouldFail()
+        {
+            // Arrange
+            var request = new RemoveWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"
+            };
+
+            _repositoryMock.Setup(r => r.RemoveEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync(false);
+
+            // Act
+            var result = await _service.RemoveEntryAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Is.EqualTo("Whitelist entry not found"));
+        }
+
+        #endregion
+
+        #region BulkAdd Tests
+
+        [Test]
+        public async Task BulkAddEntriesAsync_AllValidAddresses_ShouldSucceed()
+        {
+            // Arrange - Use valid Algorand testnet addresses  
+            // These are real Algorand addresses from testnet
+            var request = new BulkAddWhitelistRequest
+            {
+                AssetId = 12345,
+                Addresses = new List<string>
+                {
+                    "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA", // Valid address
+                    "47YPQTIGQEO7T4Y4RWDYWEKV6RTR2UNBQXBABEEGM72ESWDQNCQ52OPASU"  // Valid address
+                },
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.BulkAddEntriesAsync(request, createdBy);
+
+            // Assert
+            if (!result.Success)
+            {
+                // Log the error for debugging
+                Console.WriteLine($"Error: {result.ErrorMessage}");
+                Console.WriteLine($"ValidationErrors: {string.Join(", ", result.ValidationErrors)}");
+            }
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.SuccessCount, Is.EqualTo(2));
+            Assert.That(result.FailedCount, Is.EqualTo(0));
+            Assert.That(result.SuccessfulEntries, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task BulkAddEntriesAsync_DuplicateAddresses_ShouldDeduplicate()
+        {
+            // Arrange - Use valid Algorand testnet addresses
+            var request = new BulkAddWhitelistRequest
+            {
+                AssetId = 12345,
+                Addresses = new List<string>
+                {
+                    "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                    "vcmjkwoy5p5p7skmzffoceropjczotijmniynuckh7lro45jmjp6uybija", // Same address, different case
+                    "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"  // Duplicate
+                },
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.BulkAddEntriesAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.SuccessCount, Is.EqualTo(1)); // Only one unique address
+            Assert.That(result.SuccessfulEntries, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task BulkAddEntriesAsync_MixedValidInvalid_ShouldPartiallySucceed()
+        {
+            // Arrange - Use valid Algorand testnet addresses
+            var request = new BulkAddWhitelistRequest
+            {
+                AssetId = 12345,
+                Addresses = new List<string>
+                {
+                    "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                    "INVALID"
+                },
+                Status = WhitelistStatus.Active
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(It.IsAny<ulong>(), It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.BulkAddEntriesAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.SuccessCount, Is.EqualTo(1));
+            Assert.That(result.FailedCount, Is.EqualTo(1));
+            Assert.That(result.FailedAddresses, Has.Count.EqualTo(1));
+            Assert.That(result.ValidationErrors, Has.Count.EqualTo(1));
+        }
+
+        #endregion
+
+        #region ListEntries Tests
+
+        [Test]
+        public async Task ListEntriesAsync_WithoutPagination_ShouldReturnAll()
+        {
+            // Arrange
+            var request = new ListWhitelistRequest
+            {
+                AssetId = 12345,
+                Page = 1,
+                PageSize = 20
+            };
+
+            var entries = new List<WhitelistEntry>
+            {
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR1", Status = WhitelistStatus.Active },
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR2", Status = WhitelistStatus.Active }
+            };
+
+            _repositoryMock.Setup(r => r.GetEntriesByAssetIdAsync(It.IsAny<ulong>(), It.IsAny<WhitelistStatus?>()))
+                .ReturnsAsync(entries);
+
+            // Act
+            var result = await _service.ListEntriesAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entries, Has.Count.EqualTo(2));
+            Assert.That(result.TotalCount, Is.EqualTo(2));
+            Assert.That(result.TotalPages, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ListEntriesAsync_WithPagination_ShouldReturnPagedResults()
+        {
+            // Arrange
+            var request = new ListWhitelistRequest
+            {
+                AssetId = 12345,
+                Page = 2,
+                PageSize = 2
+            };
+
+            var entries = new List<WhitelistEntry>
+            {
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR1", Status = WhitelistStatus.Active },
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR2", Status = WhitelistStatus.Active },
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR3", Status = WhitelistStatus.Active },
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR4", Status = WhitelistStatus.Active }
+            };
+
+            _repositoryMock.Setup(r => r.GetEntriesByAssetIdAsync(It.IsAny<ulong>(), It.IsAny<WhitelistStatus?>()))
+                .ReturnsAsync(entries);
+
+            // Act
+            var result = await _service.ListEntriesAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entries, Has.Count.EqualTo(2));
+            Assert.That(result.TotalCount, Is.EqualTo(4));
+            Assert.That(result.Page, Is.EqualTo(2));
+            Assert.That(result.TotalPages, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task ListEntriesAsync_WithStatusFilter_ShouldReturnFiltered()
+        {
+            // Arrange
+            var request = new ListWhitelistRequest
+            {
+                AssetId = 12345,
+                Status = WhitelistStatus.Active,
+                Page = 1,
+                PageSize = 20
+            };
+
+            var entries = new List<WhitelistEntry>
+            {
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR1", Status = WhitelistStatus.Active },
+                new WhitelistEntry { AssetId = 12345, Address = "ADDR2", Status = WhitelistStatus.Active }
+            };
+
+            _repositoryMock.Setup(r => r.GetEntriesByAssetIdAsync(It.IsAny<ulong>(), WhitelistStatus.Active))
+                .ReturnsAsync(entries);
+
+            // Act
+            var result = await _service.ListEntriesAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entries, Has.Count.EqualTo(2));
+            Assert.That(result.Entries.All(e => e.Status == WhitelistStatus.Active), Is.True);
+        }
+
+        #endregion
+    }
+}
