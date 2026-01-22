@@ -366,6 +366,68 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Validates if a transfer between two addresses is allowed based on whitelist rules
+        /// </summary>
+        /// <param name="request">The transfer validation request</param>
+        /// <returns>Validation response indicating if the transfer is allowed</returns>
+        /// <remarks>
+        /// This endpoint validates whether a token transfer is permitted based on whitelist compliance rules.
+        /// Both sender and receiver must be actively whitelisted (status=Active) with non-expired entries.
+        /// 
+        /// Use this endpoint before executing transfers to ensure compliance with MICA regulations
+        /// and other regulatory requirements for RWA tokens.
+        /// 
+        /// The response includes detailed status information for both sender and receiver,
+        /// including whitelist status, expiration dates, and specific denial reasons if applicable.
+        /// </remarks>
+        [HttpPost("validate-transfer")]
+        [ProducesResponseType(typeof(ValidateTransferResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ValidateTransfer([FromBody] ValidateTransferRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _whitelistService.ValidateTransferAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Validated transfer for asset {AssetId} from {From} to {To}: {Result}",
+                        request.AssetId, request.FromAddress, request.ToAddress,
+                        result.IsAllowed ? "ALLOWED" : "DENIED");
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError(
+                        "Failed to validate transfer for asset {AssetId} from {From} to {To}: {Error}",
+                        request.AssetId, request.FromAddress, request.ToAddress, result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, 
+                    "Exception validating transfer for asset {AssetId} from {From} to {To}",
+                    request.AssetId, request.FromAddress, request.ToAddress);
+                return StatusCode(StatusCodes.Status500InternalServerError, new ValidateTransferResponse
+                {
+                    Success = false,
+                    IsAllowed = false,
+                    ErrorMessage = $"Internal error: {ex.Message}",
+                    DenialReason = "Internal validation error"
+                });
+            }
+        }
+
+        /// <summary>
         /// Gets the authenticated user's Algorand address from the claims
         /// </summary>
         /// <returns>The user's Algorand address or empty string if not found</returns>

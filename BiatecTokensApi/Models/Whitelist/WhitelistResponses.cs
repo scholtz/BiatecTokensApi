@@ -77,4 +77,66 @@ namespace BiatecTokensApi.Models.Whitelist
         /// </summary>
         public List<string> ValidationErrors { get; set; } = new();
     }
+
+    /// <summary>
+    /// Response for transfer validation
+    /// </summary>
+    public class ValidateTransferResponse : BaseResponse
+    {
+        /// <summary>
+        /// Whether the transfer is allowed based on whitelist rules
+        /// </summary>
+        public bool IsAllowed { get; set; }
+
+        /// <summary>
+        /// Reason why the transfer is not allowed (if IsAllowed is false)
+        /// </summary>
+        public string? DenialReason { get; set; }
+
+        /// <summary>
+        /// Details about the sender's whitelist status
+        /// </summary>
+        public TransferParticipantStatus? SenderStatus { get; set; }
+
+        /// <summary>
+        /// Details about the receiver's whitelist status
+        /// </summary>
+        public TransferParticipantStatus? ReceiverStatus { get; set; }
+    }
+
+    /// <summary>
+    /// Status information for a transfer participant (sender or receiver)
+    /// </summary>
+    public class TransferParticipantStatus
+    {
+        /// <summary>
+        /// The Algorand address
+        /// </summary>
+        public string Address { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Whether the address is whitelisted
+        /// </summary>
+        public bool IsWhitelisted { get; set; }
+
+        /// <summary>
+        /// Whether the whitelist entry is active
+        /// </summary>
+        public bool IsActive { get; set; }
+
+        /// <summary>
+        /// Whether the whitelist entry has expired
+        /// </summary>
+        public bool IsExpired { get; set; }
+
+        /// <summary>
+        /// The expiration date if applicable
+        /// </summary>
+        public DateTime? ExpirationDate { get; set; }
+
+        /// <summary>
+        /// Current whitelist status
+        /// </summary>
+        public WhitelistStatus? Status { get; set; }
+    }
 }

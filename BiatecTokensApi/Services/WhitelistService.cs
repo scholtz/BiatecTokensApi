@@ -554,5 +554,135 @@ namespace BiatecTokensApi.Services
                 };
             }
         }
+
+        /// <summary>
+        /// Validates if a transfer between two addresses is allowed based on whitelist rules
+        /// </summary>
+        /// <param name="request">The transfer validation request</param>
+        /// <returns>The validation response indicating if the transfer is allowed</returns>
+        public async Task<ValidateTransferResponse> ValidateTransferAsync(ValidateTransferRequest request)
+        {
+            try
+            {
+                // Validate address formats
+                if (!IsValidAlgorandAddress(request.FromAddress))
+                {
+                    _logger.LogWarning("Invalid sender address format: {Address}", request.FromAddress);
+                    return new ValidateTransferResponse
+                    {
+                        Success = false,
+                        IsAllowed = false,
+                        ErrorMessage = $"Invalid sender address format: {request.FromAddress}",
+                        DenialReason = "Invalid sender address format"
+                    };
+                }
+
+                if (!IsValidAlgorandAddress(request.ToAddress))
+                {
+                    _logger.LogWarning("Invalid receiver address format: {Address}", request.ToAddress);
+                    return new ValidateTransferResponse
+                    {
+                        Success = false,
+                        IsAllowed = false,
+                        ErrorMessage = $"Invalid receiver address format: {request.ToAddress}",
+                        DenialReason = "Invalid receiver address format"
+                    };
+                }
+
+                // Get whitelist entries for both addresses
+                var senderEntry = await _repository.GetEntryAsync(request.AssetId, request.FromAddress);
+                var receiverEntry = await _repository.GetEntryAsync(request.AssetId, request.ToAddress);
+
+                var now = DateTime.UtcNow;
+
+                // Build sender status
+                var senderStatus = new TransferParticipantStatus
+                {
+                    Address = request.FromAddress,
+                    IsWhitelisted = senderEntry != null,
+                    IsActive = senderEntry?.Status == WhitelistStatus.Active,
+                    IsExpired = senderEntry?.ExpirationDate.HasValue == true && senderEntry.ExpirationDate.Value < now,
+                    ExpirationDate = senderEntry?.ExpirationDate,
+                    Status = senderEntry?.Status
+                };
+
+                // Build receiver status
+                var receiverStatus = new TransferParticipantStatus
+                {
+                    Address = request.ToAddress,
+                    IsWhitelisted = receiverEntry != null,
+                    IsActive = receiverEntry?.Status == WhitelistStatus.Active,
+                    IsExpired = receiverEntry?.ExpirationDate.HasValue == true && receiverEntry.ExpirationDate.Value < now,
+                    ExpirationDate = receiverEntry?.ExpirationDate,
+                    Status = receiverEntry?.Status
+                };
+
+                // Determine if transfer is allowed
+                var isAllowed = true;
+                var denialReasons = new List<string>();
+
+                // Check sender
+                if (!senderStatus.IsWhitelisted)
+                {
+                    isAllowed = false;
+                    denialReasons.Add($"Sender address {request.FromAddress} is not whitelisted for asset {request.AssetId}");
+                }
+                else if (!senderStatus.IsActive)
+                {
+                    isAllowed = false;
+                    denialReasons.Add($"Sender address {request.FromAddress} whitelist status is {senderStatus.Status} (not Active)");
+                }
+                else if (senderStatus.IsExpired)
+                {
+                    isAllowed = false;
+                    denialReasons.Add($"Sender address {request.FromAddress} whitelist entry expired on {senderStatus.ExpirationDate:yyyy-MM-dd}");
+                }
+
+                // Check receiver
+                if (!receiverStatus.IsWhitelisted)
+                {
+                    isAllowed = false;
+                    denialReasons.Add($"Receiver address {request.ToAddress} is not whitelisted for asset {request.AssetId}");
+                }
+                else if (!receiverStatus.IsActive)
+                {
+                    isAllowed = false;
+                    denialReasons.Add($"Receiver address {request.ToAddress} whitelist status is {receiverStatus.Status} (not Active)");
+                }
+                else if (receiverStatus.IsExpired)
+                {
+                    isAllowed = false;
+                    denialReasons.Add($"Receiver address {request.ToAddress} whitelist entry expired on {receiverStatus.ExpirationDate:yyyy-MM-dd}");
+                }
+
+                var denialReason = denialReasons.Any() ? string.Join("; ", denialReasons) : null;
+
+                _logger.LogInformation(
+                    "Transfer validation for asset {AssetId} from {From} to {To}: {Result}",
+                    request.AssetId, request.FromAddress, request.ToAddress,
+                    isAllowed ? "ALLOWED" : $"DENIED - {denialReason}");
+
+                return new ValidateTransferResponse
+                {
+                    Success = true,
+                    IsAllowed = isAllowed,
+                    DenialReason = denialReason,
+                    SenderStatus = senderStatus,
+                    ReceiverStatus = receiverStatus
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating transfer for asset {AssetId} from {From} to {To}",
+                    request.AssetId, request.FromAddress, request.ToAddress);
+                return new ValidateTransferResponse
+                {
+                    Success = false,
+                    IsAllowed = false,
+                    ErrorMessage = $"Internal error: {ex.Message}",
+                    DenialReason = "Internal validation error"
+                };
+            }
+        }
     }
 }
