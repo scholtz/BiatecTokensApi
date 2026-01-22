@@ -41,5 +41,26 @@ namespace BiatecTokensApi.Repositories.Interface
         /// <param name="request">The list request with filters</param>
         /// <returns>Total count</returns>
         Task<int> GetMetadataCountAsync(ListComplianceMetadataRequest request);
+
+        /// <summary>
+        /// Adds an audit log entry for compliance operations
+        /// </summary>
+        /// <param name="entry">The audit log entry to add</param>
+        /// <returns>True if successful, false otherwise</returns>
+        Task<bool> AddAuditLogEntryAsync(ComplianceAuditLogEntry entry);
+
+        /// <summary>
+        /// Gets audit log entries with optional filtering
+        /// </summary>
+        /// <param name="request">The audit log request with filters</param>
+        /// <returns>List of audit log entries</returns>
+        Task<List<ComplianceAuditLogEntry>> GetAuditLogAsync(GetComplianceAuditLogRequest request);
+
+        /// <summary>
+        /// Gets the total count of audit log entries matching the filter
+        /// </summary>
+        /// <param name="request">The audit log request with filters</param>
+        /// <returns>Total count</returns>
+        Task<int> GetAuditLogCountAsync(GetComplianceAuditLogRequest request);
     }
 }

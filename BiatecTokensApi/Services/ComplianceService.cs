@@ -13,6 +13,11 @@ namespace BiatecTokensApi.Services
         private readonly IComplianceRepository _complianceRepository;
         private readonly ILogger<ComplianceService> _logger;
         private readonly ISubscriptionMeteringService _meteringService;
+        
+        /// <summary>
+        /// Constant for system-generated audit entries when no user context is available
+        /// </summary>
+        private const string SystemActor = "System";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ComplianceService"/> class.
@@ -41,6 +46,17 @@ namespace BiatecTokensApi.Services
                 var validationError = ValidateNetworkRules(request.Network, request);
                 if (validationError != null)
                 {
+                    // Log failed validation attempt
+                    await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                    {
+                        AssetId = request.AssetId,
+                        Network = request.Network,
+                        ActionType = ComplianceActionType.Create,
+                        PerformedBy = createdBy,
+                        Success = false,
+                        ErrorMessage = validationError
+                    });
+
                     return new ComplianceMetadataResponse
                     {
                         Success = false,
@@ -50,6 +66,7 @@ namespace BiatecTokensApi.Services
 
                 // Check if metadata already exists
                 var existingMetadata = await _complianceRepository.GetMetadataByAssetIdAsync(request.AssetId);
+                var isUpdate = existingMetadata != null;
 
                 var metadata = new ComplianceMetadata
                 {
@@ -76,6 +93,21 @@ namespace BiatecTokensApi.Services
                 };
 
                 var success = await _complianceRepository.UpsertMetadataAsync(metadata);
+
+                // Log the operation
+                await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                {
+                    AssetId = request.AssetId,
+                    Network = request.Network,
+                    ActionType = isUpdate ? ComplianceActionType.Update : ComplianceActionType.Create,
+                    PerformedBy = createdBy,
+                    Success = success,
+                    OldComplianceStatus = existingMetadata?.ComplianceStatus,
+                    NewComplianceStatus = request.ComplianceStatus,
+                    OldVerificationStatus = existingMetadata?.VerificationStatus,
+                    NewVerificationStatus = request.VerificationStatus,
+                    Notes = isUpdate ? "Updated compliance metadata" : "Created compliance metadata"
+                });
 
                 if (success)
                 {
@@ -113,6 +145,25 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error upserting compliance metadata for asset {AssetId}", request.AssetId);
+
+                // Log failed operation
+                try
+                {
+                    await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                    {
+                        AssetId = request.AssetId,
+                        Network = request.Network,
+                        ActionType = ComplianceActionType.Update,
+                        PerformedBy = createdBy,
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    });
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(logEx, "Failed to log audit entry for failed upsert");
+                }
+
                 return new ComplianceMetadataResponse
                 {
                     Success = false,
@@ -127,6 +178,18 @@ namespace BiatecTokensApi.Services
             try
             {
                 var metadata = await _complianceRepository.GetMetadataByAssetIdAsync(assetId);
+
+                // Log the read operation
+                await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                {
+                    AssetId = assetId,
+                    Network = metadata?.Network,
+                    ActionType = ComplianceActionType.Read,
+                    PerformedBy = SystemActor, // Will be overridden by controller if user context available
+                    Success = metadata != null,
+                    ErrorMessage = metadata == null ? "Compliance metadata not found" : null,
+                    Notes = "Retrieved compliance metadata"
+                });
 
                 if (metadata == null)
                 {
@@ -146,6 +209,24 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving compliance metadata for asset {AssetId}", assetId);
+
+                // Log failed operation
+                try
+                {
+                    await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                    {
+                        AssetId = assetId,
+                        ActionType = ComplianceActionType.Read,
+                        PerformedBy = SystemActor,
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    });
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(logEx, "Failed to log audit entry for failed read");
+                }
+
                 return new ComplianceMetadataResponse
                 {
                     Success = false,
@@ -160,6 +241,17 @@ namespace BiatecTokensApi.Services
             try
             {
                 var success = await _complianceRepository.DeleteMetadataAsync(assetId);
+
+                // Log the delete operation
+                await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                {
+                    AssetId = assetId,
+                    ActionType = ComplianceActionType.Delete,
+                    PerformedBy = SystemActor, // Will be overridden by controller if user context available
+                    Success = success,
+                    ErrorMessage = success ? null : "Compliance metadata not found",
+                    Notes = success ? "Deleted compliance metadata" : "Delete failed - metadata not found"
+                });
 
                 if (success)
                 {
@@ -193,6 +285,24 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting compliance metadata for asset {AssetId}", assetId);
+
+                // Log failed operation
+                try
+                {
+                    await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                    {
+                        AssetId = assetId,
+                        ActionType = ComplianceActionType.Delete,
+                        PerformedBy = SystemActor,
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    });
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(logEx, "Failed to log audit entry for failed delete");
+                }
+
                 return new ComplianceMetadataResponse
                 {
                     Success = false,
@@ -210,6 +320,25 @@ namespace BiatecTokensApi.Services
                 var totalCount = await _complianceRepository.GetMetadataCountAsync(request);
                 var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
 
+                // Log the list operation
+                var filterCriteria = new List<string>();
+                if (request.ComplianceStatus.HasValue)
+                    filterCriteria.Add($"ComplianceStatus={request.ComplianceStatus.Value}");
+                if (request.VerificationStatus.HasValue)
+                    filterCriteria.Add($"VerificationStatus={request.VerificationStatus.Value}");
+                if (!string.IsNullOrWhiteSpace(request.Network))
+                    filterCriteria.Add($"Network={request.Network}");
+
+                await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                {
+                    ActionType = ComplianceActionType.List,
+                    PerformedBy = SystemActor, // Will be overridden by controller if user context available
+                    Success = true,
+                    ItemCount = metadata.Count,
+                    FilterCriteria = filterCriteria.Count > 0 ? string.Join(", ", filterCriteria) : "No filters",
+                    Notes = $"Listed {metadata.Count} of {totalCount} total compliance metadata entries"
+                });
+
                 return new ComplianceMetadataListResponse
                 {
                     Success = true,
@@ -223,7 +352,61 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error listing compliance metadata");
+
+                // Log failed operation
+                try
+                {
+                    await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                    {
+                        ActionType = ComplianceActionType.List,
+                        PerformedBy = SystemActor,
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    });
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(logEx, "Failed to log audit entry for failed list");
+                }
+
                 return new ComplianceMetadataListResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ComplianceAuditLogResponse> GetAuditLogAsync(GetComplianceAuditLogRequest request)
+        {
+            try
+            {
+                var entries = await _complianceRepository.GetAuditLogAsync(request);
+                var totalCount = await _complianceRepository.GetAuditLogCountAsync(request);
+                var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+                return new ComplianceAuditLogResponse
+                {
+                    Success = true,
+                    Entries = entries,
+                    TotalCount = totalCount,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPages,
+                    RetentionPolicy = new AuditRetentionPolicy
+                    {
+                        MinimumRetentionYears = 7,
+                        RegulatoryFramework = "MICA",
+                        ImmutableEntries = true,
+                        Description = "Audit logs are retained for a minimum of 7 years to comply with MICA and other regulatory requirements. All entries are immutable and cannot be modified or deleted."
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving compliance audit log");
+                return new ComplianceAuditLogResponse
                 {
                     Success = false,
                     ErrorMessage = $"Internal error: {ex.Message}"
