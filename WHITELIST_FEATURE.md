@@ -1,7 +1,9 @@
 # RWA Whitelist Feature
 
 ## Issue Reference
-**Issue:** [Backend: RWA whitelist API and persistence](https://github.com/scholtz/BiatecTokensApi/issues/XX)
+**Issue:** [Whitelist Transfer Validation for RWA Token Compliance](./ISSUE_WHITELIST_TRANSFER_VALIDATION.md)
+
+**Summary**: Implements transfer validation endpoint to enforce MICA-aligned compliance rules for Real-World Asset (RWA) tokens. This critical feature enables pre-transfer validation, ensuring only whitelisted addresses with active status can participate in token transfers, addressing regulatory requirements for institutional clients.
 
 ## Business Value
 
