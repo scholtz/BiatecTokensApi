@@ -596,6 +596,7 @@ namespace BiatecTokensApi.Services
                 var now = DateTime.UtcNow;
 
                 // Build sender status
+                // Note: IsExpired uses null-conditional operator - null ExpirationDate means "never expires"
                 var senderStatus = new TransferParticipantStatus
                 {
                     Address = request.FromAddress,
@@ -607,6 +608,7 @@ namespace BiatecTokensApi.Services
                 };
 
                 // Build receiver status
+                // Note: IsExpired uses null-conditional operator - null ExpirationDate means "never expires"
                 var receiverStatus = new TransferParticipantStatus
                 {
                     Address = request.ToAddress,
@@ -622,6 +624,7 @@ namespace BiatecTokensApi.Services
                 var denialReasons = new List<string>();
 
                 // Check sender
+                // Note: Addresses are included in denial reasons for compliance audit purposes
                 if (!senderStatus.IsWhitelisted)
                 {
                     isAllowed = false;
@@ -632,10 +635,11 @@ namespace BiatecTokensApi.Services
                     isAllowed = false;
                     denialReasons.Add($"Sender address {request.FromAddress} whitelist status is {senderStatus.Status} (not Active)");
                 }
-                else if (senderStatus.IsExpired && senderStatus.ExpirationDate.HasValue)
+                else if (senderStatus.IsExpired)
                 {
                     isAllowed = false;
-                    denialReasons.Add($"Sender address {request.FromAddress} whitelist entry expired on {senderStatus.ExpirationDate.Value:yyyy-MM-dd}");
+                    // IsExpired is only true when ExpirationDate has value and is in the past
+                    denialReasons.Add($"Sender address {request.FromAddress} whitelist entry expired on {senderStatus.ExpirationDate!.Value:yyyy-MM-dd}");
                 }
 
                 // Check receiver
@@ -649,10 +653,11 @@ namespace BiatecTokensApi.Services
                     isAllowed = false;
                     denialReasons.Add($"Receiver address {request.ToAddress} whitelist status is {receiverStatus.Status} (not Active)");
                 }
-                else if (receiverStatus.IsExpired && receiverStatus.ExpirationDate.HasValue)
+                else if (receiverStatus.IsExpired)
                 {
                     isAllowed = false;
-                    denialReasons.Add($"Receiver address {request.ToAddress} whitelist entry expired on {receiverStatus.ExpirationDate.Value:yyyy-MM-dd}");
+                    // IsExpired is only true when ExpirationDate has value and is in the past
+                    denialReasons.Add($"Receiver address {request.ToAddress} whitelist entry expired on {receiverStatus.ExpirationDate!.Value:yyyy-MM-dd}");
                 }
 
                 var denialReason = denialReasons.Any() ? string.Join("; ", denialReasons) : null;
