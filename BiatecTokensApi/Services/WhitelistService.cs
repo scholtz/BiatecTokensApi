@@ -601,7 +601,7 @@ namespace BiatecTokensApi.Services
                     Address = request.FromAddress,
                     IsWhitelisted = senderEntry != null,
                     IsActive = senderEntry?.Status == WhitelistStatus.Active,
-                    IsExpired = senderEntry?.ExpirationDate.HasValue == true && senderEntry.ExpirationDate.Value < now,
+                    IsExpired = senderEntry?.ExpirationDate < now,
                     ExpirationDate = senderEntry?.ExpirationDate,
                     Status = senderEntry?.Status
                 };
@@ -612,7 +612,7 @@ namespace BiatecTokensApi.Services
                     Address = request.ToAddress,
                     IsWhitelisted = receiverEntry != null,
                     IsActive = receiverEntry?.Status == WhitelistStatus.Active,
-                    IsExpired = receiverEntry?.ExpirationDate.HasValue == true && receiverEntry.ExpirationDate.Value < now,
+                    IsExpired = receiverEntry?.ExpirationDate < now,
                     ExpirationDate = receiverEntry?.ExpirationDate,
                     Status = receiverEntry?.Status
                 };
@@ -632,10 +632,10 @@ namespace BiatecTokensApi.Services
                     isAllowed = false;
                     denialReasons.Add($"Sender address {request.FromAddress} whitelist status is {senderStatus.Status} (not Active)");
                 }
-                else if (senderStatus.IsExpired)
+                else if (senderStatus.IsExpired && senderStatus.ExpirationDate.HasValue)
                 {
                     isAllowed = false;
-                    denialReasons.Add($"Sender address {request.FromAddress} whitelist entry expired on {senderStatus.ExpirationDate:yyyy-MM-dd}");
+                    denialReasons.Add($"Sender address {request.FromAddress} whitelist entry expired on {senderStatus.ExpirationDate.Value:yyyy-MM-dd}");
                 }
 
                 // Check receiver
@@ -649,10 +649,10 @@ namespace BiatecTokensApi.Services
                     isAllowed = false;
                     denialReasons.Add($"Receiver address {request.ToAddress} whitelist status is {receiverStatus.Status} (not Active)");
                 }
-                else if (receiverStatus.IsExpired)
+                else if (receiverStatus.IsExpired && receiverStatus.ExpirationDate.HasValue)
                 {
                     isAllowed = false;
-                    denialReasons.Add($"Receiver address {request.ToAddress} whitelist entry expired on {receiverStatus.ExpirationDate:yyyy-MM-dd}");
+                    denialReasons.Add($"Receiver address {request.ToAddress} whitelist entry expired on {receiverStatus.ExpirationDate.Value:yyyy-MM-dd}");
                 }
 
                 var denialReason = denialReasons.Any() ? string.Join("; ", denialReasons) : null;
@@ -679,7 +679,7 @@ namespace BiatecTokensApi.Services
                 {
                     Success = false,
                     IsAllowed = false,
-                    ErrorMessage = $"Internal error: {ex.Message}",
+                    ErrorMessage = "An error occurred while validating the transfer. Please try again or contact support.",
                     DenialReason = "Internal validation error"
                 };
             }
