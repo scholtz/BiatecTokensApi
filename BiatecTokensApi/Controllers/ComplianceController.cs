@@ -21,6 +21,11 @@ namespace BiatecTokensApi.Controllers
     {
         private readonly IComplianceService _complianceService;
         private readonly ILogger<ComplianceController> _logger;
+        
+        /// <summary>
+        /// Maximum number of records to export in a single request
+        /// </summary>
+        private const int MaxExportRecords = 10000;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ComplianceController"/> class.
@@ -385,7 +390,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = 1,
-                    PageSize = 10000 // Max records per export
+                    PageSize = MaxExportRecords // Max records per export
                 };
 
                 var result = await _complianceService.GetAuditLogAsync(request);
@@ -466,7 +471,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = 1,
-                    PageSize = 10000 // Max records per export
+                    PageSize = MaxExportRecords // Max records per export
                 };
 
                 var result = await _complianceService.GetAuditLogAsync(request);

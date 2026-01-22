@@ -91,6 +91,11 @@
             Enforces network-specific compliance rules for VOI and Aramid networks.
             </remarks>
         </member>
+        <member name="F:BiatecTokensApi.Controllers.ComplianceController.MaxExportRecords">
+            <summary>
+            Maximum number of records to export in a single request
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.#ctor(BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ComplianceController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.ComplianceController"/> class.
@@ -1518,6 +1523,11 @@
         <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.Id">
             <summary>
             Unique identifier for the audit log entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry"/> class.
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.AssetId">
@@ -3692,6 +3702,11 @@
         <member name="T:BiatecTokensApi.Services.ComplianceService">
             <summary>
             Service for managing compliance metadata with network-specific validation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.ComplianceService.SystemActor">
+            <summary>
+            Constant for system-generated audit entries when no user context is available
             </summary>
         </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService)">

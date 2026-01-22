@@ -13,6 +13,11 @@ namespace BiatecTokensApi.Services
         private readonly IComplianceRepository _complianceRepository;
         private readonly ILogger<ComplianceService> _logger;
         private readonly ISubscriptionMeteringService _meteringService;
+        
+        /// <summary>
+        /// Constant for system-generated audit entries when no user context is available
+        /// </summary>
+        private const string SystemActor = "System";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ComplianceService"/> class.
@@ -180,7 +185,7 @@ namespace BiatecTokensApi.Services
                     AssetId = assetId,
                     Network = metadata?.Network,
                     ActionType = ComplianceActionType.Read,
-                    PerformedBy = "System", // Will be overridden by controller if user context available
+                    PerformedBy = SystemActor, // Will be overridden by controller if user context available
                     Success = metadata != null,
                     ErrorMessage = metadata == null ? "Compliance metadata not found" : null,
                     Notes = "Retrieved compliance metadata"
@@ -212,7 +217,7 @@ namespace BiatecTokensApi.Services
                     {
                         AssetId = assetId,
                         ActionType = ComplianceActionType.Read,
-                        PerformedBy = "System",
+                        PerformedBy = SystemActor,
                         Success = false,
                         ErrorMessage = ex.Message
                     });
@@ -242,7 +247,7 @@ namespace BiatecTokensApi.Services
                 {
                     AssetId = assetId,
                     ActionType = ComplianceActionType.Delete,
-                    PerformedBy = "System", // Will be overridden by controller if user context available
+                    PerformedBy = SystemActor, // Will be overridden by controller if user context available
                     Success = success,
                     ErrorMessage = success ? null : "Compliance metadata not found",
                     Notes = success ? "Deleted compliance metadata" : "Delete failed - metadata not found"
@@ -288,7 +293,7 @@ namespace BiatecTokensApi.Services
                     {
                         AssetId = assetId,
                         ActionType = ComplianceActionType.Delete,
-                        PerformedBy = "System",
+                        PerformedBy = SystemActor,
                         Success = false,
                         ErrorMessage = ex.Message
                     });
@@ -327,7 +332,7 @@ namespace BiatecTokensApi.Services
                 await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
                 {
                     ActionType = ComplianceActionType.List,
-                    PerformedBy = "System", // Will be overridden by controller if user context available
+                    PerformedBy = SystemActor, // Will be overridden by controller if user context available
                     Success = true,
                     ItemCount = metadata.Count,
                     FilterCriteria = filterCriteria.Count > 0 ? string.Join(", ", filterCriteria) : "No filters",
@@ -354,7 +359,7 @@ namespace BiatecTokensApi.Services
                     await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
                     {
                         ActionType = ComplianceActionType.List,
-                        PerformedBy = "System",
+                        PerformedBy = SystemActor,
                         Success = false,
                         ErrorMessage = ex.Message
                     });

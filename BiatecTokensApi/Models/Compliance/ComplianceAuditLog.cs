@@ -13,7 +13,15 @@ namespace BiatecTokensApi.Models.Compliance
         /// <summary>
         /// Unique identifier for the audit log entry
         /// </summary>
-        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Id { get; set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ComplianceAuditLogEntry"/> class.
+        /// </summary>
+        public ComplianceAuditLogEntry()
+        {
+            Id = Guid.NewGuid().ToString();
+        }
 
         /// <summary>
         /// The asset ID (token ID) for which the compliance operation occurred
