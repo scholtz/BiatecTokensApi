@@ -1,5 +1,6 @@
 using BiatecTokensApi.Models.Subscription;
 using BiatecTokensApi.Services.Interface;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
 namespace BiatecTokensApi.Services

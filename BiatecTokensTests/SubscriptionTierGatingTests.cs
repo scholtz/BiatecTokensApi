@@ -271,6 +271,8 @@ namespace BiatecTokensTests
             _tierService.SetUserTier(TestUser, SubscriptionTier.Free);
 
             // Add 10 entries to reach the limit
+            // Note: Using intentionally invalid address format for counting test only.
+            // These are not validated as real Algorand addresses in this test scenario.
             for (int i = 0; i < 10; i++)
             {
                 await _repository.AddEntryAsync(new WhitelistEntry

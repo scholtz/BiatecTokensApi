@@ -118,6 +118,8 @@ namespace BiatecTokensApi.Services
                 }
 
                 // Validate subscription tier before adding new entry
+                // Note: GetEntriesCountAsync is called for each addition. For high-frequency operations,
+                // consider implementing caching or batch validation to improve performance.
                 var currentCount = await _repository.GetEntriesCountAsync(request.AssetId);
                 var tierValidation = await _tierService.ValidateOperationAsync(createdBy, request.AssetId, currentCount, 1);
                 
@@ -326,6 +328,8 @@ namespace BiatecTokensApi.Services
                 var currentCount = await _repository.GetEntriesCountAsync(request.AssetId);
                 
                 // Count how many are new entries (not updates)
+                // Note: This creates an N+1 query pattern. For production optimization,
+                // consider adding a bulk exists check method to the repository.
                 var newEntriesCount = 0;
                 foreach (var address in uniqueAddresses)
                 {
