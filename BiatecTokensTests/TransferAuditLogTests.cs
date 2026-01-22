@@ -14,6 +14,7 @@ namespace BiatecTokensTests
         private WhitelistRepository _repository;
         private Mock<ILogger<WhitelistService>> _loggerMock;
         private Mock<ISubscriptionMeteringService> _meteringServiceMock;
+        private Mock<ISubscriptionTierService> _tierServiceMock;
         private Mock<ILogger<WhitelistRepository>> _repoLoggerMock;
         private WhitelistService _service;
         private const string TestPerformedBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
@@ -27,7 +28,17 @@ namespace BiatecTokensTests
             _repository = new WhitelistRepository(_repoLoggerMock.Object);
             _loggerMock = new Mock<ILogger<WhitelistService>>();
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
-            _service = new WhitelistService(_repository, _loggerMock.Object, _meteringServiceMock.Object);
+            _tierServiceMock = new Mock<ISubscriptionTierService>();
+            
+            // Setup default tier service behavior - Enterprise tier (no limits)
+            _tierServiceMock.Setup(t => t.GetUserTierAsync(It.IsAny<string>()))
+                .ReturnsAsync(BiatecTokensApi.Models.Subscription.SubscriptionTier.Enterprise);
+            _tierServiceMock.Setup(t => t.ValidateOperationAsync(It.IsAny<string>(), It.IsAny<ulong>(), It.IsAny<int>(), It.IsAny<int>()))
+                .ReturnsAsync(new SubscriptionTierValidationResult { IsAllowed = true, Tier = BiatecTokensApi.Models.Subscription.SubscriptionTier.Enterprise });
+            _tierServiceMock.Setup(t => t.IsBulkOperationEnabledAsync(It.IsAny<string>()))
+                .ReturnsAsync(true);
+            
+            _service = new WhitelistService(_repository, _loggerMock.Object, _meteringServiceMock.Object, _tierServiceMock.Object);
         }
 
         [Test]

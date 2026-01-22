@@ -66,5 +66,12 @@ namespace BiatecTokensApi.Repositories
         /// <param name="request">The audit log request with filters and pagination</param>
         /// <returns>List of audit log entries</returns>
         Task<List<WhitelistAuditLogEntry>> GetAuditLogAsync(GetWhitelistAuditLogRequest request);
+
+        /// <summary>
+        /// Gets the count of whitelist entries for a specific asset
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <returns>Count of whitelist entries</returns>
+        Task<int> GetEntriesCountAsync(ulong assetId);
     }
 }
