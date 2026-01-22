@@ -75,6 +75,21 @@ namespace BiatecTokensApi.Services
                     existingEntry.KycVerified = request.KycVerified;
                     existingEntry.KycVerificationDate = request.KycVerificationDate ?? existingEntry.KycVerificationDate;
                     existingEntry.KycProvider = request.KycProvider ?? existingEntry.KycProvider;
+                    existingEntry.Network = request.Network ?? existingEntry.Network;
+                    existingEntry.Role = request.Role;
+                    
+                    // Validate network-specific rules for update
+                    var updateValidationError = ValidateNetworkRules(existingEntry);
+                    if (updateValidationError != null)
+                    {
+                        _logger.LogWarning("Network validation failed for address {Address} on asset {AssetId}: {Error}",
+                            request.Address, request.AssetId, updateValidationError);
+                        return new WhitelistResponse
+                        {
+                            Success = false,
+                            ErrorMessage = updateValidationError
+                        };
+                    }
                     
                     var updated = await _repository.UpdateEntryAsync(existingEntry);
                     
@@ -96,7 +111,9 @@ namespace BiatecTokensApi.Services
                         PerformedBy = createdBy,
                         PerformedAt = DateTime.UtcNow,
                         OldStatus = oldStatus,
-                        NewStatus = request.Status
+                        NewStatus = request.Status,
+                        Network = existingEntry.Network,
+                        Role = existingEntry.Role
                     });
                     
                     // Emit metering event for billing analytics
@@ -105,7 +122,7 @@ namespace BiatecTokensApi.Services
                         Category = MeteringCategory.Whitelist,
                         OperationType = MeteringOperationType.Update,
                         AssetId = request.AssetId,
-                        Network = NetworkNotAvailable,
+                        Network = existingEntry.Network ?? NetworkNotAvailable,
                         PerformedBy = createdBy,
                         ItemCount = 1
                     });
@@ -148,8 +165,23 @@ namespace BiatecTokensApi.Services
                     ExpirationDate = request.ExpirationDate,
                     KycVerified = request.KycVerified,
                     KycVerificationDate = request.KycVerificationDate,
-                    KycProvider = request.KycProvider
+                    KycProvider = request.KycProvider,
+                    Network = request.Network,
+                    Role = request.Role
                 };
+
+                // Validate network-specific rules
+                var networkValidationError = ValidateNetworkRules(entry);
+                if (networkValidationError != null)
+                {
+                    _logger.LogWarning("Network validation failed for address {Address} on asset {AssetId}: {Error}",
+                        request.Address, request.AssetId, networkValidationError);
+                    return new WhitelistResponse
+                    {
+                        Success = false,
+                        ErrorMessage = networkValidationError
+                    };
+                }
 
                 var added = await _repository.AddEntryAsync(entry);
 
@@ -171,7 +203,9 @@ namespace BiatecTokensApi.Services
                     PerformedBy = createdBy,
                     PerformedAt = DateTime.UtcNow,
                     OldStatus = null,
-                    NewStatus = entry.Status
+                    NewStatus = entry.Status,
+                    Network = entry.Network,
+                    Role = entry.Role
                 });
 
                 // Emit metering event for billing analytics
@@ -180,7 +214,7 @@ namespace BiatecTokensApi.Services
                     Category = MeteringCategory.Whitelist,
                     OperationType = MeteringOperationType.Add,
                     AssetId = entry.AssetId,
-                    Network = NetworkNotAvailable,
+                    Network = entry.Network ?? NetworkNotAvailable,
                     PerformedBy = createdBy,
                     ItemCount = 1
                 });
@@ -386,6 +420,18 @@ namespace BiatecTokensApi.Services
                         existingEntry.KycVerified = request.KycVerified;
                         existingEntry.KycVerificationDate = request.KycVerificationDate ?? existingEntry.KycVerificationDate;
                         existingEntry.KycProvider = request.KycProvider ?? existingEntry.KycProvider;
+                        existingEntry.Network = request.Network ?? existingEntry.Network;
+                        existingEntry.Role = request.Role;
+                        
+                        // Validate network-specific rules for update
+                        var updateNetworkValidationError = ValidateNetworkRules(existingEntry);
+                        if (updateNetworkValidationError != null)
+                        {
+                            response.FailedAddresses.Add(address);
+                            response.ValidationErrors.Add($"Network validation failed: {updateNetworkValidationError}");
+                            response.FailedCount++;
+                            continue;
+                        }
                         
                         var updated = await _repository.UpdateEntryAsync(existingEntry);
                         if (updated)
@@ -400,6 +446,8 @@ namespace BiatecTokensApi.Services
                                 PerformedAt = DateTime.UtcNow,
                                 OldStatus = oldStatus,
                                 NewStatus = request.Status,
+                                Network = existingEntry.Network,
+                                Role = existingEntry.Role,
                                 Notes = "Bulk operation"
                             });
                             
@@ -427,8 +475,20 @@ namespace BiatecTokensApi.Services
                         ExpirationDate = request.ExpirationDate,
                         KycVerified = request.KycVerified,
                         KycVerificationDate = request.KycVerificationDate,
-                        KycProvider = request.KycProvider
+                        KycProvider = request.KycProvider,
+                        Network = request.Network,
+                        Role = request.Role
                     };
+
+                    // Validate network-specific rules
+                    var addValidationError = ValidateNetworkRules(entry);
+                    if (addValidationError != null)
+                    {
+                        response.FailedAddresses.Add(address);
+                        response.ValidationErrors.Add($"Network validation failed: {addValidationError}");
+                        response.FailedCount++;
+                        continue;
+                    }
 
                     var added = await _repository.AddEntryAsync(entry);
 
@@ -444,6 +504,8 @@ namespace BiatecTokensApi.Services
                             PerformedAt = DateTime.UtcNow,
                             OldStatus = null,
                             NewStatus = entry.Status,
+                            Network = entry.Network,
+                            Role = entry.Role,
                             Notes = "Bulk operation"
                         });
                         
@@ -469,7 +531,7 @@ namespace BiatecTokensApi.Services
                         Category = MeteringCategory.Whitelist,
                         OperationType = MeteringOperationType.BulkAdd,
                         AssetId = request.AssetId,
-                        Network = NetworkNotAvailable,
+                        Network = request.Network ?? NetworkNotAvailable,
                         PerformedBy = createdBy,
                         ItemCount = response.SuccessCount
                     });
@@ -534,6 +596,71 @@ namespace BiatecTokensApi.Services
                     ErrorMessage = $"Internal error: {ex.Message}"
                 };
             }
+        }
+
+        /// <summary>
+        /// Validates network-specific rules for whitelist entries
+        /// </summary>
+        /// <param name="entry">The whitelist entry to validate</param>
+        /// <returns>Error message if validation fails, null if validation passes</returns>
+        private string? ValidateNetworkRules(WhitelistEntry entry)
+        {
+            // If no network specified, validation passes
+            if (string.IsNullOrEmpty(entry.Network))
+            {
+                return null;
+            }
+
+            // Normalize network name to lowercase for comparison
+            var network = entry.Network.ToLowerInvariant();
+
+            // VOI Network Rules (voimain-v1.0)
+            if (network.Contains("voimain"))
+            {
+                // Rule 1: For VOI network, KYC verification is strongly recommended for Active status
+                if (entry.Status == WhitelistStatus.Active && !entry.KycVerified)
+                {
+                    _logger.LogWarning(
+                        "VOI network whitelist entry for address {Address} on asset {AssetId} is Active but KYC not verified",
+                        entry.Address, entry.AssetId);
+                    // This is a warning, not a hard error - allow it to proceed
+                }
+
+                // Rule 2: Operators cannot revoke entries on VOI network (admin-only operation)
+                if (entry.Role == WhitelistRole.Operator && entry.Status == WhitelistStatus.Revoked)
+                {
+                    return $"Operator role cannot revoke whitelist entries on VOI network. Admin privileges required.";
+                }
+            }
+
+            // Aramid Network Rules (aramidmain-v1.0)
+            if (network.Contains("aramidmain"))
+            {
+                // Rule 1: For Aramid network, KYC verification is mandatory for Active status
+                if (entry.Status == WhitelistStatus.Active && !entry.KycVerified)
+                {
+                    return $"Aramid network requires KYC verification for Active whitelist entries. Address: {entry.Address}";
+                }
+
+                // Rule 2: KYC provider must be specified when KYC is verified on Aramid
+                if (entry.KycVerified && string.IsNullOrEmpty(entry.KycProvider))
+                {
+                    return $"Aramid network requires KYC provider to be specified when KYC is verified. Address: {entry.Address}";
+                }
+
+                // Rule 3: Operators have limited permissions on Aramid network
+                if (entry.Role == WhitelistRole.Operator)
+                {
+                    // Operators can only set status to Active or Inactive, not Revoked
+                    if (entry.Status == WhitelistStatus.Revoked)
+                    {
+                        return $"Operator role cannot revoke whitelist entries on Aramid network. Admin privileges required.";
+                    }
+                }
+            }
+
+            // Validation passed
+            return null;
         }
 
         /// <summary>
