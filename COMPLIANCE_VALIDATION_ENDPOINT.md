@@ -14,7 +14,7 @@ Validates a token configuration against MICA/RWA compliance rules and returns de
 
 #### Authentication
 
-Required: ARC-0014 authentication
+Required: ARC-0014 authentication (Algorand Request for Comments 14 - Authentication standard for Algorand applications. See: https://github.com/algorandfoundation/ARCs/blob/main/ARCs/arc-0014.md)
 
 #### Request Body
 

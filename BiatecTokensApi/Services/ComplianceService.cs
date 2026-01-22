@@ -524,9 +524,7 @@ namespace BiatecTokensApi.Services
             List<ValidationIssue> errors,
             List<ValidationIssue> warnings)
         {
-            // Security tokens require more stringent compliance
-            var isSecurityToken = !string.IsNullOrWhiteSpace(request.AssetType) &&
-                request.AssetType.ToLowerInvariant().Contains("security");
+            var isSecurityToken = IsSecurityToken(request.AssetType);
 
             // MICA requires KYC verification for security tokens
             if (isSecurityToken && request.VerificationStatus != VerificationStatus.Verified)
@@ -675,8 +673,7 @@ namespace BiatecTokensApi.Services
                 }
 
                 // Aramid requires MaxHolders to be set for securities
-                var isSecurityToken = !string.IsNullOrWhiteSpace(request.AssetType) &&
-                    request.AssetType.ToLowerInvariant().Contains("security");
+                var isSecurityToken = IsSecurityToken(request.AssetType);
 
                 if (isSecurityToken && !request.MaxHolders.HasValue)
                 {
@@ -702,8 +699,7 @@ namespace BiatecTokensApi.Services
             List<ValidationIssue> errors,
             List<ValidationIssue> warnings)
         {
-            var isSecurityToken = !string.IsNullOrWhiteSpace(request.AssetType) &&
-                request.AssetType.ToLowerInvariant().Contains("security");
+            var isSecurityToken = IsSecurityToken(request.AssetType);
 
             // Security tokens should have whitelist controls
             if (isSecurityToken && !request.HasWhitelistControls)
@@ -718,29 +714,25 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            // Security tokens should have issuer controls
-            if (isSecurityToken && !request.HasIssuerControls)
-            {
-                warnings.Add(new ValidationIssue
-                {
-                    Severity = ValidationSeverity.Warning,
-                    Field = "HasIssuerControls",
-                    Message = "Security tokens typically require issuer controls (freeze, clawback) for regulatory compliance",
-                    Recommendation = "Enable issuer controls to allow freezing accounts and clawback in case of regulatory requirements or disputes",
-                    RegulatoryContext = "Securities Best Practices"
-                });
-            }
-
-            // RWA tokens benefit from issuer controls
+            // Security tokens or RWA tokens should have issuer controls
+            // Only add one warning to avoid duplicates
             if (!request.HasIssuerControls && (isSecurityToken || request.RequiresAccreditedInvestors))
             {
+                var message = isSecurityToken
+                    ? "Security tokens typically require issuer controls (freeze, clawback) for regulatory compliance"
+                    : "RWA tokens benefit from issuer controls for compliance and dispute resolution";
+                
+                var recommendation = isSecurityToken
+                    ? "Enable issuer controls to allow freezing accounts and clawback in case of regulatory requirements or disputes"
+                    : "Consider enabling freeze and clawback controls for regulatory compliance";
+
                 warnings.Add(new ValidationIssue
                 {
                     Severity = ValidationSeverity.Warning,
                     Field = "HasIssuerControls",
-                    Message = "RWA tokens benefit from issuer controls for compliance and dispute resolution",
-                    Recommendation = "Consider enabling freeze and clawback controls for regulatory compliance",
-                    RegulatoryContext = "RWA Best Practices"
+                    Message = message,
+                    Recommendation = recommendation,
+                    RegulatoryContext = isSecurityToken ? "Securities Best Practices" : "RWA Best Practices"
                 });
             }
 
@@ -758,6 +750,15 @@ namespace BiatecTokensApi.Services
                     RegulatoryContext = "General Compliance"
                 });
             }
+        }
+
+        /// <summary>
+        /// Determines if an asset type represents a security token
+        /// </summary>
+        private bool IsSecurityToken(string? assetType)
+        {
+            return !string.IsNullOrWhiteSpace(assetType) &&
+                   assetType.ToLowerInvariant().Contains("security");
         }
 
         /// <summary>

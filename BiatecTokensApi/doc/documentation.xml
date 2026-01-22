@@ -4096,6 +4096,11 @@
             Validates token controls (whitelist and issuer controls)
             </summary>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.IsSecurityToken(System.String)">
+            <summary>
+            Determines if an asset type represents a security token
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.GenerateValidationSummary(System.Boolean,System.Int32,System.Int32)">
             <summary>
             Generates a validation summary message
