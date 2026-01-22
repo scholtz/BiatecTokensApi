@@ -1,7 +1,7 @@
 # Compliance Validation Endpoint - Business Value & Risk Assessment
 
 ## Related Issue
-**GitHub Issue**: [Expose compliance validation endpoint for token presets](https://github.com/scholtz/BiatecTokensApi/issues/ISSUE_NUMBER)
+**GitHub Issue**: [#48 - Expose compliance validation endpoint for token presets](https://github.com/scholtz/BiatecTokensApi/issues/48)
 
 ## Executive Summary
 
