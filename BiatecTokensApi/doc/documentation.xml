@@ -146,6 +146,101 @@
             <param name="pageSize">Page size (default: 20, max: 100)</param>
             <returns>List of compliance metadata entries with pagination</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetAuditLog(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceActionType},System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Gets audit log for compliance operations with optional filtering
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="network">Optional filter by network</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="success">Optional filter by operation result (success/failure)</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 50, max: 100)</param>
+            <returns>Audit log entries with pagination and retention policy metadata</returns>
+            <remarks>
+            This endpoint provides access to immutable audit logs for compliance reporting and incident investigations.
+            All compliance operations (create, update, delete, read, list) are logged with timestamps, actors, and results.
+            
+            **Retention Policy**: Audit logs are retained for a minimum of 7 years to comply with MICA regulations.
+            All entries are immutable and cannot be modified or deleted.
+            
+            **Use Cases**:
+            - Regulatory compliance reporting
+            - Incident investigations
+            - Access audits
+            - Change tracking
+            
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ExportAuditLogCsv(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceActionType},System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports audit log as CSV for compliance reporting
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="network">Optional filter by network</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="success">Optional filter by operation result (success/failure)</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>CSV file with audit log entries</returns>
+            <remarks>
+            Exports audit log entries matching the filter criteria as a CSV file for regulatory compliance reporting.
+            The CSV includes all audit fields: timestamp, actor, action, asset ID, network, result, and notes.
+            
+            **Format**: Standard CSV with headers
+            **Encoding**: UTF-8
+            **Max Records**: 10,000 per export (use pagination for larger datasets)
+            
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ExportAuditLogJson(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceActionType},System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports audit log as JSON for compliance reporting
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="network">Optional filter by network</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="success">Optional filter by operation result (success/failure)</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>JSON file with audit log entries</returns>
+            <remarks>
+            Exports audit log entries matching the filter criteria as a JSON file for regulatory compliance reporting.
+            The JSON includes all audit fields and retention policy metadata.
+            
+            **Format**: Standard JSON array
+            **Encoding**: UTF-8
+            **Max Records**: 10,000 per export (use pagination for larger datasets)
+            
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetRetentionPolicy">
+            <summary>
+            Gets the audit log retention policy metadata
+            </summary>
+            <returns>Retention policy information</returns>
+            <remarks>
+            Returns metadata about the audit log retention policy including minimum retention period,
+            regulatory framework, and immutability guarantees.
+            
+            This endpoint is useful for compliance teams to understand data retention policies.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.EscapeCsv(System.String)">
+            <summary>
+            Escapes special characters in CSV values
+            </summary>
+            <param name="value">The value to escape</param>
+            <returns>Escaped value</returns>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetUserAddress">
             <summary>
             Gets the authenticated user's Algorand address from the claims
@@ -1408,6 +1503,231 @@
         <member name="P:BiatecTokensApi.Models.BaseResponse.Success">
             <summary>
             Status of the deployment
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry">
+            <summary>
+            Represents an audit log entry for compliance metadata changes and access
+            </summary>
+            <remarks>
+            This model tracks all operations on compliance metadata for MICA/RWA regulatory reporting.
+            Each entry represents a single action (create, update, delete, read, list) performed on compliance metadata.
+            Entries are immutable and retained for at least 7 years for regulatory compliance.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.Id">
+            <summary>
+            Unique identifier for the audit log entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.AssetId">
+            <summary>
+            The asset ID (token ID) for which the compliance operation occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.Network">
+            <summary>
+            The network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.ActionType">
+            <summary>
+            The type of action performed (Create, Update, Delete, Read, List)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.PerformedBy">
+            <summary>
+            The address of the user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.PerformedAt">
+            <summary>
+            Timestamp when the action was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.Success">
+            <summary>
+            Whether the operation completed successfully
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.ErrorMessage">
+            <summary>
+            Error message if the operation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.OldComplianceStatus">
+            <summary>
+            The compliance status before the change (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.NewComplianceStatus">
+            <summary>
+            The compliance status after the change (for creates/updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.OldVerificationStatus">
+            <summary>
+            The verification status before the change (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.NewVerificationStatus">
+            <summary>
+            The verification status after the change (for creates/updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.Notes">
+            <summary>
+            Additional notes or context about the change
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.ItemCount">
+            <summary>
+            For list operations: number of items returned
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry.FilterCriteria">
+            <summary>
+            For list operations: filter criteria applied
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceActionType">
+            <summary>
+            Type of action performed on compliance metadata
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceActionType.Create">
+            <summary>
+            Compliance metadata was created
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceActionType.Update">
+            <summary>
+            Compliance metadata was updated
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceActionType.Delete">
+            <summary>
+            Compliance metadata was deleted
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceActionType.Read">
+            <summary>
+            Compliance metadata was read/retrieved
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceActionType.List">
+            <summary>
+            Compliance metadata was listed with filters
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest">
+            <summary>
+            Request to retrieve audit log for compliance operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.AssetId">
+            <summary>
+            Optional filter by asset ID (token ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.ActionType">
+            <summary>
+            Optional filter by action type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.PerformedBy">
+            <summary>
+            Optional filter by user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.Success">
+            <summary>
+            Optional filter by operation result (success/failure)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.FromDate">
+            <summary>
+            Optional start date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.ToDate">
+            <summary>
+            Optional end date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse">
+            <summary>
+            Response containing compliance audit log entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse.Entries">
+            <summary>
+            List of audit log entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse.TotalCount">
+            <summary>
+            Total number of entries matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse.RetentionPolicy">
+            <summary>
+            Audit log retention policy metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditRetentionPolicy">
+            <summary>
+            Audit log retention policy information for regulatory compliance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditRetentionPolicy.MinimumRetentionYears">
+            <summary>
+            Minimum retention period in years
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditRetentionPolicy.RegulatoryFramework">
+            <summary>
+            Regulatory framework requiring retention (e.g., "MICA", "SEC")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditRetentionPolicy.ImmutableEntries">
+            <summary>
+            Whether audit logs are immutable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditRetentionPolicy.Description">
+            <summary>
+            Description of retention policy
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMetadata">
@@ -2752,6 +3072,15 @@
         <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetMetadataCountAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.AddAuditLogEntryAsync(BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetAuditLogAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetAuditLogCountAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
             Interface for IPFS repository operations
@@ -2878,6 +3207,27 @@
             Gets the total count of metadata entries matching the filter
             </summary>
             <param name="request">The list request with filters</param>
+            <returns>Total count</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.AddAuditLogEntryAsync(BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry)">
+            <summary>
+            Adds an audit log entry for compliance operations
+            </summary>
+            <param name="entry">The audit log entry to add</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetAuditLogAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)">
+            <summary>
+            Gets audit log entries with optional filtering
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>List of audit log entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetAuditLogCountAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)">
+            <summary>
+            Gets the total count of audit log entries matching the filter
+            </summary>
+            <param name="request">The audit log request with filters</param>
             <returns>Total count</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.IPFSRepository">
@@ -3364,6 +3714,9 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.ListMetadataAsync(BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetAuditLogAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)">
+            <inheritdoc/>
+        </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateNetworkRules(System.String,BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest)">
             <inheritdoc/>
         </member>
@@ -3524,6 +3877,13 @@
             <param name="network">The network name</param>
             <param name="metadata">The compliance metadata to validate</param>
             <returns>Validation error message, or null if valid</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetAuditLogAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)">
+            <summary>
+            Gets audit log for compliance operations with optional filtering
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>Response with list of audit log entries</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
             <summary>

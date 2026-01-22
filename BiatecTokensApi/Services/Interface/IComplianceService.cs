@@ -43,5 +43,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="metadata">The compliance metadata to validate</param>
         /// <returns>Validation error message, or null if valid</returns>
         string? ValidateNetworkRules(string? network, UpsertComplianceMetadataRequest metadata);
+
+        /// <summary>
+        /// Gets audit log for compliance operations with optional filtering
+        /// </summary>
+        /// <param name="request">The audit log request with filters</param>
+        /// <returns>Response with list of audit log entries</returns>
+        Task<ComplianceAuditLogResponse> GetAuditLogAsync(GetComplianceAuditLogRequest request);
     }
 }
