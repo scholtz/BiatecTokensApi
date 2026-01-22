@@ -104,6 +104,11 @@ namespace BiatecTokensApi.Models.Metering
         /// <summary>
         /// Bulk add operation
         /// </summary>
-        BulkAdd
+        BulkAdd,
+
+        /// <summary>
+        /// Transfer validation operation
+        /// </summary>
+        TransferValidation
     }
 }

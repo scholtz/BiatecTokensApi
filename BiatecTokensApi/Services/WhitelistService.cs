@@ -559,8 +559,9 @@ namespace BiatecTokensApi.Services
         /// Validates if a transfer between two addresses is allowed based on whitelist rules
         /// </summary>
         /// <param name="request">The transfer validation request</param>
+        /// <param name="performedBy">The address of the user performing the validation (for audit logging)</param>
         /// <returns>The validation response indicating if the transfer is allowed</returns>
-        public async Task<ValidateTransferResponse> ValidateTransferAsync(ValidateTransferRequest request)
+        public async Task<ValidateTransferResponse> ValidateTransferAsync(ValidateTransferRequest request, string performedBy)
         {
             try
             {
@@ -568,6 +569,21 @@ namespace BiatecTokensApi.Services
                 if (!IsValidAlgorandAddress(request.FromAddress))
                 {
                     _logger.LogWarning("Invalid sender address format: {Address}", request.FromAddress);
+                    
+                    // Record audit log for invalid address format
+                    await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                    {
+                        AssetId = request.AssetId,
+                        Address = request.FromAddress,
+                        ActionType = WhitelistActionType.TransferValidation,
+                        PerformedBy = performedBy,
+                        PerformedAt = DateTime.UtcNow,
+                        ToAddress = request.ToAddress,
+                        TransferAllowed = false,
+                        DenialReason = "Invalid sender address format",
+                        Amount = request.Amount
+                    });
+                    
                     return new ValidateTransferResponse
                     {
                         Success = false,
@@ -580,6 +596,21 @@ namespace BiatecTokensApi.Services
                 if (!IsValidAlgorandAddress(request.ToAddress))
                 {
                     _logger.LogWarning("Invalid receiver address format: {Address}", request.ToAddress);
+                    
+                    // Record audit log for invalid address format
+                    await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                    {
+                        AssetId = request.AssetId,
+                        Address = request.FromAddress,
+                        ActionType = WhitelistActionType.TransferValidation,
+                        PerformedBy = performedBy,
+                        PerformedAt = DateTime.UtcNow,
+                        ToAddress = request.ToAddress,
+                        TransferAllowed = false,
+                        DenialReason = "Invalid receiver address format",
+                        Amount = request.Amount
+                    });
+                    
                     return new ValidateTransferResponse
                     {
                         Success = false,
@@ -662,10 +693,36 @@ namespace BiatecTokensApi.Services
 
                 var denialReason = denialReasons.Any() ? string.Join("; ", denialReasons) : null;
 
+                // Record audit log entry for this transfer validation attempt
+                await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                {
+                    AssetId = request.AssetId,
+                    Address = request.FromAddress,
+                    ActionType = WhitelistActionType.TransferValidation,
+                    PerformedBy = performedBy,
+                    PerformedAt = DateTime.UtcNow,
+                    ToAddress = request.ToAddress,
+                    TransferAllowed = isAllowed,
+                    DenialReason = denialReason,
+                    Amount = request.Amount,
+                    Notes = isAllowed ? "Transfer validation passed" : "Transfer validation failed"
+                });
+
                 _logger.LogInformation(
                     "Transfer validation for asset {AssetId} from {From} to {To}: {Result}",
                     request.AssetId, request.FromAddress, request.ToAddress,
                     isAllowed ? "ALLOWED" : $"DENIED - {denialReason}");
+
+                // Emit metering event for billing analytics
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Whitelist,
+                    OperationType = MeteringOperationType.TransferValidation,
+                    AssetId = request.AssetId,
+                    Network = NetworkNotAvailable,
+                    PerformedBy = performedBy,
+                    ItemCount = 1
+                });
 
                 return new ValidateTransferResponse
                 {
@@ -680,6 +737,29 @@ namespace BiatecTokensApi.Services
             {
                 _logger.LogError(ex, "Error validating transfer for asset {AssetId} from {From} to {To}",
                     request.AssetId, request.FromAddress, request.ToAddress);
+                
+                // Record audit log for error
+                try
+                {
+                    await _repository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+                    {
+                        AssetId = request.AssetId,
+                        Address = request.FromAddress,
+                        ActionType = WhitelistActionType.TransferValidation,
+                        PerformedBy = performedBy,
+                        PerformedAt = DateTime.UtcNow,
+                        ToAddress = request.ToAddress,
+                        TransferAllowed = false,
+                        DenialReason = "Internal validation error",
+                        Amount = request.Amount,
+                        Notes = $"Error: {ex.Message}"
+                    });
+                }
+                catch (Exception auditEx)
+                {
+                    _logger.LogError(auditEx, "Failed to record audit log entry for validation error");
+                }
+                
                 return new ValidateTransferResponse
                 {
                     Success = false,
