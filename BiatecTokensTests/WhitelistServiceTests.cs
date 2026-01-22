@@ -947,5 +947,284 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region Network Validation Tests
+
+        [Test]
+        public async Task AddEntryAsync_VOINetwork_KycNotVerified_ShouldAllowWithWarning()
+        {
+            // Arrange - VOI network without KYC verification (should log warning but allow)
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                Network = "voimain-v1.0",
+                KycVerified = false,
+                Role = WhitelistRole.Admin
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "ADMIN_ADDRESS");
+
+            // Assert - Should succeed with warning
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entry, Is.Not.Null);
+            Assert.That(result.Entry!.Network, Is.EqualTo("voimain-v1.0"));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_VOINetwork_OperatorRoleRevoke_ShouldFail()
+        {
+            // Arrange - VOI network with Operator trying to revoke (should fail)
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Revoked,
+                Network = "voimain-v1.0",
+                KycVerified = true,
+                Role = WhitelistRole.Operator
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "OPERATOR_ADDRESS");
+
+            // Assert - Should fail with appropriate error message
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("Operator role cannot revoke"));
+            Assert.That(result.ErrorMessage, Does.Contain("VOI network"));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_AramidNetwork_KycNotVerified_ShouldFail()
+        {
+            // Arrange - Aramid network without KYC verification (should fail)
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                Network = "aramidmain-v1.0",
+                KycVerified = false,
+                Role = WhitelistRole.Admin
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "ADMIN_ADDRESS");
+
+            // Assert - Should fail with appropriate error message
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("Aramid network requires KYC verification"));
+            Assert.That(result.ErrorMessage, Does.Contain("Active whitelist entries"));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_AramidNetwork_KycVerifiedNoProvider_ShouldFail()
+        {
+            // Arrange - Aramid network with KYC verified but no provider specified
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                Network = "aramidmain-v1.0",
+                KycVerified = true,
+                KycProvider = null,
+                Role = WhitelistRole.Admin
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "ADMIN_ADDRESS");
+
+            // Assert - Should fail with appropriate error message
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("Aramid network requires KYC provider"));
+            Assert.That(result.ErrorMessage, Does.Contain("KYC is verified"));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_AramidNetwork_ValidKycWithProvider_ShouldSucceed()
+        {
+            // Arrange - Aramid network with valid KYC and provider
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                Network = "aramidmain-v1.0",
+                KycVerified = true,
+                KycProvider = "Sumsub",
+                Role = WhitelistRole.Admin
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "ADMIN_ADDRESS");
+
+            // Assert - Should succeed
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entry, Is.Not.Null);
+            Assert.That(result.Entry!.Network, Is.EqualTo("aramidmain-v1.0"));
+            Assert.That(result.Entry.KycProvider, Is.EqualTo("Sumsub"));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_AramidNetwork_OperatorRoleRevoke_ShouldFail()
+        {
+            // Arrange - Aramid network with Operator trying to revoke (should fail)
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Revoked,
+                Network = "aramidmain-v1.0",
+                KycVerified = true,
+                KycProvider = "Sumsub",
+                Role = WhitelistRole.Operator
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "OPERATOR_ADDRESS");
+
+            // Assert - Should fail with appropriate error message
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("Operator role cannot revoke"));
+            Assert.That(result.ErrorMessage, Does.Contain("Aramid network"));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_AramidNetwork_OperatorRoleActive_ShouldSucceed()
+        {
+            // Arrange - Aramid network with Operator setting Active status (should succeed)
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                Network = "aramidmain-v1.0",
+                KycVerified = true,
+                KycProvider = "Sumsub",
+                Role = WhitelistRole.Operator
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "OPERATOR_ADDRESS");
+
+            // Assert - Should succeed
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entry, Is.Not.Null);
+            Assert.That(result.Entry!.Role, Is.EqualTo(WhitelistRole.Operator));
+        }
+
+        [Test]
+        public async Task AddEntryAsync_NoNetwork_ShouldSucceed()
+        {
+            // Arrange - No network specified (should skip validation)
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Active,
+                Network = null,
+                KycVerified = false,
+                Role = WhitelistRole.Admin
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "ADMIN_ADDRESS");
+
+            // Assert - Should succeed without network validation
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entry, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task AddEntryAsync_AramidNetwork_InactiveWithoutKyc_ShouldSucceed()
+        {
+            // Arrange - Aramid network with Inactive status doesn't require KYC
+            var request = new AddWhitelistEntryRequest
+            {
+                AssetId = 12345,
+                Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                Status = WhitelistStatus.Inactive,
+                Network = "aramidmain-v1.0",
+                KycVerified = false,
+                Role = WhitelistRole.Admin
+            };
+
+            _repositoryMock.Setup(r => r.GetEntryAsync(request.AssetId, It.IsAny<string>()))
+                .ReturnsAsync((WhitelistEntry?)null);
+            _repositoryMock.Setup(r => r.AddEntryAsync(It.IsAny<WhitelistEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<WhitelistAuditLogEntry>()))
+                .ReturnsAsync(true);
+            _repositoryMock.Setup(r => r.GetEntriesCountAsync(request.AssetId))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _service.AddEntryAsync(request, "ADMIN_ADDRESS");
+
+            // Assert - Should succeed (KYC only required for Active status)
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entry, Is.Not.Null);
+        }
+
+        #endregion
     }
 }
