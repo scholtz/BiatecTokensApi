@@ -28,16 +28,80 @@ POST   /api/v1/whitelist                        - Add single address to whitelis
 DELETE /api/v1/whitelist                        - Remove address from whitelist
 POST   /api/v1/whitelist/bulk                   - Bulk upload addresses
 GET    /api/v1/whitelist/{assetId}/audit-log    - Get audit log for compliance reporting
+POST   /api/v1/whitelist/validate-transfer      - Validate if transfer is allowed (NEW)
 ```
+
+### Transfer Validation Endpoint (NEW)
+The transfer validation endpoint enables MICA-aligned compliance flows for RWA tokens:
+
+**Endpoint:** `POST /api/v1/whitelist/validate-transfer`
+
+**Purpose:** Validates whether a token transfer between two addresses is permitted based on whitelist compliance rules.
+
+**Use Cases:**
+- Pre-transfer compliance checks before executing blockchain transactions
+- Real-time validation for trading platforms
+- Compliance verification for custodial services
+- Regulatory reporting and audit trails
+
+**Request:**
+```json
+{
+  "assetId": 12345,
+  "fromAddress": "SENDER_ALGORAND_ADDRESS",
+  "toAddress": "RECEIVER_ALGORAND_ADDRESS",
+  "amount": 1000 // Optional, for future use
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "isAllowed": true,
+  "denialReason": null,
+  "senderStatus": {
+    "address": "SENDER_ALGORAND_ADDRESS",
+    "isWhitelisted": true,
+    "isActive": true,
+    "isExpired": false,
+    "expirationDate": null,
+    "status": "Active"
+  },
+  "receiverStatus": {
+    "address": "RECEIVER_ALGORAND_ADDRESS",
+    "isWhitelisted": true,
+    "isActive": true,
+    "isExpired": false,
+    "expirationDate": "2027-01-21T00:00:00Z",
+    "status": "Active"
+  }
+}
+```
+
+**Validation Rules:**
+1. Both sender and receiver must be whitelisted for the asset
+2. Both whitelist entries must have status = "Active"
+3. Neither entry can be expired (if expiration date is set)
+4. Addresses must be valid Algorand addresses (58 characters)
+
+**Denial Reasons:**
+- "Sender address {address} is not whitelisted for asset {assetId}"
+- "Receiver address {address} is not whitelisted for asset {assetId}"
+- "Sender/Receiver address {address} whitelist status is {status} (not Active)"
+- "Sender/Receiver address {address} whitelist entry expired on {date}"
+- "Invalid sender/receiver address format"
 
 ### Key Features
 - **ARC-0014 Authentication**: All mutations require authenticated token admin
+- **Transfer Validation**: Pre-transaction compliance checks (NEW)
 - **Algorand Address Validation**: SDK-based validation with deterministic error messages
 - **Audit Trail**: Complete tracking (created_by, updated_by, timestamps)
 - **Audit Log**: Full change history for regulatory compliance (who/when/what)
 - **Thread-Safe Storage**: ConcurrentDictionary for production-grade concurrency
 - **Status Management**: Active/Inactive/Revoked states for lifecycle management
 - **Deduplication**: Case-insensitive address handling
+- **Detailed Status Info**: Comprehensive participant status for both sender and receiver (NEW)
 
 ### Audit Log Features (New)
 The audit log endpoint provides comprehensive change tracking for RWA compliance:
@@ -57,14 +121,16 @@ The audit log endpoint provides comprehensive change tracking for RWA compliance
 - Audit log automatically records all changes
 
 ## Test Coverage
-- **65 tests** across 3 layers:
+- **86 tests** across 3 layers (14 new transfer validation tests):
   - Repository: 21 tests (CRUD, filtering, deduplication, audit log)
-  - Service: 25 tests (validation, business logic, bulk operations, audit logging)
+  - Service: 39 tests (validation, business logic, bulk operations, audit logging, transfer validation)
   - Controller: 19 tests (endpoints, authorization, error handling, audit log retrieval)
+  - Transfer Validation: 14 tests (valid transfers, denied transfers, edge cases)
 - **All acceptance criteria met**:
   ✅ Deterministic validation errors
   ✅ Authorization enforced on all mutations
   ✅ Full test coverage of list/add/remove/bulk flows
+  ✅ Transfer validation with detailed compliance checks (NEW)
 
 ## Acceptance Criteria Status
 All acceptance criteria from the issue have been **fully met**:
