@@ -2668,6 +2668,16 @@
             For transfer validations: the amount being transferred (optional)
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Network">
+            <summary>
+            Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Role">
+            <summary>
+            Role of the user who performed the action (Admin or Operator)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistActionType">
             <summary>
             Type of action performed on a whitelist entry
@@ -2838,6 +2848,16 @@
             Name of the KYC provider
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.Network">
+            <summary>
+            Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEntry.Role">
+            <summary>
+            Role of the user who performed the operation (Admin or Operator)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistStatus">
             <summary>
             Status of a whitelist entry
@@ -2856,6 +2876,21 @@
         <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistStatus.Revoked">
             <summary>
             The address has been permanently revoked
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRole">
+            <summary>
+            Role of the user performing whitelist operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRole.Admin">
+            <summary>
+            Administrator with full access to all whitelist operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRole.Operator">
+            <summary>
+            Operator with limited access to whitelist operations
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest">
@@ -2901,6 +2936,16 @@
         <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.KycProvider">
             <summary>
             Name of the KYC provider
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.Network">
+            <summary>
+            Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest.Role">
+            <summary>
+            Role of the user performing the operation (Admin or Operator)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest">
@@ -2961,6 +3006,16 @@
         <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.KycProvider">
             <summary>
             Name of the KYC provider (applies to all)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.Network">
+            <summary>
+            Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest.Role">
+            <summary>
+            Role of the user performing the operation (Admin or Operator)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.ListWhitelistRequest">
@@ -4307,6 +4362,13 @@
             </summary>
             <param name="request">The list whitelist request</param>
             <returns>The whitelist list response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.ValidateNetworkRules(BiatecTokensApi.Models.Whitelist.WhitelistEntry)">
+            <summary>
+            Validates network-specific rules for whitelist entries
+            </summary>
+            <param name="entry">The whitelist entry to validate</param>
+            <returns>Error message if validation fails, null if validation passes</returns>
         </member>
         <member name="M:BiatecTokensApi.Services.WhitelistService.IsValidAlgorandAddress(System.String)">
             <summary>

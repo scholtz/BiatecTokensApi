@@ -73,6 +73,16 @@ namespace BiatecTokensApi.Models.Whitelist
         /// For transfer validations: the amount being transferred (optional)
         /// </summary>
         public ulong? Amount { get; set; }
+
+        /// <summary>
+        /// Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0, etc.)
+        /// </summary>
+        public string? Network { get; set; }
+
+        /// <summary>
+        /// Role of the user who performed the action (Admin or Operator)
+        /// </summary>
+        public WhitelistRole Role { get; set; } = WhitelistRole.Admin;
     }
 
     /// <summary>
