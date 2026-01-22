@@ -615,7 +615,7 @@ namespace BiatecTokensApi.Services
             var network = entry.Network.ToLowerInvariant();
 
             // VOI Network Rules (voimain-v1.0)
-            if (network.Contains("voimain"))
+            if (network.StartsWith("voimain", StringComparison.Ordinal))
             {
                 // Rule 1: For VOI network, KYC verification is strongly recommended for Active status
                 if (entry.Status == WhitelistStatus.Active && !entry.KycVerified)
@@ -634,7 +634,7 @@ namespace BiatecTokensApi.Services
             }
 
             // Aramid Network Rules (aramidmain-v1.0)
-            if (network.Contains("aramidmain"))
+            if (network.StartsWith("aramidmain", StringComparison.Ordinal))
             {
                 // Rule 1: For Aramid network, KYC verification is mandatory for Active status
                 if (entry.Status == WhitelistStatus.Active && !entry.KycVerified)
