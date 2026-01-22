@@ -531,6 +531,66 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Validates token configuration against MICA/RWA compliance rules
+        /// </summary>
+        /// <param name="request">The validation request containing token configuration</param>
+        /// <returns>Validation result with errors and warnings</returns>
+        /// <remarks>
+        /// This endpoint validates token configuration against MICA/RWA compliance rules used by frontend presets.
+        /// It checks for:
+        /// - Missing whitelist or issuer controls
+        /// - KYC verification requirements
+        /// - Jurisdiction and regulatory framework requirements
+        /// - Network-specific compliance rules (VOI, Aramid)
+        /// - Security token specific requirements
+        /// 
+        /// The endpoint returns actionable validation errors that must be fixed and warnings that should be reviewed.
+        /// Use this endpoint before token deployment to ensure compliance with applicable regulations.
+        /// </remarks>
+        [HttpPost("validate-preset")]
+        [ProducesResponseType(typeof(ValidateTokenPresetResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ValidateTokenPreset([FromBody] ValidateTokenPresetRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _complianceService.ValidateTokenPresetAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Validated token preset: IsValid={IsValid}, Errors={ErrorCount}, Warnings={WarningCount}",
+                        result.IsValid,
+                        result.Errors.Count,
+                        result.Warnings.Count);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to validate token preset: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception validating token preset");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ValidateTokenPresetResponse
+                {
+                    Success = false,
+                    IsValid = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
         /// Escapes special characters in CSV values
         /// </summary>
         /// <param name="value">The value to escape</param>
