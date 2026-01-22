@@ -149,4 +149,75 @@ namespace BiatecTokensApi.Models.Compliance
         [Range(1, 100)]
         public int PageSize { get; set; } = 20;
     }
+
+    /// <summary>
+    /// Request to validate token configuration against compliance rules
+    /// </summary>
+    /// <remarks>
+    /// This request validates token configuration against MICA/RWA compliance rules
+    /// used by frontend presets. It checks for missing whitelist controls, issuer controls,
+    /// and network-specific compliance requirements.
+    /// </remarks>
+    public class ValidateTokenPresetRequest
+    {
+        /// <summary>
+        /// Type of asset being tokenized (e.g., "Security Token", "Utility Token", "NFT")
+        /// </summary>
+        [MaxLength(200)]
+        public string? AssetType { get; set; }
+
+        /// <summary>
+        /// Whether the token requires accredited investors only
+        /// </summary>
+        public bool RequiresAccreditedInvestors { get; set; }
+
+        /// <summary>
+        /// Whether whitelist controls are enabled for the token
+        /// </summary>
+        public bool HasWhitelistControls { get; set; }
+
+        /// <summary>
+        /// Whether issuer controls are enabled for the token (freeze, clawback, etc.)
+        /// </summary>
+        public bool HasIssuerControls { get; set; }
+
+        /// <summary>
+        /// KYC/AML verification status
+        /// </summary>
+        public VerificationStatus? VerificationStatus { get; set; }
+
+        /// <summary>
+        /// Jurisdiction(s) where the token is compliant (comma-separated country codes)
+        /// </summary>
+        [MaxLength(500)]
+        public string? Jurisdiction { get; set; }
+
+        /// <summary>
+        /// Regulatory framework(s) the token complies with
+        /// </summary>
+        [MaxLength(500)]
+        public string? RegulatoryFramework { get; set; }
+
+        /// <summary>
+        /// Compliance status of the token
+        /// </summary>
+        public ComplianceStatus? ComplianceStatus { get; set; }
+
+        /// <summary>
+        /// Maximum number of token holders allowed
+        /// </summary>
+        [Range(1, int.MaxValue)]
+        public int? MaxHolders { get; set; }
+
+        /// <summary>
+        /// Network on which the token will be deployed (voimain-v1.0, aramidmain-v1.0, etc.)
+        /// </summary>
+        [MaxLength(50)]
+        public string? Network { get; set; }
+
+        /// <summary>
+        /// Whether to include only critical errors (false) or also warnings (true)
+        /// </summary>
+        public bool IncludeWarnings { get; set; } = true;
+    }
 }

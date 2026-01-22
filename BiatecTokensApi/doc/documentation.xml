@@ -239,6 +239,25 @@
             This endpoint is useful for compliance teams to understand data retention policies.
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ValidateTokenPreset(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest)">
+            <summary>
+            Validates token configuration against MICA/RWA compliance rules
+            </summary>
+            <param name="request">The validation request containing token configuration</param>
+            <returns>Validation result with errors and warnings</returns>
+            <remarks>
+            This endpoint validates token configuration against MICA/RWA compliance rules used by frontend presets.
+            It checks for:
+            - Missing whitelist or issuer controls
+            - KYC verification requirements
+            - Jurisdiction and regulatory framework requirements
+            - Network-specific compliance rules (VOI, Aramid)
+            - Security token specific requirements
+            
+            The endpoint returns actionable validation errors that must be fixed and warnings that should be reviewed.
+            Use this endpoint before token deployment to ensure compliance with applicable regulations.
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.EscapeCsv(System.String)">
             <summary>
             Escapes special characters in CSV values
@@ -2039,6 +2058,71 @@
             Page size for pagination
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest">
+            <summary>
+            Request to validate token configuration against compliance rules
+            </summary>
+            <remarks>
+            This request validates token configuration against MICA/RWA compliance rules
+            used by frontend presets. It checks for missing whitelist controls, issuer controls,
+            and network-specific compliance requirements.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.AssetType">
+            <summary>
+            Type of asset being tokenized (e.g., "Security Token", "Utility Token", "NFT")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.RequiresAccreditedInvestors">
+            <summary>
+            Whether the token requires accredited investors only
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.HasWhitelistControls">
+            <summary>
+            Whether whitelist controls are enabled for the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.HasIssuerControls">
+            <summary>
+            Whether issuer controls are enabled for the token (freeze, clawback, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.VerificationStatus">
+            <summary>
+            KYC/AML verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.Jurisdiction">
+            <summary>
+            Jurisdiction(s) where the token is compliant (comma-separated country codes)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.RegulatoryFramework">
+            <summary>
+            Regulatory framework(s) the token complies with
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.ComplianceStatus">
+            <summary>
+            Compliance status of the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.MaxHolders">
+            <summary>
+            Maximum number of token holders allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.Network">
+            <summary>
+            Network on which the token will be deployed (voimain-v1.0, aramidmain-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest.IncludeWarnings">
+            <summary>
+            Whether to include only critical errors (false) or also warnings (true)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMetadataResponse">
             <summary>
             Response for compliance metadata operations
@@ -2077,6 +2161,81 @@
         <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse.TotalPages">
             <summary>
             Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidateTokenPresetResponse">
+            <summary>
+            Response for token preset validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetResponse.IsValid">
+            <summary>
+            Whether the token configuration is valid for MICA/RWA compliance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetResponse.Errors">
+            <summary>
+            List of validation errors that must be fixed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetResponse.Warnings">
+            <summary>
+            List of validation warnings that should be reviewed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenPresetResponse.Summary">
+            <summary>
+            Summary of validation results
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidationIssue">
+            <summary>
+            Represents a validation issue (error or warning)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationIssue.Severity">
+            <summary>
+            Severity of the issue
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationIssue.Field">
+            <summary>
+            Field or area that has the issue
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationIssue.Message">
+            <summary>
+            Description of the issue
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationIssue.Recommendation">
+            <summary>
+            Suggested action to resolve the issue
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationIssue.RegulatoryContext">
+            <summary>
+            Applicable regulatory framework or standard
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidationSeverity">
+            <summary>
+            Severity level for validation issues
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ValidationSeverity.Error">
+            <summary>
+            Critical error that must be fixed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ValidationSeverity.Warning">
+            <summary>
+            Warning that should be reviewed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ValidationSeverity.Info">
+            <summary>
+            Informational message
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest">
@@ -3919,6 +4078,34 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateNetworkRules(System.String,BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateTokenPresetAsync(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateMICACompliance(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest,System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.ValidationIssue},System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.ValidationIssue})">
+            <summary>
+            Validates MICA/RWA compliance requirements
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateNetworkSpecificRules(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest,System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.ValidationIssue},System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.ValidationIssue})">
+            <summary>
+            Validates network-specific compliance rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateTokenControls(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest,System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.ValidationIssue},System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.ValidationIssue})">
+            <summary>
+            Validates token controls (whitelist and issuer controls)
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.IsSecurityToken(System.String)">
+            <summary>
+            Determines if an asset type represents a security token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GenerateValidationSummary(System.Boolean,System.Int32,System.Int32)">
+            <summary>
+            Generates a validation summary message
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -4083,6 +4270,13 @@
             </summary>
             <param name="request">The audit log request with filters</param>
             <returns>Response with list of audit log entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ValidateTokenPresetAsync(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest)">
+            <summary>
+            Validates a token configuration against MICA/RWA compliance rules
+            </summary>
+            <param name="request">The validation request containing token configuration</param>
+            <returns>Response with validation errors and warnings</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
             <summary>

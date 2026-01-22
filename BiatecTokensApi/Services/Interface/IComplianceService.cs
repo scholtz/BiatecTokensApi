@@ -50,5 +50,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="request">The audit log request with filters</param>
         /// <returns>Response with list of audit log entries</returns>
         Task<ComplianceAuditLogResponse> GetAuditLogAsync(GetComplianceAuditLogRequest request);
+
+        /// <summary>
+        /// Validates a token configuration against MICA/RWA compliance rules
+        /// </summary>
+        /// <param name="request">The validation request containing token configuration</param>
+        /// <returns>Response with validation errors and warnings</returns>
+        Task<ValidateTokenPresetResponse> ValidateTokenPresetAsync(ValidateTokenPresetRequest request);
     }
 }

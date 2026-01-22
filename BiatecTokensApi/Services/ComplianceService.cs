@@ -468,5 +468,316 @@ namespace BiatecTokensApi.Services
 
             return null;
         }
+
+        /// <inheritdoc/>
+        public async Task<ValidateTokenPresetResponse> ValidateTokenPresetAsync(ValidateTokenPresetRequest request)
+        {
+            try
+            {
+                var errors = new List<ValidationIssue>();
+                var warnings = new List<ValidationIssue>();
+
+                // Validate MICA/RWA compliance requirements
+                ValidateMICACompliance(request, errors, warnings);
+
+                // Validate network-specific rules
+                ValidateNetworkSpecificRules(request, errors, warnings);
+
+                // Validate whitelist and issuer controls
+                ValidateTokenControls(request, errors, warnings);
+
+                // Determine if configuration is valid (no errors)
+                var isValid = errors.Count == 0;
+
+                // Generate summary
+                var summary = GenerateValidationSummary(isValid, errors.Count, warnings.Count);
+
+                // Filter warnings if not requested
+                var finalWarnings = request.IncludeWarnings ? warnings : new List<ValidationIssue>();
+
+                return await Task.FromResult(new ValidateTokenPresetResponse
+                {
+                    Success = true,
+                    IsValid = isValid,
+                    Errors = errors,
+                    Warnings = finalWarnings,
+                    Summary = summary
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating token preset");
+                return new ValidateTokenPresetResponse
+                {
+                    Success = false,
+                    IsValid = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Validates MICA/RWA compliance requirements
+        /// </summary>
+        private void ValidateMICACompliance(
+            ValidateTokenPresetRequest request,
+            List<ValidationIssue> errors,
+            List<ValidationIssue> warnings)
+        {
+            var isSecurityToken = IsSecurityToken(request.AssetType);
+
+            // MICA requires KYC verification for security tokens
+            if (isSecurityToken && request.VerificationStatus != VerificationStatus.Verified)
+            {
+                errors.Add(new ValidationIssue
+                {
+                    Severity = ValidationSeverity.Error,
+                    Field = "VerificationStatus",
+                    Message = "Security tokens require KYC verification to be completed (VerificationStatus=Verified)",
+                    Recommendation = "Complete KYC verification through your chosen provider before deploying the token",
+                    RegulatoryContext = "MICA (Markets in Crypto-Assets Regulation)"
+                });
+            }
+
+            // MICA requires jurisdiction specification for RWA tokens
+            if (string.IsNullOrWhiteSpace(request.Jurisdiction))
+            {
+                if (isSecurityToken || request.RequiresAccreditedInvestors)
+                {
+                    errors.Add(new ValidationIssue
+                    {
+                        Severity = ValidationSeverity.Error,
+                        Field = "Jurisdiction",
+                        Message = "Jurisdiction must be specified for security tokens and tokens requiring accredited investors",
+                        Recommendation = "Specify applicable jurisdiction(s) using ISO country codes (e.g., 'US', 'EU', 'US,EU')",
+                        RegulatoryContext = "MICA"
+                    });
+                }
+                else
+                {
+                    warnings.Add(new ValidationIssue
+                    {
+                        Severity = ValidationSeverity.Warning,
+                        Field = "Jurisdiction",
+                        Message = "Jurisdiction is not specified. This may limit token distribution",
+                        Recommendation = "Consider specifying jurisdiction(s) to clarify regulatory compliance",
+                        RegulatoryContext = "MICA"
+                    });
+                }
+            }
+
+            // MICA requires regulatory framework for compliant tokens
+            if (request.ComplianceStatus == ComplianceStatus.Compliant &&
+                string.IsNullOrWhiteSpace(request.RegulatoryFramework))
+            {
+                errors.Add(new ValidationIssue
+                {
+                    Severity = ValidationSeverity.Error,
+                    Field = "RegulatoryFramework",
+                    Message = "Regulatory framework must be specified when compliance status is 'Compliant'",
+                    Recommendation = "Specify applicable regulatory framework (e.g., 'SEC Reg D', 'MiFID II', 'MICA')",
+                    RegulatoryContext = "MICA"
+                });
+            }
+
+            // Security tokens should have max holders specified
+            if (isSecurityToken && !request.MaxHolders.HasValue)
+            {
+                warnings.Add(new ValidationIssue
+                {
+                    Severity = ValidationSeverity.Warning,
+                    Field = "MaxHolders",
+                    Message = "Maximum number of holders is not specified for security token",
+                    Recommendation = "Consider setting a maximum holder limit to comply with securities regulations",
+                    RegulatoryContext = "Securities Regulations"
+                });
+            }
+
+            // Accredited investor tokens require whitelist
+            if (request.RequiresAccreditedInvestors && !request.HasWhitelistControls)
+            {
+                errors.Add(new ValidationIssue
+                {
+                    Severity = ValidationSeverity.Error,
+                    Field = "HasWhitelistControls",
+                    Message = "Tokens requiring accredited investors must have whitelist controls enabled",
+                    Recommendation = "Enable whitelist controls to restrict token transfers to verified accredited investors",
+                    RegulatoryContext = "Securities Act - Accredited Investor Requirements"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Validates network-specific compliance rules
+        /// </summary>
+        private void ValidateNetworkSpecificRules(
+            ValidateTokenPresetRequest request,
+            List<ValidationIssue> errors,
+            List<ValidationIssue> warnings)
+        {
+            if (string.IsNullOrWhiteSpace(request.Network))
+            {
+                return;
+            }
+
+            var normalizedNetwork = request.Network.ToLowerInvariant();
+
+            // VOI network specific rules
+            if (normalizedNetwork.Contains("voi"))
+            {
+                // VOI requires KYC verification for tokens requiring accredited investors
+                if (request.RequiresAccreditedInvestors && 
+                    request.VerificationStatus != VerificationStatus.Verified)
+                {
+                    errors.Add(new ValidationIssue
+                    {
+                        Severity = ValidationSeverity.Error,
+                        Field = "VerificationStatus",
+                        Message = "VOI network requires KYC verification (VerificationStatus=Verified) for tokens requiring accredited investors",
+                        Recommendation = "Complete KYC verification before deploying on VOI network",
+                        RegulatoryContext = "VOI Network Policy"
+                    });
+                }
+
+                // VOI requires jurisdiction to be specified
+                if (string.IsNullOrWhiteSpace(request.Jurisdiction))
+                {
+                    errors.Add(new ValidationIssue
+                    {
+                        Severity = ValidationSeverity.Error,
+                        Field = "Jurisdiction",
+                        Message = "VOI network requires jurisdiction to be specified for compliance",
+                        Recommendation = "Specify applicable jurisdiction(s) for your token",
+                        RegulatoryContext = "VOI Network Policy"
+                    });
+                }
+
+                _logger.LogDebug("Validated VOI network rules");
+            }
+
+            // Aramid network specific rules
+            if (normalizedNetwork.Contains("aramid"))
+            {
+                // Aramid requires regulatory framework for compliant status
+                if (request.ComplianceStatus == ComplianceStatus.Compliant &&
+                    string.IsNullOrWhiteSpace(request.RegulatoryFramework))
+                {
+                    errors.Add(new ValidationIssue
+                    {
+                        Severity = ValidationSeverity.Error,
+                        Field = "RegulatoryFramework",
+                        Message = "Aramid network requires RegulatoryFramework to be specified when ComplianceStatus is Compliant",
+                        Recommendation = "Specify the regulatory framework your token complies with",
+                        RegulatoryContext = "Aramid Network Policy"
+                    });
+                }
+
+                // Aramid requires MaxHolders to be set for securities
+                var isSecurityToken = IsSecurityToken(request.AssetType);
+
+                if (isSecurityToken && !request.MaxHolders.HasValue)
+                {
+                    errors.Add(new ValidationIssue
+                    {
+                        Severity = ValidationSeverity.Error,
+                        Field = "MaxHolders",
+                        Message = "Aramid network requires MaxHolders to be specified for security tokens",
+                        Recommendation = "Set a maximum number of token holders",
+                        RegulatoryContext = "Aramid Network Policy"
+                    });
+                }
+
+                _logger.LogDebug("Validated Aramid network rules");
+            }
+        }
+
+        /// <summary>
+        /// Validates token controls (whitelist and issuer controls)
+        /// </summary>
+        private void ValidateTokenControls(
+            ValidateTokenPresetRequest request,
+            List<ValidationIssue> errors,
+            List<ValidationIssue> warnings)
+        {
+            var isSecurityToken = IsSecurityToken(request.AssetType);
+
+            // Security tokens should have whitelist controls
+            if (isSecurityToken && !request.HasWhitelistControls)
+            {
+                warnings.Add(new ValidationIssue
+                {
+                    Severity = ValidationSeverity.Warning,
+                    Field = "HasWhitelistControls",
+                    Message = "Security tokens typically require whitelist controls to restrict transfers",
+                    Recommendation = "Enable whitelist controls to ensure only verified investors can hold the token",
+                    RegulatoryContext = "Securities Best Practices"
+                });
+            }
+
+            // Security tokens or RWA tokens should have issuer controls
+            // Only add one warning to avoid duplicates
+            if (!request.HasIssuerControls && (isSecurityToken || request.RequiresAccreditedInvestors))
+            {
+                var message = isSecurityToken
+                    ? "Security tokens typically require issuer controls (freeze, clawback) for regulatory compliance"
+                    : "RWA tokens benefit from issuer controls for compliance and dispute resolution";
+                
+                var recommendation = isSecurityToken
+                    ? "Enable issuer controls to allow freezing accounts and clawback in case of regulatory requirements or disputes"
+                    : "Consider enabling freeze and clawback controls for regulatory compliance";
+
+                warnings.Add(new ValidationIssue
+                {
+                    Severity = ValidationSeverity.Warning,
+                    Field = "HasIssuerControls",
+                    Message = message,
+                    Recommendation = recommendation,
+                    RegulatoryContext = isSecurityToken ? "Securities Best Practices" : "RWA Best Practices"
+                });
+            }
+
+            // Warn if no controls are enabled for compliance-heavy tokens
+            if (!request.HasWhitelistControls && !request.HasIssuerControls &&
+                (isSecurityToken || request.RequiresAccreditedInvestors || 
+                 request.ComplianceStatus == ComplianceStatus.Compliant))
+            {
+                warnings.Add(new ValidationIssue
+                {
+                    Severity = ValidationSeverity.Warning,
+                    Field = "TokenControls",
+                    Message = "No whitelist or issuer controls are enabled. This may limit compliance options",
+                    Recommendation = "Consider enabling whitelist and/or issuer controls for better regulatory compliance",
+                    RegulatoryContext = "General Compliance"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Determines if an asset type represents a security token
+        /// </summary>
+        private bool IsSecurityToken(string? assetType)
+        {
+            return !string.IsNullOrWhiteSpace(assetType) &&
+                   assetType.ToLowerInvariant().Contains("security");
+        }
+
+        /// <summary>
+        /// Generates a validation summary message
+        /// </summary>
+        private string GenerateValidationSummary(bool isValid, int errorCount, int warningCount)
+        {
+            if (isValid && warningCount == 0)
+            {
+                return "Token configuration is valid and compliant with MICA/RWA requirements";
+            }
+            else if (isValid && warningCount > 0)
+            {
+                return $"Token configuration is valid but has {warningCount} warning(s) that should be reviewed";
+            }
+            else
+            {
+                return $"Token configuration has {errorCount} error(s) that must be fixed before deployment";
+            }
+        }
     }
 }
