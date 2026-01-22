@@ -379,6 +379,12 @@ namespace BiatecTokensApi.Controllers
         /// 
         /// The response includes detailed status information for both sender and receiver,
         /// including whitelist status, expiration dates, and specific denial reasons if applicable.
+        /// 
+        /// **Audit Logging**: All transfer validation attempts are recorded in the audit log with:
+        /// - Who performed the validation (authenticated user)
+        /// - When the validation occurred (timestamp)
+        /// - Transfer details (from/to addresses, amount)
+        /// - Validation result (allowed/denied with reason)
         /// </remarks>
         [HttpPost("validate-transfer")]
         [ProducesResponseType(typeof(ValidateTransferResponse), StatusCodes.Status200OK)]
@@ -394,13 +400,26 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _whitelistService.ValidateTransferAsync(request);
+                var performedBy = GetUserAddress();
+                
+                if (string.IsNullOrEmpty(performedBy))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context for transfer validation");
+                    return Unauthorized(new ValidateTransferResponse
+                    {
+                        Success = false,
+                        IsAllowed = false,
+                        ErrorMessage = "User address not found in authentication context"
+                    });
+                }
+
+                var result = await _whitelistService.ValidateTransferAsync(request, performedBy);
 
                 if (result.Success)
                 {
                     _logger.LogInformation(
-                        "Validated transfer for asset {AssetId} from {From} to {To}: {Result}",
-                        request.AssetId, request.FromAddress, request.ToAddress,
+                        "Validated transfer for asset {AssetId} from {From} to {To} by {PerformedBy}: {Result}",
+                        request.AssetId, request.FromAddress, request.ToAddress, performedBy,
                         result.IsAllowed ? "ALLOWED" : "DENIED");
                     return Ok(result);
                 }

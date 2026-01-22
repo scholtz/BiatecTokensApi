@@ -431,6 +431,12 @@
             
             The response includes detailed status information for both sender and receiver,
             including whitelist status, expiration dates, and specific denial reasons if applicable.
+            
+            **Audit Logging**: All transfer validation attempts are recorded in the audit log with:
+            - Who performed the validation (authenticated user)
+            - When the validation occurred (timestamp)
+            - Transfer details (from/to addresses, amount)
+            - Validation result (allowed/denied with reason)
             </remarks>
         </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetUserAddress">
@@ -2075,6 +2081,11 @@
             Bulk add operation
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.TransferValidation">
+            <summary>
+            Transfer validation operation
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.TokenType">
             <summary>
             Represents the various types of tokens supported by the system.
@@ -2140,11 +2151,11 @@
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry">
             <summary>
-            Represents an audit log entry for whitelist changes
+            Represents an audit log entry for whitelist changes and transfer validations
             </summary>
             <remarks>
             This model tracks all changes to the whitelist for compliance and regulatory reporting.
-            Each entry represents a single action (add, update, or remove) performed on a whitelist entry.
+            Each entry represents a single action (add, update, remove, or transfer validation) performed on a whitelist entry.
             </remarks>
         </member>
         <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Id">
@@ -2159,12 +2170,12 @@
         </member>
         <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Address">
             <summary>
-            The Algorand address affected by this change
+            The Algorand address affected by this change (sender address for transfer validations)
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.ActionType">
             <summary>
-            The type of action performed (Add, Update, Remove)
+            The type of action performed (Add, Update, Remove, TransferValidation)
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.PerformedBy">
@@ -2192,6 +2203,26 @@
             Additional notes or context about the change
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.ToAddress">
+            <summary>
+            For transfer validations: the receiver's address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.TransferAllowed">
+            <summary>
+            For transfer validations: whether the transfer was allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.DenialReason">
+            <summary>
+            For transfer validations: the reason if transfer was denied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry.Amount">
+            <summary>
+            For transfer validations: the amount being transferred (optional)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistActionType">
             <summary>
             Type of action performed on a whitelist entry
@@ -2210,6 +2241,11 @@
         <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistActionType.Remove">
             <summary>
             Address was removed from the whitelist
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistActionType.TransferValidation">
+            <summary>
+            Transfer validation was performed (enforcement check)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest">
@@ -3565,11 +3601,12 @@
             <param name="request">The audit log request with filters and pagination</param>
             <returns>The audit log response with entries and pagination info</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.ValidateTransferAsync(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest)">
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.ValidateTransferAsync(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest,System.String)">
             <summary>
             Validates if a transfer between two addresses is allowed based on whitelist rules
             </summary>
             <param name="request">The transfer validation request</param>
+            <param name="performedBy">The address of the user performing the validation (for audit logging)</param>
             <returns>The validation response indicating if the transfer is allowed</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.SubscriptionMeteringService">
@@ -3653,11 +3690,12 @@
             pagination should be moved to the repository layer for better performance.
             </remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.WhitelistService.ValidateTransferAsync(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest)">
+        <member name="M:BiatecTokensApi.Services.WhitelistService.ValidateTransferAsync(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest,System.String)">
             <summary>
             Validates if a transfer between two addresses is allowed based on whitelist rules
             </summary>
             <param name="request">The transfer validation request</param>
+            <param name="performedBy">The address of the user performing the validation (for audit logging)</param>
             <returns>The validation response indicating if the transfer is allowed</returns>
         </member>
     </members>

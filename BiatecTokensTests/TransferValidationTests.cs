@@ -67,7 +67,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -117,7 +117,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -155,7 +155,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -197,7 +197,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -239,7 +239,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -282,7 +282,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -321,7 +321,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -363,7 +363,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -406,7 +406,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -437,7 +437,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -482,7 +482,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.True);
@@ -510,7 +510,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.False);
@@ -531,7 +531,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.False);
@@ -552,7 +552,7 @@ namespace BiatecTokensTests
             };
 
             // Act
-            var result = await _service.ValidateTransferAsync(request);
+            var result = await _service.ValidateTransferAsync(request, "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA");
 
             // Assert
             Assert.That(result.Success, Is.False);

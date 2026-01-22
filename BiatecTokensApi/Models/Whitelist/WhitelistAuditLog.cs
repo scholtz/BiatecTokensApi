@@ -1,11 +1,11 @@
 namespace BiatecTokensApi.Models.Whitelist
 {
     /// <summary>
-    /// Represents an audit log entry for whitelist changes
+    /// Represents an audit log entry for whitelist changes and transfer validations
     /// </summary>
     /// <remarks>
     /// This model tracks all changes to the whitelist for compliance and regulatory reporting.
-    /// Each entry represents a single action (add, update, or remove) performed on a whitelist entry.
+    /// Each entry represents a single action (add, update, remove, or transfer validation) performed on a whitelist entry.
     /// </remarks>
     public class WhitelistAuditLogEntry
     {
@@ -20,12 +20,12 @@ namespace BiatecTokensApi.Models.Whitelist
         public ulong AssetId { get; set; }
 
         /// <summary>
-        /// The Algorand address affected by this change
+        /// The Algorand address affected by this change (sender address for transfer validations)
         /// </summary>
         public string Address { get; set; } = string.Empty;
 
         /// <summary>
-        /// The type of action performed (Add, Update, Remove)
+        /// The type of action performed (Add, Update, Remove, TransferValidation)
         /// </summary>
         public WhitelistActionType ActionType { get; set; }
 
@@ -53,6 +53,26 @@ namespace BiatecTokensApi.Models.Whitelist
         /// Additional notes or context about the change
         /// </summary>
         public string? Notes { get; set; }
+
+        /// <summary>
+        /// For transfer validations: the receiver's address
+        /// </summary>
+        public string? ToAddress { get; set; }
+
+        /// <summary>
+        /// For transfer validations: whether the transfer was allowed
+        /// </summary>
+        public bool? TransferAllowed { get; set; }
+
+        /// <summary>
+        /// For transfer validations: the reason if transfer was denied
+        /// </summary>
+        public string? DenialReason { get; set; }
+
+        /// <summary>
+        /// For transfer validations: the amount being transferred (optional)
+        /// </summary>
+        public ulong? Amount { get; set; }
     }
 
     /// <summary>
@@ -73,7 +93,12 @@ namespace BiatecTokensApi.Models.Whitelist
         /// <summary>
         /// Address was removed from the whitelist
         /// </summary>
-        Remove
+        Remove,
+
+        /// <summary>
+        /// Transfer validation was performed (enforcement check)
+        /// </summary>
+        TransferValidation
     }
 
     /// <summary>

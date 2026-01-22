@@ -55,7 +55,8 @@ namespace BiatecTokensApi.Services.Interface
         /// Validates if a transfer between two addresses is allowed based on whitelist rules
         /// </summary>
         /// <param name="request">The transfer validation request</param>
+        /// <param name="performedBy">The address of the user performing the validation (for audit logging)</param>
         /// <returns>The validation response indicating if the transfer is allowed</returns>
-        Task<ValidateTransferResponse> ValidateTransferAsync(ValidateTransferRequest request);
+        Task<ValidateTransferResponse> ValidateTransferAsync(ValidateTransferRequest request, string performedBy);
     }
 }
