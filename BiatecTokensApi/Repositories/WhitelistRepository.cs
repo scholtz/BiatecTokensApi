@@ -229,6 +229,21 @@ namespace BiatecTokensApi.Repositories
             return Task.FromResult(entries);
         }
 
+        /// <summary>
+        /// Gets the count of whitelist entries for a specific asset
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <returns>Count of whitelist entries</returns>
+        public Task<int> GetEntriesCountAsync(ulong assetId)
+        {
+            var count = _whitelist.Values
+                .Count(e => e.AssetId == assetId);
+
+            _logger.LogDebug("Counted {Count} whitelist entries for asset {AssetId}", count, assetId);
+
+            return Task.FromResult(count);
+        }
+
         private static string GetKey(ulong assetId, string address)
         {
             return $"{assetId}:{address.ToUpperInvariant()}";

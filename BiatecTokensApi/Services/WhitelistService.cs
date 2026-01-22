@@ -14,6 +14,7 @@ namespace BiatecTokensApi.Services
         private readonly IWhitelistRepository _repository;
         private readonly ILogger<WhitelistService> _logger;
         private readonly ISubscriptionMeteringService _meteringService;
+        private readonly ISubscriptionTierService _tierService;
         private const string NetworkNotAvailable = null;
 
         /// <summary>
@@ -22,14 +23,17 @@ namespace BiatecTokensApi.Services
         /// <param name="repository">The whitelist repository</param>
         /// <param name="logger">The logger instance</param>
         /// <param name="meteringService">The subscription metering service</param>
+        /// <param name="tierService">The subscription tier service</param>
         public WhitelistService(
             IWhitelistRepository repository, 
             ILogger<WhitelistService> logger,
-            ISubscriptionMeteringService meteringService)
+            ISubscriptionMeteringService meteringService,
+            ISubscriptionTierService tierService)
         {
             _repository = repository;
             _logger = logger;
             _meteringService = meteringService;
+            _tierService = tierService;
         }
 
         /// <summary>
@@ -110,6 +114,23 @@ namespace BiatecTokensApi.Services
                     {
                         Success = true,
                         Entry = existingEntry
+                    };
+                }
+
+                // Validate subscription tier before adding new entry
+                var currentCount = await _repository.GetEntriesCountAsync(request.AssetId);
+                var tierValidation = await _tierService.ValidateOperationAsync(createdBy, request.AssetId, currentCount, 1);
+                
+                if (!tierValidation.IsAllowed)
+                {
+                    _logger.LogWarning(
+                        "Subscription tier limit exceeded for user {CreatedBy} on asset {AssetId}: {Reason}",
+                        createdBy, request.AssetId, tierValidation.DenialReason);
+                    
+                    return new WhitelistResponse
+                    {
+                        Success = false,
+                        ErrorMessage = tierValidation.DenialReason ?? "Subscription tier limit exceeded"
                     };
                 }
 
@@ -277,6 +298,21 @@ namespace BiatecTokensApi.Services
 
             try
             {
+                // Check if bulk operations are enabled for this tier
+                var isBulkEnabled = await _tierService.IsBulkOperationEnabledAsync(createdBy);
+                if (!isBulkEnabled)
+                {
+                    _logger.LogWarning(
+                        "Bulk operation denied for user {CreatedBy}: Not enabled for their subscription tier",
+                        createdBy);
+                    
+                    return new BulkWhitelistResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Bulk operations are not available in your subscription tier. Please upgrade to Premium or Enterprise tier."
+                    };
+                }
+
                 // Deduplicate addresses (case-insensitive)
                 var uniqueAddresses = request.Addresses
                     .Select(a => a.ToUpperInvariant())
@@ -285,6 +321,40 @@ namespace BiatecTokensApi.Services
 
                 _logger.LogInformation("Bulk adding {Count} unique addresses to whitelist for asset {AssetId}", 
                     uniqueAddresses.Count, request.AssetId);
+
+                // Get current count to validate against tier limits
+                var currentCount = await _repository.GetEntriesCountAsync(request.AssetId);
+                
+                // Count how many are new entries (not updates)
+                var newEntriesCount = 0;
+                foreach (var address in uniqueAddresses)
+                {
+                    var exists = await _repository.GetEntryAsync(request.AssetId, address);
+                    if (exists == null)
+                    {
+                        newEntriesCount++;
+                    }
+                }
+
+                // Validate tier limits for new entries
+                if (newEntriesCount > 0)
+                {
+                    var tierValidation = await _tierService.ValidateOperationAsync(
+                        createdBy, request.AssetId, currentCount, newEntriesCount);
+                    
+                    if (!tierValidation.IsAllowed)
+                    {
+                        _logger.LogWarning(
+                            "Bulk operation tier limit exceeded for user {CreatedBy} on asset {AssetId}: {Reason}",
+                            createdBy, request.AssetId, tierValidation.DenialReason);
+                        
+                        return new BulkWhitelistResponse
+                        {
+                            Success = false,
+                            ErrorMessage = tierValidation.DenialReason ?? "Subscription tier limit exceeded"
+                        };
+                    }
+                }
 
                 foreach (var address in uniqueAddresses)
                 {

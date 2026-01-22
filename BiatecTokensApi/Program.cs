@@ -87,6 +87,9 @@ namespace BiatecTokensApi
 
             // Register metering service
             builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
+            
+            // Register subscription tier service
+            builder.Services.AddSingleton<ISubscriptionTierService, SubscriptionTierService>();
 
             // Register the token services
             builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();

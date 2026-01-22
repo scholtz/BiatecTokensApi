@@ -2416,6 +2416,121 @@
             Transfer validation operation
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionTier">
+            <summary>
+            Represents subscription tier levels for RWA token compliance operations
+            </summary>
+            <remarks>
+            Different subscription tiers provide different limits on whitelist operations,
+            enabling tiered pricing and usage-based billing for compliance features.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionTier.Free">
+            <summary>
+            Free tier - limited whitelist capacity for testing and small deployments
+            </summary>
+            <remarks>
+            Limits: Up to 10 whitelisted addresses per asset
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionTier.Basic">
+            <summary>
+            Basic tier - suitable for small to medium RWA token deployments
+            </summary>
+            <remarks>
+            Limits: Up to 100 whitelisted addresses per asset
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionTier.Premium">
+            <summary>
+            Premium tier - suitable for larger institutional deployments
+            </summary>
+            <remarks>
+            Limits: Up to 1,000 whitelisted addresses per asset
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionTier.Enterprise">
+            <summary>
+            Enterprise tier - unlimited capacity for large-scale deployments
+            </summary>
+            <remarks>
+            Limits: Unlimited whitelisted addresses per asset
+            </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits">
+            <summary>
+            Defines subscription tier limits and capabilities
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.Tier">
+            <summary>
+            Subscription tier level
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.MaxAddressesPerAsset">
+            <summary>
+            Maximum number of whitelisted addresses per asset (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.TierName">
+            <summary>
+            Human-readable tier name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.Description">
+            <summary>
+            Human-readable description of tier limits
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.TransferValidationEnabled">
+            <summary>
+            Whether transfer validation is available in this tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.AuditLogEnabled">
+            <summary>
+            Whether audit log access is available in this tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.BulkOperationsEnabled">
+            <summary>
+            Whether bulk operations are available in this tier
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration">
+            <summary>
+            Configuration for subscription tier settings
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration.TierLimits">
+            <summary>
+            Gets predefined tier limits for all subscription tiers
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration.GetTierLimits(BiatecTokensApi.Models.Subscription.SubscriptionTier)">
+            <summary>
+            Gets tier limits for a specific subscription tier
+            </summary>
+            <param name="tier">The subscription tier</param>
+            <returns>Tier limits configuration</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration.IsOperationAllowed(BiatecTokensApi.Models.Subscription.SubscriptionTier,System.Int32,System.Int32)">
+            <summary>
+            Checks if an operation is allowed for the given tier and current count
+            </summary>
+            <param name="tier">The subscription tier</param>
+            <param name="currentCount">Current number of addresses</param>
+            <param name="additionalCount">Number of addresses to add</param>
+            <returns>True if the operation is allowed, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration.GetRemainingCapacity(BiatecTokensApi.Models.Subscription.SubscriptionTier,System.Int32)">
+            <summary>
+            Gets the remaining capacity for a tier
+            </summary>
+            <param name="tier">The subscription tier</param>
+            <param name="currentCount">Current number of addresses</param>
+            <returns>Remaining capacity (-1 for unlimited)</returns>
+        </member>
         <member name="T:BiatecTokensApi.Models.TokenType">
             <summary>
             Represents the various types of tokens supported by the system.
@@ -3377,6 +3492,13 @@
             <param name="request">The audit log request with filters and pagination</param>
             <returns>List of audit log entries</returns>
         </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRepository.GetEntriesCountAsync(System.UInt64)">
+            <summary>
+            Gets the count of whitelist entries for a specific asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>Count of whitelist entries</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.WhitelistRepository">
             <summary>
             In-memory implementation of whitelist repository
@@ -3451,6 +3573,13 @@
             </summary>
             <param name="request">The audit log request with filters and pagination</param>
             <returns>List of audit log entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.GetEntriesCountAsync(System.UInt64)">
+            <summary>
+            Gets the count of whitelist entries for a specific asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>Count of whitelist entries</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.ARC1400TokenService">
             <summary>
@@ -3927,6 +4056,92 @@
             </summary>
             <param name="meteringEvent">The metering event to emit</param>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ISubscriptionTierService">
+            <summary>
+            Service for validating subscription tier limits for whitelist operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.GetUserTierAsync(System.String)">
+            <summary>
+            Gets the subscription tier for a user/address
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <returns>The subscription tier</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.ValidateOperationAsync(System.String,System.UInt64,System.Int32,System.Int32)">
+            <summary>
+            Validates if a whitelist operation is allowed for the user's subscription tier
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <param name="assetId">The asset ID</param>
+            <param name="currentCount">Current number of whitelisted addresses</param>
+            <param name="additionalCount">Number of addresses to add</param>
+            <returns>Validation result with allowed status and reason if denied</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.IsBulkOperationEnabledAsync(System.String)">
+            <summary>
+            Checks if bulk operations are enabled for the user's tier
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <returns>True if bulk operations are enabled</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.IsAuditLogEnabledAsync(System.String)">
+            <summary>
+            Checks if audit log access is enabled for the user's tier
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <returns>True if audit log access is enabled</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.GetTierLimits(BiatecTokensApi.Models.Subscription.SubscriptionTier)">
+            <summary>
+            Gets tier limits for a specific tier
+            </summary>
+            <param name="tier">The subscription tier</param>
+            <returns>Tier limits configuration</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.GetRemainingCapacityAsync(System.String,System.Int32)">
+            <summary>
+            Gets the remaining capacity for a user on a specific asset
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <param name="currentCount">Current number of whitelisted addresses</param>
+            <returns>Remaining capacity (-1 for unlimited)</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult">
+            <summary>
+            Result of subscription tier validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult.IsAllowed">
+            <summary>
+            Whether the operation is allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult.Tier">
+            <summary>
+            The user's subscription tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult.DenialReason">
+            <summary>
+            Reason if the operation is denied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult.CurrentCount">
+            <summary>
+            Current count of addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult.MaxAllowed">
+            <summary>
+            Maximum allowed addresses for the tier (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult.RemainingCapacity">
+            <summary>
+            Remaining capacity (-1 for unlimited)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IWhitelistService">
             <summary>
             Interface for whitelist service operations
@@ -4003,18 +4218,65 @@
         <member name="M:BiatecTokensApi.Services.SubscriptionMeteringService.EmitMeteringEvent(BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Services.SubscriptionTierService">
+            <summary>
+            Service for validating subscription tier limits for whitelist operations
+            </summary>
+            <remarks>
+            This service manages subscription tier validation and enforcement for RWA compliance features.
+            In the current implementation, tier assignments are stored in-memory and can be migrated to
+            a persistent storage backend without API changes.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.SubscriptionTierService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.SubscriptionTierService"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.GetUserTierAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.ValidateOperationAsync(System.String,System.UInt64,System.Int32,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.IsBulkOperationEnabledAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.IsAuditLogEnabledAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.GetTierLimits(BiatecTokensApi.Models.Subscription.SubscriptionTier)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.GetRemainingCapacityAsync(System.String,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.SetUserTier(System.String,BiatecTokensApi.Models.Subscription.SubscriptionTier)">
+            <summary>
+            Sets the subscription tier for a user (for testing and administration)
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <param name="tier">The subscription tier to assign</param>
+            <remarks>
+            This method is used for testing and can be used by administrators to manage user tiers.
+            In a production environment, this would typically be managed through a separate admin API
+            or integrated with a billing/subscription management system.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Services.WhitelistService">
             <summary>
             Service for managing whitelist operations
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.WhitelistService.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService)">
+        <member name="M:BiatecTokensApi.Services.WhitelistService.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService,BiatecTokensApi.Services.Interface.ISubscriptionTierService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.WhitelistService"/> class.
             </summary>
             <param name="repository">The whitelist repository</param>
             <param name="logger">The logger instance</param>
             <param name="meteringService">The subscription metering service</param>
+            <param name="tierService">The subscription tier service</param>
         </member>
         <member name="M:BiatecTokensApi.Services.WhitelistService.AddEntryAsync(BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest,System.String)">
             <summary>
