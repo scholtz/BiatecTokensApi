@@ -736,7 +736,7 @@ namespace BiatecTokensApi.Controllers
         /// - Filter by verification status (Pending, Verified, Failed, Expired, Revoked)
         /// - Filter by attestation type (KYC, AML, Accreditation, etc.)
         /// 
-        /// This operation emits a metering event for billing analytics.
+        /// Note: This is a read operation and does not emit metering events.
         /// 
         /// Requires ARC-0014 authentication.
         /// </remarks>

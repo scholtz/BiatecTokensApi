@@ -897,7 +897,8 @@ namespace BiatecTokensApi.Services
 
                 if (attestation != null)
                 {
-                    // Check if attestation is expired and update status if needed
+                    // Note: We modify the status for display purposes only, not persisted
+                    // This provides real-time expiry checking without database updates
                     if (attestation.ExpiresAt.HasValue && 
                         attestation.ExpiresAt.Value < DateTime.UtcNow && 
                         attestation.VerificationStatus != AttestationVerificationStatus.Expired)
