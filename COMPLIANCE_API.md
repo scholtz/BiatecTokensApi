@@ -467,6 +467,297 @@ curl -X POST https://api.example.com/api/v1/whitelist/validate-transfer \
 
 ---
 
+## Audit Log API (MICA/RWA Compliance)
+
+### Overview
+
+The audit log system provides comprehensive, immutable tracking of all compliance operations for regulatory reporting and incident investigations. All audit logs are retained for a minimum of 7 years to comply with MICA and other regulatory requirements.
+
+### 5. Get Audit Log
+
+**Endpoint:** `GET /api/v1/compliance/audit-log`
+
+**Description:** Retrieves audit log entries with optional filtering and pagination. All compliance operations (create, update, delete, read, list) are automatically logged.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** Recommended for compliance and admin roles only
+
+**Query Parameters:**
+- `assetId` (optional): Filter by token asset ID
+- `network` (optional): Filter by network (e.g., "voimain", "testnet")
+- `actionType` (optional): Filter by action type (Create, Update, Delete, Read, List)
+- `performedBy` (optional): Filter by user Algorand address
+- `success` (optional): Filter by operation result (true/false)
+- `fromDate` (optional): Start date filter (ISO 8601 format)
+- `toDate` (optional): End date filter (ISO 8601 format)
+- `page` (optional, default: 1): Page number
+- `pageSize` (optional, default: 50, max: 100): Results per page
+
+**Example:**
+```
+GET /api/v1/compliance/audit-log?assetId=12345&actionType=Update&fromDate=2026-01-01T00:00:00Z&page=1&pageSize=50
+```
+
+**Response:** `ComplianceAuditLogResponse`
+```json
+{
+  "success": true,
+  "entries": [
+    {
+      "id": "audit-guid-1",
+      "assetId": 12345,
+      "network": "voimain",
+      "actionType": "Update",
+      "performedBy": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+      "performedAt": "2026-01-22T10:30:00Z",
+      "success": true,
+      "errorMessage": null,
+      "oldComplianceStatus": "UnderReview",
+      "newComplianceStatus": "Compliant",
+      "oldVerificationStatus": "Pending",
+      "newVerificationStatus": "Verified",
+      "notes": "Updated compliance metadata",
+      "itemCount": null,
+      "filterCriteria": null
+    }
+  ],
+  "totalCount": 150,
+  "page": 1,
+  "pageSize": 50,
+  "totalPages": 3,
+  "retentionPolicy": {
+    "minimumRetentionYears": 7,
+    "regulatoryFramework": "MICA",
+    "immutableEntries": true,
+    "description": "Audit logs are retained for a minimum of 7 years to comply with MICA and other regulatory requirements. All entries are immutable and cannot be modified or deleted."
+  }
+}
+```
+
+**Audit Entry Fields:**
+- `id`: Unique identifier for the audit entry
+- `assetId`: Token asset ID (null for list operations)
+- `network`: Blockchain network
+- `actionType`: Type of operation (Create, Update, Delete, Read, List)
+- `performedBy`: Algorand address of the user who performed the action
+- `performedAt`: Timestamp when the action was performed
+- `success`: Whether the operation completed successfully
+- `errorMessage`: Error message if the operation failed
+- `oldComplianceStatus`: Previous compliance status (for updates)
+- `newComplianceStatus`: New compliance status (for creates/updates)
+- `oldVerificationStatus`: Previous verification status (for updates)
+- `newVerificationStatus`: New verification status (for creates/updates)
+- `notes`: Additional context about the operation
+- `itemCount`: Number of items returned (for list operations)
+- `filterCriteria`: Filter criteria applied (for list operations)
+
+**Status Codes:**
+- `200 OK`: Success
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+---
+
+### 6. Export Audit Log (CSV)
+
+**Endpoint:** `GET /api/v1/compliance/audit-log/export/csv`
+
+**Description:** Exports audit log entries as a CSV file for regulatory compliance reporting. Maximum 10,000 records per export.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** Recommended for compliance and admin roles only
+
+**Query Parameters:** Same as Get Audit Log endpoint (except page/pageSize)
+
+**Example:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/audit-log/export/csv?fromDate=2026-01-01T00:00:00Z&toDate=2026-01-31T23:59:59Z" \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -o compliance-audit-log.csv
+```
+
+**Response:** CSV file with headers
+```csv
+Id,AssetId,Network,ActionType,PerformedBy,PerformedAt,Success,ErrorMessage,OldComplianceStatus,NewComplianceStatus,OldVerificationStatus,NewVerificationStatus,ItemCount,FilterCriteria,Notes
+"audit-guid-1",12345,"voimain","Update","VCMJKWOY...","2026-01-22T10:30:00Z",True,"","UnderReview","Compliant","Pending","Verified",,"","Updated compliance metadata"
+```
+
+**Status Codes:**
+- `200 OK`: Success (returns CSV file)
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+---
+
+### 7. Export Audit Log (JSON)
+
+**Endpoint:** `GET /api/v1/compliance/audit-log/export/json`
+
+**Description:** Exports audit log entries as a JSON file for regulatory compliance reporting. Maximum 10,000 records per export.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** Recommended for compliance and admin roles only
+
+**Query Parameters:** Same as Get Audit Log endpoint (except page/pageSize)
+
+**Example:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/audit-log/export/json?assetId=12345" \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -o compliance-audit-log.json
+```
+
+**Response:** JSON file with complete audit log response structure (same as Get Audit Log endpoint)
+
+**Status Codes:**
+- `200 OK`: Success (returns JSON file)
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+---
+
+### 8. Get Retention Policy
+
+**Endpoint:** `GET /api/v1/compliance/audit-log/retention-policy`
+
+**Description:** Returns metadata about the audit log retention policy.
+
+**Authentication:** Required (ARC-0014)
+
+**Response:** `AuditRetentionPolicy`
+```json
+{
+  "minimumRetentionYears": 7,
+  "regulatoryFramework": "MICA",
+  "immutableEntries": true,
+  "description": "Audit logs are retained for a minimum of 7 years to comply with MICA and other regulatory requirements. All entries are immutable and cannot be modified or deleted."
+}
+```
+
+**Status Codes:**
+- `200 OK`: Success
+- `401 Unauthorized`: Missing or invalid authentication
+
+---
+
+## Audit Log Features
+
+### Automatic Logging
+All compliance operations are automatically logged:
+- **Create**: New compliance metadata creation
+- **Update**: Compliance metadata updates (tracks old and new values)
+- **Delete**: Compliance metadata deletion
+- **Read**: Single metadata retrieval
+- **List**: Metadata listing with filters
+
+### Immutability
+- All audit log entries are immutable and cannot be modified or deleted
+- Entries include unique IDs and timestamps for verification
+- Perfect for regulatory compliance and forensic analysis
+
+### Retention Policy
+- Minimum retention period: **7 years**
+- Regulatory framework: **MICA** (Markets in Crypto-Assets Regulation)
+- Complies with RWA token regulatory requirements
+- Suitable for enterprise audit trails
+
+### Use Cases
+1. **Regulatory Compliance Reporting**: Export audit logs for regulatory filings and inspections
+2. **Incident Investigations**: Trace all compliance-related activities during security or compliance incidents
+3. **Access Audits**: Monitor who accessed compliance data and when
+4. **Change Tracking**: Track all changes to compliance metadata over time
+5. **Compliance Dashboards**: Build real-time compliance monitoring dashboards
+
+---
+
+## Audit Log Examples
+
+### Example 1: View Recent Compliance Changes
+
+**Request:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/audit-log?actionType=Update&page=1&pageSize=10" \
+  -H "Authorization: SigTx <signed-transaction>"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "entries": [
+    {
+      "id": "audit-123",
+      "assetId": 12345,
+      "actionType": "Update",
+      "performedBy": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+      "performedAt": "2026-01-22T14:30:00Z",
+      "success": true,
+      "oldComplianceStatus": "UnderReview",
+      "newComplianceStatus": "Compliant"
+    }
+  ],
+  "totalCount": 1,
+  "page": 1,
+  "pageSize": 10,
+  "totalPages": 1
+}
+```
+
+### Example 2: Export Monthly Report
+
+**Request:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/audit-log/export/csv?fromDate=2026-01-01T00:00:00Z&toDate=2026-01-31T23:59:59Z" \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -o january-2026-compliance-audit.csv
+```
+
+**Result:** Downloads CSV file with all audit entries for January 2026
+
+### Example 3: Investigate Failed Operations
+
+**Request:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/audit-log?success=false&fromDate=2026-01-20T00:00:00Z" \
+  -H "Authorization: SigTx <signed-transaction>"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "entries": [
+    {
+      "id": "audit-456",
+      "assetId": 12345,
+      "actionType": "Create",
+      "performedBy": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+      "performedAt": "2026-01-21T10:15:00Z",
+      "success": false,
+      "errorMessage": "VOI network requires jurisdiction to be specified for compliance"
+    }
+  ]
+}
+```
+
+### Example 4: Track Specific Token Changes
+
+**Request:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/audit-log?assetId=12345&page=1&pageSize=50" \
+  -H "Authorization: SigTx <signed-transaction>"
+```
+
+**Response:** Returns complete audit history for token 12345
+
+---
+
 ## Best Practices
 
 1. **Always specify network**: Include the `network` field to enable network-specific validation
@@ -475,7 +766,12 @@ curl -X POST https://api.example.com/api/v1/whitelist/validate-transfer \
 4. **Track KYC status**: Use the enhanced whitelist fields to maintain KYC verification status
 5. **Set expiration dates**: Use `expirationDate` in whitelist entries for time-limited compliance
 6. **Maintain audit trail**: All changes are tracked with `createdBy`, `updatedBy`, and timestamps
-7. **Validate before transfers**: Use the transfer validation endpoint to check compliance before executing blockchain transactions (NEW)
+7. **Validate before transfers**: Use the transfer validation endpoint to check compliance before executing blockchain transactions
+8. **Regular audit exports**: Export audit logs regularly for backup and compliance reporting (monthly/quarterly)
+9. **Monitor failed operations**: Review failed operations in audit logs to identify compliance issues early
+10. **Use date range filters**: When querying audit logs, use date ranges to optimize performance
+11. **Secure audit access**: Restrict audit log access to compliance officers and administrators only
+12. **Document retention**: Store exported audit logs according to your organization's retention policy (minimum 7 years)
 
 ---
 
