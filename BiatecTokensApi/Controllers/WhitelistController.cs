@@ -421,7 +421,7 @@ namespace BiatecTokensApi.Controllers
                 {
                     Success = false,
                     IsAllowed = false,
-                    ErrorMessage = $"Internal error: {ex.Message}",
+                    ErrorMessage = "An error occurred while validating the transfer. Please try again or contact support.",
                     DenialReason = "Internal validation error"
                 });
             }
