@@ -416,6 +416,23 @@
             <param name="pageSize">Page size (default: 50, max: 100)</param>
             <returns>Audit log entries with pagination</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ValidateTransfer(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest)">
+            <summary>
+            Validates if a transfer between two addresses is allowed based on whitelist rules
+            </summary>
+            <param name="request">The transfer validation request</param>
+            <returns>Validation response indicating if the transfer is allowed</returns>
+            <remarks>
+            This endpoint validates whether a token transfer is permitted based on whitelist compliance rules.
+            Both sender and receiver must be actively whitelisted (status=Active) with non-expired entries.
+            
+            Use this endpoint before executing transfers to ensure compliance with MICA regulations
+            and other regulatory requirements for RWA tokens.
+            
+            The response includes detailed status information for both sender and receiver,
+            including whitelist status, expiration dates, and specific denial reasons if applicable.
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetUserAddress">
             <summary>
             Gets the authenticated user's Algorand address from the claims
@@ -2490,6 +2507,31 @@
             Page size for pagination
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ValidateTransferRequest">
+            <summary>
+            Request to validate a token transfer between two addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to validate the transfer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferRequest.FromAddress">
+            <summary>
+            The sender's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferRequest.ToAddress">
+            <summary>
+            The receiver's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferRequest.Amount">
+            <summary>
+            Optional amount to transfer (for future use in amount-based restrictions)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistResponse">
             <summary>
             Response for whitelist operations
@@ -2563,6 +2605,66 @@
         <member name="P:BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse.ValidationErrors">
             <summary>
             List of validation errors
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ValidateTransferResponse">
+            <summary>
+            Response for transfer validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferResponse.IsAllowed">
+            <summary>
+            Whether the transfer is allowed based on whitelist rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferResponse.DenialReason">
+            <summary>
+            Reason why the transfer is not allowed (if IsAllowed is false)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferResponse.SenderStatus">
+            <summary>
+            Details about the sender's whitelist status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateTransferResponse.ReceiverStatus">
+            <summary>
+            Details about the receiver's whitelist status
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus">
+            <summary>
+            Status information for a transfer participant (sender or receiver)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus.Address">
+            <summary>
+            The Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus.IsWhitelisted">
+            <summary>
+            Whether the address is whitelisted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus.IsActive">
+            <summary>
+            Whether the whitelist entry is active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus.IsExpired">
+            <summary>
+            Whether the whitelist entry has expired
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus.ExpirationDate">
+            <summary>
+            The expiration date if applicable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus.Status">
+            <summary>
+            Current whitelist status
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Program">
@@ -3463,6 +3565,13 @@
             <param name="request">The audit log request with filters and pagination</param>
             <returns>The audit log response with entries and pagination info</returns>
         </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.ValidateTransferAsync(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest)">
+            <summary>
+            Validates if a transfer between two addresses is allowed based on whitelist rules
+            </summary>
+            <param name="request">The transfer validation request</param>
+            <returns>The validation response indicating if the transfer is allowed</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.SubscriptionMeteringService">
             <summary>
             Service for emitting subscription metering events for billing and analytics
@@ -3543,6 +3652,13 @@
             and pagination is applied at the service level. In a production database implementation,
             pagination should be moved to the repository layer for better performance.
             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.ValidateTransferAsync(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest)">
+            <summary>
+            Validates if a transfer between two addresses is allowed based on whitelist rules
+            </summary>
+            <param name="request">The transfer validation request</param>
+            <returns>The validation response indicating if the transfer is allowed</returns>
         </member>
     </members>
 </doc>

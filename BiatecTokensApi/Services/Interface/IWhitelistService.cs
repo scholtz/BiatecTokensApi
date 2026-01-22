@@ -50,5 +50,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="request">The audit log request with filters and pagination</param>
         /// <returns>The audit log response with entries and pagination info</returns>
         Task<WhitelistAuditLogResponse> GetAuditLogAsync(GetWhitelistAuditLogRequest request);
+
+        /// <summary>
+        /// Validates if a transfer between two addresses is allowed based on whitelist rules
+        /// </summary>
+        /// <param name="request">The transfer validation request</param>
+        /// <returns>The validation response indicating if the transfer is allowed</returns>
+        Task<ValidateTransferResponse> ValidateTransferAsync(ValidateTransferRequest request);
     }
 }

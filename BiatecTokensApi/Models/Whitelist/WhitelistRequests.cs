@@ -145,4 +145,33 @@ namespace BiatecTokensApi.Models.Whitelist
         [Range(1, 100)]
         public int PageSize { get; set; } = 20;
     }
+
+    /// <summary>
+    /// Request to validate a token transfer between two addresses
+    /// </summary>
+    public class ValidateTransferRequest
+    {
+        /// <summary>
+        /// The asset ID (token ID) for which to validate the transfer
+        /// </summary>
+        [Required]
+        public ulong AssetId { get; set; }
+
+        /// <summary>
+        /// The sender's Algorand address
+        /// </summary>
+        [Required]
+        public string FromAddress { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The receiver's Algorand address
+        /// </summary>
+        [Required]
+        public string ToAddress { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional amount to transfer (for future use in amount-based restrictions)
+        /// </summary>
+        public ulong? Amount { get; set; }
+    }
 }
