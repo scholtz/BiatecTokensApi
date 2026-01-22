@@ -349,6 +349,124 @@ curl -X POST https://api.example.com/api/v1/compliance \
 
 ---
 
+## Transfer Validation API (NEW)
+
+### Validate Transfer Endpoint
+
+**Endpoint:** `POST /api/v1/whitelist/validate-transfer`
+
+**Description:** Validates whether a token transfer between two addresses is permitted based on whitelist compliance rules. This endpoint supports MICA-aligned compliance flows for RWA tokens.
+
+**Authentication:** Required (ARC-0014)
+
+**Use Cases:**
+- Pre-transfer compliance checks before executing blockchain transactions
+- Real-time validation for trading platforms and exchanges
+- Compliance verification for custodial services
+- Regulatory reporting and audit trail generation
+
+**Request Body:** `ValidateTransferRequest`
+```json
+{
+  "assetId": 12345,
+  "fromAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+  "toAddress": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+  "amount": 1000
+}
+```
+
+**Field Descriptions:**
+- `assetId` (required): Token asset ID
+- `fromAddress` (required): Sender's Algorand address (58 characters)
+- `toAddress` (required): Receiver's Algorand address (58 characters)
+- `amount` (optional): Transfer amount (for future use in amount-based restrictions)
+
+**Response:** `ValidateTransferResponse`
+
+**Success - Transfer Allowed:**
+```json
+{
+  "success": true,
+  "isAllowed": true,
+  "denialReason": null,
+  "senderStatus": {
+    "address": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "isWhitelisted": true,
+    "isActive": true,
+    "isExpired": false,
+    "expirationDate": "2027-12-31T23:59:59Z",
+    "status": "Active"
+  },
+  "receiverStatus": {
+    "address": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+    "isWhitelisted": true,
+    "isActive": true,
+    "isExpired": false,
+    "expirationDate": null,
+    "status": "Active"
+  }
+}
+```
+
+**Success - Transfer Denied:**
+```json
+{
+  "success": true,
+  "isAllowed": false,
+  "denialReason": "Receiver address AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ is not whitelisted for asset 12345",
+  "senderStatus": {
+    "address": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "isWhitelisted": true,
+    "isActive": true,
+    "isExpired": false,
+    "expirationDate": null,
+    "status": "Active"
+  },
+  "receiverStatus": {
+    "address": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+    "isWhitelisted": false,
+    "isActive": false,
+    "isExpired": false,
+    "expirationDate": null,
+    "status": null
+  }
+}
+```
+
+**Validation Rules:**
+1. Both sender and receiver must be whitelisted for the specified asset
+2. Both whitelist entries must have `status = "Active"`
+3. Neither entry can be expired (if `expirationDate` is set)
+4. Both addresses must be valid Algorand addresses (58 characters)
+
+**Possible Denial Reasons:**
+- Sender/Receiver not whitelisted
+- Sender/Receiver status is Inactive or Revoked
+- Sender/Receiver whitelist entry has expired
+- Invalid address format
+
+**Status Codes:**
+- `200 OK`: Validation completed successfully (check `isAllowed` field)
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+**Example Usage:**
+
+```bash
+# Valid transfer
+curl -X POST https://api.example.com/api/v1/whitelist/validate-transfer \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assetId": 12345,
+    "fromAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "toAddress": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+  }'
+```
+
+---
+
 ## Best Practices
 
 1. **Always specify network**: Include the `network` field to enable network-specific validation
@@ -357,6 +475,7 @@ curl -X POST https://api.example.com/api/v1/compliance \
 4. **Track KYC status**: Use the enhanced whitelist fields to maintain KYC verification status
 5. **Set expiration dates**: Use `expirationDate` in whitelist entries for time-limited compliance
 6. **Maintain audit trail**: All changes are tracked with `createdBy`, `updatedBy`, and timestamps
+7. **Validate before transfers**: Use the transfer validation endpoint to check compliance before executing blockchain transactions (NEW)
 
 ---
 
