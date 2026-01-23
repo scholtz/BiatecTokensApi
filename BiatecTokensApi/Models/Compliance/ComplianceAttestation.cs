@@ -354,6 +354,7 @@ namespace BiatecTokensApi.Models.Compliance
         /// The token ID (asset ID) for which to generate the attestation package
         /// </summary>
         [Required]
+        [Range(1, ulong.MaxValue, ErrorMessage = "TokenId must be greater than zero")]
         public ulong TokenId { get; set; }
 
         /// <summary>
@@ -371,6 +372,7 @@ namespace BiatecTokensApi.Models.Compliance
         /// </summary>
         [Required]
         [MaxLength(10)]
+        [RegularExpression("^(json|pdf)$", ErrorMessage = "Format must be either 'json' or 'pdf'")]
         public string Format { get; set; } = "json";
     }
 

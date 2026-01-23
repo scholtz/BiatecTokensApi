@@ -1371,6 +1371,16 @@ namespace BiatecTokensApi.Services
         {
             try
             {
+                // Validate date range
+                if (request.FromDate.HasValue && request.ToDate.HasValue && request.FromDate > request.ToDate)
+                {
+                    return new AttestationPackageResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "FromDate cannot be greater than ToDate"
+                    };
+                }
+
                 // Validate format
                 if (!string.Equals(request.Format, "json", StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(request.Format, "pdf", StringComparison.OrdinalIgnoreCase))
@@ -1382,10 +1392,15 @@ namespace BiatecTokensApi.Services
                     };
                 }
 
+                // Note: PDF format is validated here but not yet implemented in the controller
+                // The controller will return 501 Not Implemented for PDF requests
+
                 // Get compliance metadata for the token
                 var metadata = await _complianceRepository.GetMetadataByAssetIdAsync(request.TokenId);
                 
                 // Get attestations for the token in the date range
+                // Note: PageSize is set to 100. For tokens with more attestations,
+                // consider implementing pagination or increasing the page size
                 var attestationsRequest = new ListComplianceAttestationsRequest
                 {
                     AssetId = request.TokenId,
@@ -1411,7 +1426,9 @@ namespace BiatecTokensApi.Services
                     }
                 };
 
-                // Get whitelist policy info (mock for now - would need WhitelistService integration)
+                // Get whitelist policy info
+                // TODO: Integrate with WhitelistService for actual whitelist data
+                // Currently using placeholder data - this is a known limitation
                 package.WhitelistPolicy = new WhitelistPolicyInfo
                 {
                     IsEnabled = false,
@@ -1431,7 +1448,11 @@ namespace BiatecTokensApi.Services
                     };
                 }
 
-                // Token metadata would come from blockchain - for now create placeholder
+                // Token metadata
+                // TODO: Integrate with blockchain service to retrieve actual token metadata
+                // Currently using placeholder with only AssetId - this is a known limitation
+                // affecting audit completeness. Future enhancement should query Algorand/EVM
+                // networks for creator, manager, reserve, freeze, and clawback addresses
                 package.Token = new TokenMetadata
                 {
                     AssetId = request.TokenId
@@ -1441,12 +1462,15 @@ namespace BiatecTokensApi.Services
                 package.ContentHash = GeneratePackageHash(package);
 
                 // Generate signature metadata
+                // TODO: Implement actual cryptographic signature using private key
+                // Currently providing structure only - this is a known limitation
+                // For production use, integrate with key management system to sign
+                // the ContentHash with the issuer's private key
                 package.Signature = new SignatureMetadata
                 {
                     Algorithm = "SHA256",
                     SignedAt = DateTime.UtcNow
-                    // Note: Actual signature would require private key access
-                    // For now, providing metadata structure for audit verification
+                    // SignatureValue and PublicKey would be populated with actual signature
                 };
 
                 // Emit metering event for package generation

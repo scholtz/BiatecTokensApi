@@ -154,6 +154,27 @@ namespace BiatecTokensTests
         }
 
         [Test]
+        public async Task GenerateAttestationPackageAsync_FromDateGreaterThanToDate_ShouldFail()
+        {
+            // Arrange
+            var request = new GenerateAttestationPackageRequest
+            {
+                TokenId = 12345,
+                FromDate = DateTime.UtcNow,
+                ToDate = DateTime.UtcNow.AddMonths(-1),
+                Format = "json"
+            };
+
+            // Act
+            var result = await _service.GenerateAttestationPackageAsync(request, TestUserAddress);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("FromDate"));
+            Assert.That(result.ErrorMessage, Does.Contain("ToDate"));
+        }
+
+        [Test]
         public async Task GenerateAttestationPackageAsync_NoMetadata_ShouldStillSucceed()
         {
             // Arrange
