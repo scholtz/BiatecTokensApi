@@ -448,9 +448,10 @@ namespace BiatecTokensTests
             Assert.That(deserialized, Is.Not.Null);
             Assert.That(deserialized!.Tokens[0].Warnings.Count, Is.EqualTo(2));
             Assert.That(deserialized.Tokens[0].ComplianceHealthScore, Is.EqualTo(45));
+            Assert.That(deserialized.Tokens[0].NetworkSpecificStatus, Is.Not.Null);
             Assert.That(deserialized.Tokens[0].NetworkSpecificStatus!.MeetsNetworkRequirements, Is.False);
-            Assert.That(deserialized.Tokens[0].NetworkSpecificStatus.ViolatedRules.Count, Is.EqualTo(1));
-            Assert.That(deserialized.Tokens[0].NetworkSpecificStatus.Recommendations.Count, Is.EqualTo(3));
+            Assert.That(deserialized.Tokens[0].NetworkSpecificStatus!.ViolatedRules.Count, Is.EqualTo(1));
+            Assert.That(deserialized.Tokens[0].NetworkSpecificStatus!.Recommendations.Count, Is.EqualTo(3));
         }
 
         [Test]
