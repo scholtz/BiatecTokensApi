@@ -483,12 +483,21 @@ To download the OpenAPI specification from CI:
 
 The API provides comprehensive compliance metadata management for Real World Asset (RWA) tokens, including KYC/AML verification tracking, jurisdiction management, and regulatory compliance monitoring.
 
-### Compliance Endpoints
+### Compliance Metadata Endpoints
 
 - `GET /api/v1/compliance/{assetId}` - Get compliance metadata for a token
 - `POST /api/v1/compliance` - Create or update compliance metadata
 - `DELETE /api/v1/compliance/{assetId}` - Delete compliance metadata
 - `GET /api/v1/compliance` - List compliance metadata with filtering
+
+### Compliance Attestation Endpoints (MICA Audit Trail)
+
+- `POST /api/v1/compliance/attestations` - Create compliance attestation (KYC, AML, accreditation)
+- `GET /api/v1/compliance/attestations` - List attestations with filtering
+- `GET /api/v1/compliance/attestations/{id}` - Get specific attestation by ID
+- `GET /api/v1/compliance/attestations/export/json` - Export attestations as JSON
+- `GET /api/v1/compliance/attestations/export/csv` - Export attestations as CSV
+- `POST /api/v1/compliance/attestation` - Generate MICA attestation package for audit
 
 ### Whitelist Management
 
