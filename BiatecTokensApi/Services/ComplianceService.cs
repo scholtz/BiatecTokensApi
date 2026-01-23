@@ -966,5 +966,402 @@ namespace BiatecTokensApi.Services
                 };
             }
         }
+
+        /// <inheritdoc/>
+        public async Task<TokenComplianceReportResponse> GetComplianceReportAsync(
+            GetTokenComplianceReportRequest request,
+            string requestedBy)
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Generating compliance report for network: {Network}, asset: {AssetId}, requested by: {RequestedBy}",
+                    request.Network ?? "All", request.AssetId?.ToString() ?? "All", requestedBy);
+
+                // Get compliance metadata with optional filtering
+                var metadataListRequest = new ListComplianceMetadataRequest
+                {
+                    Network = request.Network,
+                    Page = request.Page,
+                    PageSize = request.PageSize
+                };
+
+                var metadataList = await _complianceRepository.ListMetadataAsync(metadataListRequest);
+                var totalCount = await _complianceRepository.GetMetadataCountAsync(metadataListRequest);
+
+                // If a specific asset ID is requested, filter to just that asset
+                if (request.AssetId.HasValue)
+                {
+                    metadataList = metadataList.Where(m => m.AssetId == request.AssetId.Value).ToList();
+                    totalCount = metadataList.Count;
+                }
+
+                var tokenStatuses = new List<TokenComplianceStatus>();
+
+                foreach (var metadata in metadataList)
+                {
+                    var tokenStatus = await BuildTokenComplianceStatusAsync(metadata, request, requestedBy);
+                    tokenStatuses.Add(tokenStatus);
+                }
+
+                var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+                // Emit metering event for compliance report generation
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Network = request.Network,
+                    AssetId = request.AssetId ?? 0,
+                    OperationType = MeteringOperationType.Upsert, // Using Upsert as generic "operation"
+                    Category = MeteringCategory.Compliance,
+                    PerformedBy = requestedBy,
+                    ItemCount = tokenStatuses.Count,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "ReportType", "ComplianceReport" },
+                        { "IncludeWhitelist", request.IncludeWhitelistDetails.ToString() },
+                        { "IncludeTransfers", request.IncludeTransferAudits.ToString() },
+                        { "IncludeCompliance", request.IncludeComplianceAudits.ToString() }
+                    }
+                });
+
+                _logger.LogInformation(
+                    "Generated compliance report with {Count} tokens for {RequestedBy}",
+                    tokenStatuses.Count, requestedBy);
+
+                return new TokenComplianceReportResponse
+                {
+                    Success = true,
+                    Tokens = tokenStatuses,
+                    TotalCount = totalCount,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPages,
+                    GeneratedAt = DateTime.UtcNow,
+                    NetworkFilter = request.Network,
+                    SubscriptionInfo = new ReportSubscriptionInfo
+                    {
+                        TierName = "Enterprise", // Could be retrieved from subscription service
+                        AuditLogEnabled = true,
+                        MaxAssetsPerReport = 100,
+                        DetailedReportsEnabled = true,
+                        Metered = true
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating compliance report");
+                return new TokenComplianceReportResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Builds a comprehensive compliance status for a single token
+        /// </summary>
+        private async Task<TokenComplianceStatus> BuildTokenComplianceStatusAsync(
+            ComplianceMetadata metadata,
+            GetTokenComplianceReportRequest request,
+            string requestedBy)
+        {
+            var tokenStatus = new TokenComplianceStatus
+            {
+                AssetId = metadata.AssetId,
+                Network = metadata.Network,
+                ComplianceMetadata = metadata
+            };
+
+            // Get whitelist summary if requested
+            if (request.IncludeWhitelistDetails)
+            {
+                tokenStatus.WhitelistSummary = await GetWhitelistSummaryAsync(
+                    metadata.AssetId,
+                    request.FromDate,
+                    request.ToDate);
+            }
+
+            // Get compliance audit entries if requested
+            if (request.IncludeComplianceAudits)
+            {
+                var complianceAuditRequest = new GetComplianceAuditLogRequest
+                {
+                    AssetId = metadata.AssetId,
+                    Network = metadata.Network,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    PageSize = request.MaxAuditEntriesPerCategory
+                };
+                var complianceAuditResult = await _complianceRepository.GetAuditLogAsync(complianceAuditRequest);
+                tokenStatus.ComplianceAuditEntries = complianceAuditResult;
+            }
+
+            // Get whitelist audit entries if requested
+            if (request.IncludeWhitelistDetails || request.IncludeTransferAudits)
+            {
+                tokenStatus.WhitelistAuditEntries = await GetWhitelistAuditEntriesAsync(
+                    metadata.AssetId,
+                    metadata.Network,
+                    request.FromDate,
+                    request.ToDate,
+                    request.MaxAuditEntriesPerCategory,
+                    includeTransferValidations: false);
+
+                if (request.IncludeTransferAudits)
+                {
+                    tokenStatus.TransferValidationEntries = await GetWhitelistAuditEntriesAsync(
+                        metadata.AssetId,
+                        metadata.Network,
+                        request.FromDate,
+                        request.ToDate,
+                        request.MaxAuditEntriesPerCategory,
+                        includeTransferValidations: true);
+                }
+            }
+
+            // Calculate compliance health score
+            tokenStatus.ComplianceHealthScore = CalculateComplianceHealthScore(tokenStatus);
+
+            // Evaluate VOI/Aramid specific compliance
+            tokenStatus.NetworkSpecificStatus = EvaluateNetworkSpecificCompliance(metadata);
+
+            // Identify warnings
+            tokenStatus.Warnings = IdentifyComplianceWarnings(tokenStatus);
+
+            return tokenStatus;
+        }
+
+        /// <summary>
+        /// Gets whitelist summary statistics for a token
+        /// </summary>
+        private async Task<WhitelistSummary> GetWhitelistSummaryAsync(
+            ulong assetId,
+            DateTime? fromDate,
+            DateTime? toDate)
+        {
+            // Note: This requires access to whitelist repository
+            // For now, return a placeholder. In production, inject IWhitelistRepository
+            // TODO: Integrate with IWhitelistRepository to fetch actual whitelist statistics
+            _logger.LogWarning(
+                "Returning placeholder whitelist summary for asset {AssetId}. Whitelist repository integration pending.",
+                assetId);
+            
+            return new WhitelistSummary
+            {
+                TotalAddresses = 0,
+                ActiveAddresses = 0,
+                RevokedAddresses = 0,
+                SuspendedAddresses = 0,
+                KycVerifiedAddresses = 0,
+                LastModified = null,
+                TransferValidationsCount = 0,
+                DeniedTransfersCount = 0
+            };
+        }
+
+        /// <summary>
+        /// Gets whitelist audit entries for a token
+        /// </summary>
+        private async Task<List<Models.Whitelist.WhitelistAuditLogEntry>> GetWhitelistAuditEntriesAsync(
+            ulong assetId,
+            string? network,
+            DateTime? fromDate,
+            DateTime? toDate,
+            int maxEntries,
+            bool includeTransferValidations)
+        {
+            // Note: This requires access to whitelist repository
+            // For now, return empty list. In production, inject IWhitelistRepository
+            // TODO: Integrate with IWhitelistRepository to fetch actual whitelist audit entries
+            _logger.LogWarning(
+                "Returning empty whitelist audit entries for asset {AssetId}, transferValidations: {IncludeTransfers}. Whitelist repository integration pending.",
+                assetId, includeTransferValidations);
+            
+            return new List<Models.Whitelist.WhitelistAuditLogEntry>();
+        }
+
+        /// <summary>
+        /// Calculates a compliance health score (0-100) based on multiple factors
+        /// </summary>
+        private int CalculateComplianceHealthScore(TokenComplianceStatus status)
+        {
+            int score = 0;
+
+            if (status.ComplianceMetadata != null)
+            {
+                // Compliance status contribution (40 points)
+                score += status.ComplianceMetadata.ComplianceStatus switch
+                {
+                    ComplianceStatus.Compliant => 40,
+                    ComplianceStatus.UnderReview => 20,
+                    ComplianceStatus.Exempt => 30,
+                    ComplianceStatus.NonCompliant => 0,
+                    ComplianceStatus.Suspended => 0,
+                    _ => 0
+                };
+
+                // Verification status contribution (30 points)
+                score += status.ComplianceMetadata.VerificationStatus switch
+                {
+                    VerificationStatus.Verified => 30,
+                    VerificationStatus.InProgress => 15,
+                    VerificationStatus.Pending => 10,
+                    VerificationStatus.Failed => 0,
+                    VerificationStatus.Expired => 0,
+                    _ => 0
+                };
+
+                // Regulatory framework specified (10 points)
+                if (!string.IsNullOrEmpty(status.ComplianceMetadata.RegulatoryFramework))
+                {
+                    score += 10;
+                }
+
+                // KYC provider specified (10 points)
+                if (!string.IsNullOrEmpty(status.ComplianceMetadata.KycProvider))
+                {
+                    score += 10;
+                }
+
+                // Jurisdiction specified (10 points)
+                if (!string.IsNullOrEmpty(status.ComplianceMetadata.Jurisdiction))
+                {
+                    score += 10;
+                }
+            }
+
+            // Cap score at 100
+            return Math.Min(100, score);
+        }
+
+        /// <summary>
+        /// Evaluates network-specific compliance rules for VOI/Aramid
+        /// </summary>
+        private NetworkComplianceStatus EvaluateNetworkSpecificCompliance(ComplianceMetadata metadata)
+        {
+            var networkStatus = new NetworkComplianceStatus
+            {
+                MeetsNetworkRequirements = true
+            };
+
+            if (string.IsNullOrEmpty(metadata.Network))
+            {
+                return networkStatus;
+            }
+
+            // VOI Network Rules
+            if (metadata.Network.StartsWith("voimain", StringComparison.Ordinal))
+            {
+                // Rule 1: KYC verification recommended for tokens requiring accredited investors
+                if (metadata.RequiresAccreditedInvestors && metadata.VerificationStatus == VerificationStatus.Verified)
+                {
+                    networkStatus.SatisfiedRules.Add("VOI: KYC verification present for accredited investor tokens");
+                }
+                else if (metadata.RequiresAccreditedInvestors && metadata.VerificationStatus != VerificationStatus.Verified)
+                {
+                    networkStatus.ViolatedRules.Add("VOI: KYC verification recommended for tokens requiring accredited investors");
+                    networkStatus.Recommendations.Add("Complete KYC verification to meet VOI network best practices");
+                    networkStatus.MeetsNetworkRequirements = false;
+                }
+
+                // Rule 2: Jurisdiction should be specified
+                if (!string.IsNullOrEmpty(metadata.Jurisdiction))
+                {
+                    networkStatus.SatisfiedRules.Add("VOI: Jurisdiction specified for compliance tracking");
+                }
+                else
+                {
+                    networkStatus.ViolatedRules.Add("VOI: Jurisdiction not specified");
+                    networkStatus.Recommendations.Add("Specify jurisdiction to meet VOI network requirements");
+                    networkStatus.MeetsNetworkRequirements = false;
+                }
+            }
+
+            // Aramid Network Rules
+            if (metadata.Network.StartsWith("aramidmain", StringComparison.Ordinal))
+            {
+                // Rule 1: Regulatory framework required for compliant status
+                if (metadata.ComplianceStatus == ComplianceStatus.Compliant && !string.IsNullOrEmpty(metadata.RegulatoryFramework))
+                {
+                    networkStatus.SatisfiedRules.Add("Aramid: Regulatory framework specified for compliant tokens");
+                }
+                else if (metadata.ComplianceStatus == ComplianceStatus.Compliant && string.IsNullOrEmpty(metadata.RegulatoryFramework))
+                {
+                    networkStatus.ViolatedRules.Add("Aramid: Regulatory framework required when status is Compliant");
+                    networkStatus.Recommendations.Add("Specify regulatory framework (e.g., MICA, SEC Reg D) for Aramid network");
+                    networkStatus.MeetsNetworkRequirements = false;
+                }
+
+                // Rule 2: MaxHolders should be set for security tokens
+                if (!string.IsNullOrEmpty(metadata.AssetType) && 
+                    metadata.AssetType.Contains("Security", StringComparison.OrdinalIgnoreCase) &&
+                    metadata.MaxHolders.HasValue)
+                {
+                    networkStatus.SatisfiedRules.Add("Aramid: MaxHolders specified for security tokens");
+                }
+                else if (!string.IsNullOrEmpty(metadata.AssetType) && 
+                         metadata.AssetType.Contains("Security", StringComparison.OrdinalIgnoreCase) &&
+                         !metadata.MaxHolders.HasValue)
+                {
+                    networkStatus.ViolatedRules.Add("Aramid: MaxHolders should be specified for security tokens");
+                    networkStatus.Recommendations.Add("Set maximum holder count for Aramid security tokens");
+                    networkStatus.MeetsNetworkRequirements = false;
+                }
+            }
+
+            return networkStatus;
+        }
+
+        /// <summary>
+        /// Identifies compliance warnings based on token status
+        /// </summary>
+        private List<string> IdentifyComplianceWarnings(TokenComplianceStatus status)
+        {
+            var warnings = new List<string>();
+
+            if (status.ComplianceMetadata == null)
+            {
+                warnings.Add("No compliance metadata found for this token");
+                return warnings;
+            }
+
+            var metadata = status.ComplianceMetadata;
+
+            // Check verification status
+            if (metadata.VerificationStatus == VerificationStatus.Expired)
+            {
+                warnings.Add("KYC verification has expired and needs renewal");
+            }
+            else if (metadata.VerificationStatus == VerificationStatus.Failed)
+            {
+                warnings.Add("KYC verification failed - compliance review required");
+            }
+
+            // Check compliance review dates
+            if (metadata.NextComplianceReview.HasValue && metadata.NextComplianceReview.Value < DateTime.UtcNow)
+            {
+                warnings.Add("Compliance review is overdue");
+            }
+
+            // Check compliance status
+            if (metadata.ComplianceStatus == ComplianceStatus.NonCompliant)
+            {
+                warnings.Add("Token is marked as non-compliant - immediate action required");
+            }
+            else if (metadata.ComplianceStatus == ComplianceStatus.Suspended)
+            {
+                warnings.Add("Token compliance is suspended - operations may be restricted");
+            }
+
+            // Check network-specific warnings
+            if (status.NetworkSpecificStatus != null && !status.NetworkSpecificStatus.MeetsNetworkRequirements)
+            {
+                warnings.Add($"Token does not meet {metadata.Network} network requirements");
+            }
+
+            return warnings;
+        }
     }
 }
