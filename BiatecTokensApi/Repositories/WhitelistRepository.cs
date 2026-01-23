@@ -185,13 +185,19 @@ namespace BiatecTokensApi.Repositories
         }
 
         /// <summary>
-        /// Gets audit log entries for a specific asset with optional filters
+        /// Gets audit log entries with optional filters (for specific asset or all assets)
         /// </summary>
         /// <param name="request">The audit log request with filters and pagination</param>
         /// <returns>List of audit log entries</returns>
         public Task<List<WhitelistAuditLogEntry>> GetAuditLogAsync(GetWhitelistAuditLogRequest request)
         {
-            var query = _auditLog.Where(e => e.AssetId == request.AssetId);
+            IEnumerable<WhitelistAuditLogEntry> query = _auditLog;
+
+            // Filter by asset ID if provided
+            if (request.AssetId.HasValue)
+            {
+                query = query.Where(e => e.AssetId == request.AssetId.Value);
+            }
 
             // Apply filters
             if (!string.IsNullOrEmpty(request.Address))
@@ -209,6 +215,11 @@ namespace BiatecTokensApi.Repositories
                 query = query.Where(e => e.PerformedBy.Equals(request.PerformedBy, StringComparison.OrdinalIgnoreCase));
             }
 
+            if (!string.IsNullOrEmpty(request.Network))
+            {
+                query = query.Where(e => !string.IsNullOrEmpty(e.Network) && e.Network.Equals(request.Network, StringComparison.OrdinalIgnoreCase));
+            }
+
             if (request.FromDate.HasValue)
             {
                 query = query.Where(e => e.PerformedAt >= request.FromDate.Value);
@@ -224,7 +235,8 @@ namespace BiatecTokensApi.Repositories
                 .OrderByDescending(e => e.PerformedAt)
                 .ToList();
 
-            _logger.LogDebug("Retrieved {Count} audit log entries for asset {AssetId}", entries.Count, request.AssetId);
+            var assetIdLog = request.AssetId.HasValue ? $"asset {request.AssetId.Value}" : "all assets";
+            _logger.LogDebug("Retrieved {Count} audit log entries for {AssetLog}", entries.Count, assetIdLog);
 
             return Task.FromResult(entries);
         }

@@ -366,6 +366,296 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Gets audit log for whitelist operations across all assets with optional filtering
+        /// </summary>
+        /// <param name="assetId">Optional filter by asset ID (token ID)</param>
+        /// <param name="address">Optional filter by address</param>
+        /// <param name="actionType">Optional filter by action type</param>
+        /// <param name="performedBy">Optional filter by user who performed the action</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="fromDate">Optional start date filter</param>
+        /// <param name="toDate">Optional end date filter</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 50, max: 100)</param>
+        /// <returns>Audit log entries with pagination and retention policy metadata</returns>
+        /// <remarks>
+        /// This endpoint provides access to immutable audit logs for compliance reporting and incident investigations
+        /// across all whitelist operations. Unlike the asset-specific endpoint, this allows querying across all assets
+        /// and filtering by network for MICA/RWA compliance dashboards.
+        /// 
+        /// **Retention Policy**: Audit logs are retained for a minimum of 7 years to comply with MICA regulations.
+        /// All entries are immutable and cannot be modified or deleted.
+        /// 
+        /// **Use Cases**:
+        /// - Enterprise-wide compliance dashboards
+        /// - Network-specific audit reports (VOI, Aramid)
+        /// - Cross-asset incident investigations
+        /// - Regulatory compliance reporting
+        /// - Actor-based activity tracking
+        /// 
+        /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+        /// </remarks>
+        [HttpGet("audit-log")]
+        [ProducesResponseType(typeof(WhitelistAuditLogResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetAllAuditLogs(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? address = null,
+            [FromQuery] WhitelistActionType? actionType = null,
+            [FromQuery] string? performedBy = null,
+            [FromQuery] string? network = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            try
+            {
+                var request = new GetWhitelistAuditLogRequest
+                {
+                    AssetId = assetId,
+                    Address = address,
+                    ActionType = actionType,
+                    PerformedBy = performedBy,
+                    Network = network,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = page,
+                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                };
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _whitelistService.GetAuditLogAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved {Count} audit log entries (page {Page} of {TotalPages})", 
+                        result.Entries.Count, result.Page, result.TotalPages);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to retrieve audit logs: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving audit logs");
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistAuditLogResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports whitelist audit log as CSV for compliance reporting
+        /// </summary>
+        /// <param name="assetId">Optional filter by asset ID (token ID)</param>
+        /// <param name="address">Optional filter by address</param>
+        /// <param name="actionType">Optional filter by action type</param>
+        /// <param name="performedBy">Optional filter by user who performed the action</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="fromDate">Optional start date filter</param>
+        /// <param name="toDate">Optional end date filter</param>
+        /// <returns>CSV file with audit log entries</returns>
+        /// <remarks>
+        /// Exports audit log entries matching the filter criteria as a CSV file for regulatory compliance reporting.
+        /// The CSV includes all audit fields: timestamp, asset ID, address, action type, actor, network, status changes, and notes.
+        /// 
+        /// **Format**: Standard CSV with headers
+        /// **Encoding**: UTF-8
+        /// **Max Records**: 10,000 per export (use pagination for larger datasets)
+        /// 
+        /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+        /// </remarks>
+        [HttpGet("audit-log/export/csv")]
+        [Produces("text/csv")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportAuditLogCsv(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? address = null,
+            [FromQuery] WhitelistActionType? actionType = null,
+            [FromQuery] string? performedBy = null,
+            [FromQuery] string? network = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            try
+            {
+                const int maxExportRecords = 10000;
+                var request = new GetWhitelistAuditLogRequest
+                {
+                    AssetId = assetId,
+                    Address = address,
+                    ActionType = actionType,
+                    PerformedBy = performedBy,
+                    Network = network,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = 1,
+                    PageSize = maxExportRecords
+                };
+
+                var result = await _whitelistService.GetAuditLogAsync(request);
+
+                if (!result.Success)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError, result.ErrorMessage);
+                }
+
+                // Build CSV content
+                var csv = new System.Text.StringBuilder();
+                csv.AppendLine("Id,AssetId,Address,ActionType,PerformedBy,PerformedAt,OldStatus,NewStatus,Notes,ToAddress,TransferAllowed,DenialReason,Amount,Network,Role");
+
+                foreach (var entry in result.Entries)
+                {
+                    csv.AppendLine($"\"{EscapeCsv(entry.Id)}\"," +
+                        $"{entry.AssetId}," +
+                        $"\"{EscapeCsv(entry.Address)}\"," +
+                        $"\"{entry.ActionType}\"," +
+                        $"\"{EscapeCsv(entry.PerformedBy)}\"," +
+                        $"\"{entry.PerformedAt:O}\"," +
+                        $"\"{entry.OldStatus?.ToString() ?? ""}\"," +
+                        $"\"{entry.NewStatus?.ToString() ?? ""}\"," +
+                        $"\"{EscapeCsv(entry.Notes ?? "")}\"," +
+                        $"\"{EscapeCsv(entry.ToAddress ?? "")}\"," +
+                        $"\"{entry.TransferAllowed?.ToString() ?? ""}\"," +
+                        $"\"{EscapeCsv(entry.DenialReason ?? "")}\"," +
+                        $"\"{entry.Amount?.ToString() ?? ""}\"," +
+                        $"\"{EscapeCsv(entry.Network ?? "")}\"," +
+                        $"\"{entry.Role}\"");
+                }
+
+                var fileName = $"whitelist-audit-log-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
+                
+                _logger.LogInformation("Exported {Count} whitelist audit log entries to CSV", result.Entries.Count);
+
+                return File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting whitelist audit log as CSV");
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Internal error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Exports whitelist audit log as JSON for compliance reporting
+        /// </summary>
+        /// <param name="assetId">Optional filter by asset ID (token ID)</param>
+        /// <param name="address">Optional filter by address</param>
+        /// <param name="actionType">Optional filter by action type</param>
+        /// <param name="performedBy">Optional filter by user who performed the action</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="fromDate">Optional start date filter</param>
+        /// <param name="toDate">Optional end date filter</param>
+        /// <returns>JSON file with audit log entries</returns>
+        /// <remarks>
+        /// Exports audit log entries matching the filter criteria as a JSON file for regulatory compliance reporting.
+        /// The JSON includes all audit fields and retention policy metadata.
+        /// 
+        /// **Max Records**: 10,000 per export (use pagination for larger datasets)
+        /// 
+        /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+        /// </remarks>
+        [HttpGet("audit-log/export/json")]
+        [Produces("application/json")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportAuditLogJson(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? address = null,
+            [FromQuery] WhitelistActionType? actionType = null,
+            [FromQuery] string? performedBy = null,
+            [FromQuery] string? network = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            try
+            {
+                const int maxExportRecords = 10000;
+                var request = new GetWhitelistAuditLogRequest
+                {
+                    AssetId = assetId,
+                    Address = address,
+                    ActionType = actionType,
+                    PerformedBy = performedBy,
+                    Network = network,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = 1,
+                    PageSize = maxExportRecords
+                };
+
+                var result = await _whitelistService.GetAuditLogAsync(request);
+
+                if (!result.Success)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+
+                _logger.LogInformation("Exported {Count} whitelist audit log entries to JSON", result.Entries.Count);
+
+                // Serialize to JSON with pretty printing
+                var json = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+
+                var fileName = $"whitelist-audit-log-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+
+                return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting whitelist audit log as JSON");
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistAuditLogResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets the whitelist audit log retention policy metadata
+        /// </summary>
+        /// <returns>Retention policy information</returns>
+        /// <remarks>
+        /// Returns metadata about the audit log retention policy including minimum retention period,
+        /// regulatory framework, and immutability guarantees.
+        /// </remarks>
+        [HttpGet("audit-log/retention-policy")]
+        [ProducesResponseType(typeof(Models.Whitelist.AuditRetentionPolicy), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public IActionResult GetAuditLogRetentionPolicy()
+        {
+            var policy = new Models.Whitelist.AuditRetentionPolicy
+            {
+                MinimumRetentionYears = 7,
+                RegulatoryFramework = "MICA",
+                ImmutableEntries = true,
+                Description = "Audit logs are retained for a minimum of 7 years to comply with MICA and other regulatory requirements. All entries are immutable and cannot be modified or deleted."
+            };
+
+            return Ok(policy);
+        }
+
+        /// <summary>
         /// Validates if a transfer between two addresses is allowed based on whitelist rules
         /// </summary>
         /// <param name="request">The transfer validation request</param>
@@ -458,6 +748,22 @@ namespace BiatecTokensApi.Controllers
                 ?? string.Empty;
             
             return address;
+        }
+
+        /// <summary>
+        /// Escapes special characters in CSV fields
+        /// </summary>
+        /// <param name="value">The value to escape</param>
+        /// <returns>The escaped value</returns>
+        private static string EscapeCsv(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            // Escape double quotes by doubling them
+            return value.Replace("\"", "\"\"");
         }
     }
 }
