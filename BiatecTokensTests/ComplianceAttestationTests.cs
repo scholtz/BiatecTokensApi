@@ -596,5 +596,249 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region Controller Tests - Export Endpoints
+
+        [Test]
+        public async Task ExportAttestationsJson_WithFilters_ShouldReturnJsonFile()
+        {
+            // Arrange
+            var attestations = new List<ComplianceAttestation>
+            {
+                new ComplianceAttestation
+                {
+                    Id = "test-id-1",
+                    WalletAddress = TestUserAddress,
+                    AssetId = 12345,
+                    IssuerAddress = TestIssuerAddress,
+                    ProofHash = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+                    ProofType = "IPFS",
+                    AttestationType = "KYC",
+                    Network = "voimain-v1.0",
+                    IssuedAt = DateTime.UtcNow.AddDays(-10),
+                    VerificationStatus = AttestationVerificationStatus.Verified
+                },
+                new ComplianceAttestation
+                {
+                    Id = "test-id-2",
+                    WalletAddress = TestUserAddress,
+                    AssetId = 12345,
+                    IssuerAddress = TestIssuerAddress,
+                    ProofHash = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdH",
+                    ProofType = "IPFS",
+                    AttestationType = "AML",
+                    Network = "voimain-v1.0",
+                    IssuedAt = DateTime.UtcNow.AddDays(-5),
+                    VerificationStatus = AttestationVerificationStatus.Verified
+                }
+            };
+
+            _serviceMock.Setup(s => s.ListAttestationsAsync(It.IsAny<ListComplianceAttestationsRequest>()))
+                .ReturnsAsync(new ComplianceAttestationListResponse
+                {
+                    Success = true,
+                    Attestations = attestations,
+                    TotalCount = attestations.Count,
+                    Page = 1,
+                    PageSize = 100
+                });
+
+            // Act
+            var result = await _controller.ExportAttestationsJson(
+                walletAddress: TestUserAddress,
+                assetId: 12345,
+                fromDate: DateTime.UtcNow.AddDays(-30),
+                toDate: DateTime.UtcNow
+            );
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<FileContentResult>());
+            var fileResult = result as FileContentResult;
+            Assert.That(fileResult!.ContentType, Is.EqualTo("application/json"));
+            Assert.That(fileResult.FileDownloadName, Does.StartWith("attestations-export-"));
+            Assert.That(fileResult.FileDownloadName, Does.EndWith(".json"));
+            
+            // Verify service was called with correct filters
+            _serviceMock.Verify(s => s.ListAttestationsAsync(It.Is<ListComplianceAttestationsRequest>(r =>
+                r.WalletAddress == TestUserAddress &&
+                r.AssetId == 12345 &&
+                r.FromDate.HasValue &&
+                r.ToDate.HasValue
+            )), Times.Once);
+        }
+
+        [Test]
+        public async Task ExportAttestationsCsv_WithFilters_ShouldReturnCsvFile()
+        {
+            // Arrange
+            var attestations = new List<ComplianceAttestation>
+            {
+                new ComplianceAttestation
+                {
+                    Id = "test-id-1",
+                    WalletAddress = TestUserAddress,
+                    AssetId = 12345,
+                    IssuerAddress = TestIssuerAddress,
+                    ProofHash = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+                    ProofType = "IPFS",
+                    AttestationType = "KYC",
+                    Network = "voimain-v1.0",
+                    Jurisdiction = "US,EU",
+                    RegulatoryFramework = "MICA",
+                    IssuedAt = DateTime.UtcNow.AddDays(-10),
+                    VerificationStatus = AttestationVerificationStatus.Verified,
+                    CreatedBy = TestUserAddress,
+                    CreatedAt = DateTime.UtcNow.AddDays(-10)
+                }
+            };
+
+            _serviceMock.Setup(s => s.ListAttestationsAsync(It.IsAny<ListComplianceAttestationsRequest>()))
+                .ReturnsAsync(new ComplianceAttestationListResponse
+                {
+                    Success = true,
+                    Attestations = attestations,
+                    TotalCount = attestations.Count,
+                    Page = 1,
+                    PageSize = 100
+                });
+
+            // Act
+            var result = await _controller.ExportAttestationsCsv(
+                assetId: 12345,
+                network: "voimain-v1.0"
+            );
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<FileContentResult>());
+            var fileResult = result as FileContentResult;
+            Assert.That(fileResult!.ContentType, Is.EqualTo("text/csv"));
+            Assert.That(fileResult.FileDownloadName, Does.StartWith("attestations-export-"));
+            Assert.That(fileResult.FileDownloadName, Does.EndWith(".csv"));
+            
+            // Verify CSV contains headers
+            var csvContent = System.Text.Encoding.UTF8.GetString(fileResult.FileContents);
+            Assert.That(csvContent, Does.Contain("Id,WalletAddress,AssetId,IssuerAddress"));
+            Assert.That(csvContent, Does.Contain("test-id-1"));
+            Assert.That(csvContent, Does.Contain(TestUserAddress));
+            Assert.That(csvContent, Does.Contain("12345"));
+        }
+
+        [Test]
+        public async Task ExportAttestationsJson_WithDateRangeFilter_ShouldPassFiltersToService()
+        {
+            // Arrange
+            var fromDate = DateTime.UtcNow.AddDays(-30);
+            var toDate = DateTime.UtcNow;
+
+            _serviceMock.Setup(s => s.ListAttestationsAsync(It.IsAny<ListComplianceAttestationsRequest>()))
+                .ReturnsAsync(new ComplianceAttestationListResponse
+                {
+                    Success = true,
+                    Attestations = new List<ComplianceAttestation>(),
+                    TotalCount = 0
+                });
+
+            // Act
+            var result = await _controller.ExportAttestationsJson(
+                fromDate: fromDate,
+                toDate: toDate,
+                attestationType: "KYC"
+            );
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<FileContentResult>());
+            _serviceMock.Verify(s => s.ListAttestationsAsync(It.Is<ListComplianceAttestationsRequest>(r =>
+                r.FromDate == fromDate &&
+                r.ToDate == toDate &&
+                r.AttestationType == "KYC"
+            )), Times.Once);
+        }
+
+        [Test]
+        public async Task ExportAttestationsCsv_ServiceFailure_ShouldReturn500()
+        {
+            // Arrange
+            _serviceMock.Setup(s => s.ListAttestationsAsync(It.IsAny<ListComplianceAttestationsRequest>()))
+                .ReturnsAsync(new ComplianceAttestationListResponse
+                {
+                    Success = false,
+                    ErrorMessage = "Database error"
+                });
+
+            // Act
+            var result = await _controller.ExportAttestationsCsv();
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult!.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        }
+
+        [Test]
+        public async Task ExportAttestationsJson_WithPagination_ShouldLimitPageSize()
+        {
+            // Arrange
+            _serviceMock.Setup(s => s.ListAttestationsAsync(It.IsAny<ListComplianceAttestationsRequest>()))
+                .ReturnsAsync(new ComplianceAttestationListResponse
+                {
+                    Success = true,
+                    Attestations = new List<ComplianceAttestation>(),
+                    TotalCount = 0
+                });
+
+            // Act - Request page size larger than max
+            var result = await _controller.ExportAttestationsJson(pageSize: 20000);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<FileContentResult>());
+            _serviceMock.Verify(s => s.ListAttestationsAsync(It.Is<ListComplianceAttestationsRequest>(r =>
+                r.PageSize == 10000 // Should be capped at MaxExportRecords
+            )), Times.Once);
+        }
+
+        [Test]
+        public async Task ExportAttestationsCsv_WithSpecialCharacters_ShouldEscapeCorrectly()
+        {
+            // Arrange
+            var attestations = new List<ComplianceAttestation>
+            {
+                new ComplianceAttestation
+                {
+                    Id = "test-id-1",
+                    WalletAddress = TestUserAddress,
+                    AssetId = 12345,
+                    IssuerAddress = TestIssuerAddress,
+                    ProofHash = "Hash\"WithQuotes",
+                    Notes = "Note with \"quotes\" and, commas",
+                    AttestationType = "KYC",
+                    VerificationStatus = AttestationVerificationStatus.Verified,
+                    IssuedAt = DateTime.UtcNow,
+                    CreatedBy = TestUserAddress,
+                    CreatedAt = DateTime.UtcNow
+                }
+            };
+
+            _serviceMock.Setup(s => s.ListAttestationsAsync(It.IsAny<ListComplianceAttestationsRequest>()))
+                .ReturnsAsync(new ComplianceAttestationListResponse
+                {
+                    Success = true,
+                    Attestations = attestations,
+                    TotalCount = 1
+                });
+
+            // Act
+            var result = await _controller.ExportAttestationsCsv();
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<FileContentResult>());
+            var fileResult = result as FileContentResult;
+            var csvContent = System.Text.Encoding.UTF8.GetString(fileResult!.FileContents);
+            
+            // Verify quotes are escaped (doubled)
+            Assert.That(csvContent, Does.Contain("Hash\"\"WithQuotes"));
+            Assert.That(csvContent, Does.Contain("Note with \"\"quotes\"\" and, commas"));
+        }
+
+        #endregion
     }
 }
