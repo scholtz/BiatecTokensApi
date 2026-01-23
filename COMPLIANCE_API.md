@@ -758,6 +758,550 @@ curl -X GET "https://api.example.com/api/v1/compliance/audit-log?assetId=12345&p
 
 ---
 
+## Compliance Attestation API (MICA/RWA Audit Trail)
+
+### Overview
+
+The Compliance Attestation API provides wallet-level compliance verification records that create an immutable audit trail for regulatory compliance. Attestations link cryptographic proof (IPFS CID, SHA-256 hash, etc.) to specific wallet addresses and tokens, enabling enterprise-grade compliance for RWA tokens under MICA and other regulatory frameworks.
+
+### 9. Create Compliance Attestation
+
+**Endpoint:** `POST /api/v1/compliance/attestations`
+
+**Description:** Creates a new compliance attestation record linking a wallet address to a token with cryptographic proof of compliance verification.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** All authenticated users can create attestations for any token/wallet combination
+
+**Use Cases:**
+- Record KYC/AML verification for wallet addresses
+- Document accreditation status for investors
+- Track regulatory compliance certifications
+- Maintain audit trail for MICA compliance
+
+**Request Body:** `CreateComplianceAttestationRequest`
+```json
+{
+  "walletAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+  "assetId": 12345,
+  "issuerAddress": "ISSUER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+  "proofHash": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+  "proofType": "IPFS",
+  "attestationType": "KYC",
+  "network": "voimain-v1.0",
+  "jurisdiction": "US,EU",
+  "regulatoryFramework": "MICA",
+  "expiresAt": "2027-01-23T00:00:00Z",
+  "notes": "KYC verification completed via Sumsub"
+}
+```
+
+**Field Descriptions:**
+- `walletAddress` (required): The wallet address being attested (max 100 chars)
+- `assetId` (required): Token asset ID this attestation applies to
+- `issuerAddress` (required): Address of the issuer creating the attestation (max 100 chars)
+- `proofHash` (required): Cryptographic hash of compliance proof document (max 200 chars)
+  - Can be IPFS CID, SHA-256 hash, ARC19 hash, or other cryptographic identifier
+- `proofType` (optional): Type of proof (e.g., "IPFS", "SHA256", "ARC19") (max 50 chars)
+- `attestationType` (optional): Type of attestation (e.g., "KYC", "AML", "Accreditation", "License") (max 100 chars)
+- `network` (optional): Blockchain network (e.g., "voimain-v1.0", "aramidmain-v1.0") (max 50 chars)
+- `jurisdiction` (optional): Jurisdiction(s) applicable to this attestation (max 500 chars)
+- `regulatoryFramework` (optional): Regulatory framework (e.g., "MICA", "SEC Reg D") (max 500 chars)
+- `expiresAt` (optional): Expiration date for time-limited attestations
+- `notes` (optional): Additional metadata or notes (max 2000 chars)
+
+**Response:** `ComplianceAttestationResponse`
+```json
+{
+  "success": true,
+  "attestation": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "walletAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "assetId": 12345,
+    "issuerAddress": "ISSUER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+    "proofHash": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+    "proofType": "IPFS",
+    "verificationStatus": "Pending",
+    "attestationType": "KYC",
+    "network": "voimain-v1.0",
+    "jurisdiction": "US,EU",
+    "regulatoryFramework": "MICA",
+    "issuedAt": "2026-01-23T16:48:00Z",
+    "expiresAt": "2027-01-23T00:00:00Z",
+    "verifiedAt": null,
+    "verifierAddress": null,
+    "notes": "KYC verification completed via Sumsub",
+    "createdAt": "2026-01-23T16:48:00Z",
+    "updatedAt": null,
+    "createdBy": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "updatedBy": null
+  }
+}
+```
+
+**Attestation Verification Status:**
+- `Pending`: Attestation is pending verification
+- `Verified`: Attestation has been verified and is valid
+- `Failed`: Attestation verification failed
+- `Expired`: Attestation has expired and needs renewal
+- `Revoked`: Attestation has been revoked
+
+**Status Codes:**
+- `200 OK`: Attestation created successfully
+- `400 Bad Request`: Invalid request (missing required fields)
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+**Metering:** This operation emits a metering event for billing analytics (category: Compliance, operation: Add)
+
+---
+
+### 10. List Compliance Attestations
+
+**Endpoint:** `GET /api/v1/compliance/attestations`
+
+**Description:** Lists compliance attestations with optional filtering and pagination. Returns attestations matching the specified criteria.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** All authenticated users can list attestations (read-only)
+
+**Query Parameters:**
+- `walletAddress` (optional): Filter by wallet address (max 100 chars)
+- `assetId` (optional): Filter by token asset ID
+- `issuerAddress` (optional): Filter by issuer address (max 100 chars)
+- `verificationStatus` (optional): Filter by verification status (Pending, Verified, Failed, Expired, Revoked)
+- `attestationType` (optional): Filter by attestation type (max 100 chars)
+- `network` (optional): Filter by network (max 50 chars)
+- `excludeExpired` (optional): If true, exclude expired attestations
+- `fromDate` (optional): Start date filter (filter by IssuedAt)
+- `toDate` (optional): End date filter (filter by IssuedAt)
+- `page` (optional, default: 1): Page number (min: 1)
+- `pageSize` (optional, default: 20, max: 100): Results per page
+
+**Example:**
+```
+GET /api/v1/compliance/attestations?assetId=12345&verificationStatus=Verified&page=1&pageSize=50
+```
+
+**Response:** `ComplianceAttestationListResponse`
+```json
+{
+  "success": true,
+  "attestations": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "walletAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+      "assetId": 12345,
+      "issuerAddress": "ISSUER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+      "proofHash": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+      "proofType": "IPFS",
+      "verificationStatus": "Verified",
+      "attestationType": "KYC",
+      "network": "voimain-v1.0",
+      "jurisdiction": "US,EU",
+      "regulatoryFramework": "MICA",
+      "issuedAt": "2026-01-23T16:48:00Z",
+      "expiresAt": "2027-01-23T00:00:00Z",
+      "verifiedAt": "2026-01-23T17:00:00Z",
+      "verifierAddress": "VERIFIER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+      "notes": "KYC verification completed via Sumsub",
+      "createdAt": "2026-01-23T16:48:00Z",
+      "updatedAt": null,
+      "createdBy": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+      "updatedBy": null
+    }
+  ],
+  "totalCount": 150,
+  "page": 1,
+  "pageSize": 50,
+  "totalPages": 3
+}
+```
+
+**Status Codes:**
+- `200 OK`: Success
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+**Note:** This is a read operation and does not emit metering events.
+
+---
+
+### 11. Get Compliance Attestation by ID
+
+**Endpoint:** `GET /api/v1/compliance/attestations/{id}`
+
+**Description:** Retrieves a specific compliance attestation by its unique identifier. Automatically marks expired attestations.
+
+**Authentication:** Required (ARC-0014)
+
+**Parameters:**
+- `id` (path, required): The unique identifier of the attestation
+
+**Response:** `ComplianceAttestationResponse`
+```json
+{
+  "success": true,
+  "attestation": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "walletAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "assetId": 12345,
+    "issuerAddress": "ISSUER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+    "proofHash": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+    "proofType": "IPFS",
+    "verificationStatus": "Verified",
+    "attestationType": "KYC",
+    "network": "voimain-v1.0",
+    "jurisdiction": "US,EU",
+    "regulatoryFramework": "MICA",
+    "issuedAt": "2026-01-23T16:48:00Z",
+    "expiresAt": "2027-01-23T00:00:00Z",
+    "verifiedAt": "2026-01-23T17:00:00Z",
+    "verifierAddress": "VERIFIER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+    "notes": "KYC verification completed via Sumsub",
+    "createdAt": "2026-01-23T16:48:00Z",
+    "updatedAt": null,
+    "createdBy": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "updatedBy": null
+  }
+}
+```
+
+**Status Codes:**
+- `200 OK`: Success
+- `401 Unauthorized`: Missing or invalid authentication
+- `404 Not Found`: Attestation not found
+- `500 Internal Server Error`: Server error
+
+---
+
+### 12. Export Attestations (JSON)
+
+**Endpoint:** `GET /api/v1/compliance/attestations/export/json`
+
+**Description:** Exports attestation records as a JSON file for regulatory compliance reporting. Maximum 10,000 records per export.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** Recommended for compliance and admin roles only
+
+**Query Parameters:** Same as List Compliance Attestations endpoint (except page/pageSize)
+
+**Example:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/attestations/export/json?assetId=12345&fromDate=2026-01-01T00:00:00Z&toDate=2026-01-31T23:59:59Z" \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -o attestations-export.json
+```
+
+**Response:** JSON file with attestation list response structure
+
+**Status Codes:**
+- `200 OK`: Success (returns JSON file)
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+---
+
+### 13. Export Attestations (CSV)
+
+**Endpoint:** `GET /api/v1/compliance/attestations/export/csv`
+
+**Description:** Exports attestation records as a CSV file for regulatory compliance reporting. Maximum 10,000 records per export.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** Recommended for compliance and admin roles only
+
+**Query Parameters:** Same as List Compliance Attestations endpoint (except page/pageSize)
+
+**Example:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/attestations/export/csv?assetId=12345" \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -o attestations-export.csv
+```
+
+**Response:** CSV file with headers
+```csv
+Id,WalletAddress,AssetId,IssuerAddress,ProofHash,ProofType,VerificationStatus,AttestationType,Network,Jurisdiction,RegulatoryFramework,IssuedAt,ExpiresAt,VerifiedAt,VerifierAddress,Notes,CreatedAt,CreatedBy
+"550e8400-e29b-41d4-a716-446655440000","VCMJKWOY...","12345","ISSUER1...","QmYwAPJzv...","IPFS","Verified","KYC","voimain-v1.0","US,EU","MICA","2026-01-23T16:48:00Z","2027-01-23T00:00:00Z","2026-01-23T17:00:00Z","VERIFIER1...","KYC verification completed via Sumsub","2026-01-23T16:48:00Z","VCMJKWOY..."
+```
+
+**Status Codes:**
+- `200 OK`: Success (returns CSV file)
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
+---
+
+### 14. Generate Attestation Package (MICA Audit)
+
+**Endpoint:** `POST /api/v1/compliance/attestation`
+
+**Description:** Generates a comprehensive signed compliance attestation package for MICA regulatory audits. Combines token metadata, compliance status, whitelist information, and attestations into a single verifiable audit artifact.
+
+**Authentication:** Required (ARC-0014)
+
+**Authorization:** Token issuer/creator only (user must be authenticated)
+
+**Request Body:** `GenerateAttestationPackageRequest`
+```json
+{
+  "tokenId": 12345,
+  "fromDate": "2026-01-01T00:00:00Z",
+  "toDate": "2026-01-31T23:59:59Z",
+  "format": "json"
+}
+```
+
+**Field Descriptions:**
+- `tokenId` (required): The token ID (asset ID) for which to generate the attestation package (must be > 0)
+- `fromDate` (optional): Start date for the attestation package date range
+- `toDate` (optional): End date for the attestation package date range (must not be earlier than fromDate)
+- `format` (required): Output format, either "json" or "pdf" (default: "json")
+  - Note: PDF format is validated but returns 501 Not Implemented (future enhancement)
+
+**Response:** `AttestationPackageResponse`
+```json
+{
+  "success": true,
+  "package": {
+    "packageId": "550e8400-e29b-41d4-a716-446655440000",
+    "tokenId": 12345,
+    "generatedAt": "2026-01-23T16:48:00Z",
+    "issuerAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "network": "voimain-v1.0",
+    "token": {
+      "assetId": 12345,
+      "name": "RWA Token",
+      "unitName": "RWAT",
+      "total": 1000000,
+      "decimals": 6,
+      "creator": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"
+    },
+    "complianceMetadata": {
+      "assetId": 12345,
+      "complianceStatus": "Compliant",
+      "verificationStatus": "Verified",
+      "regulatoryFramework": "MICA",
+      "jurisdiction": "EU"
+    },
+    "whitelistPolicy": {
+      "isEnabled": true,
+      "totalWhitelisted": 50,
+      "enforcementType": "Mandatory"
+    },
+    "complianceStatus": {
+      "status": "Compliant",
+      "verificationStatus": "Verified",
+      "lastReviewDate": "2026-01-15T00:00:00Z",
+      "nextReviewDate": "2026-04-15T00:00:00Z"
+    },
+    "attestations": [
+      {
+        "id": "att-001",
+        "walletAddress": "WALLET...",
+        "assetId": 12345,
+        "issuerAddress": "ISSUER...",
+        "proofHash": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+        "proofType": "IPFS",
+        "verificationStatus": "Verified",
+        "attestationType": "KYC",
+        "network": "voimain-v1.0",
+        "jurisdiction": "EU",
+        "regulatoryFramework": "MICA",
+        "issuedAt": "2026-01-20T00:00:00Z"
+      }
+    ],
+    "dateRange": {
+      "from": "2026-01-01T00:00:00Z",
+      "to": "2026-01-31T23:59:59Z"
+    },
+    "contentHash": "a3f5c8d9e2b1f4a6c7e8d9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+    "signature": {
+      "algorithm": "SHA256",
+      "publicKey": null,
+      "signatureValue": null,
+      "signedAt": "2026-01-23T16:48:00Z"
+    }
+  },
+  "format": "json"
+}
+```
+
+**Package Contents:**
+- **Package ID**: Unique identifier for the package
+- **Token metadata**: Basic token information (name, supply, decimals, etc.)
+- **Compliance metadata**: Full compliance status and verification information
+- **Whitelist policy**: Information about whitelist enforcement
+- **Compliance status**: Current status and review dates
+- **Attestations**: All attestations within the specified date range (up to 100)
+- **Date range**: The filter range applied
+- **Content hash**: Deterministic SHA-256 hash for verification
+- **Signature metadata**: Structure for audit trail verification
+
+**Status Codes:**
+- `200 OK`: Package generated successfully
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `404 Not Found`: Token metadata or compliance metadata not found
+- `501 Not Implemented`: PDF format requested (future enhancement)
+- `500 Internal Server Error`: Server error
+
+**Metering:** This operation emits a metering event for billing analytics (category: Compliance, operation: Export)
+
+---
+
+## Attestation Features
+
+### Immutability and Audit Trail
+- All attestation records are immutable (append-only)
+- Stored with unique IDs and timestamps for verification
+- Created by user is tracked for accountability
+- Perfect for regulatory compliance and forensic analysis
+
+### Expiration Management
+- Attestations can have optional expiration dates
+- Expired attestations are automatically marked when retrieved
+- Filter expired attestations using the `excludeExpired` parameter
+
+### Cryptographic Proof
+- Support for IPFS CIDs, SHA-256 hashes, and other cryptographic identifiers
+- ProofType field allows specification of hash algorithm or storage system
+- Content can be verified independently using the proof hash
+
+### Regulatory Compliance
+- Designed for MICA (Markets in Crypto-Assets) compliance
+- Supports multiple jurisdictions and regulatory frameworks
+- Attestation types include KYC, AML, Accreditation, License, etc.
+- Export capabilities for regulatory reporting
+
+### Use Cases
+1. **KYC/AML Verification**: Document wallet-level KYC verification for RWA tokens
+2. **Investor Accreditation**: Track accredited investor status with expiration
+3. **Regulatory Audits**: Generate comprehensive audit packages for regulators
+4. **License Tracking**: Maintain records of regulatory licenses and certifications
+5. **Compliance Reporting**: Export attestations for quarterly/annual compliance reports
+
+---
+
+## Attestation Examples
+
+### Example 1: Create KYC Attestation
+
+**Request:**
+```bash
+curl -X POST https://api.example.com/api/v1/compliance/attestations \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "walletAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "assetId": 12345,
+    "issuerAddress": "ISSUER1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ",
+    "proofHash": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+    "proofType": "IPFS",
+    "attestationType": "KYC",
+    "network": "voimain-v1.0",
+    "jurisdiction": "US",
+    "regulatoryFramework": "MICA",
+    "expiresAt": "2027-01-23T00:00:00Z",
+    "notes": "KYC verification via Sumsub - Level 3 verification completed"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "attestation": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "walletAddress": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+    "assetId": 12345,
+    "verificationStatus": "Pending",
+    "attestationType": "KYC",
+    "issuedAt": "2026-01-23T16:48:00Z",
+    "expiresAt": "2027-01-23T00:00:00Z",
+    "createdAt": "2026-01-23T16:48:00Z",
+    "createdBy": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"
+  }
+}
+```
+
+### Example 2: List Verified Attestations for a Token
+
+**Request:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/attestations?assetId=12345&verificationStatus=Verified&excludeExpired=true" \
+  -H "Authorization: SigTx <signed-transaction>"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "attestations": [
+    {
+      "id": "att-001",
+      "walletAddress": "WALLET1...",
+      "assetId": 12345,
+      "verificationStatus": "Verified",
+      "attestationType": "KYC",
+      "issuedAt": "2026-01-20T00:00:00Z",
+      "expiresAt": "2027-01-20T00:00:00Z"
+    },
+    {
+      "id": "att-002",
+      "walletAddress": "WALLET2...",
+      "assetId": 12345,
+      "verificationStatus": "Verified",
+      "attestationType": "AML",
+      "issuedAt": "2026-01-21T00:00:00Z",
+      "expiresAt": "2027-01-21T00:00:00Z"
+    }
+  ],
+  "totalCount": 2,
+  "page": 1,
+  "pageSize": 20,
+  "totalPages": 1
+}
+```
+
+### Example 3: Export Attestations for Audit
+
+**Request:**
+```bash
+curl -X GET "https://api.example.com/api/v1/compliance/attestations/export/csv?assetId=12345&fromDate=2026-01-01T00:00:00Z&toDate=2026-01-31T23:59:59Z" \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -o attestations-january-2026.csv
+```
+
+**Result:** Downloads CSV file with all attestations for token 12345 in January 2026
+
+### Example 4: Generate MICA Attestation Package
+
+**Request:**
+```bash
+curl -X POST https://api.example.com/api/v1/compliance/attestation \
+  -H "Authorization: SigTx <signed-transaction>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tokenId": 12345,
+    "fromDate": "2026-01-01T00:00:00Z",
+    "toDate": "2026-01-31T23:59:59Z",
+    "format": "json"
+  }'
+```
+
+**Response:** Complete attestation package with token metadata, compliance status, and all attestations in the date range
+
+---
+
 ## Best Practices
 
 1. **Always specify network**: Include the `network` field to enable network-specific validation
