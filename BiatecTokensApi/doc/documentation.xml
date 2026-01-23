@@ -324,6 +324,75 @@
             Requires ARC-0014 authentication.
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ExportAttestationsJson(System.String,System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.AttestationVerificationStatus},System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Exports attestation audit history as JSON for compliance reporting
+            </summary>
+            <param name="walletAddress">Optional filter by wallet address</param>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="issuerAddress">Optional filter by issuer address</param>
+            <param name="verificationStatus">Optional filter by verification status</param>
+            <param name="attestationType">Optional filter by attestation type</param>
+            <param name="network">Optional filter by network</param>
+            <param name="excludeExpired">Optional filter to exclude expired attestations</param>
+            <param name="fromDate">Optional start date filter (filter by IssuedAt)</param>
+            <param name="toDate">Optional end date filter (filter by IssuedAt)</param>
+            <param name="page">Page number for pagination (default: 1)</param>
+            <param name="pageSize">Page size for pagination (default: 100, max: 10000)</param>
+            <returns>JSON file with attestation history</returns>
+            <remarks>
+            Exports attestation history matching the filter criteria as a JSON file for regulatory compliance reporting.
+            The JSON includes all attestation fields: ID, wallet address, asset ID, issuer, proof hash, verification status,
+            attestation type, network, jurisdiction, regulatory framework, issued date, expiration date, and metadata.
+            
+            **Format**: Standard JSON array of attestation objects
+            
+            **Use Cases**:
+            - Enterprise audit trail export
+            - Regulator reporting and disclosure
+            - Compliance verification for token holders
+            - Historical attestation analysis
+            
+            **Pagination**: Maximum 10,000 records per export for performance. Use pagination for larger datasets.
+            
+            **Filters**: Combine multiple filters to narrow down results (e.g., specific token + date range + wallet).
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ExportAttestationsCsv(System.String,System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.AttestationVerificationStatus},System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Exports attestation audit history as CSV for compliance reporting
+            </summary>
+            <param name="walletAddress">Optional filter by wallet address</param>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="issuerAddress">Optional filter by issuer address</param>
+            <param name="verificationStatus">Optional filter by verification status</param>
+            <param name="attestationType">Optional filter by attestation type</param>
+            <param name="network">Optional filter by network</param>
+            <param name="excludeExpired">Optional filter to exclude expired attestations</param>
+            <param name="fromDate">Optional start date filter (filter by IssuedAt)</param>
+            <param name="toDate">Optional end date filter (filter by IssuedAt)</param>
+            <param name="page">Page number for pagination (default: 1)</param>
+            <param name="pageSize">Page size for pagination (default: 100, max: 10000)</param>
+            <returns>CSV file with attestation history</returns>
+            <remarks>
+            Exports attestation history matching the filter criteria as a CSV file for regulatory compliance reporting.
+            The CSV includes all attestation fields: ID, wallet address, asset ID, issuer, proof hash, verification status,
+            attestation type, network, jurisdiction, regulatory framework, issued date, expiration date, and metadata.
+            
+            **Format**: Standard CSV with headers
+            
+            **Use Cases**:
+            - Enterprise audit trail export
+            - Regulator reporting and disclosure
+            - Compliance verification for token holders
+            - Historical attestation analysis
+            - Import into Excel or other tools
+            
+            **Pagination**: Maximum 10,000 records per export for performance. Use pagination for larger datasets.
+            
+            **Filters**: Combine multiple filters to narrow down results (e.g., specific token + date range + wallet).
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.EscapeCsv(System.String)">
             <summary>
             Escapes special characters in CSV values
@@ -1835,6 +1904,16 @@
         <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.ExcludeExpired">
             <summary>
             Optional filter to include only non-expired attestations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.FromDate">
+            <summary>
+            Optional start date filter (filter by IssuedAt)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.ToDate">
+            <summary>
+            Optional end date filter (filter by IssuedAt)
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.Page">

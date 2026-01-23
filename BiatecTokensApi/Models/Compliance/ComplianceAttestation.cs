@@ -281,6 +281,16 @@ namespace BiatecTokensApi.Models.Compliance
         public bool? ExcludeExpired { get; set; }
 
         /// <summary>
+        /// Optional start date filter (filter by IssuedAt)
+        /// </summary>
+        public DateTime? FromDate { get; set; }
+
+        /// <summary>
+        /// Optional end date filter (filter by IssuedAt)
+        /// </summary>
+        public DateTime? ToDate { get; set; }
+
+        /// <summary>
         /// Page number for pagination (1-based)
         /// </summary>
         [Range(1, int.MaxValue)]
