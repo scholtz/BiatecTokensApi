@@ -744,7 +744,7 @@ namespace BiatecTokensApi.Services
                     Page = request.Page,
                     PageSize = request.PageSize,
                     TotalPages = totalPages,
-                    RetentionPolicy = new Models.Whitelist.AuditRetentionPolicy
+                    RetentionPolicy = new BiatecTokensApi.Models.Compliance.AuditRetentionPolicy
                     {
                         MinimumRetentionYears = 7,
                         RegulatoryFramework = "MICA",

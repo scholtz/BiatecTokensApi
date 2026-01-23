@@ -640,11 +640,11 @@ namespace BiatecTokensApi.Controllers
         /// regulatory framework, and immutability guarantees.
         /// </remarks>
         [HttpGet("audit-log/retention-policy")]
-        [ProducesResponseType(typeof(Models.Whitelist.AuditRetentionPolicy), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(BiatecTokensApi.Models.Compliance.AuditRetentionPolicy), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public IActionResult GetAuditLogRetentionPolicy()
         {
-            var policy = new Models.Whitelist.AuditRetentionPolicy
+            var policy = new BiatecTokensApi.Models.Compliance.AuditRetentionPolicy
             {
                 MinimumRetentionYears = 7,
                 RegulatoryFramework = "MICA",

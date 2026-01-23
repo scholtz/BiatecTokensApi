@@ -195,32 +195,6 @@ namespace BiatecTokensApi.Models.Whitelist
         /// <summary>
         /// Audit log retention policy metadata
         /// </summary>
-        public AuditRetentionPolicy? RetentionPolicy { get; set; }
-    }
-
-    /// <summary>
-    /// Audit log retention policy information for regulatory compliance
-    /// </summary>
-    public class AuditRetentionPolicy
-    {
-        /// <summary>
-        /// Minimum retention period in years
-        /// </summary>
-        public int MinimumRetentionYears { get; set; } = 7;
-
-        /// <summary>
-        /// Regulatory framework requiring retention (e.g., "MICA", "SEC")
-        /// </summary>
-        public string RegulatoryFramework { get; set; } = "MICA";
-
-        /// <summary>
-        /// Whether audit logs are immutable
-        /// </summary>
-        public bool ImmutableEntries { get; set; } = true;
-
-        /// <summary>
-        /// Description of retention policy
-        /// </summary>
-        public string Description { get; set; } = "Audit logs are retained for a minimum of 7 years to comply with MICA and other regulatory requirements. All entries are immutable and cannot be modified or deleted.";
+        public Compliance.AuditRetentionPolicy? RetentionPolicy { get; set; }
     }
 }

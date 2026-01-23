@@ -3477,31 +3477,6 @@
             Audit log retention policy metadata
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Models.Whitelist.AuditRetentionPolicy">
-            <summary>
-            Audit log retention policy information for regulatory compliance
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.Whitelist.AuditRetentionPolicy.MinimumRetentionYears">
-            <summary>
-            Minimum retention period in years
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.Whitelist.AuditRetentionPolicy.RegulatoryFramework">
-            <summary>
-            Regulatory framework requiring retention (e.g., "MICA", "SEC")
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.Whitelist.AuditRetentionPolicy.ImmutableEntries">
-            <summary>
-            Whether audit logs are immutable
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.Whitelist.AuditRetentionPolicy.Description">
-            <summary>
-            Description of retention policy
-            </summary>
-        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistEntry">
             <summary>
             Represents a whitelist entry for an RWA token
