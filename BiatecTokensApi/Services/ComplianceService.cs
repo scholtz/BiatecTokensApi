@@ -1578,12 +1578,12 @@ namespace BiatecTokensApi.Services
                 // Get compliance metadata
                 var complianceMetadata = await _complianceRepository.GetMetadataByAssetIdAsync(assetId);
 
-                // Get whitelist entries count
+                // Get whitelist entries count (using small page size since we only need the count)
                 var whitelistRequest = new ListWhitelistRequest
                 {
                     AssetId = assetId,
                     Page = 1,
-                    PageSize = 100  // Get some entries to get accurate count
+                    PageSize = 1  // Minimal page size - we only need TotalCount
                 };
                 
                 var whitelistResponse = await _whitelistService.ListEntriesAsync(whitelistRequest);

@@ -49,7 +49,7 @@ Required: ARC-0014 authentication (Algorand Request for Comments 14)
     "enterpriseReadinessScore": 100,
     "network": "voimain-v1.0",
     "hasComplianceMetadata": true,
-    "lastComplianceUpdate": "2026-01-23T12:00:00Z"
+    "lastComplianceUpdate": "2025-01-23T12:00:00Z"
   }
 }
 ```
@@ -208,7 +208,7 @@ const micaReadyTokens = complianceReport.filter(t => t.isMicaReady);
     "enterpriseReadinessScore": 100,
     "network": "voimain-v1.0",
     "hasComplianceMetadata": true,
-    "lastComplianceUpdate": "2026-01-23T12:00:00Z"
+    "lastComplianceUpdate": "2025-01-23T12:00:00Z"
   }
 }
 ```
@@ -332,5 +332,5 @@ For questions or issues with the compliance indicators API, please:
 
 ---
 
-**Last Updated**: 2026-01-23
+**Last Updated**: 2025-01-23
 **API Version**: v1
