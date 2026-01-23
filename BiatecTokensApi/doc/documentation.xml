@@ -453,6 +453,44 @@
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GenerateAttestationPackage(BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest)">
+            <summary>
+            Generates a signed compliance attestation package for MICA audits
+            </summary>
+            <param name="request">The attestation package request</param>
+            <returns>Signed attestation package with issuer metadata, token details, and compliance status</returns>
+            <remarks>
+            This endpoint generates verifiable audit artifacts for regulators and enterprise issuers.
+            The attestation package includes:
+            - Issuer metadata (creator address, network information)
+            - Token details (asset ID, compliance metadata)
+            - Whitelist policy information (if applicable)
+            - Latest compliance status and verification status
+            - All attestations within the specified date range
+            - Deterministic content hash for verification
+            - Signature metadata for audit trail
+            
+            **Supported Formats**:
+            - json: Structured JSON package (default)
+            - pdf: PDF document (future enhancement)
+            
+            **MICA Compliance**: This endpoint aligns with MICA reporting requirements by providing:
+            - Complete audit trail of compliance attestations
+            - Verifiable cryptographic signatures
+            - Regulatory framework and jurisdiction information
+            - KYC/AML verification status
+            
+            **Use Cases**:
+            - Regulatory audit submissions
+            - Enterprise compliance reporting
+            - Investor disclosure packages
+            - Quarterly/Annual compliance reviews
+            
+            This operation emits a metering event for billing analytics.
+            
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetComplianceReport(System.Nullable{System.UInt64},System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Boolean,System.Boolean,System.Boolean,System.Int32,System.Int32,System.Int32)">
             <summary>
             Generates a comprehensive compliance report for VOI/Aramid tokens
@@ -2149,6 +2187,256 @@
         <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse.TotalPages">
             <summary>
             Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest">
+            <summary>
+            Request to generate a signed compliance attestation package for MICA audits
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest.TokenId">
+            <summary>
+            The token ID (asset ID) for which to generate the attestation package
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest.FromDate">
+            <summary>
+            Start date for the attestation package date range
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest.ToDate">
+            <summary>
+            End date for the attestation package date range
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest.Format">
+            <summary>
+            Output format for the attestation package (json or pdf)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AttestationPackage">
+            <summary>
+            Signed compliance attestation package for MICA regulatory audits
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.PackageId">
+            <summary>
+            Unique identifier for this attestation package
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.TokenId">
+            <summary>
+            Token ID this package is for
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.GeneratedAt">
+            <summary>
+            Timestamp when this package was generated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.IssuerAddress">
+            <summary>
+            Address of the issuer who requested this package
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.Network">
+            <summary>
+            Network the token is deployed on
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.Token">
+            <summary>
+            Token metadata (name, unit name, total supply, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.ComplianceMetadata">
+            <summary>
+            Compliance metadata for the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.WhitelistPolicy">
+            <summary>
+            Whitelist policy information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.ComplianceStatus">
+            <summary>
+            Latest compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.Attestations">
+            <summary>
+            List of attestations in the date range
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.DateRange">
+            <summary>
+            Date range for attestations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.ContentHash">
+            <summary>
+            Deterministic hash of the package content for verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackage.Signature">
+            <summary>
+            Signature metadata for audit verification
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TokenMetadata">
+            <summary>
+            Token metadata for attestation package
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.AssetId">
+            <summary>
+            Token ID (asset ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Name">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.UnitName">
+            <summary>
+            Token unit name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Total">
+            <summary>
+            Total supply
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Decimals">
+            <summary>
+            Number of decimals
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Creator">
+            <summary>
+            Creator address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Manager">
+            <summary>
+            Manager address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Reserve">
+            <summary>
+            Reserve address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Freeze">
+            <summary>
+            Freeze address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenMetadata.Clawback">
+            <summary>
+            Clawback address
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.WhitelistPolicyInfo">
+            <summary>
+            Whitelist policy information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistPolicyInfo.IsEnabled">
+            <summary>
+            Whether whitelist is enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistPolicyInfo.TotalWhitelisted">
+            <summary>
+            Total number of whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistPolicyInfo.EnforcementType">
+            <summary>
+            Whitelist enforcement type
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceStatusInfo">
+            <summary>
+            Compliance status information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusInfo.Status">
+            <summary>
+            Current compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusInfo.VerificationStatus">
+            <summary>
+            Current verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusInfo.LastReviewDate">
+            <summary>
+            Last compliance review date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusInfo.NextReviewDate">
+            <summary>
+            Next compliance review date
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.DateRangeInfo">
+            <summary>
+            Date range information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DateRangeInfo.From">
+            <summary>
+            Start date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DateRangeInfo.To">
+            <summary>
+            End date
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.SignatureMetadata">
+            <summary>
+            Signature metadata for audit verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.SignatureMetadata.Algorithm">
+            <summary>
+            Algorithm used for signing (e.g., "ED25519", "SHA256")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.SignatureMetadata.PublicKey">
+            <summary>
+            Public key used for signature verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.SignatureMetadata.SignatureValue">
+            <summary>
+            Signature value (base64 encoded)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.SignatureMetadata.SignedAt">
+            <summary>
+            Timestamp when signature was created
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AttestationPackageResponse">
+            <summary>
+            Response for attestation package generation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackageResponse.Package">
+            <summary>
+            The generated attestation package
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AttestationPackageResponse.Format">
+            <summary>
+            Format of the package (json or pdf)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry">
@@ -5118,6 +5406,14 @@
             Identifies compliance warnings based on token status
             </summary>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GenerateAttestationPackageAsync(BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GeneratePackageHash(BiatecTokensApi.Models.Compliance.AttestationPackage)">
+            <summary>
+            Generates a deterministic SHA-256 hash of the package content for verification
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -5323,6 +5619,19 @@
             This method aggregates compliance metadata, whitelist statistics, and audit logs
             to provide enterprise-grade compliance reporting for VOI/Aramid networks.
             Supports MICA dashboard requirements and subscription-based access control.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GenerateAttestationPackageAsync(BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest,System.String)">
+            <summary>
+            Generates a signed compliance attestation package for MICA audits
+            </summary>
+            <param name="request">The attestation package request containing token ID, date range, and format</param>
+            <param name="requestedBy">The address of the user requesting the package</param>
+            <returns>Response with signed attestation package including issuer metadata, token details, whitelist policy, and compliance status</returns>
+            <remarks>
+            This method generates a verifiable audit artifact for regulators and enterprise issuers.
+            The package includes deterministic hash and signature metadata for audit verification.
+            Supports MICA reporting requirements and subscription-based access control.
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
