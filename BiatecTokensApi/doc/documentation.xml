@@ -592,6 +592,11 @@
             listing, and bulk uploading addresses. All endpoints require ARC-0014 authentication.
             </remarks>
         </member>
+        <member name="F:BiatecTokensApi.Controllers.WhitelistController.MaxExportRecords">
+            <summary>
+            Maximum number of records to export in a single request
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.#ctor(BiatecTokensApi.Services.Interface.IWhitelistService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.WhitelistController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.WhitelistController"/> class.
@@ -670,6 +675,92 @@
             <param name="pageSize">Page size (default: 50, max: 100)</param>
             <returns>Audit log entries with pagination</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetAllAuditLogs(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistActionType},System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Gets audit log for whitelist operations across all assets with optional filtering
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="address">Optional filter by address</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="network">Optional filter by network</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 50, max: 100)</param>
+            <returns>Audit log entries with pagination and retention policy metadata</returns>
+            <remarks>
+            This endpoint provides access to immutable audit logs for compliance reporting and incident investigations
+            across all whitelist operations. Unlike the asset-specific endpoint, this allows querying across all assets
+            and filtering by network for MICA/RWA compliance dashboards.
+            
+            **Retention Policy**: Audit logs are retained for a minimum of 7 years to comply with MICA regulations.
+            All entries are immutable and cannot be modified or deleted.
+            
+            **Use Cases**:
+            - Enterprise-wide compliance dashboards
+            - Network-specific audit reports (VOI, Aramid)
+            - Cross-asset incident investigations
+            - Regulatory compliance reporting
+            - Actor-based activity tracking
+            
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ExportAuditLogCsv(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistActionType},System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports whitelist audit log as CSV for compliance reporting
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="address">Optional filter by address</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="network">Optional filter by network</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>CSV file with audit log entries</returns>
+            <remarks>
+            Exports audit log entries matching the filter criteria as a CSV file for regulatory compliance reporting.
+            The CSV includes all audit fields: timestamp, asset ID, address, action type, actor, network, status changes, and notes.
+            
+            **Format**: Standard CSV with headers
+            **Encoding**: UTF-8
+            **Max Records**: 10,000 per export (use pagination for larger datasets)
+            
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ExportAuditLogJson(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistActionType},System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports whitelist audit log as JSON for compliance reporting
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="address">Optional filter by address</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="network">Optional filter by network</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>JSON file with audit log entries</returns>
+            <remarks>
+            Exports audit log entries matching the filter criteria as a JSON file for regulatory compliance reporting.
+            The JSON includes all audit fields and retention policy metadata.
+            
+            **Max Records**: 10,000 per export (use pagination for larger datasets)
+            
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetAuditLogRetentionPolicy">
+            <summary>
+            Gets the whitelist audit log retention policy metadata
+            </summary>
+            <returns>Retention policy information</returns>
+            <remarks>
+            Returns metadata about the audit log retention policy including minimum retention period,
+            regulatory framework, and immutability guarantees.
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.ValidateTransfer(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest)">
             <summary>
             Validates if a transfer between two addresses is allowed based on whitelist rules
@@ -698,6 +789,13 @@
             Gets the authenticated user's Algorand address from the claims
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.EscapeCsv(System.String)">
+            <summary>
+            Escapes special characters in CSV fields
+            </summary>
+            <param name="value">The value to escape</param>
+            <returns>The escaped value</returns>
         </member>
         <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetController(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
             <summary>
@@ -3306,7 +3404,7 @@
         </member>
         <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.AssetId">
             <summary>
-            The asset ID (token ID) for which to retrieve audit log
+            Optional asset ID (token ID) for which to retrieve audit log. If not provided, returns audit logs for all assets.
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.Address">
@@ -3322,6 +3420,11 @@
         <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.PerformedBy">
             <summary>
             Optional filter by user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.Network">
+            <summary>
+            Optional filter by network
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest.FromDate">
@@ -3372,6 +3475,11 @@
         <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse.TotalPages">
             <summary>
             Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse.RetentionPolicy">
+            <summary>
+            Audit log retention policy metadata
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistEntry">
@@ -4260,7 +4368,7 @@
         </member>
         <member name="M:BiatecTokensApi.Repositories.WhitelistRepository.GetAuditLogAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest)">
             <summary>
-            Gets audit log entries for a specific asset with optional filters
+            Gets audit log entries with optional filters (for specific asset or all assets)
             </summary>
             <param name="request">The audit log request with filters and pagination</param>
             <returns>List of audit log entries</returns>

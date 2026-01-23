@@ -117,9 +117,9 @@ namespace BiatecTokensApi.Models.Whitelist
     public class GetWhitelistAuditLogRequest
     {
         /// <summary>
-        /// The asset ID (token ID) for which to retrieve audit log
+        /// Optional asset ID (token ID) for which to retrieve audit log. If not provided, returns audit logs for all assets.
         /// </summary>
-        public ulong AssetId { get; set; }
+        public ulong? AssetId { get; set; }
 
         /// <summary>
         /// Optional filter by address
@@ -135,6 +135,11 @@ namespace BiatecTokensApi.Models.Whitelist
         /// Optional filter by user who performed the action
         /// </summary>
         public string? PerformedBy { get; set; }
+
+        /// <summary>
+        /// Optional filter by network
+        /// </summary>
+        public string? Network { get; set; }
 
         /// <summary>
         /// Optional start date filter
@@ -186,5 +191,10 @@ namespace BiatecTokensApi.Models.Whitelist
         /// Total number of pages
         /// </summary>
         public int TotalPages { get; set; }
+
+        /// <summary>
+        /// Audit log retention policy metadata
+        /// </summary>
+        public Compliance.AuditRetentionPolicy? RetentionPolicy { get; set; }
     }
 }

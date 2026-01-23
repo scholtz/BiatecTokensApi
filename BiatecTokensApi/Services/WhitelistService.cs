@@ -732,8 +732,9 @@ namespace BiatecTokensApi.Services
                     .Take(request.PageSize)
                     .ToList();
 
-                _logger.LogInformation("Retrieved {Count} audit log entries for asset {AssetId} (page {Page} of {TotalPages})", 
-                    pagedEntries.Count, request.AssetId, request.Page, totalPages);
+                var assetIdLog = request.AssetId.HasValue ? $"asset {request.AssetId.Value}" : "all assets";
+                _logger.LogInformation("Retrieved {Count} audit log entries for {AssetLog} (page {Page} of {TotalPages})", 
+                    pagedEntries.Count, assetIdLog, request.Page, totalPages);
 
                 return new WhitelistAuditLogResponse
                 {
@@ -742,12 +743,20 @@ namespace BiatecTokensApi.Services
                     TotalCount = totalCount,
                     Page = request.Page,
                     PageSize = request.PageSize,
-                    TotalPages = totalPages
+                    TotalPages = totalPages,
+                    RetentionPolicy = new BiatecTokensApi.Models.Compliance.AuditRetentionPolicy
+                    {
+                        MinimumRetentionYears = 7,
+                        RegulatoryFramework = "MICA",
+                        ImmutableEntries = true,
+                        Description = "Audit logs are retained for a minimum of 7 years to comply with MICA and other regulatory requirements. All entries are immutable and cannot be modified or deleted."
+                    }
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving audit log for asset {AssetId}", request.AssetId);
+                var assetIdLog = request.AssetId.HasValue ? $"asset {request.AssetId.Value}" : "all assets";
+                _logger.LogError(ex, "Error retrieving audit log for {AssetLog}", assetIdLog);
                 return new WhitelistAuditLogResponse
                 {
                     Success = false,
