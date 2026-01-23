@@ -11,6 +11,7 @@ A comprehensive API for deploying and managing various types of tokens on differ
 - **ARC3 Token Support**: Deploy ARC3-compliant tokens with rich metadata and IPFS integration
 - **ARC200 Token Support**: Create ARC200 tokens with mintable and preminted variants
 - **RWA Compliance Management**: Comprehensive compliance metadata and whitelist management for Real World Asset tokens
+- **Compliance Indicators API**: Frontend-friendly endpoint exposing MICA readiness, whitelisting status, and enterprise readiness scores
 - **Network-Specific Validation**: Enforce compliance rules for VOI and Aramid networks
 - **Authentication**: Secure API access using ARC-0014 Algorand authentication
 - **Multi-Network Support**: Support for various Algorand networks and EVM chains
@@ -482,6 +483,20 @@ To download the OpenAPI specification from CI:
 ## RWA Compliance Management
 
 The API provides comprehensive compliance metadata management for Real World Asset (RWA) tokens, including KYC/AML verification tracking, jurisdiction management, and regulatory compliance monitoring.
+
+### Compliance Indicators Endpoint (NEW)
+
+**GET** `/api/v1/token/{assetId}/compliance-indicators` - Get frontend-friendly compliance indicators
+
+Returns simplified compliance status including:
+- **MICA readiness flag** - Whether token meets MICA regulatory requirements
+- **Whitelisting enabled** - Status and count of whitelisted addresses
+- **Transfer restrictions** - Summary of any restrictions in place
+- **Enterprise readiness score** - Overall score (0-100) indicating compliance maturity
+- **Regulatory framework** - Applicable frameworks (MICA, SEC Reg D, etc.)
+- **KYC verification status** - Current verification state
+
+For detailed documentation, see [COMPLIANCE_INDICATORS_API.md](../COMPLIANCE_INDICATORS_API.md)
 
 ### Compliance Metadata Endpoints
 

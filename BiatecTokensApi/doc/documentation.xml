@@ -541,7 +541,7 @@
             pausing, and metadata validation. Each endpoint validates the input request, interacts with the corresponding
             token service, and returns appropriate responses based on the operation's success or failure.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3TokenService,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Services.Interface.IARC200TokenService,BiatecTokensApi.Services.Interface.IARC1400TokenService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3TokenService,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Services.Interface.IARC200TokenService,BiatecTokensApi.Services.Interface.IARC1400TokenService,BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.TokenController"/> class.
             </summary>
@@ -550,6 +550,7 @@
             <param name="asaTokenService">The service used to interact with ASA tokens.</param>
             <param name="arc200TokenService">The service used to interact with ARC-200 tokens</param>
             <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
+            <param name="complianceService">The service used to interact with compliance metadata</param>
             <param name="logger">The logger instance used to log diagnostic and operational information.</param>
         </member>
         <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20MintableTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest)">
@@ -707,6 +708,24 @@
             with an <see cref="T:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request
             response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
             during the operation.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.GetComplianceIndicators(System.UInt64)">
+            <summary>
+            Gets compliance indicators for a token, providing enterprise readiness information
+            </summary>
+            <param name="assetId">The asset ID (token ID) to get compliance indicators for</param>
+            <returns>Compliance indicators including MICA readiness, whitelisting status, and transfer restrictions</returns>
+            <remarks>
+            This endpoint exposes compliance-related flags that enable the frontend to display:
+            - MICA regulatory readiness
+            - Whitelisting enabled status and entry count
+            - Transfer restrictions summary
+            - Enterprise readiness score
+            - KYC verification status
+            - Regulatory framework and jurisdiction information
+            
+            Use this endpoint to support subscription value features and enterprise readiness indicators in the UI.
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Controllers.WhitelistController">
             <summary>
@@ -3148,6 +3167,126 @@
             Informational message
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators">
+            <summary>
+            Represents simplified compliance indicators for a token, designed for frontend display
+            </summary>
+            <remarks>
+            This model provides enterprise readiness indicators and compliance flags that enable
+            the frontend to quickly assess a token's regulatory status and controls.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.AssetId">
+            <summary>
+            The asset ID (token ID) for which these indicators apply
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.IsMicaReady">
+            <summary>
+            Indicates if the token meets MICA (Markets in Crypto-Assets) regulatory requirements
+            </summary>
+            <remarks>
+            MICA readiness is determined by:
+            - Having compliance metadata configured
+            - ComplianceStatus being 'Compliant' or 'Exempt'
+            - Having a specified regulatory framework
+            - Having jurisdiction information
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.WhitelistingEnabled">
+            <summary>
+            Indicates if whitelisting controls are enabled for this token
+            </summary>
+            <remarks>
+            True if there are any whitelist entries configured for the token
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.WhitelistedAddressCount">
+            <summary>
+            Number of addresses currently whitelisted for this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.HasTransferRestrictions">
+            <summary>
+            Indicates if the token has transfer restrictions
+            </summary>
+            <remarks>
+            True if transfer restrictions are specified in compliance metadata
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.TransferRestrictions">
+            <summary>
+            Description of transfer restrictions, if any
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.RequiresAccreditedInvestors">
+            <summary>
+            Indicates if the token requires accredited investors only
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.ComplianceStatus">
+            <summary>
+            Compliance status of the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.VerificationStatus">
+            <summary>
+            KYC verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.RegulatoryFramework">
+            <summary>
+            Regulatory framework(s) the token complies with
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.Jurisdiction">
+            <summary>
+            Jurisdiction(s) where the token is compliant
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.MaxHolders">
+            <summary>
+            Maximum number of token holders allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.EnterpriseReadinessScore">
+            <summary>
+            Overall enterprise readiness score (0-100)
+            </summary>
+            <remarks>
+            Calculated based on:
+            - Compliance metadata presence (30 points)
+            - Whitelist controls (25 points)
+            - KYC verification (20 points)
+            - Regulatory framework specified (15 points)
+            - Jurisdiction specified (10 points)
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.HasComplianceMetadata">
+            <summary>
+            Indicates if compliance metadata exists for this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators.LastComplianceUpdate">
+            <summary>
+            Date when compliance metadata was last updated
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TokenComplianceIndicatorsResponse">
+            <summary>
+            Response model for token compliance indicators endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceIndicatorsResponse.Indicators">
+            <summary>
+            The compliance indicators for the token
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest">
             <summary>
             Request for generating a consolidated token compliance report for VOI/Aramid networks
@@ -5310,11 +5449,12 @@
             Constant for system-generated audit entries when no user context is available
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService)">
+        <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IWhitelistService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ComplianceService"/> class.
             </summary>
             <param name="complianceRepository">The compliance repository</param>
+            <param name="whitelistService">The whitelist service</param>
             <param name="logger">The logger instance</param>
             <param name="meteringService">The subscription metering service</param>
         </member>
@@ -5413,6 +5553,9 @@
             <summary>
             Generates a deterministic SHA-256 hash of the package content for verification
             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetComplianceIndicatorsAsync(System.UInt64)">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
@@ -5632,6 +5775,17 @@
             This method generates a verifiable audit artifact for regulators and enterprise issuers.
             The package includes deterministic hash and signature metadata for audit verification.
             Supports MICA reporting requirements and subscription-based access control.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetComplianceIndicatorsAsync(System.UInt64)">
+            <summary>
+            Gets compliance indicators for a token, providing a simplified view for frontend display
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <returns>Response with compliance indicators including MICA readiness, whitelisting status, and transfer restrictions</returns>
+            <remarks>
+            This method aggregates compliance metadata and whitelist information to provide
+            enterprise readiness indicators and subscription value flags for the frontend.
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">

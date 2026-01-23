@@ -12,6 +12,7 @@ namespace BiatecTokensTests
     public class ComplianceServiceTests
     {
         private Mock<IComplianceRepository> _repositoryMock;
+        private Mock<IWhitelistService> _whitelistServiceMock;
         private Mock<ILogger<ComplianceService>> _loggerMock;
         private Mock<ISubscriptionMeteringService> _meteringServiceMock;
         private ComplianceService _service;
@@ -20,9 +21,10 @@ namespace BiatecTokensTests
         public void Setup()
         {
             _repositoryMock = new Mock<IComplianceRepository>();
+            _whitelistServiceMock = new Mock<IWhitelistService>();
             _loggerMock = new Mock<ILogger<ComplianceService>>();
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
-            _service = new ComplianceService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object);
+            _service = new ComplianceService(_repositoryMock.Object, _whitelistServiceMock.Object, _loggerMock.Object, _meteringServiceMock.Object);
         }
 
         #region UpsertMetadataAsync Tests

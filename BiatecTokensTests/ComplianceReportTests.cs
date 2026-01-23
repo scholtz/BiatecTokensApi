@@ -20,9 +20,10 @@ namespace BiatecTokensTests
         public void Setup()
         {
             _repositoryMock = new Mock<IComplianceRepository>();
+            var whitelistServiceMock = new Mock<IWhitelistService>();
             _loggerMock = new Mock<ILogger<ComplianceService>>();
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
-            _service = new ComplianceService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object);
+            _service = new ComplianceService(_repositoryMock.Object, whitelistServiceMock.Object, _loggerMock.Object, _meteringServiceMock.Object);
         }
 
         #region GetComplianceReportAsync Tests
