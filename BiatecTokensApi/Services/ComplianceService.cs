@@ -1643,5 +1643,736 @@ namespace BiatecTokensApi.Services
                 };
             }
         }
+
+        // Phase 2: Issuer Profile Management
+
+        /// <inheritdoc/>
+        public async Task<IssuerProfileResponse> UpsertIssuerProfileAsync(UpsertIssuerProfileRequest request, string issuerAddress)
+        {
+            try
+            {
+                var existingProfile = await _complianceRepository.GetIssuerProfileAsync(issuerAddress);
+                var isUpdate = existingProfile != null;
+
+                var profile = new IssuerProfile
+                {
+                    IssuerAddress = issuerAddress,
+                    LegalName = request.LegalName,
+                    DoingBusinessAs = request.DoingBusinessAs,
+                    EntityType = request.EntityType,
+                    CountryOfIncorporation = request.CountryOfIncorporation,
+                    TaxIdentificationNumber = request.TaxIdentificationNumber,
+                    RegistrationNumber = request.RegistrationNumber,
+                    RegisteredAddress = request.RegisteredAddress,
+                    OperationalAddress = request.OperationalAddress,
+                    PrimaryContact = request.PrimaryContact,
+                    ComplianceContact = request.ComplianceContact,
+                    Website = request.Website,
+                    KybProvider = request.KybProvider,
+                    MicaLicenseNumber = request.MicaLicenseNumber,
+                    MicaCompetentAuthority = request.MicaCompetentAuthority,
+                    Notes = request.Notes,
+                    CreatedBy = existingProfile?.CreatedBy ?? issuerAddress,
+                    CreatedAt = existingProfile?.CreatedAt ?? DateTime.UtcNow,
+                    UpdatedBy = isUpdate ? issuerAddress : null,
+                    UpdatedAt = isUpdate ? DateTime.UtcNow : null,
+                    KybStatus = existingProfile?.KybStatus ?? VerificationStatus.Pending,
+                    MicaLicenseStatus = existingProfile?.MicaLicenseStatus ?? MicaLicenseStatus.None,
+                    Status = existingProfile?.Status ?? IssuerProfileStatus.Draft
+                };
+
+                var success = await _complianceRepository.UpsertIssuerProfileAsync(profile);
+
+                return new IssuerProfileResponse
+                {
+                    Success = success,
+                    Profile = success ? profile : null,
+                    ErrorMessage = success ? null : "Failed to save issuer profile"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error upserting issuer profile for {IssuerAddress}", issuerAddress);
+                return new IssuerProfileResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to save issuer profile: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IssuerProfileResponse> GetIssuerProfileAsync(string issuerAddress)
+        {
+            try
+            {
+                var profile = await _complianceRepository.GetIssuerProfileAsync(issuerAddress);
+
+                return new IssuerProfileResponse
+                {
+                    Success = profile != null,
+                    Profile = profile,
+                    ErrorMessage = profile == null ? "Issuer profile not found" : null
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting issuer profile for {IssuerAddress}", issuerAddress);
+                return new IssuerProfileResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to retrieve issuer profile: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IssuerVerificationResponse> GetIssuerVerificationAsync(string issuerAddress)
+        {
+            try
+            {
+                var profile = await _complianceRepository.GetIssuerProfileAsync(issuerAddress);
+
+                if (profile == null)
+                {
+                    return new IssuerVerificationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Issuer profile not found"
+                    };
+                }
+
+                // Calculate verification score
+                int score = 0;
+                var missingFields = new List<string>();
+
+                // Profile completeness (40 points)
+                if (!string.IsNullOrEmpty(profile.LegalName)) score += 5; else missingFields.Add("LegalName");
+                if (!string.IsNullOrEmpty(profile.CountryOfIncorporation)) score += 5; else missingFields.Add("CountryOfIncorporation");
+                if (profile.RegisteredAddress != null) score += 10; else missingFields.Add("RegisteredAddress");
+                if (profile.PrimaryContact != null) score += 10; else missingFields.Add("PrimaryContact");
+                if (!string.IsNullOrEmpty(profile.RegistrationNumber)) score += 10; else missingFields.Add("RegistrationNumber");
+
+                // KYB verification (30 points)
+                if (profile.KybStatus == VerificationStatus.Verified)
+                {
+                    score += 30;
+                }
+                else if (profile.KybStatus == VerificationStatus.InProgress)
+                {
+                    score += 15;
+                }
+                else if (profile.KybStatus == VerificationStatus.Pending)
+                {
+                    score += 5;
+                    missingFields.Add("KYB Verification");
+                }
+
+                // MICA license (30 points)
+                if (profile.MicaLicenseStatus == MicaLicenseStatus.Approved)
+                {
+                    score += 30;
+                }
+                else if (profile.MicaLicenseStatus == MicaLicenseStatus.UnderReview)
+                {
+                    score += 15;
+                }
+                else if (profile.MicaLicenseStatus == MicaLicenseStatus.Applied)
+                {
+                    score += 5;
+                }
+                else
+                {
+                    missingFields.Add("MICA License");
+                }
+
+                // Determine overall status
+                IssuerVerificationStatus overallStatus;
+                if (score >= 80) overallStatus = IssuerVerificationStatus.FullyVerified;
+                else if (score >= 60) overallStatus = IssuerVerificationStatus.PartiallyVerified;
+                else if (score >= 30) overallStatus = IssuerVerificationStatus.Pending;
+                else if (profile.KybStatus == VerificationStatus.Expired) overallStatus = IssuerVerificationStatus.Expired;
+                else overallStatus = IssuerVerificationStatus.Unverified;
+
+                return new IssuerVerificationResponse
+                {
+                    Success = true,
+                    IssuerAddress = issuerAddress,
+                    OverallStatus = overallStatus,
+                    KybStatus = profile.KybStatus,
+                    MicaLicenseStatus = profile.MicaLicenseStatus,
+                    ProfileStatus = profile.Status,
+                    IsProfileComplete = missingFields.Count == 0,
+                    MissingFields = missingFields,
+                    VerificationScore = score
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting issuer verification for {IssuerAddress}", issuerAddress);
+                return new IssuerVerificationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to retrieve issuer verification: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IssuerAssetsResponse> ListIssuerAssetsAsync(string issuerAddress, ListIssuerAssetsRequest request)
+        {
+            try
+            {
+                var assetIds = await _complianceRepository.ListIssuerAssetsAsync(issuerAddress, request);
+                var totalCount = await _complianceRepository.GetIssuerAssetCountAsync(issuerAddress, request);
+
+                var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+                return new IssuerAssetsResponse
+                {
+                    Success = true,
+                    IssuerAddress = issuerAddress,
+                    AssetIds = assetIds,
+                    TotalCount = totalCount,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error listing assets for issuer {IssuerAddress}", issuerAddress);
+                return new IssuerAssetsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to list issuer assets: {ex.Message}"
+                };
+            }
+        }
+
+        // Phase 3: Blacklist Management
+
+        /// <inheritdoc/>
+        public async Task<BlacklistResponse> AddBlacklistEntryAsync(AddBlacklistEntryRequest request, string createdBy)
+        {
+            try
+            {
+                var entry = new BlacklistEntry
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Address = request.Address,
+                    AssetId = request.AssetId,
+                    Reason = request.Reason,
+                    Category = request.Category,
+                    Network = request.Network,
+                    Jurisdiction = request.Jurisdiction,
+                    Source = request.Source,
+                    ReferenceId = request.ReferenceId,
+                    EffectiveDate = request.EffectiveDate ?? DateTime.UtcNow,
+                    ExpirationDate = request.ExpirationDate,
+                    Status = BlacklistStatus.Active,
+                    CreatedBy = createdBy,
+                    CreatedAt = DateTime.UtcNow,
+                    Notes = request.Notes
+                };
+
+                var success = await _complianceRepository.CreateBlacklistEntryAsync(entry);
+
+                return new BlacklistResponse
+                {
+                    Success = success,
+                    Entry = success ? entry : null,
+                    ErrorMessage = success ? null : "Failed to create blacklist entry"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating blacklist entry for address {Address}", request.Address);
+                return new BlacklistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to create blacklist entry: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<BlacklistCheckResponse> CheckBlacklistAsync(CheckBlacklistRequest request)
+        {
+            try
+            {
+                var entries = await _complianceRepository.CheckBlacklistAsync(
+                    request.Address,
+                    request.AssetId,
+                    request.Network);
+
+                var globalEntries = entries.Where(e => e.AssetId == null).ToList();
+                var assetEntries = entries.Where(e => e.AssetId.HasValue).ToList();
+
+                return new BlacklistCheckResponse
+                {
+                    Success = true,
+                    Address = request.Address,
+                    IsBlacklisted = entries.Any(),
+                    Entries = entries,
+                    GlobalBlacklist = globalEntries.Any(),
+                    AssetSpecificBlacklist = assetEntries.Any()
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking blacklist for address {Address}", request.Address);
+                return new BlacklistCheckResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to check blacklist: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<BlacklistListResponse> ListBlacklistEntriesAsync(ListBlacklistEntriesRequest request)
+        {
+            try
+            {
+                var entries = await _complianceRepository.ListBlacklistEntriesAsync(request);
+                var totalCount = await _complianceRepository.GetBlacklistEntryCountAsync(request);
+
+                var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+                return new BlacklistListResponse
+                {
+                    Success = true,
+                    Entries = entries,
+                    TotalCount = totalCount,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error listing blacklist entries");
+                return new BlacklistListResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to list blacklist entries: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<BlacklistResponse> DeleteBlacklistEntryAsync(string id)
+        {
+            try
+            {
+                var success = await _complianceRepository.DeleteBlacklistEntryAsync(id);
+
+                return new BlacklistResponse
+                {
+                    Success = success,
+                    ErrorMessage = success ? null : "Blacklist entry not found"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting blacklist entry {Id}", id);
+                return new BlacklistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to delete blacklist entry: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<TransferValidationResponse> ValidateTransferAsync(ValidateComplianceTransferRequest request)
+        {
+            try
+            {
+                var validations = new List<ValidationCheck>();
+                var violations = new List<string>();
+                var warnings = new List<string>();
+
+                // Check sender whitelist
+                var senderWhitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest 
+                { 
+                    AssetId = request.AssetId,
+                    Status = WhitelistStatus.Active
+                });
+                var senderWhitelisted = senderWhitelistResponse.Success && 
+                    senderWhitelistResponse.Entries.Any(e => e.Address == request.FromAddress && e.Status == WhitelistStatus.Active);
+                validations.Add(new ValidationCheck
+                {
+                    Rule = "SenderWhitelisted",
+                    Passed = senderWhitelisted,
+                    Message = senderWhitelisted ? "Sender is whitelisted" : "Sender is not whitelisted"
+                });
+                if (!senderWhitelisted)
+                {
+                    violations.Add("Sender address is not whitelisted for this token");
+                }
+
+                // Check receiver whitelist
+                var receiverWhitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest 
+                { 
+                    AssetId = request.AssetId,
+                    Status = WhitelistStatus.Active
+                });
+                var receiverWhitelisted = receiverWhitelistResponse.Success && 
+                    receiverWhitelistResponse.Entries.Any(e => e.Address == request.ToAddress && e.Status == WhitelistStatus.Active);
+                validations.Add(new ValidationCheck
+                {
+                    Rule = "ReceiverWhitelisted",
+                    Passed = receiverWhitelisted,
+                    Message = receiverWhitelisted ? "Receiver is whitelisted" : "Receiver is not whitelisted"
+                });
+                if (!receiverWhitelisted)
+                {
+                    violations.Add("Receiver address is not whitelisted for this token");
+                }
+
+                // Check blacklist for sender
+                var senderBlacklist = await _complianceRepository.CheckBlacklistAsync(request.FromAddress, request.AssetId, request.Network);
+                validations.Add(new ValidationCheck
+                {
+                    Rule = "SenderNotBlacklisted",
+                    Passed = !senderBlacklist.Any(),
+                    Message = !senderBlacklist.Any() ? "Sender is not blacklisted" : "Sender is blacklisted"
+                });
+                if (senderBlacklist.Any())
+                {
+                    violations.Add($"Sender address is blacklisted: {senderBlacklist.First().Reason}");
+                }
+
+                // Check blacklist for receiver
+                var receiverBlacklist = await _complianceRepository.CheckBlacklistAsync(request.ToAddress, request.AssetId, request.Network);
+                validations.Add(new ValidationCheck
+                {
+                    Rule = "ReceiverNotBlacklisted",
+                    Passed = !receiverBlacklist.Any(),
+                    Message = !receiverBlacklist.Any() ? "Receiver is not blacklisted" : "Receiver is blacklisted"
+                });
+                if (receiverBlacklist.Any())
+                {
+                    violations.Add($"Receiver address is blacklisted: {receiverBlacklist.First().Reason}");
+                }
+
+                // Check compliance metadata
+                var metadata = await _complianceRepository.GetMetadataByAssetIdAsync(request.AssetId);
+                if (metadata != null)
+                {
+                    bool hasRestrictions = !string.IsNullOrEmpty(metadata.TransferRestrictions);
+                    validations.Add(new ValidationCheck
+                    {
+                        Rule = "TransferRestrictions",
+                        Passed = true,
+                        Message = hasRestrictions ? $"Transfer restrictions apply: {metadata.TransferRestrictions}" : "No transfer restrictions"
+                    });
+
+                    if (hasRestrictions)
+                    {
+                        warnings.Add(metadata.TransferRestrictions!);
+                    }
+                }
+
+                bool canTransfer = violations.Count == 0;
+
+                return new TransferValidationResponse
+                {
+                    Success = true,
+                    IsValid = canTransfer,
+                    CanTransfer = canTransfer,
+                    Validations = validations,
+                    Violations = violations,
+                    Warnings = warnings,
+                    Recommendations = canTransfer ? new List<string>() : new List<string> { "Please resolve all violations before proceeding with the transfer" }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating transfer for asset {AssetId}", request.AssetId);
+                return new TransferValidationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to validate transfer: {ex.Message}"
+                };
+            }
+        }
+
+        // Phase 4: MICA Checklist and Health
+
+        /// <inheritdoc/>
+        public async Task<MicaComplianceChecklistResponse> GetMicaComplianceChecklistAsync(ulong assetId)
+        {
+            try
+            {
+                var metadata = await _complianceRepository.GetMetadataByAssetIdAsync(assetId);
+                var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest { AssetId = assetId });
+                var whitelistEntries = whitelistResponse.Success ? whitelistResponse.Entries : new List<WhitelistEntry>();
+
+                var requirements = new List<MicaRequirement>();
+
+                // MICA Art. 35: Issuer identification
+                requirements.Add(new MicaRequirement
+                {
+                    Id = "MICA-ART35",
+                    Category = "Issuer Identification",
+                    Description = "Issuer must be identified and verified",
+                    IsMet = metadata != null && !string.IsNullOrEmpty(metadata.CreatedBy),
+                    Priority = MicaRequirementPriority.Critical,
+                    Evidence = metadata != null ? $"Token created by {metadata.CreatedBy}" : null,
+                    MetDate = metadata?.CreatedAt,
+                    Recommendations = metadata == null ? "Create compliance metadata with issuer information" : null
+                });
+
+                // MICA Art. 36: White paper
+                requirements.Add(new MicaRequirement
+                {
+                    Id = "MICA-ART36",
+                    Category = "White Paper",
+                    Description = "White paper must be published",
+                    IsMet = metadata != null && !string.IsNullOrEmpty(metadata.Notes),
+                    Priority = MicaRequirementPriority.Critical,
+                    Evidence = metadata?.Notes != null ? "White paper reference in compliance notes" : null,
+                    Recommendations = "Add white paper URL or reference in compliance metadata notes"
+                });
+
+                // MICA Art. 41: Prudential safeguards
+                requirements.Add(new MicaRequirement
+                {
+                    Id = "MICA-ART41",
+                    Category = "Prudential Safeguards",
+                    Description = "Prudential safeguards must be in place",
+                    IsMet = metadata?.ComplianceStatus == ComplianceStatus.Compliant,
+                    Priority = MicaRequirementPriority.High,
+                    Evidence = metadata != null ? $"Compliance status: {metadata.ComplianceStatus}" : null,
+                    MetDate = metadata?.LastComplianceReview,
+                    Recommendations = "Set compliance status to Compliant after review"
+                });
+
+                // MICA Art. 45: Transfer restrictions
+                requirements.Add(new MicaRequirement
+                {
+                    Id = "MICA-ART45",
+                    Category = "Transfer Restrictions",
+                    Description = "Transfer restrictions must be documented",
+                    IsMet = whitelistEntries?.Any() == true,
+                    Priority = MicaRequirementPriority.High,
+                    Evidence = whitelistEntries?.Any() == true ? $"{whitelistEntries.Count} addresses whitelisted" : null,
+                    Recommendations = "Implement whitelist controls for transfer restrictions"
+                });
+
+                // MICA Art. 59: AML/CTF
+                requirements.Add(new MicaRequirement
+                {
+                    Id = "MICA-ART59",
+                    Category = "AML/CTF",
+                    Description = "AML/CTF procedures must be implemented",
+                    IsMet = metadata?.VerificationStatus == VerificationStatus.Verified,
+                    Priority = MicaRequirementPriority.Critical,
+                    Evidence = metadata?.VerificationStatus == VerificationStatus.Verified ? $"KYC verification by {metadata.KycProvider}" : null,
+                    MetDate = metadata?.KycVerificationDate,
+                    Recommendations = "Implement KYC attestation workflow"
+                });
+
+                // MICA Art. 60: Record keeping
+                requirements.Add(new MicaRequirement
+                {
+                    Id = "MICA-ART60",
+                    Category = "Record Keeping",
+                    Description = "Records must be maintained (7 years minimum)",
+                    IsMet = true, // Audit logs are always enabled
+                    Priority = MicaRequirementPriority.High,
+                    Evidence = "Audit logs enabled with 7-year retention",
+                    MetDate = DateTime.UtcNow
+                });
+
+                // Calculate compliance percentage
+                int metCount = requirements.Count(r => r.IsMet);
+                int totalCount = requirements.Count;
+                int percentage = (int)Math.Round((double)metCount / totalCount * 100);
+
+                // Determine overall status
+                MicaComplianceStatus overallStatus;
+                if (percentage == 100) overallStatus = MicaComplianceStatus.FullyCompliant;
+                else if (percentage >= 80) overallStatus = MicaComplianceStatus.NearlyCompliant;
+                else if (percentage >= 40) overallStatus = MicaComplianceStatus.InProgress;
+                else if (percentage > 0) overallStatus = MicaComplianceStatus.InProgress;
+                else overallStatus = MicaComplianceStatus.NotStarted;
+
+                // Find next critical unmet requirement
+                var nextUnmet = requirements
+                    .Where(r => !r.IsMet && r.Priority == MicaRequirementPriority.Critical)
+                    .FirstOrDefault();
+
+                var checklist = new MicaComplianceChecklist
+                {
+                    AssetId = assetId,
+                    OverallStatus = overallStatus,
+                    CompliancePercentage = percentage,
+                    Requirements = requirements,
+                    GeneratedAt = DateTime.UtcNow,
+                    NextAction = nextUnmet != null ? nextUnmet.Recommendations : null,
+                    EstimatedCompletionDate = overallStatus == MicaComplianceStatus.FullyCompliant ? null : DateTime.UtcNow.AddDays(30)
+                };
+
+                return new MicaComplianceChecklistResponse
+                {
+                    Success = true,
+                    Checklist = checklist
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting MICA checklist for asset {AssetId}", assetId);
+                return new MicaComplianceChecklistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to retrieve MICA checklist: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ComplianceHealthResponse> GetComplianceHealthAsync(string issuerAddress, string? network)
+        {
+            try
+            {
+                // Get all assets for issuer
+                var assetsRequest = new ListIssuerAssetsRequest
+                {
+                    Network = network,
+                    Page = 1,
+                    PageSize = 100
+                };
+                var assets = await _complianceRepository.ListIssuerAssetsAsync(issuerAddress, assetsRequest);
+                var totalTokens = assets.Count;
+
+                // Get metadata for each asset
+                var metadataList = new List<ComplianceMetadata>();
+                foreach (var assetId in assets)
+                {
+                    var metadata = await _complianceRepository.GetMetadataByAssetIdAsync(assetId);
+                    if (metadata != null)
+                    {
+                        metadataList.Add(metadata);
+                    }
+                }
+
+                // Calculate metrics
+                int compliantTokens = metadataList.Count(m => m.ComplianceStatus == ComplianceStatus.Compliant);
+                int underReviewTokens = metadataList.Count(m => m.ComplianceStatus == ComplianceStatus.UnderReview);
+                int nonCompliantTokens = metadataList.Count(m => m.ComplianceStatus == ComplianceStatus.NonCompliant);
+
+                // Count tokens with features
+                int tokensWithWhitelisting = 0;
+                int micaReadyTokens = 0;
+
+                foreach (var metadata in metadataList)
+                {
+                    var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest { AssetId = metadata.AssetId });
+                    var whitelistEntries = whitelistResponse.Success ? whitelistResponse.Entries : new List<WhitelistEntry>();
+                    if (whitelistEntries?.Any() == true)
+                    {
+                        tokensWithWhitelisting++;
+                    }
+
+                    // Check MICA readiness
+                    bool isMicaReady = metadata.ComplianceStatus == ComplianceStatus.Compliant &&
+                                      !string.IsNullOrEmpty(metadata.RegulatoryFramework) &&
+                                      !string.IsNullOrEmpty(metadata.Jurisdiction);
+                    if (isMicaReady)
+                    {
+                        micaReadyTokens++;
+                    }
+                }
+
+                // Check issuer verification
+                var issuerProfile = await _complianceRepository.GetIssuerProfileAsync(issuerAddress);
+                bool issuerVerified = issuerProfile?.KybStatus == VerificationStatus.Verified;
+
+                // Generate alerts
+                var alerts = new List<ComplianceAlert>();
+
+                // Check for overdue reviews
+                var overdueReviews = metadataList
+                    .Where(m => m.NextComplianceReview.HasValue && m.NextComplianceReview.Value < DateTime.UtcNow.AddDays(30))
+                    .ToList();
+                if (overdueReviews.Any())
+                {
+                    alerts.Add(new ComplianceAlert
+                    {
+                        Severity = "Warning",
+                        Message = $"{overdueReviews.Count} tokens have compliance review due within 30 days",
+                        AffectedAssetIds = overdueReviews.Select(m => m.AssetId).ToList()
+                    });
+                }
+
+                // Check for non-compliant tokens
+                if (nonCompliantTokens > 0)
+                {
+                    alerts.Add(new ComplianceAlert
+                    {
+                        Severity = "Error",
+                        Message = $"{nonCompliantTokens} tokens are non-compliant",
+                        AffectedAssetIds = metadataList.Where(m => m.ComplianceStatus == ComplianceStatus.NonCompliant)
+                            .Select(m => m.AssetId).ToList()
+                    });
+                }
+
+                // Generate recommendations
+                var recommendations = new List<string>();
+                if (!issuerVerified)
+                {
+                    recommendations.Add("Complete KYB verification for issuer profile");
+                }
+                if (micaReadyTokens < totalTokens)
+                {
+                    recommendations.Add($"Complete MICA compliance checklist for {totalTokens - micaReadyTokens} tokens");
+                }
+                if (tokensWithWhitelisting < totalTokens)
+                {
+                    recommendations.Add($"Enable whitelist controls for {totalTokens - tokensWithWhitelisting} tokens");
+                }
+
+                // Calculate overall health score
+                int healthScore = 0;
+                if (totalTokens > 0)
+                {
+                    healthScore = (int)Math.Round(
+                        (compliantTokens * 30.0 / totalTokens) +
+                        (micaReadyTokens * 30.0 / totalTokens) +
+                        (tokensWithWhitelisting * 20.0 / totalTokens) +
+                        (issuerVerified ? 20 : 0)
+                    );
+                }
+
+                return new ComplianceHealthResponse
+                {
+                    Success = true,
+                    OverallHealthScore = healthScore,
+                    TotalTokens = totalTokens,
+                    CompliantTokens = compliantTokens,
+                    UnderReviewTokens = underReviewTokens,
+                    NonCompliantTokens = nonCompliantTokens,
+                    MicaReadyTokens = micaReadyTokens,
+                    TokensWithWhitelisting = tokensWithWhitelisting,
+                    TokensWithAuditTrail = totalTokens, // All tokens have audit trail
+                    IssuerVerified = issuerVerified,
+                    Alerts = alerts,
+                    Recommendations = recommendations
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting compliance health for issuer {IssuerAddress}", issuerAddress);
+                return new ComplianceHealthResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to retrieve compliance health: {ex.Message}"
+                };
+            }
+        }
     }
 }

@@ -453,7 +453,7 @@ namespace BiatecTokensApi.Models.Compliance
     /// <summary>
     /// Request to validate a transfer
     /// </summary>
-    public class ValidateTransferRequest
+    public class ValidateComplianceTransferRequest
     {
         /// <summary>
         /// Asset ID

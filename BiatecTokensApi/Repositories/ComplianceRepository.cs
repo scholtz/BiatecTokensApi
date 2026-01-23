@@ -411,5 +411,251 @@ namespace BiatecTokensApi.Repositories
 
             return Task.FromResult(query.Count());
         }
+
+        // Phase 2: Issuer Profile Management
+
+        private readonly ConcurrentDictionary<string, IssuerProfile> _issuerProfiles = new();
+
+        /// <inheritdoc/>
+        public Task<bool> UpsertIssuerProfileAsync(IssuerProfile profile)
+        {
+            try
+            {
+                _issuerProfiles.AddOrUpdate(
+                    profile.IssuerAddress,
+                    profile,
+                    (key, existing) =>
+                    {
+                        // Preserve creation info when updating
+                        profile.CreatedBy = existing.CreatedBy;
+                        profile.CreatedAt = existing.CreatedAt;
+                        profile.UpdatedAt = DateTime.UtcNow;
+                        return profile;
+                    });
+
+                _logger.LogDebug("Upserted issuer profile for {IssuerAddress}", profile.IssuerAddress);
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error upserting issuer profile for {IssuerAddress}", profile.IssuerAddress);
+                return Task.FromResult(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<IssuerProfile?> GetIssuerProfileAsync(string issuerAddress)
+        {
+            _issuerProfiles.TryGetValue(issuerAddress, out var profile);
+            return Task.FromResult(profile);
+        }
+
+        /// <inheritdoc/>
+        public Task<List<ulong>> ListIssuerAssetsAsync(string issuerAddress, ListIssuerAssetsRequest request)
+        {
+            // Find all assets created by this issuer
+            var query = _metadata.Values
+                .Where(m => m.CreatedBy == issuerAddress)
+                .AsEnumerable();
+
+            // Apply filters
+            if (!string.IsNullOrEmpty(request.Network))
+            {
+                query = query.Where(m => m.Network == request.Network);
+            }
+
+            if (request.ComplianceStatus.HasValue)
+            {
+                query = query.Where(m => m.ComplianceStatus == request.ComplianceStatus.Value);
+            }
+
+            // Get asset IDs
+            var assetIds = query.Select(m => m.AssetId).ToList();
+
+            // Apply pagination
+            var skip = (request.Page - 1) * request.PageSize;
+            return Task.FromResult(assetIds.Skip(skip).Take(request.PageSize).ToList());
+        }
+
+        /// <inheritdoc/>
+        public Task<int> GetIssuerAssetCountAsync(string issuerAddress, ListIssuerAssetsRequest request)
+        {
+            var query = _metadata.Values
+                .Where(m => m.CreatedBy == issuerAddress)
+                .AsEnumerable();
+
+            if (!string.IsNullOrEmpty(request.Network))
+            {
+                query = query.Where(m => m.Network == request.Network);
+            }
+
+            if (request.ComplianceStatus.HasValue)
+            {
+                query = query.Where(m => m.ComplianceStatus == request.ComplianceStatus.Value);
+            }
+
+            return Task.FromResult(query.Count());
+        }
+
+        // Phase 3: Blacklist Management
+
+        private readonly ConcurrentDictionary<string, BlacklistEntry> _blacklistEntries = new();
+
+        /// <inheritdoc/>
+        public Task<bool> CreateBlacklistEntryAsync(BlacklistEntry entry)
+        {
+            try
+            {
+                var added = _blacklistEntries.TryAdd(entry.Id, entry);
+                if (added)
+                {
+                    _logger.LogDebug("Created blacklist entry {Id} for address {Address}", entry.Id, entry.Address);
+                }
+                return Task.FromResult(added);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating blacklist entry {Id}", entry.Id);
+                return Task.FromResult(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<BlacklistEntry?> GetBlacklistEntryAsync(string id)
+        {
+            _blacklistEntries.TryGetValue(id, out var entry);
+            return Task.FromResult(entry);
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> UpdateBlacklistEntryAsync(BlacklistEntry entry)
+        {
+            try
+            {
+                if (_blacklistEntries.ContainsKey(entry.Id))
+                {
+                    _blacklistEntries[entry.Id] = entry;
+                    _logger.LogDebug("Updated blacklist entry {Id}", entry.Id);
+                    return Task.FromResult(true);
+                }
+                return Task.FromResult(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating blacklist entry {Id}", entry.Id);
+                return Task.FromResult(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> DeleteBlacklistEntryAsync(string id)
+        {
+            var result = _blacklistEntries.TryRemove(id, out _);
+            if (result)
+            {
+                _logger.LogDebug("Deleted blacklist entry {Id}", id);
+            }
+            return Task.FromResult(result);
+        }
+
+        /// <inheritdoc/>
+        public Task<List<BlacklistEntry>> ListBlacklistEntriesAsync(ListBlacklistEntriesRequest request)
+        {
+            var query = _blacklistEntries.Values.AsEnumerable();
+
+            // Apply filters
+            if (!string.IsNullOrEmpty(request.Address))
+            {
+                query = query.Where(e => e.Address == request.Address);
+            }
+
+            if (request.AssetId.HasValue)
+            {
+                query = query.Where(e => e.AssetId == request.AssetId.Value || e.AssetId == null);
+            }
+
+            if (request.Category.HasValue)
+            {
+                query = query.Where(e => e.Category == request.Category.Value);
+            }
+
+            if (request.Status.HasValue)
+            {
+                query = query.Where(e => e.Status == request.Status.Value);
+            }
+
+            if (!string.IsNullOrEmpty(request.Network))
+            {
+                query = query.Where(e => e.Network == request.Network || e.Network == null);
+            }
+
+            // Apply pagination
+            var skip = (request.Page - 1) * request.PageSize;
+            return Task.FromResult(query.Skip(skip).Take(request.PageSize).ToList());
+        }
+
+        /// <inheritdoc/>
+        public Task<int> GetBlacklistEntryCountAsync(ListBlacklistEntriesRequest request)
+        {
+            var query = _blacklistEntries.Values.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(request.Address))
+            {
+                query = query.Where(e => e.Address == request.Address);
+            }
+
+            if (request.AssetId.HasValue)
+            {
+                query = query.Where(e => e.AssetId == request.AssetId.Value || e.AssetId == null);
+            }
+
+            if (request.Category.HasValue)
+            {
+                query = query.Where(e => e.Category == request.Category.Value);
+            }
+
+            if (request.Status.HasValue)
+            {
+                query = query.Where(e => e.Status == request.Status.Value);
+            }
+
+            if (!string.IsNullOrEmpty(request.Network))
+            {
+                query = query.Where(e => e.Network == request.Network || e.Network == null);
+            }
+
+            return Task.FromResult(query.Count());
+        }
+
+        /// <inheritdoc/>
+        public Task<List<BlacklistEntry>> CheckBlacklistAsync(string address, ulong? assetId, string? network)
+        {
+            var now = DateTime.UtcNow;
+            
+            var query = _blacklistEntries.Values
+                .Where(e => e.Address == address)
+                .Where(e => e.Status == BlacklistStatus.Active)
+                .Where(e => e.EffectiveDate <= now)
+                .Where(e => !e.ExpirationDate.HasValue || e.ExpirationDate.Value > now)
+                .AsEnumerable();
+
+            // Check for global blacklist or asset-specific
+            if (assetId.HasValue)
+            {
+                query = query.Where(e => e.AssetId == null || e.AssetId == assetId.Value);
+            }
+            else
+            {
+                query = query.Where(e => e.AssetId == null);
+            }
+
+            // Check network if specified
+            if (!string.IsNullOrEmpty(network))
+            {
+                query = query.Where(e => e.Network == null || e.Network == network);
+            }
+
+            return Task.FromResult(query.ToList());
+        }
     }
 }
