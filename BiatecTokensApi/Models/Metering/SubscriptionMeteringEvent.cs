@@ -109,6 +109,11 @@ namespace BiatecTokensApi.Models.Metering
         /// <summary>
         /// Transfer validation operation
         /// </summary>
-        TransferValidation
+        TransferValidation,
+
+        /// <summary>
+        /// Export operation (CSV/JSON compliance data export)
+        /// </summary>
+        Export
     }
 }

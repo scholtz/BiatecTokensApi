@@ -19,6 +19,7 @@ namespace BiatecTokensTests
         private Mock<ILogger<ComplianceService>> _serviceLoggerMock;
         private Mock<ILogger<ComplianceController>> _controllerLoggerMock;
         private Mock<ISubscriptionMeteringService> _meteringServiceMock;
+        private Mock<ISubscriptionMeteringService> _controllerMeteringServiceMock;
         private ComplianceService _service;
         private ComplianceController _controller;
         private Mock<IComplianceService> _serviceMock;
@@ -32,10 +33,11 @@ namespace BiatecTokensTests
             _serviceLoggerMock = new Mock<ILogger<ComplianceService>>();
             _controllerLoggerMock = new Mock<ILogger<ComplianceController>>();
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
+            _controllerMeteringServiceMock = new Mock<ISubscriptionMeteringService>();
             _service = new ComplianceService(_repositoryMock.Object, _serviceLoggerMock.Object, _meteringServiceMock.Object);
             
             _serviceMock = new Mock<IComplianceService>();
-            _controller = new ComplianceController(_serviceMock.Object, _controllerLoggerMock.Object);
+            _controller = new ComplianceController(_serviceMock.Object, _controllerLoggerMock.Object, _controllerMeteringServiceMock.Object);
 
             // Mock authenticated user context
             var claims = new List<Claim>
