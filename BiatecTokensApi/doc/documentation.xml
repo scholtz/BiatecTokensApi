@@ -96,6 +96,16 @@
             Maximum number of records to export in a single request
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Controllers.ComplianceController.MaxAuditEntriesPerCategory">
+            <summary>
+            Maximum number of audit entries per category in compliance reports
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Controllers.ComplianceController.MaxReportPageSize">
+            <summary>
+            Maximum page size for compliance reports
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.#ctor(BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ComplianceController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.ComplianceController"/> class.

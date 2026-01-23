@@ -28,6 +28,16 @@ namespace BiatecTokensApi.Controllers
         private const int MaxExportRecords = 10000;
 
         /// <summary>
+        /// Maximum number of audit entries per category in compliance reports
+        /// </summary>
+        private const int MaxAuditEntriesPerCategory = 1000;
+
+        /// <summary>
+        /// Maximum page size for compliance reports
+        /// </summary>
+        private const int MaxReportPageSize = 100;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ComplianceController"/> class.
         /// </summary>
         /// <param name="complianceService">The compliance service</param>
@@ -1129,9 +1139,9 @@ namespace BiatecTokensApi.Controllers
                     IncludeWhitelistDetails = includeWhitelistDetails,
                     IncludeTransferAudits = includeTransferAudits,
                     IncludeComplianceAudits = includeComplianceAudits,
-                    MaxAuditEntriesPerCategory = Math.Min(maxAuditEntriesPerCategory, 1000), // Cap at 1000
+                    MaxAuditEntriesPerCategory = Math.Min(maxAuditEntriesPerCategory, MaxAuditEntriesPerCategory),
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxReportPageSize)
                 };
 
                 if (!ModelState.IsValid)

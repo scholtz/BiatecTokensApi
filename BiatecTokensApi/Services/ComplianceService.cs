@@ -1143,7 +1143,10 @@ namespace BiatecTokensApi.Services
         {
             // Note: This requires access to whitelist repository
             // For now, return a placeholder. In production, inject IWhitelistRepository
-            _logger.LogDebug("Getting whitelist summary for asset {AssetId}", assetId);
+            // TODO: Integrate with IWhitelistRepository to fetch actual whitelist statistics
+            _logger.LogWarning(
+                "Returning placeholder whitelist summary for asset {AssetId}. Whitelist repository integration pending.",
+                assetId);
             
             return new WhitelistSummary
             {
@@ -1171,8 +1174,9 @@ namespace BiatecTokensApi.Services
         {
             // Note: This requires access to whitelist repository
             // For now, return empty list. In production, inject IWhitelistRepository
-            _logger.LogDebug(
-                "Getting whitelist audit entries for asset {AssetId}, transferValidations: {IncludeTransfers}",
+            // TODO: Integrate with IWhitelistRepository to fetch actual whitelist audit entries
+            _logger.LogWarning(
+                "Returning empty whitelist audit entries for asset {AssetId}, transferValidations: {IncludeTransfers}. Whitelist repository integration pending.",
                 assetId, includeTransferValidations);
             
             return new List<Models.Whitelist.WhitelistAuditLogEntry>();
