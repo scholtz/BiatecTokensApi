@@ -5,6 +5,7 @@ using BiatecTokensApi.Models.ARC200.Response;
 using BiatecTokensApi.Models.ARC3.Request;
 using BiatecTokensApi.Models.ARC3.Response;
 using BiatecTokensApi.Models.ASA.Request;
+using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.ERC20.Request;
 using BiatecTokensApi.Models.EVM;
 using BiatecTokensApi.Services;
@@ -32,6 +33,7 @@ namespace BiatecTokensApi.Controllers
         private readonly IASATokenService _asaTokenService;
         private readonly IARC200TokenService _arc200TokenService;
         private readonly IARC1400TokenService _arc1400TokenService;
+        private readonly IComplianceService _complianceService;
         private readonly ILogger<TokenController> _logger;
         /// <summary>
         /// Initializes a new instance of the <see cref="TokenController"/> class.
@@ -41,6 +43,7 @@ namespace BiatecTokensApi.Controllers
         /// <param name="asaTokenService">The service used to interact with ASA tokens.</param>
         /// <param name="arc200TokenService">The service used to interact with ARC-200 tokens</param>
         /// <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
+        /// <param name="complianceService">The service used to interact with compliance metadata</param>
         /// <param name="logger">The logger instance used to log diagnostic and operational information.</param>
         public TokenController(
             IERC20TokenService erc20TokenService,
@@ -48,6 +51,7 @@ namespace BiatecTokensApi.Controllers
             IASATokenService asaTokenService,
             IARC200TokenService arc200TokenService,
             IARC1400TokenService arc1400TokenService,
+            IComplianceService complianceService,
             ILogger<TokenController> logger)
         {
             _erc20TokenService = erc20TokenService;
@@ -55,6 +59,7 @@ namespace BiatecTokensApi.Controllers
             _asaTokenService = asaTokenService;
             _arc200TokenService = arc200TokenService;
             _arc1400TokenService = arc1400TokenService;
+            _complianceService = complianceService;
             _logger = logger;
         }
 
@@ -556,6 +561,55 @@ namespace BiatecTokensApi.Controllers
             {
                 _logger.LogError(ex, "Error creating ARC3 token");
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Gets compliance indicators for a token, providing enterprise readiness information
+        /// </summary>
+        /// <param name="assetId">The asset ID (token ID) to get compliance indicators for</param>
+        /// <returns>Compliance indicators including MICA readiness, whitelisting status, and transfer restrictions</returns>
+        /// <remarks>
+        /// This endpoint exposes compliance-related flags that enable the frontend to display:
+        /// - MICA regulatory readiness
+        /// - Whitelisting enabled status and entry count
+        /// - Transfer restrictions summary
+        /// - Enterprise readiness score
+        /// - KYC verification status
+        /// - Regulatory framework and jurisdiction information
+        /// 
+        /// Use this endpoint to support subscription value features and enterprise readiness indicators in the UI.
+        /// </remarks>
+        [HttpGet("{assetId}/compliance-indicators")]
+        [ProducesResponseType(typeof(TokenComplianceIndicatorsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetComplianceIndicators([FromRoute] ulong assetId)
+        {
+            try
+            {
+                var result = await _complianceService.GetComplianceIndicatorsAsync(assetId);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved compliance indicators for asset {AssetId}", assetId);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to retrieve compliance indicators for asset {AssetId}: {Error}", 
+                        assetId, result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving compliance indicators for asset {AssetId}", assetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new TokenComplianceIndicatorsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
             }
         }
     }

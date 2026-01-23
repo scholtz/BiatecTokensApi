@@ -35,8 +35,9 @@ namespace BiatecTokensTests
             _asaTokenServiceMock = new Mock<IASATokenService>();
             _arc200TokenServiceMock = new Mock<IARC200TokenService>();
             _arc1400TokenServiceMock = new Mock<IARC1400TokenService>();
+            var complianceServiceMock = new Mock<IComplianceService>();
             _loggerMock = new Mock<ILogger<TokenController>>();
-            _controller = new TokenController(_tokenServiceMock.Object, _arc3TokenServiceMock.Object, _asaTokenServiceMock.Object, _arc200TokenServiceMock.Object, _arc1400TokenServiceMock.Object, _loggerMock.Object);
+            _controller = new TokenController(_tokenServiceMock.Object, _arc3TokenServiceMock.Object, _asaTokenServiceMock.Object, _arc200TokenServiceMock.Object, _arc1400TokenServiceMock.Object, complianceServiceMock.Object, _loggerMock.Object);
 
             // Set up a valid token deployment request for testing
             _validDeploymentRequest = new ERC20MintableTokenDeploymentRequest

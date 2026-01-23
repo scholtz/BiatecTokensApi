@@ -105,5 +105,16 @@ namespace BiatecTokensApi.Services.Interface
         /// Supports MICA reporting requirements and subscription-based access control.
         /// </remarks>
         Task<AttestationPackageResponse> GenerateAttestationPackageAsync(GenerateAttestationPackageRequest request, string requestedBy);
+
+        /// <summary>
+        /// Gets compliance indicators for a token, providing a simplified view for frontend display
+        /// </summary>
+        /// <param name="assetId">The asset ID (token ID)</param>
+        /// <returns>Response with compliance indicators including MICA readiness, whitelisting status, and transfer restrictions</returns>
+        /// <remarks>
+        /// This method aggregates compliance metadata and whitelist information to provide
+        /// enterprise readiness indicators and subscription value flags for the frontend.
+        /// </remarks>
+        Task<TokenComplianceIndicatorsResponse> GetComplianceIndicatorsAsync(ulong assetId);
     }
 }

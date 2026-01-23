@@ -1,5 +1,6 @@
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.Metering;
+using BiatecTokensApi.Models.Whitelist;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 
@@ -11,6 +12,7 @@ namespace BiatecTokensApi.Services
     public class ComplianceService : IComplianceService
     {
         private readonly IComplianceRepository _complianceRepository;
+        private readonly IWhitelistService _whitelistService;
         private readonly ILogger<ComplianceService> _logger;
         private readonly ISubscriptionMeteringService _meteringService;
         
@@ -23,14 +25,17 @@ namespace BiatecTokensApi.Services
         /// Initializes a new instance of the <see cref="ComplianceService"/> class.
         /// </summary>
         /// <param name="complianceRepository">The compliance repository</param>
+        /// <param name="whitelistService">The whitelist service</param>
         /// <param name="logger">The logger instance</param>
         /// <param name="meteringService">The subscription metering service</param>
         public ComplianceService(
             IComplianceRepository complianceRepository,
+            IWhitelistService whitelistService,
             ILogger<ComplianceService> logger,
             ISubscriptionMeteringService meteringService)
         {
             _complianceRepository = complianceRepository;
+            _whitelistService = whitelistService;
             _logger = logger;
             _meteringService = meteringService;
         }
@@ -1562,6 +1567,80 @@ namespace BiatecTokensApi.Services
             {
                 _logger.LogError(ex, "Failed to generate package hash");
                 return $"ERROR_{Guid.NewGuid()}";
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<TokenComplianceIndicatorsResponse> GetComplianceIndicatorsAsync(ulong assetId)
+        {
+            try
+            {
+                // Get compliance metadata
+                var complianceMetadata = await _complianceRepository.GetMetadataByAssetIdAsync(assetId);
+
+                // Get whitelist entries count
+                var whitelistRequest = new ListWhitelistRequest
+                {
+                    AssetId = assetId,
+                    Page = 1,
+                    PageSize = 100  // Get some entries to get accurate count
+                };
+                
+                var whitelistResponse = await _whitelistService.ListEntriesAsync(whitelistRequest);
+                var whitelistCount = whitelistResponse.TotalCount;
+
+                var hasComplianceMetadata = complianceMetadata != null;
+                var hasWhitelisting = whitelistCount > 0;
+
+                // Calculate MICA readiness
+                var isMicaReady = hasComplianceMetadata &&
+                    (complianceMetadata.ComplianceStatus == ComplianceStatus.Compliant ||
+                     complianceMetadata.ComplianceStatus == ComplianceStatus.Exempt) &&
+                    !string.IsNullOrWhiteSpace(complianceMetadata.RegulatoryFramework) &&
+                    !string.IsNullOrWhiteSpace(complianceMetadata.Jurisdiction);
+
+                // Calculate enterprise readiness score
+                var enterpriseScore = 0;
+                if (hasComplianceMetadata) enterpriseScore += 30;
+                if (hasWhitelisting) enterpriseScore += 25;
+                if (hasComplianceMetadata && complianceMetadata.VerificationStatus == VerificationStatus.Verified) enterpriseScore += 20;
+                if (hasComplianceMetadata && !string.IsNullOrWhiteSpace(complianceMetadata.RegulatoryFramework)) enterpriseScore += 15;
+                if (hasComplianceMetadata && !string.IsNullOrWhiteSpace(complianceMetadata.Jurisdiction)) enterpriseScore += 10;
+
+                var indicators = new TokenComplianceIndicators
+                {
+                    AssetId = assetId,
+                    IsMicaReady = isMicaReady,
+                    WhitelistingEnabled = hasWhitelisting,
+                    WhitelistedAddressCount = whitelistCount,
+                    HasTransferRestrictions = hasComplianceMetadata && !string.IsNullOrWhiteSpace(complianceMetadata.TransferRestrictions),
+                    TransferRestrictions = complianceMetadata?.TransferRestrictions,
+                    RequiresAccreditedInvestors = complianceMetadata?.RequiresAccreditedInvestors ?? false,
+                    ComplianceStatus = complianceMetadata?.ComplianceStatus.ToString(),
+                    VerificationStatus = complianceMetadata?.VerificationStatus.ToString(),
+                    RegulatoryFramework = complianceMetadata?.RegulatoryFramework,
+                    Jurisdiction = complianceMetadata?.Jurisdiction,
+                    MaxHolders = complianceMetadata?.MaxHolders,
+                    EnterpriseReadinessScore = enterpriseScore,
+                    Network = complianceMetadata?.Network,
+                    HasComplianceMetadata = hasComplianceMetadata,
+                    LastComplianceUpdate = complianceMetadata?.UpdatedAt ?? complianceMetadata?.CreatedAt
+                };
+
+                return new TokenComplianceIndicatorsResponse
+                {
+                    Success = true,
+                    Indicators = indicators
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting compliance indicators for asset {AssetId}", assetId);
+                return new TokenComplianceIndicatorsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to retrieve compliance indicators: {ex.Message}"
+                };
             }
         }
     }
