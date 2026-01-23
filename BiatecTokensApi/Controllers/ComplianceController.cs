@@ -591,6 +591,216 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Creates a new compliance attestation
+        /// </summary>
+        /// <param name="request">The attestation creation request</param>
+        /// <returns>The created attestation</returns>
+        /// <remarks>
+        /// This operation creates a wallet-level compliance attestation that provides cryptographic proof 
+        /// of compliance verification. Attestations are used for MICA/RWA workflows to maintain persistent 
+        /// compliance audit trails for issuers.
+        /// 
+        /// **Key Features**:
+        /// - Links attestation to specific wallet and token
+        /// - Stores cryptographic proof hash (IPFS CID, SHA-256, etc.)
+        /// - Supports multiple attestation types (KYC, AML, Accreditation)
+        /// - Optional expiration dates for time-limited attestations
+        /// 
+        /// This operation emits a metering event for billing analytics.
+        /// 
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpPost("attestations")]
+        [ProducesResponseType(typeof(ComplianceAttestationResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CreateAttestation([FromBody] CreateComplianceAttestationRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var createdBy = GetUserAddress();
+
+                if (string.IsNullOrEmpty(createdBy))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context");
+                    return Unauthorized(new ComplianceAttestationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User address not found in authentication context"
+                    });
+                }
+
+                var result = await _complianceService.CreateAttestationAsync(request, createdBy);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Created attestation for wallet {WalletAddress} and asset {AssetId} by {CreatedBy}",
+                        request.WalletAddress,
+                        request.AssetId,
+                        createdBy);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError(
+                        "Failed to create attestation for wallet {WalletAddress}: {Error}",
+                        request.WalletAddress,
+                        result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception creating attestation for wallet {WalletAddress}", request.WalletAddress);
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceAttestationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets a compliance attestation by ID
+        /// </summary>
+        /// <param name="id">The attestation ID</param>
+        /// <returns>The attestation details</returns>
+        /// <remarks>
+        /// Retrieves a specific compliance attestation by its unique identifier.
+        /// The attestation includes wallet address, issuer, proof hash, verification status, and metadata.
+        /// 
+        /// Expired attestations are automatically marked with Expired status when retrieved.
+        /// 
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpGet("attestations/{id}")]
+        [ProducesResponseType(typeof(ComplianceAttestationResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetAttestation([FromRoute] string id)
+        {
+            try
+            {
+                var result = await _complianceService.GetAttestationAsync(id);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved attestation {Id}", id);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogWarning("Attestation {Id} not found", id);
+                    return NotFound(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving attestation {Id}", id);
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceAttestationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lists compliance attestations with optional filtering
+        /// </summary>
+        /// <param name="walletAddress">Optional filter by wallet address</param>
+        /// <param name="assetId">Optional filter by asset ID (token ID)</param>
+        /// <param name="issuerAddress">Optional filter by issuer address</param>
+        /// <param name="verificationStatus">Optional filter by verification status</param>
+        /// <param name="attestationType">Optional filter by attestation type</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="excludeExpired">Optional filter to exclude expired attestations</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 20, max: 100)</param>
+        /// <returns>List of compliance attestations with pagination</returns>
+        /// <remarks>
+        /// Lists compliance attestations with flexible filtering options.
+        /// 
+        /// **Common Use Cases**:
+        /// - List all attestations for a specific wallet
+        /// - List all attestations for a specific token
+        /// - List attestations by issuer
+        /// - Filter by verification status (Pending, Verified, Failed, Expired, Revoked)
+        /// - Filter by attestation type (KYC, AML, Accreditation, etc.)
+        /// 
+        /// Note: This is a read operation and does not emit metering events.
+        /// 
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpGet("attestations")]
+        [ProducesResponseType(typeof(ComplianceAttestationListResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ListAttestations(
+            [FromQuery] string? walletAddress = null,
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? issuerAddress = null,
+            [FromQuery] AttestationVerificationStatus? verificationStatus = null,
+            [FromQuery] string? attestationType = null,
+            [FromQuery] string? network = null,
+            [FromQuery] bool? excludeExpired = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var request = new ListComplianceAttestationsRequest
+                {
+                    WalletAddress = walletAddress,
+                    AssetId = assetId,
+                    IssuerAddress = issuerAddress,
+                    VerificationStatus = verificationStatus,
+                    AttestationType = attestationType,
+                    Network = network,
+                    ExcludeExpired = excludeExpired,
+                    Page = page,
+                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                };
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _complianceService.ListAttestationsAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Listed {Count} attestations", result.Attestations.Count);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to list attestations: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception listing attestations");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceAttestationListResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
         /// Escapes special characters in CSV values
         /// </summary>
         /// <param name="value">The value to escape</param>

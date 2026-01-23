@@ -57,5 +57,27 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="request">The validation request containing token configuration</param>
         /// <returns>Response with validation errors and warnings</returns>
         Task<ValidateTokenPresetResponse> ValidateTokenPresetAsync(ValidateTokenPresetRequest request);
+
+        /// <summary>
+        /// Creates a new compliance attestation
+        /// </summary>
+        /// <param name="request">The attestation creation request</param>
+        /// <param name="createdBy">The address of the user creating the attestation</param>
+        /// <returns>Response with the created attestation</returns>
+        Task<ComplianceAttestationResponse> CreateAttestationAsync(CreateComplianceAttestationRequest request, string createdBy);
+
+        /// <summary>
+        /// Gets a compliance attestation by ID
+        /// </summary>
+        /// <param name="id">The attestation ID</param>
+        /// <returns>Response with the attestation</returns>
+        Task<ComplianceAttestationResponse> GetAttestationAsync(string id);
+
+        /// <summary>
+        /// Lists compliance attestations with optional filtering
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>Response with list of attestations</returns>
+        Task<ComplianceAttestationListResponse> ListAttestationsAsync(ListComplianceAttestationsRequest request);
     }
 }

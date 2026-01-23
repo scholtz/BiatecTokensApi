@@ -779,5 +779,192 @@ namespace BiatecTokensApi.Services
                 return $"Token configuration has {errorCount} error(s) that must be fixed before deployment";
             }
         }
+
+        /// <inheritdoc/>
+        public async Task<ComplianceAttestationResponse> CreateAttestationAsync(
+            CreateComplianceAttestationRequest request,
+            string createdBy)
+        {
+            try
+            {
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(request.WalletAddress))
+                {
+                    return new ComplianceAttestationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Wallet address is required"
+                    };
+                }
+
+                if (string.IsNullOrWhiteSpace(request.IssuerAddress))
+                {
+                    return new ComplianceAttestationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Issuer address is required"
+                    };
+                }
+
+                if (string.IsNullOrWhiteSpace(request.ProofHash))
+                {
+                    return new ComplianceAttestationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Proof hash is required"
+                    };
+                }
+
+                // Create attestation
+                var attestation = new ComplianceAttestation
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    WalletAddress = request.WalletAddress,
+                    AssetId = request.AssetId,
+                    IssuerAddress = request.IssuerAddress,
+                    ProofHash = request.ProofHash,
+                    ProofType = request.ProofType,
+                    AttestationType = request.AttestationType,
+                    Network = request.Network,
+                    Jurisdiction = request.Jurisdiction,
+                    RegulatoryFramework = request.RegulatoryFramework,
+                    ExpiresAt = request.ExpiresAt,
+                    Notes = request.Notes,
+                    CreatedBy = createdBy,
+                    CreatedAt = DateTime.UtcNow,
+                    VerificationStatus = AttestationVerificationStatus.Pending
+                };
+
+                var success = await _complianceRepository.CreateAttestationAsync(attestation);
+
+                if (success)
+                {
+                    // Emit metering event for billing analytics
+                    _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                    {
+                        Category = MeteringCategory.Compliance,
+                        OperationType = MeteringOperationType.Add,
+                        AssetId = request.AssetId,
+                        Network = request.Network,
+                        PerformedBy = createdBy,
+                        ItemCount = 1,
+                        Metadata = new Dictionary<string, string>
+                        {
+                            { "Operation", "CreateAttestation" },
+                            { "WalletAddress", request.WalletAddress },
+                            { "AttestationType", request.AttestationType ?? "General" }
+                        }
+                    });
+
+                    _logger.LogInformation(
+                        "Created attestation {Id} for wallet {WalletAddress} and asset {AssetId}",
+                        attestation.Id,
+                        attestation.WalletAddress,
+                        attestation.AssetId);
+
+                    return new ComplianceAttestationResponse
+                    {
+                        Success = true,
+                        Attestation = attestation
+                    };
+                }
+                else
+                {
+                    return new ComplianceAttestationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Failed to create attestation"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception creating attestation for wallet {WalletAddress}", request.WalletAddress);
+                return new ComplianceAttestationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ComplianceAttestationResponse> GetAttestationAsync(string id)
+        {
+            try
+            {
+                var attestation = await _complianceRepository.GetAttestationByIdAsync(id);
+
+                if (attestation != null)
+                {
+                    // Note: We modify the status for display purposes only, not persisted
+                    // This provides real-time expiry checking without database updates
+                    if (attestation.ExpiresAt.HasValue && 
+                        attestation.ExpiresAt.Value < DateTime.UtcNow && 
+                        attestation.VerificationStatus != AttestationVerificationStatus.Expired)
+                    {
+                        attestation.VerificationStatus = AttestationVerificationStatus.Expired;
+                    }
+
+                    return new ComplianceAttestationResponse
+                    {
+                        Success = true,
+                        Attestation = attestation
+                    };
+                }
+                else
+                {
+                    return new ComplianceAttestationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Attestation not found"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving attestation {Id}", id);
+                return new ComplianceAttestationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ComplianceAttestationListResponse> ListAttestationsAsync(ListComplianceAttestationsRequest request)
+        {
+            try
+            {
+                var attestations = await _complianceRepository.ListAttestationsAsync(request);
+                var totalCount = await _complianceRepository.GetAttestationCountAsync(request);
+                var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+                // Note: List operations typically don't emit metering events to avoid excessive billing
+                // Only create/update/delete operations are metered
+                _logger.LogInformation("Listed {Count} attestations (page {Page} of {TotalPages})", 
+                    attestations.Count, request.Page, totalPages);
+
+                return new ComplianceAttestationListResponse
+                {
+                    Success = true,
+                    Attestations = attestations,
+                    TotalCount = totalCount,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception listing attestations");
+                return new ComplianceAttestationListResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
+            }
+        }
     }
 }

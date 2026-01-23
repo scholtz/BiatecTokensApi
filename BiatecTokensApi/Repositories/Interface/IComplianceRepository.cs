@@ -62,5 +62,33 @@ namespace BiatecTokensApi.Repositories.Interface
         /// <param name="request">The audit log request with filters</param>
         /// <returns>Total count</returns>
         Task<int> GetAuditLogCountAsync(GetComplianceAuditLogRequest request);
+
+        /// <summary>
+        /// Creates a new compliance attestation
+        /// </summary>
+        /// <param name="attestation">The attestation to create</param>
+        /// <returns>True if successful, false otherwise</returns>
+        Task<bool> CreateAttestationAsync(ComplianceAttestation attestation);
+
+        /// <summary>
+        /// Gets a compliance attestation by ID
+        /// </summary>
+        /// <param name="id">The attestation ID</param>
+        /// <returns>The attestation or null if not found</returns>
+        Task<ComplianceAttestation?> GetAttestationByIdAsync(string id);
+
+        /// <summary>
+        /// Lists compliance attestations with optional filtering
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>List of attestations</returns>
+        Task<List<ComplianceAttestation>> ListAttestationsAsync(ListComplianceAttestationsRequest request);
+
+        /// <summary>
+        /// Gets the total count of attestations matching the filter
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>Total count</returns>
+        Task<int> GetAttestationCountAsync(ListComplianceAttestationsRequest request);
     }
 }

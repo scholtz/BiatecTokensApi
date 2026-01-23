@@ -15,6 +15,7 @@ namespace BiatecTokensApi.Repositories
     {
         private readonly ConcurrentDictionary<ulong, ComplianceMetadata> _metadata = new();
         private readonly ConcurrentBag<ComplianceAuditLogEntry> _auditLog = new();
+        private readonly ConcurrentDictionary<string, ComplianceAttestation> _attestations = new();
         private readonly ILogger<ComplianceRepository> _logger;
 
         /// <summary>
@@ -244,6 +245,148 @@ namespace BiatecTokensApi.Repositories
             if (request.ToDate.HasValue)
             {
                 query = query.Where(e => e.PerformedAt <= request.ToDate.Value);
+            }
+
+            return Task.FromResult(query.Count());
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> CreateAttestationAsync(ComplianceAttestation attestation)
+        {
+            try
+            {
+                if (_attestations.TryAdd(attestation.Id, attestation))
+                {
+                    _logger.LogDebug("Created attestation {Id} for wallet {WalletAddress} and asset {AssetId}", 
+                        attestation.Id, attestation.WalletAddress, attestation.AssetId);
+                    return Task.FromResult(true);
+                }
+                
+                _logger.LogWarning("Attestation with ID {Id} already exists", attestation.Id);
+                return Task.FromResult(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating attestation for wallet {WalletAddress}", attestation.WalletAddress);
+                return Task.FromResult(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<ComplianceAttestation?> GetAttestationByIdAsync(string id)
+        {
+            _attestations.TryGetValue(id, out var attestation);
+            return Task.FromResult(attestation);
+        }
+
+        /// <inheritdoc/>
+        public Task<List<ComplianceAttestation>> ListAttestationsAsync(ListComplianceAttestationsRequest request)
+        {
+            var query = _attestations.Values.AsEnumerable();
+
+            // Apply filters
+            if (!string.IsNullOrWhiteSpace(request.WalletAddress))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.WalletAddress) && 
+                    a.WalletAddress.Equals(request.WalletAddress, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.AssetId.HasValue)
+            {
+                query = query.Where(a => a.AssetId == request.AssetId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.IssuerAddress))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.IssuerAddress) && 
+                    a.IssuerAddress.Equals(request.IssuerAddress, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.VerificationStatus.HasValue)
+            {
+                query = query.Where(a => a.VerificationStatus == request.VerificationStatus.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.AttestationType))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.AttestationType) && 
+                    a.AttestationType.Equals(request.AttestationType, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Network))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.Network) && 
+                    a.Network.Equals(request.Network, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.ExcludeExpired.HasValue && request.ExcludeExpired.Value)
+            {
+                var now = DateTime.UtcNow;
+                query = query.Where(a => !a.ExpiresAt.HasValue || a.ExpiresAt.Value > now);
+            }
+
+            // Order by creation date descending (most recent first)
+            query = query.OrderByDescending(a => a.CreatedAt);
+
+            // Apply pagination
+            var skip = (request.Page - 1) * request.PageSize;
+            var result = query.Skip(skip).Take(request.PageSize).ToList();
+
+            return Task.FromResult(result);
+        }
+
+        /// <inheritdoc/>
+        public Task<int> GetAttestationCountAsync(ListComplianceAttestationsRequest request)
+        {
+            var query = _attestations.Values.AsEnumerable();
+
+            // Apply same filters as ListAttestationsAsync
+            if (!string.IsNullOrWhiteSpace(request.WalletAddress))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.WalletAddress) && 
+                    a.WalletAddress.Equals(request.WalletAddress, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.AssetId.HasValue)
+            {
+                query = query.Where(a => a.AssetId == request.AssetId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.IssuerAddress))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.IssuerAddress) && 
+                    a.IssuerAddress.Equals(request.IssuerAddress, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.VerificationStatus.HasValue)
+            {
+                query = query.Where(a => a.VerificationStatus == request.VerificationStatus.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.AttestationType))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.AttestationType) && 
+                    a.AttestationType.Equals(request.AttestationType, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Network))
+            {
+                query = query.Where(a => 
+                    !string.IsNullOrEmpty(a.Network) && 
+                    a.Network.Equals(request.Network, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.ExcludeExpired.HasValue && request.ExcludeExpired.Value)
+            {
+                var now = DateTime.UtcNow;
+                query = query.Where(a => !a.ExpiresAt.HasValue || a.ExpiresAt.Value > now);
             }
 
             return Task.FromResult(query.Count());

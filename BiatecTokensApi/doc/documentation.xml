@@ -258,6 +258,72 @@
             Use this endpoint before token deployment to ensure compliance with applicable regulations.
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.CreateAttestation(BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest)">
+            <summary>
+            Creates a new compliance attestation
+            </summary>
+            <param name="request">The attestation creation request</param>
+            <returns>The created attestation</returns>
+            <remarks>
+            This operation creates a wallet-level compliance attestation that provides cryptographic proof 
+            of compliance verification. Attestations are used for MICA/RWA workflows to maintain persistent 
+            compliance audit trails for issuers.
+            
+            **Key Features**:
+            - Links attestation to specific wallet and token
+            - Stores cryptographic proof hash (IPFS CID, SHA-256, etc.)
+            - Supports multiple attestation types (KYC, AML, Accreditation)
+            - Optional expiration dates for time-limited attestations
+            
+            This operation emits a metering event for billing analytics.
+            
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetAttestation(System.String)">
+            <summary>
+            Gets a compliance attestation by ID
+            </summary>
+            <param name="id">The attestation ID</param>
+            <returns>The attestation details</returns>
+            <remarks>
+            Retrieves a specific compliance attestation by its unique identifier.
+            The attestation includes wallet address, issuer, proof hash, verification status, and metadata.
+            
+            Expired attestations are automatically marked with Expired status when retrieved.
+            
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ListAttestations(System.String,System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.AttestationVerificationStatus},System.String,System.String,System.Nullable{System.Boolean},System.Int32,System.Int32)">
+            <summary>
+            Lists compliance attestations with optional filtering
+            </summary>
+            <param name="walletAddress">Optional filter by wallet address</param>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="issuerAddress">Optional filter by issuer address</param>
+            <param name="verificationStatus">Optional filter by verification status</param>
+            <param name="attestationType">Optional filter by attestation type</param>
+            <param name="network">Optional filter by network</param>
+            <param name="excludeExpired">Optional filter to exclude expired attestations</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of compliance attestations with pagination</returns>
+            <remarks>
+            Lists compliance attestations with flexible filtering options.
+            
+            **Common Use Cases**:
+            - List all attestations for a specific wallet
+            - List all attestations for a specific token
+            - List attestations by issuer
+            - Filter by verification status (Pending, Verified, Failed, Expired, Revoked)
+            - Filter by attestation type (KYC, AML, Accreditation, etc.)
+            
+            Note: This is a read operation and does not emit metering events.
+            
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.EscapeCsv(System.String)">
             <summary>
             Escapes special characters in CSV values
@@ -1527,6 +1593,298 @@
         <member name="P:BiatecTokensApi.Models.BaseResponse.Success">
             <summary>
             Status of the deployment
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAttestation">
+            <summary>
+            Represents a wallet-level compliance attestation for regulatory audit trails
+            </summary>
+            <remarks>
+            Attestations provide cryptographic proof of compliance verification tied to wallet addresses.
+            Used for MICA/RWA workflows to maintain persistent compliance audit trails for issuers.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.Id">
+            <summary>
+            Unique identifier for the attestation entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.WalletAddress">
+            <summary>
+            The wallet address for which this attestation applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.AssetId">
+            <summary>
+            The asset ID (token ID) this attestation is linked to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.IssuerAddress">
+            <summary>
+            The issuer address who created this attestation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.ProofHash">
+            <summary>
+            Cryptographic hash of compliance proof document
+            </summary>
+            <remarks>
+            Can be IPFS CID, SHA-256 hash, or other cryptographic proof identifier
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.ProofType">
+            <summary>
+            Type of proof provided (e.g., "IPFS", "SHA256", "ARC19")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.VerificationStatus">
+            <summary>
+            Verification status of this attestation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.AttestationType">
+            <summary>
+            Type of attestation (e.g., KYC, AML, Accreditation, License)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.Jurisdiction">
+            <summary>
+            Jurisdiction(s) applicable to this attestation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.RegulatoryFramework">
+            <summary>
+            Regulatory framework this attestation complies with
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.IssuedAt">
+            <summary>
+            Date when the attestation was issued
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.ExpiresAt">
+            <summary>
+            Date when the attestation expires (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.VerifiedAt">
+            <summary>
+            Date when the attestation was verified
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.VerifierAddress">
+            <summary>
+            Address of the verifier (if different from issuer)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.Notes">
+            <summary>
+            Additional metadata or notes about the attestation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.CreatedAt">
+            <summary>
+            Timestamp when the attestation was created in the system
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.UpdatedAt">
+            <summary>
+            Timestamp when the attestation was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.CreatedBy">
+            <summary>
+            Address of the user who created this attestation in the system
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestation.UpdatedBy">
+            <summary>
+            Address of the user who last updated this attestation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AttestationVerificationStatus">
+            <summary>
+            Verification status for compliance attestations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AttestationVerificationStatus.Pending">
+            <summary>
+            Attestation is pending verification
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AttestationVerificationStatus.Verified">
+            <summary>
+            Attestation has been verified and is valid
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AttestationVerificationStatus.Failed">
+            <summary>
+            Attestation verification failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AttestationVerificationStatus.Expired">
+            <summary>
+            Attestation has expired and needs renewal
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AttestationVerificationStatus.Revoked">
+            <summary>
+            Attestation has been revoked
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest">
+            <summary>
+            Request to create a new compliance attestation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.WalletAddress">
+            <summary>
+            The wallet address for which this attestation applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.AssetId">
+            <summary>
+            The asset ID (token ID) this attestation is linked to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.IssuerAddress">
+            <summary>
+            The issuer address who creates this attestation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.ProofHash">
+            <summary>
+            Cryptographic hash of compliance proof document
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.ProofType">
+            <summary>
+            Type of proof provided (e.g., "IPFS", "SHA256", "ARC19")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.AttestationType">
+            <summary>
+            Type of attestation (e.g., KYC, AML, Accreditation, License)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.Jurisdiction">
+            <summary>
+            Jurisdiction(s) applicable to this attestation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.RegulatoryFramework">
+            <summary>
+            Regulatory framework this attestation complies with
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.ExpiresAt">
+            <summary>
+            Date when the attestation expires (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest.Notes">
+            <summary>
+            Additional metadata or notes about the attestation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest">
+            <summary>
+            Request to retrieve attestations with filtering
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.WalletAddress">
+            <summary>
+            Optional filter by wallet address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.AssetId">
+            <summary>
+            Optional filter by asset ID (token ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.IssuerAddress">
+            <summary>
+            Optional filter by issuer address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.VerificationStatus">
+            <summary>
+            Optional filter by verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.AttestationType">
+            <summary>
+            Optional filter by attestation type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.ExcludeExpired">
+            <summary>
+            Optional filter to include only non-expired attestations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAttestationResponse">
+            <summary>
+            Response for compliance attestation operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestationResponse.Attestation">
+            <summary>
+            The attestation that was created or retrieved
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse">
+            <summary>
+            Response for listing compliance attestations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse.Attestations">
+            <summary>
+            List of compliance attestations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse.TotalCount">
+            <summary>
+            Total number of attestations matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse.TotalPages">
+            <summary>
+            Total number of pages
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry">
@@ -3420,6 +3778,18 @@
         <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetAuditLogCountAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.CreateAttestationAsync(BiatecTokensApi.Models.Compliance.ComplianceAttestation)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetAttestationByIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.ListAttestationsAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetAttestationCountAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
             Interface for IPFS repository operations
@@ -3567,6 +3937,34 @@
             Gets the total count of audit log entries matching the filter
             </summary>
             <param name="request">The audit log request with filters</param>
+            <returns>Total count</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.CreateAttestationAsync(BiatecTokensApi.Models.Compliance.ComplianceAttestation)">
+            <summary>
+            Creates a new compliance attestation
+            </summary>
+            <param name="attestation">The attestation to create</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetAttestationByIdAsync(System.String)">
+            <summary>
+            Gets a compliance attestation by ID
+            </summary>
+            <param name="id">The attestation ID</param>
+            <returns>The attestation or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.ListAttestationsAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
+            <summary>
+            Lists compliance attestations with optional filtering
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>List of attestations</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetAttestationCountAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
+            <summary>
+            Gets the total count of attestations matching the filter
+            </summary>
+            <param name="request">The list request with filters</param>
             <returns>Total count</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.IPFSRepository">
@@ -4106,6 +4504,15 @@
             Generates a validation summary message
             </summary>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CreateAttestationAsync(BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetAttestationAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ListAttestationsAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -4277,6 +4684,28 @@
             </summary>
             <param name="request">The validation request containing token configuration</param>
             <returns>Response with validation errors and warnings</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.CreateAttestationAsync(BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest,System.String)">
+            <summary>
+            Creates a new compliance attestation
+            </summary>
+            <param name="request">The attestation creation request</param>
+            <param name="createdBy">The address of the user creating the attestation</param>
+            <returns>Response with the created attestation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetAttestationAsync(System.String)">
+            <summary>
+            Gets a compliance attestation by ID
+            </summary>
+            <param name="id">The attestation ID</param>
+            <returns>Response with the attestation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ListAttestationsAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
+            <summary>
+            Lists compliance attestations with optional filtering
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Response with list of attestations</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
             <summary>
