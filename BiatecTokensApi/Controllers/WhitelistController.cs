@@ -20,6 +20,11 @@ namespace BiatecTokensApi.Controllers
     {
         private readonly IWhitelistService _whitelistService;
         private readonly ILogger<WhitelistController> _logger;
+        
+        /// <summary>
+        /// Maximum number of records to export in a single request
+        /// </summary>
+        private const int MaxExportRecords = 10000;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WhitelistController"/> class.
@@ -494,7 +499,6 @@ namespace BiatecTokensApi.Controllers
         {
             try
             {
-                const int maxExportRecords = 10000;
                 var request = new GetWhitelistAuditLogRequest
                 {
                     AssetId = assetId,
@@ -505,7 +509,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = 1,
-                    PageSize = maxExportRecords
+                    PageSize = MaxExportRecords
                 };
 
                 var result = await _whitelistService.GetAuditLogAsync(request);
@@ -521,20 +525,20 @@ namespace BiatecTokensApi.Controllers
 
                 foreach (var entry in result.Entries)
                 {
-                    csv.AppendLine($"\"{EscapeCsv(entry.Id)}\"," +
+                    csv.AppendLine($"\"{entry.Id}\"," +
                         $"{entry.AssetId}," +
-                        $"\"{EscapeCsv(entry.Address)}\"," +
+                        $"\"{entry.Address}\"," +
                         $"\"{entry.ActionType}\"," +
-                        $"\"{EscapeCsv(entry.PerformedBy)}\"," +
+                        $"\"{entry.PerformedBy}\"," +
                         $"\"{entry.PerformedAt:O}\"," +
                         $"\"{entry.OldStatus?.ToString() ?? ""}\"," +
                         $"\"{entry.NewStatus?.ToString() ?? ""}\"," +
-                        $"\"{EscapeCsv(entry.Notes ?? "")}\"," +
-                        $"\"{EscapeCsv(entry.ToAddress ?? "")}\"," +
+                        $"\"{EscapeCsv(entry.Notes)}\"," +
+                        $"\"{EscapeCsv(entry.ToAddress)}\"," +
                         $"\"{entry.TransferAllowed?.ToString() ?? ""}\"," +
-                        $"\"{EscapeCsv(entry.DenialReason ?? "")}\"," +
+                        $"\"{EscapeCsv(entry.DenialReason)}\"," +
                         $"\"{entry.Amount?.ToString() ?? ""}\"," +
-                        $"\"{EscapeCsv(entry.Network ?? "")}\"," +
+                        $"\"{entry.Network ?? ""}\"," +
                         $"\"{entry.Role}\"");
                 }
 
@@ -587,7 +591,6 @@ namespace BiatecTokensApi.Controllers
         {
             try
             {
-                const int maxExportRecords = 10000;
                 var request = new GetWhitelistAuditLogRequest
                 {
                     AssetId = assetId,
@@ -598,7 +601,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = 1,
-                    PageSize = maxExportRecords
+                    PageSize = MaxExportRecords
                 };
 
                 var result = await _whitelistService.GetAuditLogAsync(request);
@@ -755,7 +758,7 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="value">The value to escape</param>
         /// <returns>The escaped value</returns>
-        private static string EscapeCsv(string? value)
+        private string EscapeCsv(string? value)
         {
             if (string.IsNullOrEmpty(value))
             {

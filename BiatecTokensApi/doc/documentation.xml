@@ -592,6 +592,11 @@
             listing, and bulk uploading addresses. All endpoints require ARC-0014 authentication.
             </remarks>
         </member>
+        <member name="F:BiatecTokensApi.Controllers.WhitelistController.MaxExportRecords">
+            <summary>
+            Maximum number of records to export in a single request
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.#ctor(BiatecTokensApi.Services.Interface.IWhitelistService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.WhitelistController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.WhitelistController"/> class.

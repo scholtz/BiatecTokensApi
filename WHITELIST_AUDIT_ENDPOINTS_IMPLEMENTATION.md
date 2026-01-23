@@ -108,7 +108,7 @@ Id,AssetId,Address,ActionType,PerformedBy,PerformedAt,OldStatus,NewStatus,Notes,
 **Retention policy metadata endpoint**
 
 **Features:**
-- No authentication required (policy is public information)
+- Requires ARC-0014 authentication (consistent with all controller endpoints)
 - Returns MICA compliance retention policy
 - Provides transparency for compliance teams
 
