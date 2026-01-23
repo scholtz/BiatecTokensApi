@@ -435,25 +435,15 @@ namespace BiatecTokensApi.Controllers
                 _logger.LogInformation("Exported {Count} audit log entries to CSV", result.Entries.Count);
 
                 // Emit metering event for export
-                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                 _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
                 {
                     Category = MeteringCategory.Compliance,
                     OperationType = MeteringOperationType.Export,
                     AssetId = assetId ?? 0,
                     Network = network ?? "all",
-                    PerformedBy = actorId,
+                    PerformedBy = GetActorId(),
                     ItemCount = result.Entries.Count,
-                    Metadata = new Dictionary<string, string>
-                    {
-                        { "exportFormat", "csv" },
-                        { "exportType", "auditLog" },
-                        { "rowCount", result.Entries.Count.ToString() },
-                        { "fromDate", fromDate?.ToString("O") ?? "none" },
-                        { "toDate", toDate?.ToString("O") ?? "none" },
-                        { "actionType", actionType?.ToString() ?? "all" },
-                        { "performedByFilter", performedBy ?? "all" }
-                    }
+                    Metadata = CreateAuditLogExportMetadata("csv", result.Entries.Count, fromDate, toDate, actionType, performedBy)
                 });
 
                 return File(bytes, "text/csv", fileName);
@@ -531,25 +521,15 @@ namespace BiatecTokensApi.Controllers
                 _logger.LogInformation("Exported {Count} audit log entries to JSON", result.Entries.Count);
 
                 // Emit metering event for export
-                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                 _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
                 {
                     Category = MeteringCategory.Compliance,
                     OperationType = MeteringOperationType.Export,
                     AssetId = assetId ?? 0,
                     Network = network ?? "all",
-                    PerformedBy = actorId,
+                    PerformedBy = GetActorId(),
                     ItemCount = result.Entries.Count,
-                    Metadata = new Dictionary<string, string>
-                    {
-                        { "exportFormat", "json" },
-                        { "exportType", "auditLog" },
-                        { "rowCount", result.Entries.Count.ToString() },
-                        { "fromDate", fromDate?.ToString("O") ?? "none" },
-                        { "toDate", toDate?.ToString("O") ?? "none" },
-                        { "actionType", actionType?.ToString() ?? "all" },
-                        { "performedByFilter", performedBy ?? "all" }
-                    }
+                    Metadata = CreateAuditLogExportMetadata("json", result.Entries.Count, fromDate, toDate, actionType, performedBy)
                 });
 
                 // Return as downloadable JSON file
@@ -959,26 +939,15 @@ namespace BiatecTokensApi.Controllers
                 _logger.LogInformation("Exported {Count} attestations as JSON", result.Attestations.Count);
 
                 // Emit metering event for export
-                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                 _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
                 {
                     Category = MeteringCategory.Compliance,
                     OperationType = MeteringOperationType.Export,
                     AssetId = assetId ?? 0,
                     Network = network ?? "all",
-                    PerformedBy = actorId,
+                    PerformedBy = GetActorId(),
                     ItemCount = result.Attestations.Count,
-                    Metadata = new Dictionary<string, string>
-                    {
-                        { "exportFormat", "json" },
-                        { "exportType", "attestations" },
-                        { "rowCount", result.Attestations.Count.ToString() },
-                        { "fromDate", fromDate?.ToString("O") ?? "none" },
-                        { "toDate", toDate?.ToString("O") ?? "none" },
-                        { "walletAddress", walletAddress ?? "all" },
-                        { "verificationStatus", verificationStatus?.ToString() ?? "all" },
-                        { "attestationType", attestationType ?? "all" }
-                    }
+                    Metadata = CreateAttestationExportMetadata("json", result.Attestations.Count, fromDate, toDate, walletAddress, verificationStatus, attestationType)
                 });
 
                 return File(
@@ -1118,26 +1087,15 @@ namespace BiatecTokensApi.Controllers
                 _logger.LogInformation("Exported {Count} attestations as CSV", result.Attestations.Count);
 
                 // Emit metering event for export
-                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                 _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
                 {
                     Category = MeteringCategory.Compliance,
                     OperationType = MeteringOperationType.Export,
                     AssetId = assetId ?? 0,
                     Network = network ?? "all",
-                    PerformedBy = actorId,
+                    PerformedBy = GetActorId(),
                     ItemCount = result.Attestations.Count,
-                    Metadata = new Dictionary<string, string>
-                    {
-                        { "exportFormat", "csv" },
-                        { "exportType", "attestations" },
-                        { "rowCount", result.Attestations.Count.ToString() },
-                        { "fromDate", fromDate?.ToString("O") ?? "none" },
-                        { "toDate", toDate?.ToString("O") ?? "none" },
-                        { "walletAddress", walletAddress ?? "all" },
-                        { "verificationStatus", verificationStatus?.ToString() ?? "all" },
-                        { "attestationType", attestationType ?? "all" }
-                    }
+                    Metadata = CreateAttestationExportMetadata("csv", result.Attestations.Count, fromDate, toDate, walletAddress, verificationStatus, attestationType)
                 });
 
                 return File(bytes, "text/csv", fileName);
@@ -1158,8 +1116,65 @@ namespace BiatecTokensApi.Controllers
         {
             if (string.IsNullOrEmpty(value))
                 return string.Empty;
-            
+
             return value.Replace("\"", "\"\"");
+        }
+
+        /// <summary>
+        /// Gets the actor ID from the current authenticated user
+        /// </summary>
+        /// <returns>Actor ID or "unknown" if not available</returns>
+        private string GetActorId()
+        {
+            return User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+        }
+
+        /// <summary>
+        /// Creates metering metadata for audit log exports
+        /// </summary>
+        private Dictionary<string, string> CreateAuditLogExportMetadata(
+            string exportFormat,
+            int rowCount,
+            DateTime? fromDate,
+            DateTime? toDate,
+            ComplianceActionType? actionType,
+            string? performedByFilter)
+        {
+            return new Dictionary<string, string>
+            {
+                { "exportFormat", exportFormat },
+                { "exportType", "auditLog" },
+                { "rowCount", rowCount.ToString() },
+                { "fromDate", fromDate?.ToString("O") ?? "none" },
+                { "toDate", toDate?.ToString("O") ?? "none" },
+                { "actionType", actionType?.ToString() ?? "all" },
+                { "performedByFilter", performedByFilter ?? "all" }
+            };
+        }
+
+        /// <summary>
+        /// Creates metering metadata for attestation exports
+        /// </summary>
+        private Dictionary<string, string> CreateAttestationExportMetadata(
+            string exportFormat,
+            int rowCount,
+            DateTime? fromDate,
+            DateTime? toDate,
+            string? walletAddress,
+            AttestationVerificationStatus? verificationStatus,
+            string? attestationType)
+        {
+            return new Dictionary<string, string>
+            {
+                { "exportFormat", exportFormat },
+                { "exportType", "attestations" },
+                { "rowCount", rowCount.ToString() },
+                { "fromDate", fromDate?.ToString("O") ?? "none" },
+                { "toDate", toDate?.ToString("O") ?? "none" },
+                { "walletAddress", walletAddress ?? "all" },
+                { "verificationStatus", verificationStatus?.ToString() ?? "all" },
+                { "attestationType", attestationType ?? "all" }
+            };
         }
 
         /// <summary>

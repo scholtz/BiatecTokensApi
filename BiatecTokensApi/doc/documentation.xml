@@ -431,6 +431,22 @@
             <param name="value">The value to escape</param>
             <returns>Escaped value</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetActorId">
+            <summary>
+            Gets the actor ID from the current authenticated user
+            </summary>
+            <returns>Actor ID or "unknown" if not available</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.CreateAuditLogExportMetadata(System.String,System.Int32,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceActionType},System.String)">
+            <summary>
+            Creates metering metadata for audit log exports
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.CreateAttestationExportMetadata(System.String,System.Int32,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.AttestationVerificationStatus},System.String)">
+            <summary>
+            Creates metering metadata for attestation exports
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetUserAddress">
             <summary>
             Gets the authenticated user's Algorand address from the claims
