@@ -531,6 +531,64 @@
             - Date range: GET /api/v1/compliance/report?fromDate=2026-01-01&amp;toDate=2026-01-31
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.AddBlacklistEntry(BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest)">
+            <summary>
+            Adds an address to the blacklist
+            </summary>
+            <param name="request">The blacklist entry request</param>
+            <returns>The created blacklist entry</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.CheckBlacklist(System.String,System.Nullable{System.UInt64},System.String)">
+            <summary>
+            Checks if an address is blacklisted
+            </summary>
+            <param name="address">The address to check</param>
+            <param name="assetId">Optional asset ID</param>
+            <param name="network">Optional network filter</param>
+            <returns>Blacklist check result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ListBlacklistEntries(System.String,System.Nullable{System.UInt64},System.Nullable{BiatecTokensApi.Models.Compliance.BlacklistCategory},System.Nullable{BiatecTokensApi.Models.Compliance.BlacklistStatus},System.String,System.Int32,System.Int32)">
+            <summary>
+            Lists blacklist entries with filtering
+            </summary>
+            <param name="address">Optional address filter</param>
+            <param name="assetId">Optional asset ID filter</param>
+            <param name="category">Optional category filter</param>
+            <param name="status">Optional status filter</param>
+            <param name="network">Optional network filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of blacklist entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.DeleteBlacklistEntry(System.String)">
+            <summary>
+            Removes a blacklist entry
+            </summary>
+            <param name="id">The entry ID</param>
+            <returns>Success status</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ValidateTransfer(BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest)">
+            <summary>
+            Validates a proposed transfer against compliance rules
+            </summary>
+            <param name="request">The transfer validation request</param>
+            <returns>Validation result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetMicaComplianceChecklist(System.UInt64)">
+            <summary>
+            Gets MICA compliance checklist for a token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>MICA compliance checklist</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetComplianceHealth(System.String,System.String)">
+            <summary>
+            Gets aggregate compliance health for an issuer
+            </summary>
+            <param name="issuerAddress">Optional issuer address filter (if not provided, uses authenticated user)</param>
+            <param name="network">Optional network filter</param>
+            <returns>Compliance health metrics</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.IssuerController">
             <summary>
             Provides endpoints for managing issuer profiles for MICA compliance
