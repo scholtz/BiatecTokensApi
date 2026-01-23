@@ -983,7 +983,31 @@ namespace BiatecTokensApi.Controllers
 
                 foreach (var attestation in result.Attestations)
                 {
-                    csv.AppendLine($"\"{attestation.Id}\",\"{attestation.WalletAddress}\",{attestation.AssetId},\"{attestation.IssuerAddress}\",\"{EscapeCsv(attestation.ProofHash)}\",\"{EscapeCsv(attestation.ProofType)}\",\"{attestation.VerificationStatus}\",\"{EscapeCsv(attestation.AttestationType)}\",\"{EscapeCsv(attestation.Network)}\",\"{EscapeCsv(attestation.Jurisdiction)}\",\"{EscapeCsv(attestation.RegulatoryFramework)}\",\"{attestation.IssuedAt:O}\",\"{attestation.ExpiresAt:O}\",\"{attestation.VerifiedAt:O}\",\"{EscapeCsv(attestation.VerifierAddress)}\",\"{EscapeCsv(attestation.Notes)}\",\"{attestation.CreatedAt:O}\",\"{attestation.UpdatedAt:O}\",\"{attestation.CreatedBy}\",\"{EscapeCsv(attestation.UpdatedBy)}\"");
+                    // Format CSV line with proper escaping
+                    var line = string.Format(
+                        "\"{0}\",\"{1}\",{2},\"{3}\",\"{4}\",\"{5}\",\"{6}\",\"{7}\",\"{8}\",\"{9}\",\"{10}\",\"{11}\",\"{12}\",\"{13}\",\"{14}\",\"{15}\",\"{16}\",\"{17}\",\"{18}\",\"{19}\"",
+                        attestation.Id,
+                        attestation.WalletAddress,
+                        attestation.AssetId,
+                        attestation.IssuerAddress,
+                        EscapeCsv(attestation.ProofHash),
+                        EscapeCsv(attestation.ProofType),
+                        attestation.VerificationStatus,
+                        EscapeCsv(attestation.AttestationType),
+                        EscapeCsv(attestation.Network),
+                        EscapeCsv(attestation.Jurisdiction),
+                        EscapeCsv(attestation.RegulatoryFramework),
+                        attestation.IssuedAt.ToString("O"),
+                        attestation.ExpiresAt?.ToString("O") ?? "",
+                        attestation.VerifiedAt?.ToString("O") ?? "",
+                        EscapeCsv(attestation.VerifierAddress),
+                        EscapeCsv(attestation.Notes),
+                        attestation.CreatedAt.ToString("O"),
+                        attestation.UpdatedAt?.ToString("O") ?? "",
+                        attestation.CreatedBy,
+                        EscapeCsv(attestation.UpdatedBy)
+                    );
+                    csv.AppendLine(line);
                 }
 
                 var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
