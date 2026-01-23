@@ -1,4 +1,5 @@
 using BiatecTokensApi.Models.Compliance;
+using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ namespace BiatecTokensApi.Controllers
     {
         private readonly IComplianceService _complianceService;
         private readonly ILogger<ComplianceController> _logger;
+        private readonly ISubscriptionMeteringService _meteringService;
         
         /// <summary>
         /// Maximum number of records to export in a single request
@@ -42,12 +44,15 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="complianceService">The compliance service</param>
         /// <param name="logger">The logger instance</param>
+        /// <param name="meteringService">The subscription metering service</param>
         public ComplianceController(
             IComplianceService complianceService,
-            ILogger<ComplianceController> logger)
+            ILogger<ComplianceController> logger,
+            ISubscriptionMeteringService meteringService)
         {
             _complianceService = complianceService;
             _logger = logger;
+            _meteringService = meteringService;
         }
 
         /// <summary>
@@ -371,6 +376,11 @@ namespace BiatecTokensApi.Controllers
         /// **Encoding**: UTF-8
         /// **Max Records**: 10,000 per export (use pagination for larger datasets)
         /// 
+        /// **Metering**: This operation emits a subscription metering event for billing analytics with:
+        /// - Category: Compliance
+        /// - OperationType: Export
+        /// - Metadata: export format (csv), export type (auditLog), row count, time range
+        /// 
         /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
         /// </remarks>
         [HttpGet("audit-log/export/csv")]
@@ -424,6 +434,28 @@ namespace BiatecTokensApi.Controllers
 
                 _logger.LogInformation("Exported {Count} audit log entries to CSV", result.Entries.Count);
 
+                // Emit metering event for export
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Compliance,
+                    OperationType = MeteringOperationType.Export,
+                    AssetId = assetId ?? 0,
+                    Network = network ?? "all",
+                    PerformedBy = actorId,
+                    ItemCount = result.Entries.Count,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "exportFormat", "csv" },
+                        { "exportType", "auditLog" },
+                        { "rowCount", result.Entries.Count.ToString() },
+                        { "fromDate", fromDate?.ToString("O") ?? "none" },
+                        { "toDate", toDate?.ToString("O") ?? "none" },
+                        { "actionType", actionType?.ToString() ?? "all" },
+                        { "performedByFilter", performedBy ?? "all" }
+                    }
+                });
+
                 return File(bytes, "text/csv", fileName);
             }
             catch (Exception ex)
@@ -451,6 +483,11 @@ namespace BiatecTokensApi.Controllers
         /// **Format**: Standard JSON array
         /// **Encoding**: UTF-8
         /// **Max Records**: 10,000 per export (use pagination for larger datasets)
+        /// 
+        /// **Metering**: This operation emits a subscription metering event for billing analytics with:
+        /// - Category: Compliance
+        /// - OperationType: Export
+        /// - Metadata: export format (json), export type (auditLog), row count, time range
         /// 
         /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
         /// </remarks>
@@ -492,6 +529,28 @@ namespace BiatecTokensApi.Controllers
                 }
 
                 _logger.LogInformation("Exported {Count} audit log entries to JSON", result.Entries.Count);
+
+                // Emit metering event for export
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Compliance,
+                    OperationType = MeteringOperationType.Export,
+                    AssetId = assetId ?? 0,
+                    Network = network ?? "all",
+                    PerformedBy = actorId,
+                    ItemCount = result.Entries.Count,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "exportFormat", "json" },
+                        { "exportType", "auditLog" },
+                        { "rowCount", result.Entries.Count.ToString() },
+                        { "fromDate", fromDate?.ToString("O") ?? "none" },
+                        { "toDate", toDate?.ToString("O") ?? "none" },
+                        { "actionType", actionType?.ToString() ?? "all" },
+                        { "performedByFilter", performedBy ?? "all" }
+                    }
+                });
 
                 // Return as downloadable JSON file
                 var json = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions
@@ -840,6 +899,11 @@ namespace BiatecTokensApi.Controllers
         /// 
         /// **Pagination**: Maximum 10,000 records per export for performance. Use pagination for larger datasets.
         /// 
+        /// **Metering**: This operation emits a subscription metering event for billing analytics with:
+        /// - Category: Compliance
+        /// - OperationType: Export
+        /// - Metadata: export format (json), export type (attestations), row count, time range
+        /// 
         /// **Filters**: Combine multiple filters to narrow down results (e.g., specific token + date range + wallet).
         /// </remarks>
         [HttpGet("attestations/export/json")]
@@ -894,6 +958,29 @@ namespace BiatecTokensApi.Controllers
 
                 _logger.LogInformation("Exported {Count} attestations as JSON", result.Attestations.Count);
 
+                // Emit metering event for export
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Compliance,
+                    OperationType = MeteringOperationType.Export,
+                    AssetId = assetId ?? 0,
+                    Network = network ?? "all",
+                    PerformedBy = actorId,
+                    ItemCount = result.Attestations.Count,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "exportFormat", "json" },
+                        { "exportType", "attestations" },
+                        { "rowCount", result.Attestations.Count.ToString() },
+                        { "fromDate", fromDate?.ToString("O") ?? "none" },
+                        { "toDate", toDate?.ToString("O") ?? "none" },
+                        { "walletAddress", walletAddress ?? "all" },
+                        { "verificationStatus", verificationStatus?.ToString() ?? "all" },
+                        { "attestationType", attestationType ?? "all" }
+                    }
+                });
+
                 return File(
                     System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(result.Attestations, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })),
                     "application/json",
@@ -936,6 +1023,11 @@ namespace BiatecTokensApi.Controllers
         /// - Import into Excel or other tools
         /// 
         /// **Pagination**: Maximum 10,000 records per export for performance. Use pagination for larger datasets.
+        /// 
+        /// **Metering**: This operation emits a subscription metering event for billing analytics with:
+        /// - Category: Compliance
+        /// - OperationType: Export
+        /// - Metadata: export format (csv), export type (attestations), row count, time range
         /// 
         /// **Filters**: Combine multiple filters to narrow down results (e.g., specific token + date range + wallet).
         /// </remarks>
@@ -1024,6 +1116,29 @@ namespace BiatecTokensApi.Controllers
                 var fileName = $"attestations-export-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
 
                 _logger.LogInformation("Exported {Count} attestations as CSV", result.Attestations.Count);
+
+                // Emit metering event for export
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Compliance,
+                    OperationType = MeteringOperationType.Export,
+                    AssetId = assetId ?? 0,
+                    Network = network ?? "all",
+                    PerformedBy = actorId,
+                    ItemCount = result.Attestations.Count,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "exportFormat", "csv" },
+                        { "exportType", "attestations" },
+                        { "rowCount", result.Attestations.Count.ToString() },
+                        { "fromDate", fromDate?.ToString("O") ?? "none" },
+                        { "toDate", toDate?.ToString("O") ?? "none" },
+                        { "walletAddress", walletAddress ?? "all" },
+                        { "verificationStatus", verificationStatus?.ToString() ?? "all" },
+                        { "attestationType", attestationType ?? "all" }
+                    }
+                });
 
                 return File(bytes, "text/csv", fileName);
             }
