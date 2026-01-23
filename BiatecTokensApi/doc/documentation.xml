@@ -531,6 +531,56 @@
             - Date range: GET /api/v1/compliance/report?fromDate=2026-01-01&amp;toDate=2026-01-31
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.IssuerController">
+            <summary>
+            Provides endpoints for managing issuer profiles for MICA compliance
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.#ctor(BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.IssuerController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.IssuerController"/> class.
+            </summary>
+            <param name="complianceService">The compliance service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.GetIssuerProfile(System.String)">
+            <summary>
+            Gets an issuer profile
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <returns>The issuer profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.UpsertIssuerProfile(BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest)">
+            <summary>
+            Creates or updates an issuer profile
+            </summary>
+            <param name="request">The issuer profile request</param>
+            <returns>The created or updated issuer profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.GetIssuerVerification(System.String)">
+            <summary>
+            Gets issuer verification status
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <returns>The issuer verification status and score</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.ListIssuerAssets(System.String,System.String,System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceStatus},System.Int32,System.Int32)">
+            <summary>
+            Lists assets for an issuer
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <param name="network">Optional network filter</param>
+            <param name="complianceStatus">Optional compliance status filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of asset IDs for the issuer</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.GetUserAddress">
+            <summary>
+            Gets the authenticated user's Algorand address from the claims
+            </summary>
+            <returns>The user's Algorand address or empty string if not found</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.TokenController">
             <summary>
             Provides endpoints for creating and managing various types of tokens, including ERC-20, ARC3 fungible tokens,
