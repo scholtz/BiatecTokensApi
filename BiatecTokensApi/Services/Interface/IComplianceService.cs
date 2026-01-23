@@ -79,5 +79,18 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="request">The list request with filters</param>
         /// <returns>Response with list of attestations</returns>
         Task<ComplianceAttestationListResponse> ListAttestationsAsync(ListComplianceAttestationsRequest request);
+
+        /// <summary>
+        /// Generates a comprehensive compliance report for VOI/Aramid tokens
+        /// </summary>
+        /// <param name="request">The compliance report request with filtering options</param>
+        /// <param name="requestedBy">The address of the user requesting the report</param>
+        /// <returns>Response with consolidated compliance status including metadata, whitelist, and audit logs</returns>
+        /// <remarks>
+        /// This method aggregates compliance metadata, whitelist statistics, and audit logs
+        /// to provide enterprise-grade compliance reporting for VOI/Aramid networks.
+        /// Supports MICA dashboard requirements and subscription-based access control.
+        /// </remarks>
+        Task<TokenComplianceReportResponse> GetComplianceReportAsync(GetTokenComplianceReportRequest request, string requestedBy);
     }
 }

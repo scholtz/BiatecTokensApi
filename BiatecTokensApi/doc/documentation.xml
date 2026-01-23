@@ -406,6 +406,46 @@
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetComplianceReport(System.Nullable{System.UInt64},System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Boolean,System.Boolean,System.Boolean,System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Generates a comprehensive compliance report for VOI/Aramid tokens
+            </summary>
+            <param name="assetId">Optional filter by specific asset ID</param>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0)</param>
+            <param name="fromDate">Optional start date for audit events</param>
+            <param name="toDate">Optional end date for audit events</param>
+            <param name="includeWhitelistDetails">Include detailed whitelist information</param>
+            <param name="includeTransferAudits">Include recent transfer validation audit events</param>
+            <param name="includeComplianceAudits">Include compliance metadata changes audit log</param>
+            <param name="maxAuditEntriesPerCategory">Maximum number of audit entries per category</param>
+            <param name="page">Page number for pagination</param>
+            <param name="pageSize">Page size for pagination</param>
+            <returns>Comprehensive compliance report with subscription information</returns>
+            <remarks>
+            This endpoint provides enterprise-grade compliance reporting for VOI/Aramid networks.
+            It aggregates compliance metadata, whitelist statistics, and audit logs to support
+            MICA dashboard requirements and regulatory reporting.
+            
+            The report includes:
+            - Compliance metadata (KYC, verification status, regulatory framework)
+            - Whitelist summary statistics (active/revoked addresses, KYC counts)
+            - Compliance audit log (metadata changes)
+            - Whitelist audit log (address additions/removals)
+            - Transfer validation audit log (allowed/denied transfers)
+            - Compliance health score (0-100)
+            - VOI/Aramid specific compliance status
+            - Warnings and recommendations
+            - Subscription tier information
+            
+            This operation emits a metering event for billing analytics.
+            
+            Example usage:
+            - VOI network report: GET /api/v1/compliance/report?network=voimain-v1.0
+            - Aramid network report: GET /api/v1/compliance/report?network=aramidmain-v1.0
+            - Specific token: GET /api/v1/compliance/report?assetId=12345
+            - Date range: GET /api/v1/compliance/report?fromDate=2026-01-01&amp;toDate=2026-01-31
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.TokenController">
             <summary>
             Provides endpoints for creating and managing various types of tokens, including ERC-20, ARC3 fungible tokens,
@@ -2773,6 +2813,299 @@
             Informational message
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest">
+            <summary>
+            Request for generating a consolidated token compliance report for VOI/Aramid networks
+            </summary>
+            <remarks>
+            This request supports filtering compliance reports by network, asset, and time range
+            for enterprise reporting and MICA dashboards. Designed for paid subscription tiers.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.AssetId">
+            <summary>
+            Optional filter by specific asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.Network">
+            <summary>
+            Optional filter by network (voimain-v1.0, aramidmain-v1.0)
+            </summary>
+            <remarks>
+            When specified, only returns compliance data for tokens on the specified network.
+            Recommended to filter by VOI or Aramid networks for targeted compliance reporting.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.FromDate">
+            <summary>
+            Optional start date filter for audit events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.ToDate">
+            <summary>
+            Optional end date filter for audit events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.IncludeWhitelistDetails">
+            <summary>
+            Include detailed whitelist information in the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.IncludeTransferAudits">
+            <summary>
+            Include recent transfer validation audit events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.IncludeComplianceAudits">
+            <summary>
+            Include compliance metadata changes audit log
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.MaxAuditEntriesPerCategory">
+            <summary>
+            Maximum number of audit entries to include per category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse">
+            <summary>
+            Comprehensive compliance report response for a token
+            </summary>
+            <remarks>
+            This response aggregates compliance metadata, whitelist status, and audit logs
+            to provide a complete compliance picture for VOI/Aramid tokens. Supports
+            enterprise dashboards and MICA regulatory reporting requirements.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.Tokens">
+            <summary>
+            List of token compliance status entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.TotalCount">
+            <summary>
+            Total number of tokens matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.GeneratedAt">
+            <summary>
+            Report generation timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.NetworkFilter">
+            <summary>
+            Network filter applied (if any)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse.SubscriptionInfo">
+            <summary>
+            Subscription tier information for this report
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TokenComplianceStatus">
+            <summary>
+            Complete compliance status for a single token
+            </summary>
+            <remarks>
+            Combines compliance metadata, whitelist statistics, and recent audit activity
+            to provide a comprehensive view of token compliance status.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.AssetId">
+            <summary>
+            Asset ID of the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.ComplianceMetadata">
+            <summary>
+            Compliance metadata for the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.WhitelistSummary">
+            <summary>
+            Whitelist summary statistics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.ComplianceAuditEntries">
+            <summary>
+            Recent compliance metadata audit entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.WhitelistAuditEntries">
+            <summary>
+            Recent whitelist change audit entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.TransferValidationEntries">
+            <summary>
+            Recent transfer validation audit entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.ComplianceHealthScore">
+            <summary>
+            Overall compliance health score (0-100)
+            </summary>
+            <remarks>
+            Calculated based on:
+            - Compliance status (Compliant = higher score)
+            - Verification status (Verified = higher score)
+            - Whitelist configuration (Active entries = higher score)
+            - Recent audit activity (No failed validations = higher score)
+            - VOI/Aramid specific rule compliance
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.Warnings">
+            <summary>
+            Compliance warnings or issues identified
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenComplianceStatus.NetworkSpecificStatus">
+            <summary>
+            VOI/Aramid specific compliance status
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.WhitelistSummary">
+            <summary>
+            Summary statistics for token whitelist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.TotalAddresses">
+            <summary>
+            Total number of whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.ActiveAddresses">
+            <summary>
+            Number of addresses with Active status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.RevokedAddresses">
+            <summary>
+            Number of addresses with Revoked status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.SuspendedAddresses">
+            <summary>
+            Number of addresses with Suspended status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.KycVerifiedAddresses">
+            <summary>
+            Number of addresses with KYC verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.LastModified">
+            <summary>
+            Most recent whitelist change timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.TransferValidationsCount">
+            <summary>
+            Number of transfer validations in the report period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistSummary.DeniedTransfersCount">
+            <summary>
+            Number of denied transfers in the report period
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.NetworkComplianceStatus">
+            <summary>
+            VOI/Aramid network-specific compliance status
+            </summary>
+            <remarks>
+            Evaluates token compliance against VOI and Aramid network-specific rules
+            as defined in the compliance service validation logic.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceStatus.MeetsNetworkRequirements">
+            <summary>
+            Whether the token meets VOI/Aramid network requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceStatus.SatisfiedRules">
+            <summary>
+            Specific network rules that are satisfied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceStatus.ViolatedRules">
+            <summary>
+            Specific network rules that are violated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceStatus.Recommendations">
+            <summary>
+            Network-specific recommendations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo">
+            <summary>
+            Subscription tier information included in compliance reports
+            </summary>
+            <remarks>
+            Provides transparency about subscription limits and usage for enterprise customers.
+            Enables customers to understand their tier and upgrade if needed.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo.TierName">
+            <summary>
+            Current subscription tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo.AuditLogEnabled">
+            <summary>
+            Whether audit log access is enabled in this tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo.MaxAssetsPerReport">
+            <summary>
+            Maximum number of assets that can be included in a single report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo.DetailedReportsEnabled">
+            <summary>
+            Whether detailed compliance reports are available
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo.LimitationMessage">
+            <summary>
+            Message about tier limitations (if any)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo.Metered">
+            <summary>
+            Whether this report was metered for billing
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest">
             <summary>
             Represents a request to deploy an ERC-20 token with mintable functionality.
@@ -4700,6 +5033,39 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.ListAttestationsAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetComplianceReportAsync(BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.BuildTokenComplianceStatusAsync(BiatecTokensApi.Models.Compliance.ComplianceMetadata,BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest,System.String)">
+            <summary>
+            Builds a comprehensive compliance status for a single token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetWhitelistSummaryAsync(System.UInt64,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets whitelist summary statistics for a token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetWhitelistAuditEntriesAsync(System.UInt64,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Boolean)">
+            <summary>
+            Gets whitelist audit entries for a token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CalculateComplianceHealthScore(BiatecTokensApi.Models.Compliance.TokenComplianceStatus)">
+            <summary>
+            Calculates a compliance health score (0-100) based on multiple factors
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.EvaluateNetworkSpecificCompliance(BiatecTokensApi.Models.Compliance.ComplianceMetadata)">
+            <summary>
+            Evaluates network-specific compliance rules for VOI/Aramid
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.IdentifyComplianceWarnings(BiatecTokensApi.Models.Compliance.TokenComplianceStatus)">
+            <summary>
+            Identifies compliance warnings based on token status
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -4893,6 +5259,19 @@
             </summary>
             <param name="request">The list request with filters</param>
             <returns>Response with list of attestations</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetComplianceReportAsync(BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest,System.String)">
+            <summary>
+            Generates a comprehensive compliance report for VOI/Aramid tokens
+            </summary>
+            <param name="request">The compliance report request with filtering options</param>
+            <param name="requestedBy">The address of the user requesting the report</param>
+            <returns>Response with consolidated compliance status including metadata, whitelist, and audit logs</returns>
+            <remarks>
+            This method aggregates compliance metadata, whitelist statistics, and audit logs
+            to provide enterprise-grade compliance reporting for VOI/Aramid networks.
+            Supports MICA dashboard requirements and subscription-based access control.
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
             <summary>

@@ -1050,5 +1050,119 @@ namespace BiatecTokensApi.Controllers
 
             return address;
         }
+
+        /// <summary>
+        /// Generates a comprehensive compliance report for VOI/Aramid tokens
+        /// </summary>
+        /// <param name="assetId">Optional filter by specific asset ID</param>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0)</param>
+        /// <param name="fromDate">Optional start date for audit events</param>
+        /// <param name="toDate">Optional end date for audit events</param>
+        /// <param name="includeWhitelistDetails">Include detailed whitelist information</param>
+        /// <param name="includeTransferAudits">Include recent transfer validation audit events</param>
+        /// <param name="includeComplianceAudits">Include compliance metadata changes audit log</param>
+        /// <param name="maxAuditEntriesPerCategory">Maximum number of audit entries per category</param>
+        /// <param name="page">Page number for pagination</param>
+        /// <param name="pageSize">Page size for pagination</param>
+        /// <returns>Comprehensive compliance report with subscription information</returns>
+        /// <remarks>
+        /// This endpoint provides enterprise-grade compliance reporting for VOI/Aramid networks.
+        /// It aggregates compliance metadata, whitelist statistics, and audit logs to support
+        /// MICA dashboard requirements and regulatory reporting.
+        /// 
+        /// The report includes:
+        /// - Compliance metadata (KYC, verification status, regulatory framework)
+        /// - Whitelist summary statistics (active/revoked addresses, KYC counts)
+        /// - Compliance audit log (metadata changes)
+        /// - Whitelist audit log (address additions/removals)
+        /// - Transfer validation audit log (allowed/denied transfers)
+        /// - Compliance health score (0-100)
+        /// - VOI/Aramid specific compliance status
+        /// - Warnings and recommendations
+        /// - Subscription tier information
+        /// 
+        /// This operation emits a metering event for billing analytics.
+        /// 
+        /// Example usage:
+        /// - VOI network report: GET /api/v1/compliance/report?network=voimain-v1.0
+        /// - Aramid network report: GET /api/v1/compliance/report?network=aramidmain-v1.0
+        /// - Specific token: GET /api/v1/compliance/report?assetId=12345
+        /// - Date range: GET /api/v1/compliance/report?fromDate=2026-01-01&amp;toDate=2026-01-31
+        /// </remarks>
+        [HttpGet("report")]
+        [ProducesResponseType(typeof(TokenComplianceReportResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetComplianceReport(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? network = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] bool includeWhitelistDetails = true,
+            [FromQuery] bool includeTransferAudits = true,
+            [FromQuery] bool includeComplianceAudits = true,
+            [FromQuery] int maxAuditEntriesPerCategory = 100,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            try
+            {
+                var requestedBy = GetUserAddress();
+
+                if (string.IsNullOrEmpty(requestedBy))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context");
+                    return Unauthorized(new TokenComplianceReportResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User address not found in authentication context"
+                    });
+                }
+
+                var request = new GetTokenComplianceReportRequest
+                {
+                    AssetId = assetId,
+                    Network = network,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    IncludeWhitelistDetails = includeWhitelistDetails,
+                    IncludeTransferAudits = includeTransferAudits,
+                    IncludeComplianceAudits = includeComplianceAudits,
+                    MaxAuditEntriesPerCategory = Math.Min(maxAuditEntriesPerCategory, 1000), // Cap at 1000
+                    Page = page,
+                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                };
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _complianceService.GetComplianceReportAsync(request, requestedBy);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Generated compliance report with {Count} tokens for {RequestedBy}, network: {Network}",
+                        result.Tokens.Count, requestedBy, network ?? "All");
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to generate compliance report: {Error}", result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating compliance report");
+                return StatusCode(StatusCodes.Status500InternalServerError, new TokenComplianceReportResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
     }
 }
