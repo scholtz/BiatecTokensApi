@@ -801,6 +801,206 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Exports attestation audit history as JSON for compliance reporting
+        /// </summary>
+        /// <param name="walletAddress">Optional filter by wallet address</param>
+        /// <param name="assetId">Optional filter by asset ID (token ID)</param>
+        /// <param name="issuerAddress">Optional filter by issuer address</param>
+        /// <param name="verificationStatus">Optional filter by verification status</param>
+        /// <param name="attestationType">Optional filter by attestation type</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="excludeExpired">Optional filter to exclude expired attestations</param>
+        /// <param name="fromDate">Optional start date filter (filter by IssuedAt)</param>
+        /// <param name="toDate">Optional end date filter (filter by IssuedAt)</param>
+        /// <param name="page">Page number for pagination (default: 1)</param>
+        /// <param name="pageSize">Page size for pagination (default: 100, max: 10000)</param>
+        /// <returns>JSON file with attestation history</returns>
+        /// <remarks>
+        /// Exports attestation history matching the filter criteria as a JSON file for regulatory compliance reporting.
+        /// The JSON includes all attestation fields: ID, wallet address, asset ID, issuer, proof hash, verification status,
+        /// attestation type, network, jurisdiction, regulatory framework, issued date, expiration date, and metadata.
+        /// 
+        /// **Format**: Standard JSON array of attestation objects
+        /// 
+        /// **Use Cases**:
+        /// - Enterprise audit trail export
+        /// - Regulator reporting and disclosure
+        /// - Compliance verification for token holders
+        /// - Historical attestation analysis
+        /// 
+        /// **Pagination**: Maximum 10,000 records per export for performance. Use pagination for larger datasets.
+        /// 
+        /// **Filters**: Combine multiple filters to narrow down results (e.g., specific token + date range + wallet).
+        /// </remarks>
+        [HttpGet("attestations/export/json")]
+        [Produces("application/json")]
+        [ProducesResponseType(typeof(List<ComplianceAttestation>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportAttestationsJson(
+            [FromQuery] string? walletAddress = null,
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? issuerAddress = null,
+            [FromQuery] AttestationVerificationStatus? verificationStatus = null,
+            [FromQuery] string? attestationType = null,
+            [FromQuery] string? network = null,
+            [FromQuery] bool? excludeExpired = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 100)
+        {
+            try
+            {
+                // Limit page size for export
+                if (pageSize > MaxExportRecords)
+                {
+                    pageSize = MaxExportRecords;
+                }
+
+                var request = new ListComplianceAttestationsRequest
+                {
+                    WalletAddress = walletAddress,
+                    AssetId = assetId,
+                    IssuerAddress = issuerAddress,
+                    VerificationStatus = verificationStatus,
+                    AttestationType = attestationType,
+                    Network = network,
+                    ExcludeExpired = excludeExpired,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = page,
+                    PageSize = pageSize
+                };
+
+                var result = await _complianceService.ListAttestationsAsync(request);
+
+                if (!result.Success)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError, result.ErrorMessage);
+                }
+
+                var fileName = $"attestations-export-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+
+                _logger.LogInformation("Exported {Count} attestations as JSON", result.Attestations.Count);
+
+                return File(
+                    System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(result.Attestations, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })),
+                    "application/json",
+                    fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting attestations as JSON");
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Internal error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Exports attestation audit history as CSV for compliance reporting
+        /// </summary>
+        /// <param name="walletAddress">Optional filter by wallet address</param>
+        /// <param name="assetId">Optional filter by asset ID (token ID)</param>
+        /// <param name="issuerAddress">Optional filter by issuer address</param>
+        /// <param name="verificationStatus">Optional filter by verification status</param>
+        /// <param name="attestationType">Optional filter by attestation type</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="excludeExpired">Optional filter to exclude expired attestations</param>
+        /// <param name="fromDate">Optional start date filter (filter by IssuedAt)</param>
+        /// <param name="toDate">Optional end date filter (filter by IssuedAt)</param>
+        /// <param name="page">Page number for pagination (default: 1)</param>
+        /// <param name="pageSize">Page size for pagination (default: 100, max: 10000)</param>
+        /// <returns>CSV file with attestation history</returns>
+        /// <remarks>
+        /// Exports attestation history matching the filter criteria as a CSV file for regulatory compliance reporting.
+        /// The CSV includes all attestation fields: ID, wallet address, asset ID, issuer, proof hash, verification status,
+        /// attestation type, network, jurisdiction, regulatory framework, issued date, expiration date, and metadata.
+        /// 
+        /// **Format**: Standard CSV with headers
+        /// 
+        /// **Use Cases**:
+        /// - Enterprise audit trail export
+        /// - Regulator reporting and disclosure
+        /// - Compliance verification for token holders
+        /// - Historical attestation analysis
+        /// - Import into Excel or other tools
+        /// 
+        /// **Pagination**: Maximum 10,000 records per export for performance. Use pagination for larger datasets.
+        /// 
+        /// **Filters**: Combine multiple filters to narrow down results (e.g., specific token + date range + wallet).
+        /// </remarks>
+        [HttpGet("attestations/export/csv")]
+        [Produces("text/csv")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportAttestationsCsv(
+            [FromQuery] string? walletAddress = null,
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? issuerAddress = null,
+            [FromQuery] AttestationVerificationStatus? verificationStatus = null,
+            [FromQuery] string? attestationType = null,
+            [FromQuery] string? network = null,
+            [FromQuery] bool? excludeExpired = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 100)
+        {
+            try
+            {
+                // Limit page size for export
+                if (pageSize > MaxExportRecords)
+                {
+                    pageSize = MaxExportRecords;
+                }
+
+                var request = new ListComplianceAttestationsRequest
+                {
+                    WalletAddress = walletAddress,
+                    AssetId = assetId,
+                    IssuerAddress = issuerAddress,
+                    VerificationStatus = verificationStatus,
+                    AttestationType = attestationType,
+                    Network = network,
+                    ExcludeExpired = excludeExpired,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = page,
+                    PageSize = pageSize
+                };
+
+                var result = await _complianceService.ListAttestationsAsync(request);
+
+                if (!result.Success)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError, result.ErrorMessage);
+                }
+
+                // Build CSV
+                var csv = new System.Text.StringBuilder();
+                csv.AppendLine("Id,WalletAddress,AssetId,IssuerAddress,ProofHash,ProofType,VerificationStatus,AttestationType,Network,Jurisdiction,RegulatoryFramework,IssuedAt,ExpiresAt,VerifiedAt,VerifierAddress,Notes,CreatedAt,UpdatedAt,CreatedBy,UpdatedBy");
+
+                foreach (var attestation in result.Attestations)
+                {
+                    csv.AppendLine($"\"{attestation.Id}\",\"{attestation.WalletAddress}\",{attestation.AssetId},\"{attestation.IssuerAddress}\",\"{EscapeCsv(attestation.ProofHash)}\",\"{EscapeCsv(attestation.ProofType)}\",\"{attestation.VerificationStatus}\",\"{EscapeCsv(attestation.AttestationType)}\",\"{EscapeCsv(attestation.Network)}\",\"{EscapeCsv(attestation.Jurisdiction)}\",\"{EscapeCsv(attestation.RegulatoryFramework)}\",\"{attestation.IssuedAt:O}\",\"{attestation.ExpiresAt:O}\",\"{attestation.VerifiedAt:O}\",\"{EscapeCsv(attestation.VerifierAddress)}\",\"{EscapeCsv(attestation.Notes)}\",\"{attestation.CreatedAt:O}\",\"{attestation.UpdatedAt:O}\",\"{attestation.CreatedBy}\",\"{EscapeCsv(attestation.UpdatedBy)}\"");
+                }
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+                var fileName = $"attestations-export-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+                _logger.LogInformation("Exported {Count} attestations as CSV", result.Attestations.Count);
+
+                return File(bytes, "text/csv", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting attestations as CSV");
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Internal error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Escapes special characters in CSV values
         /// </summary>
         /// <param name="value">The value to escape</param>

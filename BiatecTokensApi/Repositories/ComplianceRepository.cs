@@ -329,6 +329,16 @@ namespace BiatecTokensApi.Repositories
                 query = query.Where(a => !a.ExpiresAt.HasValue || a.ExpiresAt.Value > now);
             }
 
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(a => a.IssuedAt >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(a => a.IssuedAt <= request.ToDate.Value);
+            }
+
             // Order by creation date descending (most recent first)
             query = query.OrderByDescending(a => a.CreatedAt);
 
@@ -387,6 +397,16 @@ namespace BiatecTokensApi.Repositories
             {
                 var now = DateTime.UtcNow;
                 query = query.Where(a => !a.ExpiresAt.HasValue || a.ExpiresAt.Value > now);
+            }
+
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(a => a.IssuedAt >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(a => a.IssuedAt <= request.ToDate.Value);
             }
 
             return Task.FromResult(query.Count());
