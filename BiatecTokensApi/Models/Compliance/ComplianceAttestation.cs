@@ -344,4 +344,265 @@ namespace BiatecTokensApi.Models.Compliance
         /// </summary>
         public int TotalPages { get; set; }
     }
+
+    /// <summary>
+    /// Request to generate a signed compliance attestation package for MICA audits
+    /// </summary>
+    public class GenerateAttestationPackageRequest
+    {
+        /// <summary>
+        /// The token ID (asset ID) for which to generate the attestation package
+        /// </summary>
+        [Required]
+        public ulong TokenId { get; set; }
+
+        /// <summary>
+        /// Start date for the attestation package date range
+        /// </summary>
+        public DateTime? FromDate { get; set; }
+
+        /// <summary>
+        /// End date for the attestation package date range
+        /// </summary>
+        public DateTime? ToDate { get; set; }
+
+        /// <summary>
+        /// Output format for the attestation package (json or pdf)
+        /// </summary>
+        [Required]
+        [MaxLength(10)]
+        public string Format { get; set; } = "json";
+    }
+
+    /// <summary>
+    /// Signed compliance attestation package for MICA regulatory audits
+    /// </summary>
+    public class AttestationPackage
+    {
+        /// <summary>
+        /// Unique identifier for this attestation package
+        /// </summary>
+        public string PackageId { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// Token ID this package is for
+        /// </summary>
+        public ulong TokenId { get; set; }
+
+        /// <summary>
+        /// Timestamp when this package was generated
+        /// </summary>
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Address of the issuer who requested this package
+        /// </summary>
+        public string IssuerAddress { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Network the token is deployed on
+        /// </summary>
+        public string? Network { get; set; }
+
+        /// <summary>
+        /// Token metadata (name, unit name, total supply, etc.)
+        /// </summary>
+        public TokenMetadata? Token { get; set; }
+
+        /// <summary>
+        /// Compliance metadata for the token
+        /// </summary>
+        public ComplianceMetadata? ComplianceMetadata { get; set; }
+
+        /// <summary>
+        /// Whitelist policy information
+        /// </summary>
+        public WhitelistPolicyInfo? WhitelistPolicy { get; set; }
+
+        /// <summary>
+        /// Latest compliance status
+        /// </summary>
+        public ComplianceStatusInfo? ComplianceStatus { get; set; }
+
+        /// <summary>
+        /// List of attestations in the date range
+        /// </summary>
+        public List<ComplianceAttestation> Attestations { get; set; } = new();
+
+        /// <summary>
+        /// Date range for attestations
+        /// </summary>
+        public DateRangeInfo? DateRange { get; set; }
+
+        /// <summary>
+        /// Deterministic hash of the package content for verification
+        /// </summary>
+        public string ContentHash { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Signature metadata for audit verification
+        /// </summary>
+        public SignatureMetadata? Signature { get; set; }
+    }
+
+    /// <summary>
+    /// Token metadata for attestation package
+    /// </summary>
+    public class TokenMetadata
+    {
+        /// <summary>
+        /// Token ID (asset ID)
+        /// </summary>
+        public ulong AssetId { get; set; }
+
+        /// <summary>
+        /// Token name
+        /// </summary>
+        public string? Name { get; set; }
+
+        /// <summary>
+        /// Token unit name
+        /// </summary>
+        public string? UnitName { get; set; }
+
+        /// <summary>
+        /// Total supply
+        /// </summary>
+        public ulong? Total { get; set; }
+
+        /// <summary>
+        /// Number of decimals
+        /// </summary>
+        public uint? Decimals { get; set; }
+
+        /// <summary>
+        /// Creator address
+        /// </summary>
+        public string? Creator { get; set; }
+
+        /// <summary>
+        /// Manager address
+        /// </summary>
+        public string? Manager { get; set; }
+
+        /// <summary>
+        /// Reserve address
+        /// </summary>
+        public string? Reserve { get; set; }
+
+        /// <summary>
+        /// Freeze address
+        /// </summary>
+        public string? Freeze { get; set; }
+
+        /// <summary>
+        /// Clawback address
+        /// </summary>
+        public string? Clawback { get; set; }
+    }
+
+    /// <summary>
+    /// Whitelist policy information
+    /// </summary>
+    public class WhitelistPolicyInfo
+    {
+        /// <summary>
+        /// Whether whitelist is enabled
+        /// </summary>
+        public bool IsEnabled { get; set; }
+
+        /// <summary>
+        /// Total number of whitelisted addresses
+        /// </summary>
+        public int TotalWhitelisted { get; set; }
+
+        /// <summary>
+        /// Whitelist enforcement type
+        /// </summary>
+        public string? EnforcementType { get; set; }
+    }
+
+    /// <summary>
+    /// Compliance status information
+    /// </summary>
+    public class ComplianceStatusInfo
+    {
+        /// <summary>
+        /// Current compliance status
+        /// </summary>
+        public ComplianceStatus Status { get; set; }
+
+        /// <summary>
+        /// Current verification status
+        /// </summary>
+        public VerificationStatus VerificationStatus { get; set; }
+
+        /// <summary>
+        /// Last compliance review date
+        /// </summary>
+        public DateTime? LastReviewDate { get; set; }
+
+        /// <summary>
+        /// Next compliance review date
+        /// </summary>
+        public DateTime? NextReviewDate { get; set; }
+    }
+
+    /// <summary>
+    /// Date range information
+    /// </summary>
+    public class DateRangeInfo
+    {
+        /// <summary>
+        /// Start date
+        /// </summary>
+        public DateTime? From { get; set; }
+
+        /// <summary>
+        /// End date
+        /// </summary>
+        public DateTime? To { get; set; }
+    }
+
+    /// <summary>
+    /// Signature metadata for audit verification
+    /// </summary>
+    public class SignatureMetadata
+    {
+        /// <summary>
+        /// Algorithm used for signing (e.g., "ED25519", "SHA256")
+        /// </summary>
+        public string Algorithm { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Public key used for signature verification
+        /// </summary>
+        public string? PublicKey { get; set; }
+
+        /// <summary>
+        /// Signature value (base64 encoded)
+        /// </summary>
+        public string? SignatureValue { get; set; }
+
+        /// <summary>
+        /// Timestamp when signature was created
+        /// </summary>
+        public DateTime SignedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Response for attestation package generation
+    /// </summary>
+    public class AttestationPackageResponse : BaseResponse
+    {
+        /// <summary>
+        /// The generated attestation package
+        /// </summary>
+        public AttestationPackage? Package { get; set; }
+
+        /// <summary>
+        /// Format of the package (json or pdf)
+        /// </summary>
+        public string? Format { get; set; }
+    }
 }

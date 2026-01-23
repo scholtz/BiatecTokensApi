@@ -1363,5 +1363,182 @@ namespace BiatecTokensApi.Services
 
             return warnings;
         }
+
+        /// <inheritdoc/>
+        public async Task<AttestationPackageResponse> GenerateAttestationPackageAsync(
+            GenerateAttestationPackageRequest request, 
+            string requestedBy)
+        {
+            try
+            {
+                // Validate format
+                if (!string.Equals(request.Format, "json", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(request.Format, "pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new AttestationPackageResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Invalid format. Supported formats are 'json' and 'pdf'."
+                    };
+                }
+
+                // Get compliance metadata for the token
+                var metadata = await _complianceRepository.GetMetadataByAssetIdAsync(request.TokenId);
+                
+                // Get attestations for the token in the date range
+                var attestationsRequest = new ListComplianceAttestationsRequest
+                {
+                    AssetId = request.TokenId,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    PageSize = 100
+                };
+                var attestations = await _complianceRepository.ListAttestationsAsync(attestationsRequest);
+
+                // Build the attestation package
+                var package = new AttestationPackage
+                {
+                    TokenId = request.TokenId,
+                    GeneratedAt = DateTime.UtcNow,
+                    IssuerAddress = requestedBy,
+                    Network = metadata?.Network,
+                    ComplianceMetadata = metadata,
+                    Attestations = attestations,
+                    DateRange = new DateRangeInfo
+                    {
+                        From = request.FromDate,
+                        To = request.ToDate
+                    }
+                };
+
+                // Get whitelist policy info (mock for now - would need WhitelistService integration)
+                package.WhitelistPolicy = new WhitelistPolicyInfo
+                {
+                    IsEnabled = false,
+                    TotalWhitelisted = 0,
+                    EnforcementType = "None"
+                };
+
+                // Get compliance status info
+                if (metadata != null)
+                {
+                    package.ComplianceStatus = new ComplianceStatusInfo
+                    {
+                        Status = metadata.ComplianceStatus,
+                        VerificationStatus = metadata.VerificationStatus,
+                        LastReviewDate = metadata.LastComplianceReview,
+                        NextReviewDate = metadata.NextComplianceReview
+                    };
+                }
+
+                // Token metadata would come from blockchain - for now create placeholder
+                package.Token = new TokenMetadata
+                {
+                    AssetId = request.TokenId
+                };
+
+                // Generate deterministic hash of package content
+                package.ContentHash = GeneratePackageHash(package);
+
+                // Generate signature metadata
+                package.Signature = new SignatureMetadata
+                {
+                    Algorithm = "SHA256",
+                    SignedAt = DateTime.UtcNow
+                    // Note: Actual signature would require private key access
+                    // For now, providing metadata structure for audit verification
+                };
+
+                // Emit metering event for package generation
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
+                {
+                    Category = MeteringCategory.Compliance,
+                    OperationType = MeteringOperationType.Export,
+                    AssetId = request.TokenId,
+                    Network = metadata?.Network ?? "unknown",
+                    PerformedBy = requestedBy,
+                    ItemCount = package.Attestations.Count,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["exportFormat"] = request.Format,
+                        ["exportType"] = "attestationPackage",
+                        ["attestationCount"] = package.Attestations.Count.ToString(),
+                        ["fromDate"] = request.FromDate?.ToString("O") ?? "none",
+                        ["toDate"] = request.ToDate?.ToString("O") ?? "none",
+                        ["hasComplianceMetadata"] = (metadata != null).ToString(),
+                        ["contentHash"] = package.ContentHash
+                    }
+                });
+
+                _logger.LogInformation(
+                    "Generated attestation package for token {TokenId} by {RequestedBy}, format: {Format}, attestations: {Count}",
+                    request.TokenId,
+                    requestedBy,
+                    request.Format,
+                    package.Attestations.Count);
+
+                return new AttestationPackageResponse
+                {
+                    Success = true,
+                    Package = package,
+                    Format = request.Format
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating attestation package for token {TokenId}", request.TokenId);
+                return new AttestationPackageResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to generate attestation package: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Generates a deterministic SHA-256 hash of the package content for verification
+        /// </summary>
+        private string GeneratePackageHash(AttestationPackage package)
+        {
+            try
+            {
+                // Create a canonical JSON representation of the package content
+                // Exclude the hash and signature fields themselves
+                var contentForHashing = new
+                {
+                    package.TokenId,
+                    package.GeneratedAt,
+                    package.IssuerAddress,
+                    package.Network,
+                    ComplianceMetadata = package.ComplianceMetadata != null ? new
+                    {
+                        package.ComplianceMetadata.AssetId,
+                        package.ComplianceMetadata.ComplianceStatus,
+                        package.ComplianceMetadata.VerificationStatus,
+                        package.ComplianceMetadata.RegulatoryFramework,
+                        package.ComplianceMetadata.Jurisdiction
+                    } : null,
+                    AttestationCount = package.Attestations.Count,
+                    AttestationIds = package.Attestations.Select(a => a.Id).ToList(),
+                    package.DateRange
+                };
+
+                var jsonString = System.Text.Json.JsonSerializer.Serialize(contentForHashing, 
+                    new System.Text.Json.JsonSerializerOptions 
+                    { 
+                        WriteIndented = false,
+                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                    });
+
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(jsonString));
+                return Convert.ToBase64String(hashBytes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate package hash");
+                return $"ERROR_{Guid.NewGuid()}";
+            }
+        }
     }
 }

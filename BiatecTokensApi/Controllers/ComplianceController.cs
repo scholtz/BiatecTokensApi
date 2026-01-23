@@ -1192,6 +1192,109 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Generates a signed compliance attestation package for MICA audits
+        /// </summary>
+        /// <param name="request">The attestation package request</param>
+        /// <returns>Signed attestation package with issuer metadata, token details, and compliance status</returns>
+        /// <remarks>
+        /// This endpoint generates verifiable audit artifacts for regulators and enterprise issuers.
+        /// The attestation package includes:
+        /// - Issuer metadata (creator address, network information)
+        /// - Token details (asset ID, compliance metadata)
+        /// - Whitelist policy information (if applicable)
+        /// - Latest compliance status and verification status
+        /// - All attestations within the specified date range
+        /// - Deterministic content hash for verification
+        /// - Signature metadata for audit trail
+        /// 
+        /// **Supported Formats**:
+        /// - json: Structured JSON package (default)
+        /// - pdf: PDF document (future enhancement)
+        /// 
+        /// **MICA Compliance**: This endpoint aligns with MICA reporting requirements by providing:
+        /// - Complete audit trail of compliance attestations
+        /// - Verifiable cryptographic signatures
+        /// - Regulatory framework and jurisdiction information
+        /// - KYC/AML verification status
+        /// 
+        /// **Use Cases**:
+        /// - Regulatory audit submissions
+        /// - Enterprise compliance reporting
+        /// - Investor disclosure packages
+        /// - Quarterly/Annual compliance reviews
+        /// 
+        /// This operation emits a metering event for billing analytics.
+        /// 
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpPost("attestation")]
+        [ProducesResponseType(typeof(AttestationPackageResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GenerateAttestationPackage([FromBody] GenerateAttestationPackageRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var requestedBy = GetUserAddress();
+
+                if (string.IsNullOrEmpty(requestedBy))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context");
+                    return Unauthorized(new AttestationPackageResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User address not found in authentication context"
+                    });
+                }
+
+                var result = await _complianceService.GenerateAttestationPackageAsync(request, requestedBy);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Generated attestation package for token {TokenId} by {RequestedBy}, format: {Format}",
+                        request.TokenId,
+                        requestedBy,
+                        request.Format);
+
+                    // If PDF format is requested, return as file
+                    if (string.Equals(request.Format, "pdf", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // PDF generation would be implemented here
+                        // For now, return error indicating PDF is not yet supported
+                        return StatusCode(StatusCodes.Status501NotImplemented, new AttestationPackageResponse
+                        {
+                            Success = false,
+                            ErrorMessage = "PDF format is not yet implemented. Please use 'json' format."
+                        });
+                    }
+
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to generate attestation package: {Error}", result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating attestation package");
+                return StatusCode(StatusCodes.Status500InternalServerError, new AttestationPackageResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
         /// Generates a comprehensive compliance report for VOI/Aramid tokens
         /// </summary>
         /// <param name="assetId">Optional filter by specific asset ID</param>

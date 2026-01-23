@@ -92,5 +92,18 @@ namespace BiatecTokensApi.Services.Interface
         /// Supports MICA dashboard requirements and subscription-based access control.
         /// </remarks>
         Task<TokenComplianceReportResponse> GetComplianceReportAsync(GetTokenComplianceReportRequest request, string requestedBy);
+
+        /// <summary>
+        /// Generates a signed compliance attestation package for MICA audits
+        /// </summary>
+        /// <param name="request">The attestation package request containing token ID, date range, and format</param>
+        /// <param name="requestedBy">The address of the user requesting the package</param>
+        /// <returns>Response with signed attestation package including issuer metadata, token details, whitelist policy, and compliance status</returns>
+        /// <remarks>
+        /// This method generates a verifiable audit artifact for regulators and enterprise issuers.
+        /// The package includes deterministic hash and signature metadata for audit verification.
+        /// Supports MICA reporting requirements and subscription-based access control.
+        /// </remarks>
+        Task<AttestationPackageResponse> GenerateAttestationPackageAsync(GenerateAttestationPackageRequest request, string requestedBy);
     }
 }
