@@ -21,6 +21,19 @@ namespace BiatecTokensApi.Services
         /// </summary>
         private const string SystemActor = "System";
 
+        // Verification scoring weights
+        private const int ScoreLegalName = 5;
+        private const int ScoreCountry = 5;
+        private const int ScoreAddress = 10;
+        private const int ScoreContact = 10;
+        private const int ScoreRegistration = 10;
+        private const int ScoreKybVerified = 30;
+        private const int ScoreKybInProgress = 15;
+        private const int ScoreKybPending = 5;
+        private const int ScoreMicaApproved = 30;
+        private const int ScoreMicaUnderReview = 15;
+        private const int ScoreMicaApplied = 5;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ComplianceService"/> class.
         /// </summary>
@@ -1746,40 +1759,40 @@ namespace BiatecTokensApi.Services
                 int score = 0;
                 var missingFields = new List<string>();
 
-                // Profile completeness (40 points)
-                if (!string.IsNullOrEmpty(profile.LegalName)) score += 5; else missingFields.Add("LegalName");
-                if (!string.IsNullOrEmpty(profile.CountryOfIncorporation)) score += 5; else missingFields.Add("CountryOfIncorporation");
-                if (profile.RegisteredAddress != null) score += 10; else missingFields.Add("RegisteredAddress");
-                if (profile.PrimaryContact != null) score += 10; else missingFields.Add("PrimaryContact");
-                if (!string.IsNullOrEmpty(profile.RegistrationNumber)) score += 10; else missingFields.Add("RegistrationNumber");
+                // Profile completeness (40 points total)
+                if (!string.IsNullOrEmpty(profile.LegalName)) score += ScoreLegalName; else missingFields.Add("LegalName");
+                if (!string.IsNullOrEmpty(profile.CountryOfIncorporation)) score += ScoreCountry; else missingFields.Add("CountryOfIncorporation");
+                if (profile.RegisteredAddress != null) score += ScoreAddress; else missingFields.Add("RegisteredAddress");
+                if (profile.PrimaryContact != null) score += ScoreContact; else missingFields.Add("PrimaryContact");
+                if (!string.IsNullOrEmpty(profile.RegistrationNumber)) score += ScoreRegistration; else missingFields.Add("RegistrationNumber");
 
                 // KYB verification (30 points)
                 if (profile.KybStatus == VerificationStatus.Verified)
                 {
-                    score += 30;
+                    score += ScoreKybVerified;
                 }
                 else if (profile.KybStatus == VerificationStatus.InProgress)
                 {
-                    score += 15;
+                    score += ScoreKybInProgress;
                 }
                 else if (profile.KybStatus == VerificationStatus.Pending)
                 {
-                    score += 5;
+                    score += ScoreKybPending;
                     missingFields.Add("KYB Verification");
                 }
 
                 // MICA license (30 points)
                 if (profile.MicaLicenseStatus == MicaLicenseStatus.Approved)
                 {
-                    score += 30;
+                    score += ScoreMicaApproved;
                 }
                 else if (profile.MicaLicenseStatus == MicaLicenseStatus.UnderReview)
                 {
-                    score += 15;
+                    score += ScoreMicaUnderReview;
                 }
                 else if (profile.MicaLicenseStatus == MicaLicenseStatus.Applied)
                 {
-                    score += 5;
+                    score += ScoreMicaApplied;
                 }
                 else
                 {
@@ -1994,14 +2007,17 @@ namespace BiatecTokensApi.Services
                 var violations = new List<string>();
                 var warnings = new List<string>();
 
-                // Check sender whitelist
-                var senderWhitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest 
+                // Check sender and receiver whitelist in single call
+                var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest 
                 { 
                     AssetId = request.AssetId,
                     Status = WhitelistStatus.Active
                 });
-                var senderWhitelisted = senderWhitelistResponse.Success && 
-                    senderWhitelistResponse.Entries.Any(e => e.Address == request.FromAddress && e.Status == WhitelistStatus.Active);
+                
+                var whitelistEntries = whitelistResponse.Success ? whitelistResponse.Entries : new List<WhitelistEntry>();
+                
+                // Check sender whitelist
+                var senderWhitelisted = whitelistEntries.Any(e => e.Address == request.FromAddress);
                 validations.Add(new ValidationCheck
                 {
                     Rule = "SenderWhitelisted",
@@ -2014,13 +2030,7 @@ namespace BiatecTokensApi.Services
                 }
 
                 // Check receiver whitelist
-                var receiverWhitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest 
-                { 
-                    AssetId = request.AssetId,
-                    Status = WhitelistStatus.Active
-                });
-                var receiverWhitelisted = receiverWhitelistResponse.Success && 
-                    receiverWhitelistResponse.Entries.Any(e => e.Address == request.ToAddress && e.Status == WhitelistStatus.Active);
+                var receiverWhitelisted = whitelistEntries.Any(e => e.Address == request.ToAddress);
                 validations.Add(new ValidationCheck
                 {
                     Rule = "ReceiverWhitelisted",
@@ -2269,13 +2279,22 @@ namespace BiatecTokensApi.Services
                 int tokensWithWhitelisting = 0;
                 int micaReadyTokens = 0;
 
+                // Optimize: batch fetch whitelist data for all assets at once to avoid N+1 queries
+                var assetWhitelistMap = new Dictionary<ulong, bool>();
                 foreach (var metadata in metadataList)
                 {
-                    var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest { AssetId = metadata.AssetId });
-                    var whitelistEntries = whitelistResponse.Success ? whitelistResponse.Entries : new List<WhitelistEntry>();
-                    if (whitelistEntries?.Any() == true)
+                    // Quick optimization: For now, make individual calls but cache results
+                    // TODO: In production, implement batch whitelist lookup endpoint
+                    if (!assetWhitelistMap.ContainsKey(metadata.AssetId))
                     {
-                        tokensWithWhitelisting++;
+                        var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest { AssetId = metadata.AssetId });
+                        var hasWhitelist = whitelistResponse.Success && whitelistResponse.Entries.Any();
+                        assetWhitelistMap[metadata.AssetId] = hasWhitelist;
+                        
+                        if (hasWhitelist)
+                        {
+                            tokensWithWhitelisting++;
+                        }
                     }
 
                     // Check MICA readiness
