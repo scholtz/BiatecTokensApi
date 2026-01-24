@@ -1080,6 +1080,95 @@
             Use this endpoint to support subscription value features and enterprise readiness indicators in the UI.
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.WebhookController">
+            <summary>
+            Provides endpoints for managing compliance webhook subscriptions
+            </summary>
+            <remarks>
+            This controller manages webhook operations including subscription management,
+            event delivery tracking, and audit history. All endpoints require ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WebhookController.#ctor(BiatecTokensApi.Services.Interface.IWebhookService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.WebhookController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.WebhookController"/> class.
+            </summary>
+            <param name="webhookService">The webhook service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WebhookController.CreateSubscription(BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest)">
+            <summary>
+            Creates a new webhook subscription
+            </summary>
+            <param name="request">The webhook subscription creation request</param>
+            <returns>The created webhook subscription with signing secret</returns>
+            <remarks>
+            Creates a webhook subscription for compliance events. The response includes a signing secret
+            that should be used to verify webhook signatures. Supported event types:
+            - WhitelistAdd: Triggered when an address is added to the whitelist
+            - WhitelistRemove: Triggered when an address is removed from the whitelist
+            - TransferDeny: Triggered when a transfer is denied by whitelist rules
+            - AuditExportCreated: Triggered when an audit export is created
+            
+            All webhook payloads include:
+            - Event ID and type
+            - Timestamp (UTC)
+            - Actor (user who triggered the event)
+            - Asset ID and network
+            - Event-specific data
+            
+            Webhook delivery includes exponential backoff retry on failure (1min, 5min, 15min).
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WebhookController.GetSubscription(System.String)">
+            <summary>
+            Gets a webhook subscription by ID
+            </summary>
+            <param name="subscriptionId">The webhook subscription ID</param>
+            <returns>The webhook subscription details</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WebhookController.ListSubscriptions">
+            <summary>
+            Lists all webhook subscriptions for the authenticated user
+            </summary>
+            <returns>List of webhook subscriptions</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WebhookController.UpdateSubscription(BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest)">
+            <summary>
+            Updates an existing webhook subscription
+            </summary>
+            <param name="request">The webhook subscription update request</param>
+            <returns>The updated webhook subscription</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WebhookController.DeleteSubscription(System.String)">
+            <summary>
+            Deletes a webhook subscription
+            </summary>
+            <param name="subscriptionId">The webhook subscription ID to delete</param>
+            <returns>Result of the deletion operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WebhookController.GetDeliveryHistory(System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Gets webhook delivery history with filtering
+            </summary>
+            <param name="subscriptionId">Optional filter by subscription ID</param>
+            <param name="eventId">Optional filter by event ID</param>
+            <param name="success">Optional filter by success status</param>
+            <param name="fromDate">Optional start date filter (ISO 8601)</param>
+            <param name="toDate">Optional end date filter (ISO 8601)</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 50, max: 100)</param>
+            <returns>Webhook delivery history with statistics</returns>
+            <remarks>
+            This endpoint provides comprehensive webhook delivery tracking including:
+            - Delivery attempts and outcomes
+            - HTTP status codes and error messages
+            - Retry status and next retry times
+            - Success/failure statistics
+            
+            This serves as the admin audit endpoint for webhook delivery failures.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.WhitelistController">
             <summary>
             Provides endpoints for managing RWA token whitelists
@@ -6337,6 +6426,354 @@
             Represents an ERC20 token which is fully preminted.
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.WebhookSubscription">
+            <summary>
+            Webhook subscription configuration
+            </summary>
+            <remarks>
+            Represents a webhook subscription with URL, signing secret, and event type filters.
+            Subscriptions are used to deliver compliance events to external systems.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.Id">
+            <summary>
+            Unique identifier for the webhook subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.Url">
+            <summary>
+            URL to deliver webhook events to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.SigningSecret">
+            <summary>
+            Signing secret for webhook signature verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.EventTypes">
+            <summary>
+            Event types this subscription is interested in
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.IsActive">
+            <summary>
+            Whether the subscription is active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.CreatedBy">
+            <summary>
+            Address of the user who created this subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.CreatedAt">
+            <summary>
+            Timestamp when the subscription was created (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.UpdatedAt">
+            <summary>
+            Timestamp when the subscription was last updated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.Description">
+            <summary>
+            Optional description for the subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.AssetIdFilter">
+            <summary>
+            Optional filter by asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscription.NetworkFilter">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.WebhookEventType">
+            <summary>
+            Types of webhook events that can be subscribed to
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.WhitelistAdd">
+            <summary>
+            Address added to whitelist
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.WhitelistRemove">
+            <summary>
+            Address removed from whitelist
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.TransferDeny">
+            <summary>
+            Transfer denied by whitelist rules
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.AuditExportCreated">
+            <summary>
+            Audit export created
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.WebhookEvent">
+            <summary>
+            Webhook event payload
+            </summary>
+            <remarks>
+            Contains all details about a compliance event including actor, timestamp, asset, and network.
+            Events are signed and delivered to subscribed webhook endpoints.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.Id">
+            <summary>
+            Unique identifier for the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.EventType">
+            <summary>
+            Type of event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.Timestamp">
+            <summary>
+            Timestamp when the event occurred (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.AssetId">
+            <summary>
+            Asset ID associated with the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.Network">
+            <summary>
+            Network on which the event occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.Actor">
+            <summary>
+            Address of the actor who triggered the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.AffectedAddress">
+            <summary>
+            Address affected by the event (for whitelist operations)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookEvent.Data">
+            <summary>
+            Additional event-specific data as JSON
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult">
+            <summary>
+            Result of a webhook delivery attempt
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.Id">
+            <summary>
+            Unique identifier for the delivery attempt
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.SubscriptionId">
+            <summary>
+            ID of the webhook subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.EventId">
+            <summary>
+            ID of the event being delivered
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.Success">
+            <summary>
+            Whether the delivery was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.StatusCode">
+            <summary>
+            HTTP status code from the webhook endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.AttemptedAt">
+            <summary>
+            Timestamp of the delivery attempt (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.RetryCount">
+            <summary>
+            Number of retry attempts made
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.ErrorMessage">
+            <summary>
+            Error message if delivery failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.ResponseBody">
+            <summary>
+            Response body from the webhook endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.WillRetry">
+            <summary>
+            Whether this delivery will be retried
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryResult.NextRetryAt">
+            <summary>
+            Timestamp when the next retry will occur (UTC)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest">
+            <summary>
+            Request to create a webhook subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest.Url">
+            <summary>
+            URL to deliver webhook events to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest.EventTypes">
+            <summary>
+            Event types to subscribe to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest.Description">
+            <summary>
+            Optional description for the subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest.AssetIdFilter">
+            <summary>
+            Optional filter by asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest.NetworkFilter">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.WebhookSubscriptionResponse">
+            <summary>
+            Response containing webhook subscription details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscriptionResponse.Subscription">
+            <summary>
+            The webhook subscription
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.WebhookSubscriptionListResponse">
+            <summary>
+            Response containing a list of webhook subscriptions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscriptionListResponse.Subscriptions">
+            <summary>
+            List of webhook subscriptions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookSubscriptionListResponse.TotalCount">
+            <summary>
+            Total number of subscriptions
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest">
+            <summary>
+            Request to update a webhook subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest.SubscriptionId">
+            <summary>
+            ID of the subscription to update
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest.IsActive">
+            <summary>
+            Whether the subscription is active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest.EventTypes">
+            <summary>
+            Event types to subscribe to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest.Description">
+            <summary>
+            Optional description for the subscription
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse">
+            <summary>
+            Response containing webhook delivery history
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse.Deliveries">
+            <summary>
+            List of delivery results
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse.TotalCount">
+            <summary>
+            Total number of delivery attempts
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse.SuccessCount">
+            <summary>
+            Number of successful deliveries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse.FailedCount">
+            <summary>
+            Number of failed deliveries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse.PendingRetries">
+            <summary>
+            Number of pending retries
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest">
+            <summary>
+            Request to retrieve webhook delivery history
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest.SubscriptionId">
+            <summary>
+            Optional filter by subscription ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest.EventId">
+            <summary>
+            Optional filter by event ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest.Success">
+            <summary>
+            Optional filter by success status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry">
             <summary>
             Represents an audit log entry for whitelist changes and transfer validations
@@ -7888,6 +8325,79 @@
             <param name="request">The audit log request with filters</param>
             <returns>Summary statistics including event counts and date ranges</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IWebhookRepository">
+            <summary>
+            Repository interface for webhook operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.CreateSubscriptionAsync(BiatecTokensApi.Models.Webhook.WebhookSubscription)">
+            <summary>
+            Creates a new webhook subscription
+            </summary>
+            <param name="subscription">The webhook subscription to create</param>
+            <returns>The created subscription with ID assigned</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.GetSubscriptionAsync(System.String)">
+            <summary>
+            Retrieves a webhook subscription by ID
+            </summary>
+            <param name="subscriptionId">The subscription ID</param>
+            <returns>The webhook subscription or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.ListSubscriptionsAsync(System.String)">
+            <summary>
+            Lists all webhook subscriptions for a user
+            </summary>
+            <param name="createdBy">The user address who created the subscriptions</param>
+            <returns>List of webhook subscriptions</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.ListActiveSubscriptionsAsync">
+            <summary>
+            Lists all active webhook subscriptions
+            </summary>
+            <returns>List of active webhook subscriptions</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.UpdateSubscriptionAsync(BiatecTokensApi.Models.Webhook.WebhookSubscription)">
+            <summary>
+            Updates an existing webhook subscription
+            </summary>
+            <param name="subscription">The subscription to update</param>
+            <returns>True if updated successfully, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.DeleteSubscriptionAsync(System.String)">
+            <summary>
+            Deletes a webhook subscription
+            </summary>
+            <param name="subscriptionId">The subscription ID to delete</param>
+            <returns>True if deleted successfully, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.StoreDeliveryResultAsync(BiatecTokensApi.Models.Webhook.WebhookDeliveryResult)">
+            <summary>
+            Stores a webhook delivery result
+            </summary>
+            <param name="result">The delivery result to store</param>
+            <returns>The stored delivery result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.GetDeliveryHistoryAsync(BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest)">
+            <summary>
+            Retrieves webhook delivery history with filtering
+            </summary>
+            <param name="request">The request containing filter criteria</param>
+            <returns>List of delivery results</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.GetDeliveryHistoryCountAsync(BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest)">
+            <summary>
+            Gets the total count of delivery results matching the filter
+            </summary>
+            <param name="request">The request containing filter criteria</param>
+            <returns>Count of matching delivery results</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IWebhookRepository.GetPendingRetriesAsync">
+            <summary>
+            Gets pending retry deliveries that are due
+            </summary>
+            <returns>List of delivery results that should be retried</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.IPFSRepository">
             <summary>
             Repository for IPFS operations using Biatec IPFS API
@@ -8100,6 +8610,51 @@
             <param name="fromDate">Optional start date filter</param>
             <param name="toDate">Optional end date filter</param>
             <returns>List of audit log entries</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.WebhookRepository">
+            <summary>
+            In-memory implementation of webhook repository
+            </summary>
+            <remarks>
+            This is a simple in-memory implementation for webhook storage.
+            In production, this should be replaced with a persistent storage solution.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.WebhookRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.WebhookRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.CreateSubscriptionAsync(BiatecTokensApi.Models.Webhook.WebhookSubscription)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.GetSubscriptionAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.ListSubscriptionsAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.ListActiveSubscriptionsAsync">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.UpdateSubscriptionAsync(BiatecTokensApi.Models.Webhook.WebhookSubscription)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.DeleteSubscriptionAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.StoreDeliveryResultAsync(BiatecTokensApi.Models.Webhook.WebhookDeliveryResult)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.GetDeliveryHistoryAsync(BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.GetDeliveryHistoryCountAsync(BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WebhookRepository.GetPendingRetriesAsync">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Repositories.WhitelistRepository">
             <summary>
@@ -9188,6 +9743,65 @@
             Remaining capacity (-1 for unlimited)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IWebhookService">
+            <summary>
+            Service interface for webhook operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWebhookService.CreateSubscriptionAsync(BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest,System.String)">
+            <summary>
+            Creates a new webhook subscription
+            </summary>
+            <param name="request">The subscription creation request</param>
+            <param name="createdBy">The address of the user creating the subscription</param>
+            <returns>The created subscription response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWebhookService.GetSubscriptionAsync(System.String,System.String)">
+            <summary>
+            Gets a webhook subscription by ID
+            </summary>
+            <param name="subscriptionId">The subscription ID</param>
+            <param name="userId">The user requesting the subscription</param>
+            <returns>The subscription response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWebhookService.ListSubscriptionsAsync(System.String)">
+            <summary>
+            Lists webhook subscriptions for the current user
+            </summary>
+            <param name="userId">The user ID</param>
+            <returns>The list of subscriptions</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWebhookService.UpdateSubscriptionAsync(BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest,System.String)">
+            <summary>
+            Updates an existing webhook subscription
+            </summary>
+            <param name="request">The subscription update request</param>
+            <param name="userId">The user updating the subscription</param>
+            <returns>The updated subscription response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWebhookService.DeleteSubscriptionAsync(System.String,System.String)">
+            <summary>
+            Deletes a webhook subscription
+            </summary>
+            <param name="subscriptionId">The subscription ID to delete</param>
+            <param name="userId">The user deleting the subscription</param>
+            <returns>The response indicating success or failure</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWebhookService.EmitEventAsync(BiatecTokensApi.Models.Webhook.WebhookEvent)">
+            <summary>
+            Emits a webhook event to all subscribed endpoints
+            </summary>
+            <param name="webhookEvent">The event to emit</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWebhookService.GetDeliveryHistoryAsync(BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest,System.String)">
+            <summary>
+            Gets webhook delivery history with filtering
+            </summary>
+            <param name="request">The request containing filter criteria</param>
+            <param name="userId">The user requesting the history</param>
+            <returns>The delivery history response</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IWhitelistRulesService">
             <summary>
             Interface for whitelisting rules service operations
@@ -9397,6 +10011,40 @@
             or integrated with a billing/subscription management system.
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Services.WebhookService">
+            <summary>
+            Service for managing webhook subscriptions and event delivery
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.#ctor(BiatecTokensApi.Repositories.Interface.IWebhookRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WebhookService},System.Net.Http.IHttpClientFactory)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.WebhookService"/> class.
+            </summary>
+            <param name="repository">The webhook repository</param>
+            <param name="logger">The logger instance</param>
+            <param name="httpClientFactory">The HTTP client factory</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.CreateSubscriptionAsync(BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.GetSubscriptionAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.ListSubscriptionsAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.UpdateSubscriptionAsync(BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.DeleteSubscriptionAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.EmitEventAsync(BiatecTokensApi.Models.Webhook.WebhookEvent)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WebhookService.GetDeliveryHistoryAsync(BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest,System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.WhitelistRulesService">
             <summary>
             Service for managing whitelisting rules operations
@@ -9459,7 +10107,7 @@
             Service for managing whitelist operations
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.WhitelistService.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService,BiatecTokensApi.Services.Interface.ISubscriptionTierService)">
+        <member name="M:BiatecTokensApi.Services.WhitelistService.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService,BiatecTokensApi.Services.Interface.ISubscriptionTierService,BiatecTokensApi.Services.Interface.IWebhookService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.WhitelistService"/> class.
             </summary>
@@ -9467,6 +10115,7 @@
             <param name="logger">The logger instance</param>
             <param name="meteringService">The subscription metering service</param>
             <param name="tierService">The subscription tier service</param>
+            <param name="webhookService">The webhook service</param>
         </member>
         <member name="M:BiatecTokensApi.Services.WhitelistService.AddEntryAsync(BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest,System.String)">
             <summary>

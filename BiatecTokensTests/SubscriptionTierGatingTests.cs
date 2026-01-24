@@ -38,7 +38,8 @@ namespace BiatecTokensTests
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
             
             _tierService = new SubscriptionTierService(_tierLoggerMock.Object);
-            _whitelistService = new WhitelistService(_repository, _loggerMock.Object, _meteringServiceMock.Object, _tierService);
+            var webhookService = Mock.Of<IWebhookService>();
+            _whitelistService = new WhitelistService(_repository, _loggerMock.Object, _meteringServiceMock.Object, _tierService, webhookService);
         }
 
         #region Tier Configuration Tests
