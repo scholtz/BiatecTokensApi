@@ -34,6 +34,12 @@ namespace BiatecTokensApi.Filters
     public class WhitelistEnforcementAttribute : ActionFilterAttribute
     {
         /// <summary>
+        /// Cache for property info lookups to improve performance
+        /// </summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Reflection.PropertyInfo?> PropertyCache =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, System.Reflection.PropertyInfo?>();
+
+        /// <summary>
         /// Name of the parameter containing the asset ID
         /// </summary>
         public string AssetIdParameter { get; set; } = "assetId";
@@ -132,13 +138,16 @@ namespace BiatecTokensApi.Filters
                 }
 
                 // Validate each address
+                // Note: We use ValidateTransferAsync with same from/to address because it validates
+                // both addresses independently - checking if each is whitelisted, active, and not expired.
+                // This ensures consistent validation logic with actual transfer operations.
                 foreach (var address in addressesToValidate.Distinct())
                 {
                     var validationRequest = new ValidateTransferRequest
                     {
                         AssetId = assetId,
                         FromAddress = address,
-                        ToAddress = address // For checking if address itself is whitelisted
+                        ToAddress = address // Same address validates that it's whitelisted, active, and not expired
                     };
 
                     var result = await whitelistService.ValidateTransferAsync(validationRequest, userAddress);
@@ -180,7 +189,7 @@ namespace BiatecTokensApi.Filters
                 {
                     success = false,
                     isAllowed = false,
-                    errorMessage = $"Whitelist enforcement error: {ex.Message}"
+                    errorMessage = "Whitelist enforcement error occurred. Please contact support with the correlation ID from logs."
                 })
                 {
                     StatusCode = StatusCodes.Status500InternalServerError
@@ -189,7 +198,7 @@ namespace BiatecTokensApi.Filters
         }
 
         /// <summary>
-        /// Tries to extract the asset ID from request parameters
+        /// Tries to extract the asset ID from request parameters with caching for performance
         /// </summary>
         private bool TryGetAssetId(ActionExecutingContext context, out ulong assetId)
         {
@@ -210,13 +219,17 @@ namespace BiatecTokensApi.Filters
                 }
             }
 
-            // Try to get from request object properties
+            // Try to get from request object properties with caching
             foreach (var arg in context.ActionArguments.Values)
             {
                 if (arg == null) continue;
 
-                var property = arg.GetType().GetProperty(AssetIdParameter, 
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                var type = arg.GetType();
+                var cacheKey = $"{type.FullName}.{AssetIdParameter}";
+                
+                var property = PropertyCache.GetOrAdd(cacheKey, _ =>
+                    type.GetProperty(AssetIdParameter, 
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase));
                 
                 if (property != null)
                 {
@@ -238,7 +251,7 @@ namespace BiatecTokensApi.Filters
         }
 
         /// <summary>
-        /// Tries to extract an address from request parameters
+        /// Tries to extract an address from request parameters with caching for performance
         /// </summary>
         private bool TryGetAddress(ActionExecutingContext context, string parameterName, out string? address)
         {
@@ -259,13 +272,17 @@ namespace BiatecTokensApi.Filters
                 }
             }
 
-            // Try to get from request object properties
+            // Try to get from request object properties with caching
             foreach (var arg in context.ActionArguments.Values)
             {
                 if (arg == null) continue;
 
-                var property = arg.GetType().GetProperty(parameterName,
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                var type = arg.GetType();
+                var cacheKey = $"{type.FullName}.{parameterName}";
+                
+                var property = PropertyCache.GetOrAdd(cacheKey, _ =>
+                    type.GetProperty(parameterName,
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase));
 
                 if (property != null)
                 {

@@ -1471,6 +1471,11 @@
             Returns HTTP 403 Forbidden with detailed error message when whitelist validation fails.
             </remarks>
         </member>
+        <member name="F:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.PropertyCache">
+            <summary>
+            Cache for property info lookups to improve performance
+            </summary>
+        </member>
         <member name="P:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.AssetIdParameter">
             <summary>
             Name of the parameter containing the asset ID
@@ -1495,12 +1500,12 @@
         </member>
         <member name="M:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.TryGetAssetId(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,System.UInt64@)">
             <summary>
-            Tries to extract the asset ID from request parameters
+            Tries to extract the asset ID from request parameters with caching for performance
             </summary>
         </member>
         <member name="M:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.TryGetAddress(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,System.String,System.String@)">
             <summary>
-            Tries to extract an address from request parameters
+            Tries to extract an address from request parameters with caching for performance
             </summary>
         </member>
         <member name="M:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.GetUserAddress(Microsoft.AspNetCore.Http.HttpContext)">
