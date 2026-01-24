@@ -589,6 +589,64 @@
             <param name="network">Optional network filter</param>
             <returns>Compliance health metrics</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GenerateComplianceEvidenceBundle(BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest)">
+            <summary>
+            Generates a signed compliance evidence bundle (ZIP) for auditors
+            </summary>
+            <param name="request">The evidence bundle request containing asset ID and filtering options</param>
+            <returns>ZIP file containing audit logs, whitelist history, compliance metadata, and manifest with checksums</returns>
+            <remarks>
+            Generates a comprehensive compliance evidence bundle for MICA/RWA audit purposes.
+            
+            **Bundle Contents:**
+            - **manifest.json**: Complete manifest with SHA256 checksums of all files
+            - **README.txt**: Human-readable documentation of bundle contents
+            - **metadata/compliance_metadata.json**: Token compliance metadata (KYC, jurisdiction, regulatory framework)
+            - **whitelist/current_entries.json**: Current whitelist entries
+            - **whitelist/audit_log.json**: Complete whitelist operation history
+            - **audit_logs/compliance_operations.json**: Compliance metadata operation logs
+            - **audit_logs/transfer_validations.json**: Transfer validation records
+            - **policy/retention_policy.json**: 7-year MICA retention policy details
+            
+            **Manifest Features:**
+            - Bundle ID for tracking and audit trail
+            - Generation timestamp (UTC)
+            - Generator's Algorand address
+            - SHA256 checksums for all included files
+            - SHA256 checksum for entire bundle
+            - Summary statistics (record counts, date ranges, categories)
+            - Network information (VOI, Aramid, etc.)
+            
+            **Use Cases:**
+            - MICA compliance audits
+            - Regulatory investigations
+            - External auditor submissions
+            - Procurement compliance evidence
+            - Long-term archival and retention
+            
+            **Access Control:**
+            - Requires ARC-0014 authentication
+            - Recommended for compliance officers and auditors only
+            - Export event is logged in audit trail
+            - Metering event emitted for subscription tracking
+            
+            **Filtering:**
+            - Optional date range filtering (fromDate, toDate)
+            - Selective inclusion of evidence types
+            - Asset-specific data only
+            
+            **Security:**
+            - All files include SHA256 checksums for integrity verification
+            - Bundle includes overall SHA256 checksum
+            - Timestamp ensures temporal ordering
+            - Immutable source data (append-only logs)
+            
+            **File Format:**
+            - Filename: compliance-evidence-{assetId}-{timestamp}.zip
+            - Content-Type: application/zip
+            - All JSON files are UTF-8 encoded with pretty-printing
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
             <summary>
             Provides enterprise-grade audit export endpoints for MICA reporting
@@ -3178,6 +3236,11 @@
             Compliance metadata was listed with filters
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ComplianceActionType.Export">
+            <summary>
+            Compliance evidence bundle was exported
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest">
             <summary>
             Request to retrieve audit log for compliance operations
@@ -3286,6 +3349,216 @@
         <member name="P:BiatecTokensApi.Models.Compliance.AuditRetentionPolicy.Description">
             <summary>
             Description of retention policy
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest">
+            <summary>
+            Request to generate a compliance evidence bundle (ZIP) for auditors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to generate the evidence bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.FromDate">
+            <summary>
+            Optional start date filter for audit logs (ISO 8601 format)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.ToDate">
+            <summary>
+            Optional end date filter for audit logs (ISO 8601 format)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.IncludeWhitelistHistory">
+            <summary>
+            Whether to include whitelist history in the bundle (default: true)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.IncludeTransferApprovals">
+            <summary>
+            Whether to include transfer approvals in the bundle (default: true)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.IncludeAuditLogs">
+            <summary>
+            Whether to include audit logs in the bundle (default: true)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.IncludePolicyMetadata">
+            <summary>
+            Whether to include policy metadata in the bundle (default: true)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest.IncludeTokenMetadata">
+            <summary>
+            Whether to include token metadata in the bundle (default: true)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleResponse">
+            <summary>
+            Response for compliance evidence bundle generation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleResponse.BundleMetadata">
+            <summary>
+            The generated bundle metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleResponse.ZipContent">
+            <summary>
+            The base64-encoded ZIP file content (only populated when downloading)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleResponse.FileName">
+            <summary>
+            The filename for the ZIP bundle
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata">
+            <summary>
+            Metadata for a compliance evidence bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.BundleId">
+            <summary>
+            Unique identifier for the bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.AssetId">
+            <summary>
+            Asset ID (token ID) for which the bundle was generated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.GeneratedAt">
+            <summary>
+            Timestamp when the bundle was generated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.GeneratedBy">
+            <summary>
+            Algorand address of the user who generated the bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.FromDate">
+            <summary>
+            Start date for audit log filtering (if specified)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.ToDate">
+            <summary>
+            End date for audit log filtering (if specified)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.Files">
+            <summary>
+            List of files included in the bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.BundleSha256">
+            <summary>
+            SHA256 checksum of the entire bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.ComplianceFramework">
+            <summary>
+            MICA compliance framework version
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.RetentionPeriodYears">
+            <summary>
+            Retention period in years as per MICA requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata.Summary">
+            <summary>
+            Summary of included data
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BundleFile">
+            <summary>
+            Represents a file included in the compliance evidence bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleFile.Path">
+            <summary>
+            File path within the ZIP archive
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleFile.Description">
+            <summary>
+            Description of the file content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleFile.Sha256">
+            <summary>
+            SHA256 checksum of the file content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleFile.SizeBytes">
+            <summary>
+            File size in bytes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleFile.Format">
+            <summary>
+            File format (JSON, CSV, TXT, etc.)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BundleSummary">
+            <summary>
+            Summary statistics for the compliance evidence bundle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.AuditLogCount">
+            <summary>
+            Total number of audit log entries included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.WhitelistEntriesCount">
+            <summary>
+            Total number of whitelist entries included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.WhitelistRuleAuditCount">
+            <summary>
+            Total number of whitelist rule audit logs included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.TransferValidationCount">
+            <summary>
+            Total number of transfer validation records included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.OldestRecordDate">
+            <summary>
+            Date range of the oldest record
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.NewestRecordDate">
+            <summary>
+            Date range of the newest record
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.HasComplianceMetadata">
+            <summary>
+            Whether compliance metadata is included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.HasTokenMetadata">
+            <summary>
+            Whether token metadata is included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BundleSummary.IncludedCategories">
+            <summary>
+            List of event categories included in audit logs
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMetadata">
@@ -8312,6 +8585,14 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.GetComplianceHealthAsync(System.String,System.String)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GenerateComplianceEvidenceBundleAsync(BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GenerateReadme(BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata)">
+            <summary>
+            Generates a README file for the compliance evidence bundle
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.EnterpriseAuditService">
             <summary>
             Service implementation for enterprise audit log operations
@@ -8667,6 +8948,25 @@
             <param name="issuerAddress">The issuer's Algorand address</param>
             <param name="network">Optional network filter</param>
             <returns>Response with compliance health metrics</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GenerateComplianceEvidenceBundleAsync(BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest,System.String)">
+            <summary>
+            Generates a signed compliance evidence bundle (ZIP) for auditors
+            </summary>
+            <param name="request">The evidence bundle request containing asset ID and date range</param>
+            <param name="requestedBy">The address of the user requesting the bundle</param>
+            <returns>Response with the ZIP bundle content and manifest metadata</returns>
+            <remarks>
+            This method generates a comprehensive ZIP archive containing:
+            - Audit logs (whitelist, blacklist, compliance operations)
+            - Whitelist history and current entries
+            - Transfer approval records
+            - Token metadata and compliance policies
+            - Manifest file with SHA256 checksums and timestamps
+            
+            The bundle is designed for MICA/RWA compliance audits and supports
+            external verification with cryptographic checksums.
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">
             <summary>

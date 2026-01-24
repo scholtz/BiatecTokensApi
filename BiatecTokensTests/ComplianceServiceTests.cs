@@ -631,5 +631,282 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region GenerateComplianceEvidenceBundleAsync Tests
+
+        [Test]
+        public async Task GenerateComplianceEvidenceBundleAsync_WithAllData_ShouldSucceed()
+        {
+            // Arrange
+            var assetId = 12345ul;
+            var requestedBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            var request = new GenerateComplianceEvidenceBundleRequest
+            {
+                AssetId = assetId,
+                FromDate = DateTime.UtcNow.AddDays(-30),
+                ToDate = DateTime.UtcNow,
+                IncludeWhitelistHistory = true,
+                IncludeTransferApprovals = true,
+                IncludeAuditLogs = true,
+                IncludePolicyMetadata = true,
+                IncludeTokenMetadata = true
+            };
+
+            // Mock compliance metadata
+            var metadata = new ComplianceMetadata
+            {
+                AssetId = assetId,
+                Network = "voimain-v1.0",
+                ComplianceStatus = ComplianceStatus.Compliant,
+                KycProvider = "Sumsub",
+                Jurisdiction = "US,EU"
+            };
+            _repositoryMock.Setup(r => r.GetMetadataByAssetIdAsync(assetId))
+                .ReturnsAsync(metadata);
+
+            // Mock whitelist entries
+            _whitelistServiceMock.Setup(w => w.ListEntriesAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.ListWhitelistRequest>()))
+                .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistListResponse
+                {
+                    Success = true,
+                    Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistEntry>
+                    {
+                        new BiatecTokensApi.Models.Whitelist.WhitelistEntry
+                        {
+                            AssetId = assetId,
+                            Address = "TESTADDR1",
+                            CreatedAt = DateTime.UtcNow.AddDays(-10)
+                        }
+                    }
+                });
+
+            // Mock whitelist audit log
+            _whitelistServiceMock.Setup(w => w.GetAuditLogAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse
+                {
+                    Success = true,
+                    Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry>
+                    {
+                        new BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry
+                        {
+                            AssetId = assetId,
+                            ActionType = BiatecTokensApi.Models.Whitelist.WhitelistActionType.Add,
+                            PerformedBy = requestedBy,
+                            PerformedAt = DateTime.UtcNow.AddDays(-5)
+                        }
+                    }
+                });
+
+            // Mock compliance audit log
+            _repositoryMock.Setup(r => r.GetAuditLogAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(new List<ComplianceAuditLogEntry>
+                {
+                    new ComplianceAuditLogEntry
+                    {
+                        AssetId = assetId,
+                        ActionType = ComplianceActionType.Create,
+                        PerformedBy = requestedBy,
+                        Success = true,
+                        PerformedAt = DateTime.UtcNow.AddDays(-2)
+                    }
+                });
+
+            _repositoryMock.Setup(r => r.GetAuditLogCountAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(1);
+
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
+                .Returns(Task.FromResult(true));
+
+            _meteringServiceMock.Setup(m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()));
+
+            // Act
+            var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True, $"Bundle generation failed: {result.ErrorMessage}");
+            Assert.That(result.BundleMetadata, Is.Not.Null);
+            Assert.That(result.BundleMetadata!.AssetId, Is.EqualTo(assetId));
+            Assert.That(result.BundleMetadata.GeneratedBy, Is.EqualTo(requestedBy));
+            Assert.That(result.BundleMetadata.BundleId, Is.Not.Empty);
+            Assert.That(result.BundleMetadata.BundleSha256, Is.Not.Empty);
+            Assert.That(result.BundleMetadata.Files, Is.Not.Empty);
+            Assert.That(result.ZipContent, Is.Not.Null);
+            Assert.That(result.ZipContent!.Length, Is.GreaterThan(0));
+            Assert.That(result.FileName, Is.Not.Null);
+            Assert.That(result.FileName!.Contains($"{assetId}"), Is.True);
+            Assert.That(result.FileName.EndsWith(".zip"), Is.True);
+
+            // Verify metering event was emitted
+            _meteringServiceMock.Verify(
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.OperationType == MeteringOperationType.Export &&
+                         e.PerformedBy == requestedBy &&
+                         e.AssetId == assetId
+                )),
+                Times.Once);
+
+            // Verify audit log entry was created
+            _repositoryMock.Verify(
+                r => r.AddAuditLogEntryAsync(It.Is<ComplianceAuditLogEntry>(
+                    e => e.AssetId == assetId &&
+                         e.ActionType == ComplianceActionType.Export &&
+                         e.PerformedBy == requestedBy &&
+                         e.Success == true
+                )),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task GenerateComplianceEvidenceBundleAsync_WithDateFilter_ShouldApplyFilters()
+        {
+            // Arrange
+            var assetId = 12345ul;
+            var requestedBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            var fromDate = DateTime.UtcNow.AddDays(-7);
+            var toDate = DateTime.UtcNow;
+            var request = new GenerateComplianceEvidenceBundleRequest
+            {
+                AssetId = assetId,
+                FromDate = fromDate,
+                ToDate = toDate
+            };
+
+            _repositoryMock.Setup(r => r.GetMetadataByAssetIdAsync(assetId))
+                .ReturnsAsync(new ComplianceMetadata { AssetId = assetId });
+
+            _whitelistServiceMock.Setup(w => w.ListEntriesAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.ListWhitelistRequest>()))
+                .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistListResponse { Success = true, Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistEntry>() });
+
+            _whitelistServiceMock.Setup(w => w.GetAuditLogAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse { Success = true, Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry>() });
+
+            _repositoryMock.Setup(r => r.GetAuditLogAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(new List<ComplianceAuditLogEntry>());
+
+            _repositoryMock.Setup(r => r.GetAuditLogCountAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(0);
+
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
+                .Returns(Task.FromResult(true));
+
+            _meteringServiceMock.Setup(m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()));
+
+            // Act
+            var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True, $"Bundle generation failed: {result.ErrorMessage}");
+            Assert.That(result.BundleMetadata, Is.Not.Null);
+            Assert.That(result.BundleMetadata!.FromDate, Is.EqualTo(fromDate));
+            Assert.That(result.BundleMetadata.ToDate, Is.EqualTo(toDate));
+
+            // Verify date filters were passed to audit log requests
+            _whitelistServiceMock.Verify(
+                w => w.GetAuditLogAsync(It.Is<BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest>(
+                    req => req.FromDate == fromDate && req.ToDate == toDate
+                )),
+                Times.AtLeastOnce);
+
+            _repositoryMock.Verify(
+                r => r.GetAuditLogAsync(It.Is<GetComplianceAuditLogRequest>(
+                    req => req.FromDate == fromDate && req.ToDate == toDate
+                )),
+                Times.AtLeastOnce);
+        }
+
+        [Test]
+        public async Task GenerateComplianceEvidenceBundleAsync_BundleContainsManifest_ShouldIncludeChecksums()
+        {
+            // Arrange
+            var assetId = 12345ul;
+            var requestedBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            var request = new GenerateComplianceEvidenceBundleRequest { AssetId = assetId };
+
+            _repositoryMock.Setup(r => r.GetMetadataByAssetIdAsync(assetId))
+                .ReturnsAsync(new ComplianceMetadata { AssetId = assetId });
+
+            _whitelistServiceMock.Setup(w => w.ListEntriesAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.ListWhitelistRequest>()))
+                .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistListResponse { Success = true, Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistEntry>() });
+
+            _whitelistServiceMock.Setup(w => w.GetAuditLogAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest>()))
+                .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse { Success = true, Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry>() });
+
+            _repositoryMock.Setup(r => r.GetAuditLogAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(new List<ComplianceAuditLogEntry>());
+
+            _repositoryMock.Setup(r => r.GetAuditLogCountAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(0);
+
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
+                .Returns(Task.FromResult(true));
+
+            _meteringServiceMock.Setup(m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()));
+
+            // Act
+            var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True, $"Bundle generation failed: {result.ErrorMessage}");
+            Assert.That(result.BundleMetadata, Is.Not.Null);
+            Assert.That(result.BundleMetadata!.BundleSha256, Is.Not.Empty);
+            Assert.That(result.BundleMetadata.BundleSha256.Length, Is.EqualTo(64)); // SHA256 hex string is 64 characters
+            Assert.That(result.BundleMetadata.ComplianceFramework, Is.EqualTo("MICA 2024"));
+            Assert.That(result.BundleMetadata.RetentionPeriodYears, Is.EqualTo(7));
+
+            // Verify each file has a checksum
+            foreach (var file in result.BundleMetadata.Files)
+            {
+                Assert.That(file.Sha256, Is.Not.Empty);
+                Assert.That(file.Sha256.Length, Is.EqualTo(64)); // SHA256 hex string
+                Assert.That(file.Path, Is.Not.Empty);
+                Assert.That(file.Description, Is.Not.Empty);
+                Assert.That(file.SizeBytes, Is.GreaterThan(0));
+            }
+        }
+
+        [Test]
+        public async Task GenerateComplianceEvidenceBundleAsync_WhitelistServiceError_ShouldReturnFailure()
+        {
+            // Arrange
+            var assetId = 12345ul;
+            var requestedBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            var request = new GenerateComplianceEvidenceBundleRequest 
+            { 
+                AssetId = assetId,
+                IncludeWhitelistHistory = true  // This will trigger the whitelist service call
+            };
+
+            // Mock metadata calls to succeed
+            _repositoryMock.Setup(r => r.GetMetadataByAssetIdAsync(assetId))
+                .ReturnsAsync(new ComplianceMetadata { AssetId = assetId, Network = "testnet" });
+            
+            // Mock whitelist service to throw an exception
+            _whitelistServiceMock.Setup(w => w.ListEntriesAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.ListWhitelistRequest>()))
+                .ThrowsAsync(new Exception("Whitelist service unavailable"));
+            
+            // Mock AddAuditLogEntryAsync to allow the failed log to be recorded
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
+                .Returns(Task.FromResult(true));
+
+            // Act
+            var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Is.Not.Null);
+            Assert.That(result.ErrorMessage, Does.Contain("Failed to generate compliance evidence bundle"));
+            Assert.That(result.ErrorMessage, Does.Contain("Whitelist service unavailable"));
+
+            // Verify failed audit log was attempted
+            _repositoryMock.Verify(
+                r => r.AddAuditLogEntryAsync(It.Is<ComplianceAuditLogEntry>(
+                    e => e.AssetId == assetId &&
+                         e.ActionType == ComplianceActionType.Export &&
+                         e.Success == false
+                )),
+                Times.AtLeastOnce);
+        }
+
+        #endregion
     }
 }
