@@ -1659,6 +1659,94 @@ namespace BiatecTokensApi.Services
             }
         }
 
+        /// <inheritdoc/>
+        public async Task<NetworkComplianceMetadataResponse> GetNetworkComplianceMetadataAsync()
+        {
+            try
+            {
+                // Define supported networks with their compliance requirements
+                var networks = new List<NetworkComplianceMetadata>
+                {
+                    new NetworkComplianceMetadata
+                    {
+                        Network = "voimain-v1.0",
+                        NetworkName = "VOI Mainnet",
+                        IsMicaReady = true,
+                        RequiresWhitelisting = true,
+                        RequiresJurisdiction = true,
+                        RequiresRegulatoryFramework = false,
+                        ComplianceRequirements = "VOI network requires jurisdiction specification for RWA token compliance tracking. Whitelisting is strongly recommended for enterprise tokens.",
+                        Source = "Network policy and MICA compliance guidelines",
+                        LastUpdated = DateTime.UtcNow
+                    },
+                    new NetworkComplianceMetadata
+                    {
+                        Network = "aramidmain-v1.0",
+                        NetworkName = "Aramid Mainnet",
+                        IsMicaReady = true,
+                        RequiresWhitelisting = true,
+                        RequiresJurisdiction = false,
+                        RequiresRegulatoryFramework = true,
+                        ComplianceRequirements = "Aramid network requires regulatory framework specification when compliance status is 'Compliant'. Whitelisting controls are mandatory for RWA tokens.",
+                        Source = "Network policy and MICA compliance guidelines",
+                        LastUpdated = DateTime.UtcNow
+                    },
+                    new NetworkComplianceMetadata
+                    {
+                        Network = "mainnet-v1.0",
+                        NetworkName = "Algorand Mainnet",
+                        IsMicaReady = true,
+                        RequiresWhitelisting = false,
+                        RequiresJurisdiction = false,
+                        RequiresRegulatoryFramework = false,
+                        ComplianceRequirements = "Algorand mainnet supports optional compliance features. MICA compliance can be achieved through metadata and whitelisting configuration.",
+                        Source = "Network policy",
+                        LastUpdated = DateTime.UtcNow
+                    },
+                    new NetworkComplianceMetadata
+                    {
+                        Network = "testnet-v1.0",
+                        NetworkName = "Algorand Testnet",
+                        IsMicaReady = false,
+                        RequiresWhitelisting = false,
+                        RequiresJurisdiction = false,
+                        RequiresRegulatoryFramework = false,
+                        ComplianceRequirements = "Testnet is for development and testing purposes only. Not suitable for production RWA tokens or MICA compliance.",
+                        Source = "Network policy",
+                        LastUpdated = DateTime.UtcNow
+                    },
+                    new NetworkComplianceMetadata
+                    {
+                        Network = "betanet-v1.0",
+                        NetworkName = "Algorand Betanet",
+                        IsMicaReady = false,
+                        RequiresWhitelisting = false,
+                        RequiresJurisdiction = false,
+                        RequiresRegulatoryFramework = false,
+                        ComplianceRequirements = "Betanet is for testing protocol upgrades. Not suitable for production use or MICA compliance.",
+                        Source = "Network policy",
+                        LastUpdated = DateTime.UtcNow
+                    }
+                };
+
+                return await Task.FromResult(new NetworkComplianceMetadataResponse
+                {
+                    Success = true,
+                    Networks = networks,
+                    CacheDurationSeconds = 3600 // Cache for 1 hour
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting network compliance metadata");
+                return new NetworkComplianceMetadataResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to retrieve network compliance metadata: {ex.Message}"
+                };
+            }
+        }
+
         // Phase 2: Issuer Profile Management
 
         /// <inheritdoc/>

@@ -647,6 +647,28 @@
             - All JSON files are UTF-8 encoded with pretty-printing
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetNetworkComplianceMetadata">
+            <summary>
+            Gets per-network compliance metadata for all supported blockchain networks
+            </summary>
+            <returns>List of networks with their compliance requirements and flags</returns>
+            <remarks>
+            This endpoint returns compliance metadata for each supported blockchain network,
+            including MICA readiness status, whitelisting requirements, and regulatory specifications.
+            
+            Use this to display network-specific compliance indicators in the frontend and help
+            users understand compliance requirements when deploying tokens to different networks.
+            
+            Response includes cache headers (CacheDurationSeconds) to optimize frontend performance.
+            
+            Networks included:
+            - VOI Mainnet (voimain-v1.0): MICA-ready, requires jurisdiction
+            - Aramid Mainnet (aramidmain-v1.0): MICA-ready, requires regulatory framework
+            - Algorand Mainnet (mainnet-v1.0): MICA-ready, optional compliance
+            - Algorand Testnet (testnet-v1.0): Development only
+            - Algorand Betanet (betanet-v1.0): Testing only
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
             <summary>
             Provides enterprise-grade audit export endpoints for MICA reporting
@@ -5188,6 +5210,83 @@
             Low priority
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata">
+            <summary>
+            Represents compliance metadata for a blockchain network
+            </summary>
+            <remarks>
+            This model provides per-network compliance flags and requirements that enable
+            the frontend to display compliance indicators for different blockchain networks.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.Network">
+            <summary>
+            Network identifier (e.g., "voimain-v1.0", "aramidmain-v1.0", "mainnet-v1.0", "testnet-v1.0")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.NetworkName">
+            <summary>
+            Human-readable network name (e.g., "VOI Mainnet", "Aramid Mainnet", "Algorand Mainnet")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.IsMicaReady">
+            <summary>
+            Indicates if this network is ready for MICA (Markets in Crypto-Assets) compliance
+            </summary>
+            <remarks>
+            MICA readiness indicates the network supports required compliance features
+            such as jurisdiction tracking and regulatory framework specification.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.RequiresWhitelisting">
+            <summary>
+            Indicates if whitelisting is required for tokens on this network
+            </summary>
+            <remarks>
+            Networks like VOI and Aramid may have stricter compliance requirements
+            that mandate whitelisting for RWA tokens.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.RequiresJurisdiction">
+            <summary>
+            Indicates if jurisdiction specification is required for this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.RequiresRegulatoryFramework">
+            <summary>
+            Indicates if regulatory framework specification is required for this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.ComplianceRequirements">
+            <summary>
+            Description of network-specific compliance requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.Source">
+            <summary>
+            Source of compliance metadata (e.g., "Network policy", "Regulatory guidance")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata.LastUpdated">
+            <summary>
+            Timestamp when this metadata was last updated
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadataResponse">
+            <summary>
+            Response model for network compliance metadata endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadataResponse.Networks">
+            <summary>
+            List of networks with their compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkComplianceMetadataResponse.CacheDurationSeconds">
+            <summary>
+            Cache duration in seconds (recommended client-side cache time)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators">
             <summary>
             Represents simplified compliance indicators for a token, designed for frontend display
@@ -9177,6 +9276,9 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.GetComplianceIndicatorsAsync(System.UInt64)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetNetworkComplianceMetadataAsync">
+            <inheritdoc/>
+        </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.UpsertIssuerProfileAsync(BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest,System.String)">
             <inheritdoc/>
         </member>
@@ -9492,6 +9594,17 @@
             <remarks>
             This method aggregates compliance metadata and whitelist information to provide
             enterprise readiness indicators and subscription value flags for the frontend.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetNetworkComplianceMetadataAsync">
+            <summary>
+            Gets per-network compliance metadata for all supported blockchain networks
+            </summary>
+            <returns>Response with list of networks and their compliance requirements</returns>
+            <remarks>
+            This method returns compliance flags and requirements for each supported blockchain network,
+            enabling the frontend to display network-specific compliance indicators.
+            Results include MICA readiness, whitelisting requirements, and source metadata.
             </remarks>
         </member>
         <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.UpsertIssuerProfileAsync(BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest,System.String)">

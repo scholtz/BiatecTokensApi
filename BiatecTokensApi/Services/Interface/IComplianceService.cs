@@ -117,6 +117,17 @@ namespace BiatecTokensApi.Services.Interface
         /// </remarks>
         Task<TokenComplianceIndicatorsResponse> GetComplianceIndicatorsAsync(ulong assetId);
 
+        /// <summary>
+        /// Gets per-network compliance metadata for all supported blockchain networks
+        /// </summary>
+        /// <returns>Response with list of networks and their compliance requirements</returns>
+        /// <remarks>
+        /// This method returns compliance flags and requirements for each supported blockchain network,
+        /// enabling the frontend to display network-specific compliance indicators.
+        /// Results include MICA readiness, whitelisting requirements, and source metadata.
+        /// </remarks>
+        Task<NetworkComplianceMetadataResponse> GetNetworkComplianceMetadataAsync();
+
         // Phase 2: Issuer Profile Management
 
         /// <summary>
