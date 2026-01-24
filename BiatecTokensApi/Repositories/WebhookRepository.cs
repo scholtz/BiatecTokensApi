@@ -9,7 +9,8 @@ namespace BiatecTokensApi.Repositories
     /// </summary>
     /// <remarks>
     /// This is a simple in-memory implementation for webhook storage.
-    /// In production, this should be replaced with a persistent storage solution.
+    /// TODO: In production, this should be replaced with a persistent storage solution (e.g., database).
+    /// Consider using Entity Framework Core, Dapper, or another data access technology for production deployments.
     /// </remarks>
     public class WebhookRepository : IWebhookRepository
     {

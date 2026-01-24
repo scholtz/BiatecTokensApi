@@ -325,9 +325,19 @@ namespace BiatecTokensApi.Services
                 // Deliver to each subscription asynchronously (fire and forget)
                 foreach (var subscription in relevantSubscriptions)
                 {
+                    // Capture subscription in local variable to avoid closure issues
+                    var sub = subscription;
                     _ = Task.Run(async () =>
                     {
-                        await DeliverWebhookAsync(subscription, webhookEvent, 0);
+                        try
+                        {
+                            await DeliverWebhookAsync(sub, webhookEvent, 0);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Unhandled exception in webhook delivery for subscription {SubscriptionId}, event {EventId}",
+                                sub.Id, webhookEvent.Id);
+                        }
                     });
                 }
             }
@@ -437,11 +447,19 @@ namespace BiatecTokensApi.Services
                             "Will retry in {RetryDelay} (attempt {RetryCount}/{MaxRetries})",
                             subscription.Id, webhookEvent.Id, RetryDelays[retryCount], retryCount + 1, MaxRetries);
 
-                        // Schedule retry
+                        // Schedule retry with proper exception handling
                         _ = Task.Run(async () =>
                         {
-                            await Task.Delay(RetryDelays[retryCount]);
-                            await DeliverWebhookAsync(subscription, webhookEvent, retryCount + 1);
+                            try
+                            {
+                                await Task.Delay(RetryDelays[retryCount]);
+                                await DeliverWebhookAsync(subscription, webhookEvent, retryCount + 1);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Unhandled exception during webhook retry for subscription {SubscriptionId}, event {EventId}",
+                                    subscription.Id, webhookEvent.Id);
+                            }
                         });
                     }
                     else
@@ -470,8 +488,16 @@ namespace BiatecTokensApi.Services
 
                     _ = Task.Run(async () =>
                     {
-                        await Task.Delay(RetryDelays[retryCount]);
-                        await DeliverWebhookAsync(subscription, webhookEvent, retryCount + 1);
+                        try
+                        {
+                            await Task.Delay(RetryDelays[retryCount]);
+                            await DeliverWebhookAsync(subscription, webhookEvent, retryCount + 1);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Unhandled exception during webhook retry after timeout for subscription {SubscriptionId}, event {EventId}",
+                                subscription.Id, webhookEvent.Id);
+                        }
                     });
                 }
             }
@@ -504,9 +530,8 @@ namespace BiatecTokensApi.Services
 
         private static string GenerateSignature(string payload, string secret)
         {
-            var encoding = new UTF8Encoding();
-            var keyBytes = encoding.GetBytes(secret);
-            var messageBytes = encoding.GetBytes(payload);
+            var keyBytes = Encoding.UTF8.GetBytes(secret);
+            var messageBytes = Encoding.UTF8.GetBytes(payload);
 
             using var hmac = new HMACSHA256(keyBytes);
             var hashBytes = hmac.ComputeHash(messageBytes);
