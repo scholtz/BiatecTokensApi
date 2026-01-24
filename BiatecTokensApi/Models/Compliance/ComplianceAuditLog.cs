@@ -122,7 +122,12 @@ namespace BiatecTokensApi.Models.Compliance
         /// <summary>
         /// Compliance metadata was listed with filters
         /// </summary>
-        List
+        List,
+
+        /// <summary>
+        /// Compliance evidence bundle was exported
+        /// </summary>
+        Export
     }
 
     /// <summary>

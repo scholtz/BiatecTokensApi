@@ -2423,8 +2423,8 @@ namespace BiatecTokensApi.Services
                     var metadataResponse = await GetMetadataAsync(request.AssetId);
                     if (metadataResponse.Success && metadataResponse.Metadata != null)
                     {
-                        var metadata = metadataResponse.Metadata;
-                        var metadataJson = System.Text.Json.JsonSerializer.Serialize(metadata, 
+                        var complianceMetadata = metadataResponse.Metadata;
+                        var metadataJson = System.Text.Json.JsonSerializer.Serialize(complianceMetadata, 
                             new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                         evidenceData.Add("metadata/compliance_metadata.json", 
                             (metadataJson, "Token compliance metadata including KYC status, jurisdiction, and regulatory framework", "JSON"));
@@ -2473,8 +2473,8 @@ namespace BiatecTokensApi.Services
                         // Update date ranges
                         foreach (var entry in whitelistAuditResponse.Entries)
                         {
-                            if (oldestDate == null || entry.Timestamp < oldestDate) oldestDate = entry.Timestamp;
-                            if (newestDate == null || entry.Timestamp > newestDate) newestDate = entry.Timestamp;
+                            if (oldestDate == null || entry.PerformedAt < oldestDate) oldestDate = entry.PerformedAt;
+                            if (newestDate == null || entry.PerformedAt > newestDate) newestDate = entry.PerformedAt;
                         }
                     }
                 }
@@ -2502,8 +2502,8 @@ namespace BiatecTokensApi.Services
                         // Update date ranges and categories
                         foreach (var entry in auditResponse.Entries)
                         {
-                            if (oldestDate == null || entry.Timestamp < oldestDate) oldestDate = entry.Timestamp;
-                            if (newestDate == null || entry.Timestamp > newestDate) newestDate = entry.Timestamp;
+                            if (oldestDate == null || entry.PerformedAt < oldestDate) oldestDate = entry.PerformedAt;
+                            if (newestDate == null || entry.PerformedAt > newestDate) newestDate = entry.PerformedAt;
                             includedCategories.Add(entry.ActionType.ToString());
                         }
                     }
@@ -2518,7 +2518,6 @@ namespace BiatecTokensApi.Services
                         AssetId = request.AssetId,
                         FromDate = request.FromDate,
                         ToDate = request.ToDate,
-                        ActionType = "ValidateTransfer",
                         Page = 1,
                         PageSize = 10000
                     };
@@ -2533,8 +2532,8 @@ namespace BiatecTokensApi.Services
 
                         foreach (var entry in transferAuditResponse.Entries)
                         {
-                            if (oldestDate == null || entry.Timestamp < oldestDate) oldestDate = entry.Timestamp;
-                            if (newestDate == null || entry.Timestamp > newestDate) newestDate = entry.Timestamp;
+                            if (oldestDate == null || entry.PerformedAt < oldestDate) oldestDate = entry.PerformedAt;
+                            if (newestDate == null || entry.PerformedAt > newestDate) newestDate = entry.PerformedAt;
                         }
                         includedCategories.Add("TransferValidation");
                     }
@@ -2657,16 +2656,18 @@ namespace BiatecTokensApi.Services
                     Network = network,
                     ActionType = ComplianceActionType.Export,
                     PerformedBy = requestedBy,
-                    Success = true,
-                    Details = $"Generated compliance evidence bundle {bundleId} with {files.Count} files"
+                    Success = true
                 });
 
                 // Emit metering event for compliance export
-                await _meteringService.EmitMeteringEventAsync(new MeteringEvent
+                _meteringService.EmitMeteringEvent(new SubscriptionMeteringEvent
                 {
-                    EventType = "compliance_evidence_export",
-                    ActorAddress = requestedBy,
-                    AssetId = request.AssetId.ToString(),
+                    Network = network,
+                    AssetId = request.AssetId,
+                    OperationType = MeteringOperationType.Export,
+                    Category = MeteringCategory.Compliance,
+                    PerformedBy = requestedBy,
+                    ItemCount = files.Count,
                     Metadata = new Dictionary<string, string>
                     {
                         { "bundle_id", bundleId },
