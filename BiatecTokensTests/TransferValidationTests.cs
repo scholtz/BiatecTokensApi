@@ -38,7 +38,8 @@ namespace BiatecTokensTests
             _tierServiceMock.Setup(t => t.ValidateOperationAsync(It.IsAny<string>(), It.IsAny<ulong>(), It.IsAny<int>(), It.IsAny<int>()))
                 .ReturnsAsync(new SubscriptionTierValidationResult { IsAllowed = true, Tier = BiatecTokensApi.Models.Subscription.SubscriptionTier.Enterprise });
             
-            _service = new WhitelistService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object, _tierServiceMock.Object);
+            var webhookServiceMock = Mock.Of<IWebhookService>();
+            _service = new WhitelistService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object, _tierServiceMock.Object, webhookServiceMock);
         }
 
         #region Valid Transfer Tests

@@ -24,6 +24,7 @@ namespace BiatecTokensTests
             _loggerMock = new Mock<ILogger<WhitelistService>>();
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
             _tierServiceMock = new Mock<ISubscriptionTierService>();
+            var webhookServiceMock = new Mock<IWebhookService>();
             
             // Setup default tier service behavior - Enterprise tier (no limits)
             _tierServiceMock.Setup(t => t.GetUserTierAsync(It.IsAny<string>()))
@@ -35,7 +36,7 @@ namespace BiatecTokensTests
             _tierServiceMock.Setup(t => t.IsAuditLogEnabledAsync(It.IsAny<string>()))
                 .ReturnsAsync(true);
             
-            _service = new WhitelistService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object, _tierServiceMock.Object);
+            _service = new WhitelistService(_repositoryMock.Object, _loggerMock.Object, _meteringServiceMock.Object, _tierServiceMock.Object, webhookServiceMock.Object);
         }
 
         #region Address Validation Tests

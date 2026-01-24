@@ -1,6 +1,7 @@
 using Algorand;
 using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Models.Whitelist;
+using BiatecTokensApi.Models.Webhook;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services.Interface;
 
@@ -15,6 +16,7 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<WhitelistService> _logger;
         private readonly ISubscriptionMeteringService _meteringService;
         private readonly ISubscriptionTierService _tierService;
+        private readonly IWebhookService _webhookService;
         private const string NetworkNotAvailable = null;
 
         /// <summary>
@@ -24,16 +26,19 @@ namespace BiatecTokensApi.Services
         /// <param name="logger">The logger instance</param>
         /// <param name="meteringService">The subscription metering service</param>
         /// <param name="tierService">The subscription tier service</param>
+        /// <param name="webhookService">The webhook service</param>
         public WhitelistService(
             IWhitelistRepository repository, 
             ILogger<WhitelistService> logger,
             ISubscriptionMeteringService meteringService,
-            ISubscriptionTierService tierService)
+            ISubscriptionTierService tierService,
+            IWebhookService webhookService)
         {
             _repository = repository;
             _logger = logger;
             _meteringService = meteringService;
             _tierService = tierService;
+            _webhookService = webhookService;
         }
 
         /// <summary>
@@ -219,6 +224,33 @@ namespace BiatecTokensApi.Services
                     ItemCount = 1
                 });
 
+                // Emit webhook event for whitelist add
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _webhookService.EmitEventAsync(new WebhookEvent
+                        {
+                            EventType = WebhookEventType.WhitelistAdd,
+                            AssetId = entry.AssetId,
+                            Network = entry.Network,
+                            Actor = createdBy,
+                            AffectedAddress = entry.Address,
+                            Timestamp = DateTime.UtcNow,
+                            Data = new Dictionary<string, object>
+                            {
+                                { "status", entry.Status.ToString() },
+                                { "role", entry.Role.ToString() },
+                                { "kycVerified", entry.KycVerified }
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to emit webhook event for whitelist add");
+                    }
+                });
+
                 _logger.LogInformation("Successfully added whitelist entry for address {Address} on asset {AssetId} by {CreatedBy}", 
                     entry.Address, entry.AssetId, createdBy);
 
@@ -297,6 +329,31 @@ namespace BiatecTokensApi.Services
                     Network = NetworkNotAvailable,
                     PerformedBy = existingEntry?.UpdatedBy ?? existingEntry?.CreatedBy,
                     ItemCount = 1
+                });
+
+                // Emit webhook event for whitelist remove
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _webhookService.EmitEventAsync(new WebhookEvent
+                        {
+                            EventType = WebhookEventType.WhitelistRemove,
+                            AssetId = request.AssetId,
+                            Network = existingEntry?.Network,
+                            Actor = existingEntry?.UpdatedBy ?? existingEntry?.CreatedBy ?? "SYSTEM",
+                            AffectedAddress = request.Address.ToUpperInvariant(),
+                            Timestamp = DateTime.UtcNow,
+                            Data = new Dictionary<string, object>
+                            {
+                                { "previousStatus", existingEntry?.Status.ToString() ?? "Unknown" }
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to emit webhook event for whitelist remove");
+                    }
                 });
 
                 _logger.LogInformation("Successfully removed whitelist entry for address {Address} on asset {AssetId}", 
@@ -933,6 +990,39 @@ namespace BiatecTokensApi.Services
                     PerformedBy = performedBy,
                     ItemCount = 1
                 });
+
+                // Emit webhook event for transfer deny (only if transfer was not allowed)
+                if (!isAllowed)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _webhookService.EmitEventAsync(new WebhookEvent
+                            {
+                                EventType = WebhookEventType.TransferDeny,
+                                AssetId = request.AssetId,
+                                Network = null, // Network not available in ValidateTransferRequest
+                                Actor = performedBy,
+                                AffectedAddress = request.FromAddress,
+                                Timestamp = DateTime.UtcNow,
+                                Data = new Dictionary<string, object>
+                                {
+                                    { "fromAddress", request.FromAddress },
+                                    { "toAddress", request.ToAddress },
+                                    { "amount", request.Amount?.ToString() ?? "0" },
+                                    { "denialReason", denialReason ?? "Unknown" },
+                                    { "senderWhitelisted", senderEntry != null },
+                                    { "receiverWhitelisted", receiverEntry != null }
+                                }
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to emit webhook event for transfer deny");
+                        }
+                    });
+                }
 
                 return new ValidateTransferResponse
                 {

@@ -42,7 +42,8 @@ namespace BiatecTokensTests
             _tierServiceMock.Setup(t => t.IsBulkOperationEnabledAsync(It.IsAny<string>()))
                 .ReturnsAsync(true);
             
-            _service = new WhitelistService(_repository, _loggerMock.Object, _meteringServiceMock.Object, _tierServiceMock.Object);
+            var webhookServiceMock = Mock.Of<IWebhookService>();
+            _service = new WhitelistService(_repository, _loggerMock.Object, _meteringServiceMock.Object, _tierServiceMock.Object, webhookServiceMock);
         }
 
         [Test]
