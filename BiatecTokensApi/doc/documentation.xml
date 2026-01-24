@@ -589,6 +589,193 @@
             <param name="network">Optional network filter</param>
             <returns>Compliance health metrics</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
+            <summary>
+            Provides enterprise-grade audit export endpoints for MICA reporting
+            </summary>
+            <remarks>
+            This controller provides unified audit log access across whitelist/blacklist and compliance
+            operations for regulatory compliance reporting. Supports 7-year retention requirements,
+            comprehensive filtering by asset/network, and CSV/JSON export formats.
+            Designed specifically for VOI/Aramid networks and MICA compliance.
+            
+            All endpoints require ARC-0014 authentication and are recommended for compliance/admin roles only.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Controllers.EnterpriseAuditController.MaxExportRecords">
+            <summary>
+            Maximum number of records to export in a single request
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.EnterpriseAuditController.#ctor(BiatecTokensApi.Services.Interface.IEnterpriseAuditService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.EnterpriseAuditController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.EnterpriseAuditController"/> class.
+            </summary>
+            <param name="auditService">The enterprise audit service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.EnterpriseAuditController.GetAuditLog(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.AuditEventCategory},System.String,System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Retrieves enterprise audit log entries with comprehensive filtering
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+            <param name="category">Optional filter by event category (Whitelist, Blacklist, Compliance, TransferValidation)</param>
+            <param name="actionType">Optional filter by action type (Add, Update, Remove, Create, Delete, etc.)</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="affectedAddress">Optional filter by affected address (for whitelist/blacklist operations)</param>
+            <param name="success">Optional filter by operation result (true/false)</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <param name="page">Page number for pagination (default: 1)</param>
+            <param name="pageSize">Page size for pagination (default: 50, max: 100)</param>
+            <returns>Paginated list of audit log entries with summary statistics</returns>
+            <remarks>
+            This endpoint provides a unified view of all audit events across whitelist/blacklist and compliance operations.
+            
+            **Use Cases:**
+            - MICA compliance reporting and audits
+            - Regulatory investigation support
+            - Enterprise compliance dashboards
+            - Network-specific audit trails (VOI, Aramid)
+            - Cross-asset incident investigations
+            
+            **Filtering:**
+            All filters are optional and can be combined for precise queries. Date filters support ISO 8601 format.
+            
+            **Networks:**
+            - voimain-v1.0: VOI mainnet
+            - aramidmain-v1.0: Aramid mainnet
+            - mainnet-v1.0: Algorand mainnet
+            - testnet-v1.0: Algorand testnet
+            
+            **Response includes:**
+            - Paginated audit entries ordered by most recent first
+            - Total count and page information
+            - 7-year MICA retention policy metadata
+            - Summary statistics (event counts, date ranges, networks, assets)
+            
+            **Security:**
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.EnterpriseAuditController.ExportAuditLogCsv(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.AuditEventCategory},System.String,System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports enterprise audit log as CSV for MICA compliance reporting
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+            <param name="category">Optional filter by event category</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="affectedAddress">Optional filter by affected address</param>
+            <param name="success">Optional filter by operation result</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <returns>CSV file with audit log entries</returns>
+            <remarks>
+            Exports up to 10,000 audit log entries in CSV format for compliance reporting and analysis.
+            
+            **CSV Format:**
+            - UTF-8 encoding with proper CSV escaping
+            - Header row with all field names
+            - One row per audit event
+            - Timestamp in ISO 8601 format
+            
+            **Use Cases:**
+            - MICA compliance reporting
+            - Regulatory audit submissions
+            - Enterprise compliance system integration
+            - Excel/spreadsheet analysis
+            - Long-term archival
+            
+            **Limits:**
+            - Maximum 10,000 records per export
+            - Use pagination parameters to export data in chunks if needed
+            - Filtered exports may contain fewer records
+            
+            **Filename:**
+            - Format: enterprise-audit-log-{timestamp}.csv
+            - Timestamp in yyyyMMddHHmmss format
+            
+            **Security:**
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.EnterpriseAuditController.ExportAuditLogJson(System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.AuditEventCategory},System.String,System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports enterprise audit log as JSON for MICA compliance reporting
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+            <param name="category">Optional filter by event category</param>
+            <param name="actionType">Optional filter by action type</param>
+            <param name="performedBy">Optional filter by user who performed the action</param>
+            <param name="affectedAddress">Optional filter by affected address</param>
+            <param name="success">Optional filter by operation result</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <returns>JSON file with audit log entries and metadata</returns>
+            <remarks>
+            Exports up to 10,000 audit log entries in JSON format for compliance reporting and programmatic analysis.
+            
+            **JSON Format:**
+            - Pretty-printed JSON with camelCase property names
+            - Includes full response structure with metadata
+            - Contains retention policy and summary statistics
+            - Timestamp in ISO 8601 format
+            
+            **Use Cases:**
+            - MICA compliance reporting
+            - Programmatic audit log analysis
+            - Integration with compliance management systems
+            - Data archival for long-term storage
+            - Compliance dashboard data feeds
+            
+            **Limits:**
+            - Maximum 10,000 records per export
+            - Use pagination parameters to export data in chunks if needed
+            - Filtered exports may contain fewer records
+            
+            **Filename:**
+            - Format: enterprise-audit-log-{timestamp}.json
+            - Timestamp in yyyyMMddHHmmss format
+            
+            **Security:**
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.EnterpriseAuditController.GetRetentionPolicy">
+            <summary>
+            Gets the 7-year MICA retention policy for enterprise audit logs
+            </summary>
+            <returns>Retention policy metadata including minimum retention period and regulatory framework</returns>
+            <remarks>
+            Returns metadata about the audit log retention policy for transparency and compliance verification.
+            
+            **Policy Details:**
+            - Minimum retention: 7 years
+            - Regulatory framework: MICA (Markets in Crypto-Assets Regulation)
+            - Immutable entries: Cannot be modified or deleted
+            - Scope: All whitelist, blacklist, and compliance events
+            - Networks: All supported networks including VOI and Aramid
+            
+            **Use Cases:**
+            - Compliance policy verification
+            - Audit preparation
+            - Regulatory documentation
+            - Enterprise policy alignment
+            
+            **Security:**
+            Requires ARC-0014 authentication for consistency with other endpoints.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.EnterpriseAuditController.GetUserAddress">
+            <summary>
+            Gets the user's Algorand address from the authentication context
+            </summary>
+            <returns>The user's Algorand address</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.IssuerController">
             <summary>
             Provides endpoints for managing issuer profiles for MICA compliance
@@ -4983,6 +5170,311 @@
             Whether this report was metered for billing
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.EnterpriseAuditLogEntry">
+            <summary>
+            Unified enterprise audit log entry for MICA reporting
+            </summary>
+            <remarks>
+            This model provides a consolidated view of all audit events across whitelist/blacklist
+            and compliance operations for enterprise-grade MICA compliance reporting.
+            Supports 7-year retention requirements and comprehensive filtering.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.Id">
+            <summary>
+            Unique identifier for the audit log entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.AssetId">
+            <summary>
+            The asset ID (token ID) associated with this audit event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.Network">
+            <summary>
+            Network on which the event occurred (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.Category">
+            <summary>
+            The category of audit event (Whitelist, Blacklist, Compliance)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.ActionType">
+            <summary>
+            The type of action performed (Add, Update, Remove, Validate, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.PerformedBy">
+            <summary>
+            The address of the user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.PerformedAt">
+            <summary>
+            Timestamp when the action was performed (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.Success">
+            <summary>
+            Whether the operation completed successfully
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.ErrorMessage">
+            <summary>
+            Error message if the operation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.AffectedAddress">
+            <summary>
+            The Algorand address affected by this event (for whitelist/blacklist operations)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.OldStatus">
+            <summary>
+            Status before the change (e.g., "Active", "Suspended", "Compliant")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.NewStatus">
+            <summary>
+            Status after the change
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.Notes">
+            <summary>
+            Additional notes or context about the change
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.ToAddress">
+            <summary>
+            For transfer validations: the receiver's address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.TransferAllowed">
+            <summary>
+            For transfer validations: whether the transfer was allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.DenialReason">
+            <summary>
+            For transfer validations: the reason if transfer was denied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.Amount">
+            <summary>
+            For transfer validations or token operations: the amount involved
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.Role">
+            <summary>
+            Role of the user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.ItemCount">
+            <summary>
+            For list operations: number of items returned
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.SourceSystem">
+            <summary>
+            Source system that generated this audit entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.CorrelationId">
+            <summary>
+            Correlation ID for related events
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditEventCategory">
+            <summary>
+            Category of audit event for enterprise reporting
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditEventCategory.Whitelist">
+            <summary>
+            Whitelist management event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditEventCategory.Blacklist">
+            <summary>
+            Blacklist management event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditEventCategory.Compliance">
+            <summary>
+            Compliance metadata event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditEventCategory.WhitelistRules">
+            <summary>
+            Whitelist rule configuration event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditEventCategory.TransferValidation">
+            <summary>
+            Transfer validation event
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest">
+            <summary>
+            Request to retrieve enterprise audit logs with comprehensive filtering
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.AssetId">
+            <summary>
+            Optional filter by asset ID (token ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.Network">
+            <summary>
+            Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.Category">
+            <summary>
+            Optional filter by event category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.ActionType">
+            <summary>
+            Optional filter by action type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.PerformedBy">
+            <summary>
+            Optional filter by user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.AffectedAddress">
+            <summary>
+            Optional filter by affected address (for whitelist/blacklist operations)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.Success">
+            <summary>
+            Optional filter by operation result (success/failure)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.EnterpriseAuditLogResponse">
+            <summary>
+            Response containing enterprise audit log entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogResponse.Entries">
+            <summary>
+            List of audit log entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogResponse.TotalCount">
+            <summary>
+            Total number of entries matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogResponse.RetentionPolicy">
+            <summary>
+            Audit log retention policy metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogResponse.Summary">
+            <summary>
+            Summary statistics for the returned audit logs
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditLogSummary">
+            <summary>
+            Summary statistics for audit log exports
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.WhitelistEvents">
+            <summary>
+            Number of whitelist events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.BlacklistEvents">
+            <summary>
+            Number of blacklist events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.ComplianceEvents">
+            <summary>
+            Number of compliance events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.SuccessfulOperations">
+            <summary>
+            Number of successful operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.FailedOperations">
+            <summary>
+            Number of failed operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.DateRange">
+            <summary>
+            Date range covered by the export
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.Networks">
+            <summary>
+            Networks included in the export
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.Assets">
+            <summary>
+            Assets included in the export
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditDateRange">
+            <summary>
+            Date range information for audit log exports
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditDateRange.EarliestEvent">
+            <summary>
+            Earliest event timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditDateRange.LatestEvent">
+            <summary>
+            Latest event timestamp
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest">
             <summary>
             Represents a request to deploy an ERC-20 token with mintable functionality.
@@ -6714,6 +7206,58 @@
         <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.CheckBlacklistAsync(System.String,System.Nullable{System.UInt64},System.String)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.EnterpriseAuditRepository">
+            <summary>
+            Repository implementation for enterprise audit log operations
+            </summary>
+            <remarks>
+            Aggregates audit logs from whitelist and compliance repositories into a unified view
+            for MICA reporting and regulatory compliance.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.EnterpriseAuditRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.EnterpriseAuditRepository"/> class.
+            </summary>
+            <param name="whitelistRepository">The whitelist repository</param>
+            <param name="complianceRepository">The compliance repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.GetAuditLogAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets unified audit log entries from all systems with comprehensive filtering
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.GetAuditLogCountAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets the total count of audit log entries matching the filter
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.GetAuditLogSummaryAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets summary statistics for audit log entries matching the filter
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.MapWhitelistEntry(BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry)">
+            <summary>
+            Maps a whitelist audit entry to an enterprise audit entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.MapComplianceEntry(BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry)">
+            <summary>
+            Maps a compliance audit entry to an enterprise audit entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.GetComplianceStatusString(System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceStatus},System.Nullable{BiatecTokensApi.Models.Compliance.VerificationStatus})">
+            <summary>
+            Gets a human-readable status string from compliance status and verification status
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.ApplyFilters(System.Collections.Generic.List{BiatecTokensApi.Models.EnterpriseAuditLogEntry},BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Applies additional filters to the audit log entries
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
             Interface for IPFS repository operations
@@ -6971,6 +7515,36 @@
             <param name="assetId">Optional asset ID for asset-specific check</param>
             <param name="network">Optional network filter</param>
             <returns>List of active blacklist entries for the address</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository">
+            <summary>
+            Repository interface for enterprise audit log operations
+            </summary>
+            <remarks>
+            Provides unified access to audit logs across whitelist/blacklist and compliance systems
+            for MICA reporting and regulatory compliance.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository.GetAuditLogAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets unified audit log entries from all systems with comprehensive filtering
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>List of unified audit log entries ordered by most recent first</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository.GetAuditLogCountAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets the total count of audit log entries matching the filter
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>Total count of matching entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository.GetAuditLogSummaryAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets summary statistics for audit log entries matching the filter
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>Summary statistics including event counts and date ranges</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.IPFSRepository">
             <summary>
@@ -7738,6 +8312,50 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.GetComplianceHealthAsync(System.String,System.String)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Services.EnterpriseAuditService">
+            <summary>
+            Service implementation for enterprise audit log operations
+            </summary>
+            <remarks>
+            Provides business logic for retrieving and exporting unified audit logs
+            across whitelist/blacklist and compliance systems for MICA reporting.
+            Supports 7-year retention requirements and comprehensive filtering.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.#ctor(BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.EnterpriseAuditService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.EnterpriseAuditService"/> class.
+            </summary>
+            <param name="repository">The enterprise audit repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.GetAuditLogAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets unified audit log entries with comprehensive filtering and pagination
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.ExportAuditLogCsvAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest,System.Int32)">
+            <summary>
+            Exports audit log entries as CSV for MICA compliance reporting
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.ExportAuditLogJsonAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest,System.Int32)">
+            <summary>
+            Exports audit log entries as JSON for MICA compliance reporting
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.GetRetentionPolicy">
+            <summary>
+            Gets the 7-year MICA retention policy for audit logs
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.EscapeCsv(System.String)">
+            <summary>
+            Escapes a value for CSV format
+            </summary>
+            <param name="value">The value to escape</param>
+            <returns>Escaped CSV value</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -8049,6 +8667,44 @@
             <param name="issuerAddress">The issuer's Algorand address</param>
             <param name="network">Optional network filter</param>
             <returns>Response with compliance health metrics</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">
+            <summary>
+            Service interface for enterprise audit log operations
+            </summary>
+            <remarks>
+            Provides business logic for retrieving and exporting unified audit logs
+            across whitelist/blacklist and compliance systems for MICA reporting.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IEnterpriseAuditService.GetAuditLogAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
+            <summary>
+            Gets unified audit log entries with comprehensive filtering and pagination
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>Response containing audit log entries with retention policy</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IEnterpriseAuditService.ExportAuditLogCsvAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest,System.Int32)">
+            <summary>
+            Exports audit log entries as CSV for MICA compliance reporting
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <param name="maxRecords">Maximum number of records to export (default: 10000)</param>
+            <returns>CSV content as string</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IEnterpriseAuditService.ExportAuditLogJsonAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest,System.Int32)">
+            <summary>
+            Exports audit log entries as JSON for MICA compliance reporting
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <param name="maxRecords">Maximum number of records to export (default: 10000)</param>
+            <returns>JSON content as string</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IEnterpriseAuditService.GetRetentionPolicy">
+            <summary>
+            Gets the 7-year MICA retention policy for audit logs
+            </summary>
+            <returns>Audit retention policy metadata</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
             <summary>

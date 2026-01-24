@@ -85,6 +85,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
             builder.Services.AddSingleton<IWhitelistRulesRepository, WhitelistRulesRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceRepository, BiatecTokensApi.Repositories.ComplianceRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository, BiatecTokensApi.Repositories.EnterpriseAuditRepository>();
 
             // Register metering service
             builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
@@ -101,6 +102,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IWhitelistService, WhitelistService>();
             builder.Services.AddSingleton<IWhitelistRulesService, WhitelistRulesService>();
             builder.Services.AddSingleton<IComplianceService, ComplianceService>();
+            builder.Services.AddSingleton<IEnterpriseAuditService, EnterpriseAuditService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
