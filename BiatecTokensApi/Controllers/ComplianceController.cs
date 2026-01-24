@@ -1407,5 +1407,335 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        // Phase 3: Blacklist Management Endpoints
+
+        /// <summary>
+        /// Adds an address to the blacklist
+        /// </summary>
+        /// <param name="request">The blacklist entry request</param>
+        /// <returns>The created blacklist entry</returns>
+        [HttpPost("blacklist")]
+        [ProducesResponseType(typeof(BlacklistResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> AddBlacklistEntry([FromBody] AddBlacklistEntryRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var createdBy = GetUserAddress();
+                var result = await _complianceService.AddBlacklistEntryAsync(request, createdBy);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Added blacklist entry for address {Address}", request.Address);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to add blacklist entry: {Error}", result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception adding blacklist entry");
+                return StatusCode(StatusCodes.Status500InternalServerError, new BlacklistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Checks if an address is blacklisted
+        /// </summary>
+        /// <param name="address">The address to check</param>
+        /// <param name="assetId">Optional asset ID</param>
+        /// <param name="network">Optional network filter</param>
+        /// <returns>Blacklist check result</returns>
+        [HttpGet("blacklist/check")]
+        [ProducesResponseType(typeof(BlacklistCheckResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CheckBlacklist(
+            [FromQuery] string address,
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? network = null)
+        {
+            try
+            {
+                var request = new CheckBlacklistRequest
+                {
+                    Address = address,
+                    AssetId = assetId,
+                    Network = network
+                };
+
+                var result = await _complianceService.CheckBlacklistAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Checked blacklist for address {Address}: {IsBlacklisted}", address, result.IsBlacklisted);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to check blacklist: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception checking blacklist");
+                return StatusCode(StatusCodes.Status500InternalServerError, new BlacklistCheckResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lists blacklist entries with filtering
+        /// </summary>
+        /// <param name="address">Optional address filter</param>
+        /// <param name="assetId">Optional asset ID filter</param>
+        /// <param name="category">Optional category filter</param>
+        /// <param name="status">Optional status filter</param>
+        /// <param name="network">Optional network filter</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 20, max: 100)</param>
+        /// <returns>List of blacklist entries</returns>
+        [HttpGet("blacklist")]
+        [ProducesResponseType(typeof(BlacklistListResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ListBlacklistEntries(
+            [FromQuery] string? address = null,
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] BlacklistCategory? category = null,
+            [FromQuery] BlacklistStatus? status = null,
+            [FromQuery] string? network = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var request = new ListBlacklistEntriesRequest
+                {
+                    Address = address,
+                    AssetId = assetId,
+                    Category = category,
+                    Status = status,
+                    Network = network,
+                    Page = page,
+                    PageSize = Math.Min(pageSize, 100)
+                };
+
+                var result = await _complianceService.ListBlacklistEntriesAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Listed {Count} blacklist entries", result.Entries.Count);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to list blacklist entries: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception listing blacklist entries");
+                return StatusCode(StatusCodes.Status500InternalServerError, new BlacklistListResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Removes a blacklist entry
+        /// </summary>
+        /// <param name="id">The entry ID</param>
+        /// <returns>Success status</returns>
+        [HttpDelete("blacklist/{id}")]
+        [ProducesResponseType(typeof(BlacklistResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DeleteBlacklistEntry([FromRoute] string id)
+        {
+            try
+            {
+                var result = await _complianceService.DeleteBlacklistEntryAsync(id);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Deleted blacklist entry {Id}", id);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogWarning("Blacklist entry {Id} not found", id);
+                    return NotFound(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception deleting blacklist entry {Id}", id);
+                return StatusCode(StatusCodes.Status500InternalServerError, new BlacklistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Validates a proposed transfer against compliance rules
+        /// </summary>
+        /// <param name="request">The transfer validation request</param>
+        /// <returns>Validation result</returns>
+        [HttpPost("validate-transfer")]
+        [ProducesResponseType(typeof(TransferValidationResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ValidateTransfer([FromBody] ValidateComplianceTransferRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _complianceService.ValidateTransferAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Validated transfer for asset {AssetId}: {CanTransfer}", request.AssetId, result.CanTransfer);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to validate transfer: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception validating transfer");
+                return StatusCode(StatusCodes.Status500InternalServerError, new TransferValidationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        // Phase 4: MICA Checklist and Health Endpoints
+
+        /// <summary>
+        /// Gets MICA compliance checklist for a token
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <returns>MICA compliance checklist</returns>
+        [HttpGet("{assetId}/mica-checklist")]
+        [ProducesResponseType(typeof(MicaComplianceChecklistResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetMicaComplianceChecklist([FromRoute] ulong assetId)
+        {
+            try
+            {
+                var result = await _complianceService.GetMicaComplianceChecklistAsync(assetId);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved MICA checklist for asset {AssetId}", assetId);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to get MICA checklist: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception getting MICA checklist for asset {AssetId}", assetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new MicaComplianceChecklistResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets aggregate compliance health for an issuer
+        /// </summary>
+        /// <param name="issuerAddress">Optional issuer address filter (if not provided, uses authenticated user)</param>
+        /// <param name="network">Optional network filter</param>
+        /// <returns>Compliance health metrics</returns>
+        [HttpGet("health")]
+        [ProducesResponseType(typeof(ComplianceHealthResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetComplianceHealth(
+            [FromQuery] string? issuerAddress = null,
+            [FromQuery] string? network = null)
+        {
+            try
+            {
+                // Use authenticated user if issuerAddress not provided
+                var targetAddress = issuerAddress ?? GetUserAddress();
+
+                if (string.IsNullOrEmpty(targetAddress))
+                {
+                    return Unauthorized(new ComplianceHealthResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Issuer address required"
+                    });
+                }
+
+                var result = await _complianceService.GetComplianceHealthAsync(targetAddress, network);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved compliance health for issuer {IssuerAddress}", targetAddress);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to get compliance health: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception getting compliance health");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceHealthResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
     }
 }

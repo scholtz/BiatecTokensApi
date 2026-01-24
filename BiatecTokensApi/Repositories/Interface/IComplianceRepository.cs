@@ -90,5 +90,90 @@ namespace BiatecTokensApi.Repositories.Interface
         /// <param name="request">The list request with filters</param>
         /// <returns>Total count</returns>
         Task<int> GetAttestationCountAsync(ListComplianceAttestationsRequest request);
+
+        // Phase 2: Issuer Profile Management
+        
+        /// <summary>
+        /// Creates or updates an issuer profile
+        /// </summary>
+        /// <param name="profile">The issuer profile</param>
+        /// <returns>True if successful, false otherwise</returns>
+        Task<bool> UpsertIssuerProfileAsync(IssuerProfile profile);
+
+        /// <summary>
+        /// Gets an issuer profile by address
+        /// </summary>
+        /// <param name="issuerAddress">The issuer address</param>
+        /// <returns>The issuer profile or null if not found</returns>
+        Task<IssuerProfile?> GetIssuerProfileAsync(string issuerAddress);
+
+        /// <summary>
+        /// Lists asset IDs for a specific issuer
+        /// </summary>
+        /// <param name="issuerAddress">The issuer address</param>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>List of asset IDs</returns>
+        Task<List<ulong>> ListIssuerAssetsAsync(string issuerAddress, ListIssuerAssetsRequest request);
+
+        /// <summary>
+        /// Gets the total count of assets for an issuer
+        /// </summary>
+        /// <param name="issuerAddress">The issuer address</param>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>Total count</returns>
+        Task<int> GetIssuerAssetCountAsync(string issuerAddress, ListIssuerAssetsRequest request);
+
+        // Phase 3: Blacklist Management
+
+        /// <summary>
+        /// Creates a blacklist entry
+        /// </summary>
+        /// <param name="entry">The blacklist entry</param>
+        /// <returns>True if successful, false otherwise</returns>
+        Task<bool> CreateBlacklistEntryAsync(BlacklistEntry entry);
+
+        /// <summary>
+        /// Gets a blacklist entry by ID
+        /// </summary>
+        /// <param name="id">The entry ID</param>
+        /// <returns>The blacklist entry or null if not found</returns>
+        Task<BlacklistEntry?> GetBlacklistEntryAsync(string id);
+
+        /// <summary>
+        /// Updates a blacklist entry
+        /// </summary>
+        /// <param name="entry">The blacklist entry</param>
+        /// <returns>True if successful, false otherwise</returns>
+        Task<bool> UpdateBlacklistEntryAsync(BlacklistEntry entry);
+
+        /// <summary>
+        /// Deletes a blacklist entry
+        /// </summary>
+        /// <param name="id">The entry ID</param>
+        /// <returns>True if successful, false otherwise</returns>
+        Task<bool> DeleteBlacklistEntryAsync(string id);
+
+        /// <summary>
+        /// Lists blacklist entries with filtering
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>List of blacklist entries</returns>
+        Task<List<BlacklistEntry>> ListBlacklistEntriesAsync(ListBlacklistEntriesRequest request);
+
+        /// <summary>
+        /// Gets the total count of blacklist entries matching the filter
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>Total count</returns>
+        Task<int> GetBlacklistEntryCountAsync(ListBlacklistEntriesRequest request);
+
+        /// <summary>
+        /// Checks if an address is blacklisted
+        /// </summary>
+        /// <param name="address">The address to check</param>
+        /// <param name="assetId">Optional asset ID for asset-specific check</param>
+        /// <param name="network">Optional network filter</param>
+        /// <returns>List of active blacklist entries for the address</returns>
+        Task<List<BlacklistEntry>> CheckBlacklistAsync(string address, ulong? assetId, string? network);
     }
 }

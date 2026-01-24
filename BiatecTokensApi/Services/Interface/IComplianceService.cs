@@ -116,5 +116,92 @@ namespace BiatecTokensApi.Services.Interface
         /// enterprise readiness indicators and subscription value flags for the frontend.
         /// </remarks>
         Task<TokenComplianceIndicatorsResponse> GetComplianceIndicatorsAsync(ulong assetId);
+
+        // Phase 2: Issuer Profile Management
+
+        /// <summary>
+        /// Creates or updates an issuer profile
+        /// </summary>
+        /// <param name="request">The issuer profile request</param>
+        /// <param name="issuerAddress">The issuer's Algorand address</param>
+        /// <returns>Response with the created/updated profile</returns>
+        Task<IssuerProfileResponse> UpsertIssuerProfileAsync(UpsertIssuerProfileRequest request, string issuerAddress);
+
+        /// <summary>
+        /// Gets an issuer profile
+        /// </summary>
+        /// <param name="issuerAddress">The issuer's Algorand address</param>
+        /// <returns>Response with the issuer profile</returns>
+        Task<IssuerProfileResponse> GetIssuerProfileAsync(string issuerAddress);
+
+        /// <summary>
+        /// Gets issuer verification status
+        /// </summary>
+        /// <param name="issuerAddress">The issuer's Algorand address</param>
+        /// <returns>Response with verification status and score</returns>
+        Task<IssuerVerificationResponse> GetIssuerVerificationAsync(string issuerAddress);
+
+        /// <summary>
+        /// Lists assets for an issuer
+        /// </summary>
+        /// <param name="issuerAddress">The issuer's Algorand address</param>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>Response with list of asset IDs</returns>
+        Task<IssuerAssetsResponse> ListIssuerAssetsAsync(string issuerAddress, ListIssuerAssetsRequest request);
+
+        // Phase 3: Blacklist Management
+
+        /// <summary>
+        /// Adds an address to the blacklist
+        /// </summary>
+        /// <param name="request">The blacklist entry request</param>
+        /// <param name="createdBy">The address of the user creating the entry</param>
+        /// <returns>Response with the created blacklist entry</returns>
+        Task<BlacklistResponse> AddBlacklistEntryAsync(AddBlacklistEntryRequest request, string createdBy);
+
+        /// <summary>
+        /// Checks if an address is blacklisted
+        /// </summary>
+        /// <param name="request">The blacklist check request</param>
+        /// <returns>Response with blacklist status and entries</returns>
+        Task<BlacklistCheckResponse> CheckBlacklistAsync(CheckBlacklistRequest request);
+
+        /// <summary>
+        /// Lists blacklist entries
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>Response with list of blacklist entries</returns>
+        Task<BlacklistListResponse> ListBlacklistEntriesAsync(ListBlacklistEntriesRequest request);
+
+        /// <summary>
+        /// Removes a blacklist entry
+        /// </summary>
+        /// <param name="id">The entry ID</param>
+        /// <returns>Response indicating success or failure</returns>
+        Task<BlacklistResponse> DeleteBlacklistEntryAsync(string id);
+
+        /// <summary>
+        /// Validates a proposed transfer against compliance rules
+        /// </summary>
+        /// <param name="request">The transfer validation request</param>
+        /// <returns>Response with validation result and violations</returns>
+        Task<TransferValidationResponse> ValidateTransferAsync(ValidateComplianceTransferRequest request);
+
+        // Phase 4: MICA Checklist and Health
+
+        /// <summary>
+        /// Gets MICA compliance checklist for a token
+        /// </summary>
+        /// <param name="assetId">The asset ID</param>
+        /// <returns>Response with MICA compliance checklist</returns>
+        Task<MicaComplianceChecklistResponse> GetMicaComplianceChecklistAsync(ulong assetId);
+
+        /// <summary>
+        /// Gets aggregate compliance health for an issuer
+        /// </summary>
+        /// <param name="issuerAddress">The issuer's Algorand address</param>
+        /// <param name="network">Optional network filter</param>
+        /// <returns>Response with compliance health metrics</returns>
+        Task<ComplianceHealthResponse> GetComplianceHealthAsync(string issuerAddress, string? network);
     }
 }

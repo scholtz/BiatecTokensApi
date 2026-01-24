@@ -531,6 +531,114 @@
             - Date range: GET /api/v1/compliance/report?fromDate=2026-01-01&amp;toDate=2026-01-31
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.AddBlacklistEntry(BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest)">
+            <summary>
+            Adds an address to the blacklist
+            </summary>
+            <param name="request">The blacklist entry request</param>
+            <returns>The created blacklist entry</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.CheckBlacklist(System.String,System.Nullable{System.UInt64},System.String)">
+            <summary>
+            Checks if an address is blacklisted
+            </summary>
+            <param name="address">The address to check</param>
+            <param name="assetId">Optional asset ID</param>
+            <param name="network">Optional network filter</param>
+            <returns>Blacklist check result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ListBlacklistEntries(System.String,System.Nullable{System.UInt64},System.Nullable{BiatecTokensApi.Models.Compliance.BlacklistCategory},System.Nullable{BiatecTokensApi.Models.Compliance.BlacklistStatus},System.String,System.Int32,System.Int32)">
+            <summary>
+            Lists blacklist entries with filtering
+            </summary>
+            <param name="address">Optional address filter</param>
+            <param name="assetId">Optional asset ID filter</param>
+            <param name="category">Optional category filter</param>
+            <param name="status">Optional status filter</param>
+            <param name="network">Optional network filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of blacklist entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.DeleteBlacklistEntry(System.String)">
+            <summary>
+            Removes a blacklist entry
+            </summary>
+            <param name="id">The entry ID</param>
+            <returns>Success status</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ValidateTransfer(BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest)">
+            <summary>
+            Validates a proposed transfer against compliance rules
+            </summary>
+            <param name="request">The transfer validation request</param>
+            <returns>Validation result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetMicaComplianceChecklist(System.UInt64)">
+            <summary>
+            Gets MICA compliance checklist for a token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>MICA compliance checklist</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetComplianceHealth(System.String,System.String)">
+            <summary>
+            Gets aggregate compliance health for an issuer
+            </summary>
+            <param name="issuerAddress">Optional issuer address filter (if not provided, uses authenticated user)</param>
+            <param name="network">Optional network filter</param>
+            <returns>Compliance health metrics</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.IssuerController">
+            <summary>
+            Provides endpoints for managing issuer profiles for MICA compliance
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.#ctor(BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.IssuerController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.IssuerController"/> class.
+            </summary>
+            <param name="complianceService">The compliance service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.GetIssuerProfile(System.String)">
+            <summary>
+            Gets an issuer profile
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <returns>The issuer profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.UpsertIssuerProfile(BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest)">
+            <summary>
+            Creates or updates an issuer profile
+            </summary>
+            <param name="request">The issuer profile request</param>
+            <returns>The created or updated issuer profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.GetIssuerVerification(System.String)">
+            <summary>
+            Gets issuer verification status
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <returns>The issuer verification status and score</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.ListIssuerAssets(System.String,System.String,System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceStatus},System.Int32,System.Int32)">
+            <summary>
+            Lists assets for an issuer
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <param name="network">Optional network filter</param>
+            <param name="complianceStatus">Optional compliance status filter</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of asset IDs for the issuer</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.IssuerController.GetUserAddress">
+            <summary>
+            Gets the authenticated user's Algorand address from the claims
+            </summary>
+            <returns>The user's Algorand address or empty string if not found</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.TokenController">
             <summary>
             Provides endpoints for creating and managing various types of tokens, including ERC-20, ARC3 fungible tokens,
@@ -1906,6 +2014,161 @@
             Status of the deployment
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BlacklistEntry">
+            <summary>
+            Represents a blacklisted address for compliance enforcement
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Id">
+            <summary>
+            Unique identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Address">
+            <summary>
+            Blacklisted address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.AssetId">
+            <summary>
+            Asset ID (token ID), or null for global blacklist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Reason">
+            <summary>
+            Reason for blacklisting
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Category">
+            <summary>
+            Blacklist category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Network">
+            <summary>
+            Network where blacklist applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Jurisdiction">
+            <summary>
+            Jurisdiction that issued blacklist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Source">
+            <summary>
+            Source of blacklist (OFAC, FinCEN, Chainalysis, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.ReferenceId">
+            <summary>
+            Reference number or case ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.EffectiveDate">
+            <summary>
+            Date blacklist entry becomes effective
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.ExpirationDate">
+            <summary>
+            Date blacklist entry expires (null for permanent)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Status">
+            <summary>
+            Blacklist status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.CreatedBy">
+            <summary>
+            Address of user who created the entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.CreatedAt">
+            <summary>
+            Date entry was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.UpdatedBy">
+            <summary>
+            Address of user who last updated the entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.UpdatedAt">
+            <summary>
+            Date entry was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistEntry.Notes">
+            <summary>
+            Additional notes
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BlacklistCategory">
+            <summary>
+            Blacklist category
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistCategory.Sanctions">
+            <summary>
+            Government sanctions (OFAC, UN, EU)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistCategory.FraudulentActivity">
+            <summary>
+            Scams, fraud, phishing
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistCategory.MoneyLaundering">
+            <summary>
+            AML concerns
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistCategory.TerroristFinancing">
+            <summary>
+            CTF concerns
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistCategory.RegulatoryViolation">
+            <summary>
+            Regulatory non-compliance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistCategory.Other">
+            <summary>
+            Other reasons
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BlacklistStatus">
+            <summary>
+            Blacklist status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistStatus.Active">
+            <summary>
+            Active blacklist entry
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistStatus.Inactive">
+            <summary>
+            Inactive blacklist entry
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistStatus.UnderReview">
+            <summary>
+            Under review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistStatus.Appealed">
+            <summary>
+            Appealed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.BlacklistStatus.Removed">
+            <summary>
+            Removed from blacklist
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAttestation">
             <summary>
             Represents a wallet-level compliance attestation for regulatory audit trails
@@ -3052,6 +3315,261 @@
             Whether to include only critical errors (false) or also warnings (true)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest">
+            <summary>
+            Request to create or update issuer profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.LegalName">
+            <summary>
+            Legal entity name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.DoingBusinessAs">
+            <summary>
+            Doing Business As (DBA) name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.EntityType">
+            <summary>
+            Entity type (Corporation, LLC, DAO, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.CountryOfIncorporation">
+            <summary>
+            Country of incorporation (ISO country code)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.TaxIdentificationNumber">
+            <summary>
+            Tax identification number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.RegistrationNumber">
+            <summary>
+            Business registration number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.RegisteredAddress">
+            <summary>
+            Registered business address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.OperationalAddress">
+            <summary>
+            Operational/mailing address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.PrimaryContact">
+            <summary>
+            Primary contact information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.ComplianceContact">
+            <summary>
+            Compliance officer contact
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.Website">
+            <summary>
+            Website URL
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.KybProvider">
+            <summary>
+            KYB provider name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.MicaLicenseNumber">
+            <summary>
+            MICA license number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.MicaCompetentAuthority">
+            <summary>
+            MICA competent authority
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest.Notes">
+            <summary>
+            Additional notes
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest">
+            <summary>
+            Request to add a blacklist entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.Address">
+            <summary>
+            Blacklisted address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.AssetId">
+            <summary>
+            Asset ID (token ID), or null for global blacklist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.Reason">
+            <summary>
+            Reason for blacklisting
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.Category">
+            <summary>
+            Blacklist category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.Network">
+            <summary>
+            Network where blacklist applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.Jurisdiction">
+            <summary>
+            Jurisdiction that issued blacklist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.Source">
+            <summary>
+            Source of blacklist (OFAC, FinCEN, Chainalysis, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.ReferenceId">
+            <summary>
+            Reference number or case ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.EffectiveDate">
+            <summary>
+            Date blacklist entry becomes effective
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.ExpirationDate">
+            <summary>
+            Date blacklist entry expires (null for permanent)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest.Notes">
+            <summary>
+            Additional notes
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CheckBlacklistRequest">
+            <summary>
+            Request to check blacklist status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CheckBlacklistRequest.Address">
+            <summary>
+            Address to check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CheckBlacklistRequest.AssetId">
+            <summary>
+            Optional asset ID for asset-specific blacklist check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CheckBlacklistRequest.Network">
+            <summary>
+            Optional network filter
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest">
+            <summary>
+            Request to list blacklist entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest.Address">
+            <summary>
+            Optional address filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest.AssetId">
+            <summary>
+            Optional asset ID filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest.Category">
+            <summary>
+            Optional category filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest.Status">
+            <summary>
+            Optional status filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest.Network">
+            <summary>
+            Optional network filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest.Page">
+            <summary>
+            Page number (default: 1)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest.PageSize">
+            <summary>
+            Page size (default: 20, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest">
+            <summary>
+            Request to validate a transfer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest.AssetId">
+            <summary>
+            Asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest.FromAddress">
+            <summary>
+            From address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest.ToAddress">
+            <summary>
+            To address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest.Amount">
+            <summary>
+            Amount to transfer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest.Network">
+            <summary>
+            Network
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest">
+            <summary>
+            Request to list issuer assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest.Network">
+            <summary>
+            Optional network filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest.ComplianceStatus">
+            <summary>
+            Optional compliance status filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest.Page">
+            <summary>
+            Page number (default: 1)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest.PageSize">
+            <summary>
+            Page size (default: 20, max: 100)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMetadataResponse">
             <summary>
             Response for compliance metadata operations
@@ -3165,6 +3683,741 @@
         <member name="F:BiatecTokensApi.Models.Compliance.ValidationSeverity.Info">
             <summary>
             Informational message
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerProfileResponse">
+            <summary>
+            Response for issuer profile operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfileResponse.Profile">
+            <summary>
+            The issuer profile
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse">
+            <summary>
+            Response for issuer verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.IssuerAddress">
+            <summary>
+            Issuer address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.OverallStatus">
+            <summary>
+            Overall verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.KybStatus">
+            <summary>
+            KYB verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.MicaLicenseStatus">
+            <summary>
+            MICA license status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.ProfileStatus">
+            <summary>
+            Profile status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.IsProfileComplete">
+            <summary>
+            Whether profile is complete
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.MissingFields">
+            <summary>
+            List of missing required fields
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerVerificationResponse.VerificationScore">
+            <summary>
+            Verification score (0-100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerVerificationStatus">
+            <summary>
+            Issuer verification status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerVerificationStatus.Unverified">
+            <summary>
+            Unverified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerVerificationStatus.Pending">
+            <summary>
+            Pending verification
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerVerificationStatus.PartiallyVerified">
+            <summary>
+            Partially verified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerVerificationStatus.FullyVerified">
+            <summary>
+            Fully verified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerVerificationStatus.Expired">
+            <summary>
+            Expired
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerAssetsResponse">
+            <summary>
+            Response for issuer assets list
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAssetsResponse.IssuerAddress">
+            <summary>
+            Issuer address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAssetsResponse.AssetIds">
+            <summary>
+            List of asset IDs
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAssetsResponse.TotalCount">
+            <summary>
+            Total count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAssetsResponse.Page">
+            <summary>
+            Current page
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAssetsResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAssetsResponse.TotalPages">
+            <summary>
+            Total pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BlacklistResponse">
+            <summary>
+            Response for blacklist operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistResponse.Entry">
+            <summary>
+            The blacklist entry
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BlacklistCheckResponse">
+            <summary>
+            Response for blacklist check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistCheckResponse.Address">
+            <summary>
+            Address checked
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistCheckResponse.IsBlacklisted">
+            <summary>
+            Whether address is blacklisted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistCheckResponse.Entries">
+            <summary>
+            Blacklist entries for this address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistCheckResponse.GlobalBlacklist">
+            <summary>
+            Whether on global blacklist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistCheckResponse.AssetSpecificBlacklist">
+            <summary>
+            Whether on asset-specific blacklist
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.BlacklistListResponse">
+            <summary>
+            Response for blacklist list
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistListResponse.Entries">
+            <summary>
+            List of blacklist entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistListResponse.TotalCount">
+            <summary>
+            Total count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistListResponse.Page">
+            <summary>
+            Current page
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistListResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.BlacklistListResponse.TotalPages">
+            <summary>
+            Total pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TransferValidationResponse">
+            <summary>
+            Response for transfer validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TransferValidationResponse.IsValid">
+            <summary>
+            Whether transfer is valid
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TransferValidationResponse.CanTransfer">
+            <summary>
+            Whether transfer can proceed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TransferValidationResponse.Validations">
+            <summary>
+            List of validation checks
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TransferValidationResponse.Violations">
+            <summary>
+            List of violations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TransferValidationResponse.Warnings">
+            <summary>
+            List of warnings
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TransferValidationResponse.Recommendations">
+            <summary>
+            List of recommendations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidationCheck">
+            <summary>
+            Individual validation check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationCheck.Rule">
+            <summary>
+            Rule name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationCheck.Passed">
+            <summary>
+            Whether check passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationCheck.Message">
+            <summary>
+            Check message
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaComplianceChecklistResponse">
+            <summary>
+            Response for MICA compliance checklist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklistResponse.Checklist">
+            <summary>
+            The MICA compliance checklist
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse">
+            <summary>
+            Response for compliance health
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.OverallHealthScore">
+            <summary>
+            Overall health score (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.TotalTokens">
+            <summary>
+            Total tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.CompliantTokens">
+            <summary>
+            Compliant tokens count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.UnderReviewTokens">
+            <summary>
+            Under review tokens count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.NonCompliantTokens">
+            <summary>
+            Non-compliant tokens count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.MicaReadyTokens">
+            <summary>
+            MICA-ready tokens count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.TokensWithWhitelisting">
+            <summary>
+            Tokens with whitelisting
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.TokensWithAuditTrail">
+            <summary>
+            Tokens with audit trail
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.IssuerVerified">
+            <summary>
+            Whether issuer is verified
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.Alerts">
+            <summary>
+            List of alerts
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceHealthResponse.Recommendations">
+            <summary>
+            List of recommendations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAlert">
+            <summary>
+            Compliance alert
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAlert.Severity">
+            <summary>
+            Alert severity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAlert.Message">
+            <summary>
+            Alert message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceAlert.AffectedAssetIds">
+            <summary>
+            Affected asset IDs
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerProfile">
+            <summary>
+            Represents an issuer profile for MICA compliance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.IssuerAddress">
+            <summary>
+            Unique identifier (issuer's Algorand address)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.LegalName">
+            <summary>
+            Legal entity name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.DoingBusinessAs">
+            <summary>
+            Doing Business As (DBA) name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.EntityType">
+            <summary>
+            Entity type (Corporation, LLC, DAO, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.CountryOfIncorporation">
+            <summary>
+            Country of incorporation (ISO country code)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.TaxIdentificationNumber">
+            <summary>
+            Tax identification number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.RegistrationNumber">
+            <summary>
+            Business registration number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.RegisteredAddress">
+            <summary>
+            Registered business address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.OperationalAddress">
+            <summary>
+            Operational/mailing address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.PrimaryContact">
+            <summary>
+            Primary contact information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.ComplianceContact">
+            <summary>
+            Compliance officer contact
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.Website">
+            <summary>
+            Website URL
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.KybStatus">
+            <summary>
+            KYB (Know Your Business) verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.KybProvider">
+            <summary>
+            KYB provider name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.KybVerifiedDate">
+            <summary>
+            KYB verification date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.MicaLicenseStatus">
+            <summary>
+            MICA license status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.MicaLicenseNumber">
+            <summary>
+            MICA license number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.MicaCompetentAuthority">
+            <summary>
+            MICA competent authority
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.CreatedAt">
+            <summary>
+            Date issuer profile was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.UpdatedAt">
+            <summary>
+            Date issuer profile was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.Status">
+            <summary>
+            Profile verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.Notes">
+            <summary>
+            Additional notes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.CreatedBy">
+            <summary>
+            Address of user who created profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerProfile.UpdatedBy">
+            <summary>
+            Address of user who last updated profile
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerAddress">
+            <summary>
+            Issuer address information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAddress.AddressLine1">
+            <summary>
+            Address line 1
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAddress.AddressLine2">
+            <summary>
+            Address line 2
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAddress.City">
+            <summary>
+            City
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAddress.StateOrProvince">
+            <summary>
+            State or province
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAddress.PostalCode">
+            <summary>
+            Postal code
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerAddress.CountryCode">
+            <summary>
+            Country code (ISO 2-letter)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerContact">
+            <summary>
+            Issuer contact information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerContact.Name">
+            <summary>
+            Contact name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerContact.Email">
+            <summary>
+            Email address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerContact.PhoneNumber">
+            <summary>
+            Phone number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.IssuerContact.Title">
+            <summary>
+            Job title
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaLicenseStatus">
+            <summary>
+            MICA license status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaLicenseStatus.None">
+            <summary>
+            No MICA license
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaLicenseStatus.Applied">
+            <summary>
+            License application submitted
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaLicenseStatus.UnderReview">
+            <summary>
+            License under review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaLicenseStatus.Approved">
+            <summary>
+            License approved
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaLicenseStatus.Denied">
+            <summary>
+            License denied
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaLicenseStatus.Suspended">
+            <summary>
+            License suspended
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaLicenseStatus.Revoked">
+            <summary>
+            License revoked
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.IssuerProfileStatus">
+            <summary>
+            Issuer profile status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerProfileStatus.Draft">
+            <summary>
+            Profile in draft state
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerProfileStatus.Submitted">
+            <summary>
+            Profile submitted for review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerProfileStatus.UnderReview">
+            <summary>
+            Profile under review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerProfileStatus.Verified">
+            <summary>
+            Profile verified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerProfileStatus.Rejected">
+            <summary>
+            Profile rejected
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.IssuerProfileStatus.Suspended">
+            <summary>
+            Profile suspended
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist">
+            <summary>
+            MICA compliance checklist for a specific token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist.AssetId">
+            <summary>
+            Asset ID (token ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist.OverallStatus">
+            <summary>
+            Overall MICA compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist.CompliancePercentage">
+            <summary>
+            Compliance percentage (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist.Requirements">
+            <summary>
+            List of compliance requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist.GeneratedAt">
+            <summary>
+            Date checklist was generated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist.NextAction">
+            <summary>
+            Next required action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist.EstimatedCompletionDate">
+            <summary>
+            Estimated completion date
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaRequirement">
+            <summary>
+            Individual MICA requirement
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.Id">
+            <summary>
+            Requirement ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.Category">
+            <summary>
+            Requirement category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.Description">
+            <summary>
+            Requirement description
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.IsMet">
+            <summary>
+            Whether requirement is met
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.Priority">
+            <summary>
+            Requirement priority
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.Evidence">
+            <summary>
+            Evidence or notes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.MetDate">
+            <summary>
+            Date requirement was met
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaRequirement.Recommendations">
+            <summary>
+            Recommendations for meeting requirement
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaComplianceStatus">
+            <summary>
+            MICA compliance status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaComplianceStatus.NotStarted">
+            <summary>
+            Not started
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaComplianceStatus.InProgress">
+            <summary>
+            In progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaComplianceStatus.NearlyCompliant">
+            <summary>
+            Nearly compliant
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaComplianceStatus.FullyCompliant">
+            <summary>
+            Fully compliant
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaComplianceStatus.NonCompliant">
+            <summary>
+            Non-compliant
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaRequirementPriority">
+            <summary>
+            MICA requirement priority
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaRequirementPriority.Critical">
+            <summary>
+            Critical priority
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaRequirementPriority.High">
+            <summary>
+            High priority
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaRequirementPriority.Medium">
+            <summary>
+            Medium priority
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.MicaRequirementPriority.Low">
+            <summary>
+            Low priority
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators">
@@ -4789,6 +6042,39 @@
         <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetAttestationCountAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.UpsertIssuerProfileAsync(BiatecTokensApi.Models.Compliance.IssuerProfile)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetIssuerProfileAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.ListIssuerAssetsAsync(System.String,BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetIssuerAssetCountAsync(System.String,BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.CreateBlacklistEntryAsync(BiatecTokensApi.Models.Compliance.BlacklistEntry)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetBlacklistEntryAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.UpdateBlacklistEntryAsync(BiatecTokensApi.Models.Compliance.BlacklistEntry)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.DeleteBlacklistEntryAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.ListBlacklistEntriesAsync(BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetBlacklistEntryCountAsync(BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.CheckBlacklistAsync(System.String,System.Nullable{System.UInt64},System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
             Interface for IPFS repository operations
@@ -4965,6 +6251,87 @@
             </summary>
             <param name="request">The list request with filters</param>
             <returns>Total count</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.UpsertIssuerProfileAsync(BiatecTokensApi.Models.Compliance.IssuerProfile)">
+            <summary>
+            Creates or updates an issuer profile
+            </summary>
+            <param name="profile">The issuer profile</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetIssuerProfileAsync(System.String)">
+            <summary>
+            Gets an issuer profile by address
+            </summary>
+            <param name="issuerAddress">The issuer address</param>
+            <returns>The issuer profile or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.ListIssuerAssetsAsync(System.String,BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest)">
+            <summary>
+            Lists asset IDs for a specific issuer
+            </summary>
+            <param name="issuerAddress">The issuer address</param>
+            <param name="request">The list request with filters</param>
+            <returns>List of asset IDs</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetIssuerAssetCountAsync(System.String,BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest)">
+            <summary>
+            Gets the total count of assets for an issuer
+            </summary>
+            <param name="issuerAddress">The issuer address</param>
+            <param name="request">The list request with filters</param>
+            <returns>Total count</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.CreateBlacklistEntryAsync(BiatecTokensApi.Models.Compliance.BlacklistEntry)">
+            <summary>
+            Creates a blacklist entry
+            </summary>
+            <param name="entry">The blacklist entry</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetBlacklistEntryAsync(System.String)">
+            <summary>
+            Gets a blacklist entry by ID
+            </summary>
+            <param name="id">The entry ID</param>
+            <returns>The blacklist entry or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.UpdateBlacklistEntryAsync(BiatecTokensApi.Models.Compliance.BlacklistEntry)">
+            <summary>
+            Updates a blacklist entry
+            </summary>
+            <param name="entry">The blacklist entry</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.DeleteBlacklistEntryAsync(System.String)">
+            <summary>
+            Deletes a blacklist entry
+            </summary>
+            <param name="id">The entry ID</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.ListBlacklistEntriesAsync(BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest)">
+            <summary>
+            Lists blacklist entries with filtering
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>List of blacklist entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetBlacklistEntryCountAsync(BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest)">
+            <summary>
+            Gets the total count of blacklist entries matching the filter
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Total count</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.CheckBlacklistAsync(System.String,System.Nullable{System.UInt64},System.String)">
+            <summary>
+            Checks if an address is blacklisted
+            </summary>
+            <param name="address">The address to check</param>
+            <param name="assetId">Optional asset ID for asset-specific check</param>
+            <param name="network">Optional network filter</param>
+            <returns>List of active blacklist entries for the address</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.IPFSRepository">
             <summary>
@@ -5557,6 +6924,39 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.GetComplianceIndicatorsAsync(System.UInt64)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.UpsertIssuerProfileAsync(BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetIssuerProfileAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetIssuerVerificationAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ListIssuerAssetsAsync(System.String,BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.AddBlacklistEntryAsync(BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CheckBlacklistAsync(BiatecTokensApi.Models.Compliance.CheckBlacklistRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ListBlacklistEntriesAsync(BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.DeleteBlacklistEntryAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ValidateTransferAsync(BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetMicaComplianceChecklistAsync(System.UInt64)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetComplianceHealthAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -5787,6 +7187,87 @@
             This method aggregates compliance metadata and whitelist information to provide
             enterprise readiness indicators and subscription value flags for the frontend.
             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.UpsertIssuerProfileAsync(BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest,System.String)">
+            <summary>
+            Creates or updates an issuer profile
+            </summary>
+            <param name="request">The issuer profile request</param>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <returns>Response with the created/updated profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetIssuerProfileAsync(System.String)">
+            <summary>
+            Gets an issuer profile
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <returns>Response with the issuer profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetIssuerVerificationAsync(System.String)">
+            <summary>
+            Gets issuer verification status
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <returns>Response with verification status and score</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ListIssuerAssetsAsync(System.String,BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest)">
+            <summary>
+            Lists assets for an issuer
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <param name="request">The list request with filters</param>
+            <returns>Response with list of asset IDs</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.AddBlacklistEntryAsync(BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest,System.String)">
+            <summary>
+            Adds an address to the blacklist
+            </summary>
+            <param name="request">The blacklist entry request</param>
+            <param name="createdBy">The address of the user creating the entry</param>
+            <returns>Response with the created blacklist entry</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.CheckBlacklistAsync(BiatecTokensApi.Models.Compliance.CheckBlacklistRequest)">
+            <summary>
+            Checks if an address is blacklisted
+            </summary>
+            <param name="request">The blacklist check request</param>
+            <returns>Response with blacklist status and entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ListBlacklistEntriesAsync(BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest)">
+            <summary>
+            Lists blacklist entries
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Response with list of blacklist entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.DeleteBlacklistEntryAsync(System.String)">
+            <summary>
+            Removes a blacklist entry
+            </summary>
+            <param name="id">The entry ID</param>
+            <returns>Response indicating success or failure</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ValidateTransferAsync(BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest)">
+            <summary>
+            Validates a proposed transfer against compliance rules
+            </summary>
+            <param name="request">The transfer validation request</param>
+            <returns>Response with validation result and violations</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetMicaComplianceChecklistAsync(System.UInt64)">
+            <summary>
+            Gets MICA compliance checklist for a token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>Response with MICA compliance checklist</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetComplianceHealthAsync(System.String,System.String)">
+            <summary>
+            Gets aggregate compliance health for an issuer
+            </summary>
+            <param name="issuerAddress">The issuer's Algorand address</param>
+            <param name="network">Optional network filter</param>
+            <returns>Response with compliance health metrics</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IERC20TokenService">
             <summary>
