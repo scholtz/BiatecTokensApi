@@ -1444,6 +1444,75 @@
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
         </member>
+        <member name="T:BiatecTokensApi.Filters.WhitelistEnforcementAttribute">
+            <summary>
+            Action filter attribute that enforces whitelist validation for token operations
+            </summary>
+            <remarks>
+            This filter validates that addresses involved in token operations (transfer, mint, burn)
+            are properly whitelisted before allowing the operation to proceed. It ensures RWA compliance
+            by blocking non-whitelisted addresses and logging all validation attempts to the audit trail.
+            
+            **Usage**:
+            Apply this attribute to any controller action that performs token operations:
+            ```csharp
+            [WhitelistEnforcement(AssetIdParameter = "assetId", AddressParameters = new[] { "fromAddress", "toAddress" })]
+            public async Task&lt;IActionResult&gt; Transfer([FromBody] TransferRequest request)
+            ```
+            
+            **How It Works**:
+            1. Extracts asset ID and addresses from request parameters
+            2. Validates each address is whitelisted and active for the specified asset
+            3. Blocks the request with explicit error if any address is not whitelisted
+            4. Logs the enforcement check to the audit trail
+            5. Allows the request to proceed only if all addresses are whitelisted
+            
+            **Error Response**:
+            Returns HTTP 403 Forbidden with detailed error message when whitelist validation fails.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.PropertyCache">
+            <summary>
+            Cache for property info lookups to improve performance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.AssetIdParameter">
+            <summary>
+            Name of the parameter containing the asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.AddressParameters">
+            <summary>
+            Names of parameters containing addresses to validate
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.ValidateUserAddress">
+            <summary>
+            Whether to validate the authenticated user's address
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.OnActionExecutionAsync(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate)">
+            <summary>
+            Executes before the action method, validating whitelist compliance
+            </summary>
+            <param name="context">The action executing context</param>
+            <param name="next">The next action execution delegate</param>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.TryGetAssetId(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,System.UInt64@)">
+            <summary>
+            Tries to extract the asset ID from request parameters with caching for performance
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.TryGetAddress(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,System.String,System.String@)">
+            <summary>
+            Tries to extract an address from request parameters with caching for performance
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.WhitelistEnforcementAttribute.GetUserAddress(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>
+            Gets the user's Algorand address from the authentication context
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetController(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
             <summary>
             
