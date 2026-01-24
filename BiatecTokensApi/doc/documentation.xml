@@ -1049,6 +1049,141 @@
             <param name="value">The value to escape</param>
             <returns>The escaped value</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.WhitelistRulesController">
+            <summary>
+            Provides endpoints for managing RWA token whitelisting rules aligned with MICA requirements
+            </summary>
+            <remarks>
+            This controller manages whitelisting rules that define validation and compliance requirements
+            for RWA tokens. Rules can enforce KYC requirements, role-based access, network-specific
+            constraints, expiration policies, and other compliance requirements.
+            All endpoints require ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.#ctor(BiatecTokensApi.Services.Interface.IWhitelistRulesService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.WhitelistRulesController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.WhitelistRulesController"/> class.
+            </summary>
+            <param name="rulesService">The whitelist rules service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.CreateRule(BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest)">
+            <summary>
+            Creates a new whitelisting rule for an RWA token
+            </summary>
+            <param name="request">The rule creation request</param>
+            <returns>The created rule</returns>
+            <remarks>
+            Creates a new rule that will be applied to whitelist entries for the specified asset.
+            Rules can enforce various compliance requirements such as KYC verification,
+            role-based access control, network-specific constraints, and expiration policies.
+            
+            Example for Aramid network KYC requirement:
+            ```json
+            {
+              "assetId": 12345,
+              "name": "KYC Required for Aramid",
+              "description": "All Aramid network entries must have KYC verification",
+              "ruleType": "KycRequired",
+              "priority": 100,
+              "isEnabled": true,
+              "network": "aramidmain-v1.0",
+              "configuration": {
+                "kycMandatory": true,
+                "approvedKycProviders": ["Sumsub", "Onfido"],
+                "validationMessage": "KYC verification is mandatory for Aramid network"
+              }
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.UpdateRule(System.String,BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest)">
+            <summary>
+            Updates an existing whitelisting rule
+            </summary>
+            <param name="ruleId">The rule ID to update</param>
+            <param name="request">The rule update request</param>
+            <returns>The updated rule</returns>
+            <remarks>
+            Updates an existing rule. Only provided fields will be updated.
+            The rule type cannot be changed after creation.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.GetRule(System.String)">
+            <summary>
+            Gets a specific whitelisting rule by ID
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <returns>The rule details</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.DeleteRule(System.String)">
+            <summary>
+            Deletes a whitelisting rule
+            </summary>
+            <param name="ruleId">The rule ID to delete</param>
+            <returns>The result of the deletion</returns>
+            <remarks>
+            Deletes a rule. This does not affect existing whitelist entries,
+            but the rule will no longer be applied to new entries or validations.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.ListRules(System.UInt64,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistRuleType},System.String,System.Nullable{System.Boolean},System.Int32,System.Int32)">
+            <summary>
+            Lists whitelisting rules for an asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="ruleType">Optional filter by rule type</param>
+            <param name="network">Optional filter by network</param>
+            <param name="isEnabled">Optional filter by enabled status</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of rules with pagination</returns>
+            <remarks>
+            Returns all rules for the specified asset, sorted by priority (highest first).
+            Filters can be applied to narrow down the results.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.ApplyRule(System.String,BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest)">
+            <summary>
+            Applies a rule to existing whitelist entries
+            </summary>
+            <param name="ruleId">The rule ID to apply</param>
+            <param name="request">The apply rule request</param>
+            <returns>The application results with validation details</returns>
+            <remarks>
+            Applies a rule to all existing whitelist entries for the rule's asset.
+            This validates existing entries against the rule and returns which entries
+            pass or fail validation. Optionally can fail on first error or continue
+            to validate all entries.
+            
+            This is useful when:
+            - A new rule is created and you want to check existing entries
+            - Rule configuration is updated and you need to re-validate
+            - Compliance audit requires validation report
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.ValidateAgainstRules(BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesRequest)">
+            <summary>
+            Validates whitelist entries against rules
+            </summary>
+            <param name="request">The validation request</param>
+            <returns>The validation results</returns>
+            <remarks>
+            Validates whitelist entries against all enabled rules for an asset.
+            Can validate all entries or a specific address.
+            Can validate against all rules or a specific rule.
+            
+            This is useful for:
+            - Pre-flight validation before adding an entry
+            - Compliance checks and audits
+            - Troubleshooting why an entry might be invalid
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.GetUserAddress">
+            <summary>
+            Extracts the user's Algorand address from the authentication claims
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Generated.Arc1644Proxy.Arc1644SetController(Algorand.Address,Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
             <summary>
             
@@ -5972,6 +6107,496 @@
             Current whitelist status
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRule">
+            <summary>
+            Represents a whitelisting rule for RWA tokens that defines validation and compliance requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.Id">
+            <summary>
+            Unique identifier for the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.AssetId">
+            <summary>
+            The asset ID (token ID) for which this rule applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.Name">
+            <summary>
+            Name of the rule (e.g., "KYC Required for Aramid", "Expiration Policy")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.Description">
+            <summary>
+            Description of what the rule enforces
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.RuleType">
+            <summary>
+            Type of the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.Priority">
+            <summary>
+            Priority of the rule (higher number = higher priority, default: 100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.IsEnabled">
+            <summary>
+            Whether the rule is currently active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.Network">
+            <summary>
+            Network on which this rule applies (voimain-v1.0, aramidmain-v1.0, null for all networks)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.Configuration">
+            <summary>
+            Configuration parameters for the rule (JSON serialized)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.CreatedBy">
+            <summary>
+            The address of the user who created this rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.CreatedAt">
+            <summary>
+            Timestamp when the rule was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.UpdatedAt">
+            <summary>
+            Timestamp when the rule was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRule.UpdatedBy">
+            <summary>
+            The address of the user who last updated this rule
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRuleType">
+            <summary>
+            Type of whitelisting rule
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRuleType.KycRequired">
+            <summary>
+            Requires KYC verification for whitelist entries
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRuleType.RoleBasedAccess">
+            <summary>
+            Enforces role-based access (Admin vs Operator)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRuleType.NetworkSpecific">
+            <summary>
+            Enforces network-specific validation rules
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRuleType.ExpirationRequired">
+            <summary>
+            Enforces expiration date on whitelist entries
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRuleType.StatusValidation">
+            <summary>
+            Requires specific status for whitelist entries
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.WhitelistRuleType.Composite">
+            <summary>
+            Composite rule combining multiple validations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration">
+            <summary>
+            Configuration parameters for a whitelist rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.KycMandatory">
+            <summary>
+            For KYC rules: whether KYC verification is mandatory
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.ApprovedKycProviders">
+            <summary>
+            For KYC rules: list of approved KYC providers
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.MinimumRole">
+            <summary>
+            For role rules: minimum required role
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.ExpirationMandatory">
+            <summary>
+            For expiration rules: whether expiration date is mandatory
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.MaxValidityDays">
+            <summary>
+            For expiration rules: maximum validity period in days
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.RequiredStatus">
+            <summary>
+            For status rules: required status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.NetworkRequirement">
+            <summary>
+            For network rules: specific network requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.CompositeRuleIds">
+            <summary>
+            For composite rules: list of rule IDs to combine
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleConfiguration.ValidationMessage">
+            <summary>
+            Custom validation message when rule fails
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest">
+            <summary>
+            Request to create a new whitelisting rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which this rule applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.Name">
+            <summary>
+            Name of the rule (e.g., "KYC Required for Aramid")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.Description">
+            <summary>
+            Description of what the rule enforces
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.RuleType">
+            <summary>
+            Type of the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.Priority">
+            <summary>
+            Priority of the rule (higher number = higher priority, default: 100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.IsEnabled">
+            <summary>
+            Whether the rule is currently active (default: true)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.Network">
+            <summary>
+            Network on which this rule applies (voimain-v1.0, aramidmain-v1.0, null for all networks)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest.Configuration">
+            <summary>
+            Configuration parameters for the rule
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest">
+            <summary>
+            Request to update an existing whitelisting rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest.RuleId">
+            <summary>
+            The rule ID to update
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest.Name">
+            <summary>
+            Name of the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest.Description">
+            <summary>
+            Description of what the rule enforces
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest.Priority">
+            <summary>
+            Priority of the rule (higher number = higher priority)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest.IsEnabled">
+            <summary>
+            Whether the rule is currently active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest.Configuration">
+            <summary>
+            Configuration parameters for the rule
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest">
+            <summary>
+            Request to list whitelisting rules for an asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to list rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest.RuleType">
+            <summary>
+            Optional filter by rule type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest.IsEnabled">
+            <summary>
+            Optional filter by enabled status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest">
+            <summary>
+            Request to apply a rule to existing whitelist entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest.RuleId">
+            <summary>
+            The rule ID to apply
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest.ApplyToExisting">
+            <summary>
+            Whether to apply the rule retroactively to all existing entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest.FailOnError">
+            <summary>
+            Whether to fail on validation errors or continue
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesRequest">
+            <summary>
+            Request to validate whitelist entries against rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesRequest.AssetId">
+            <summary>
+            The asset ID (token ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesRequest.Address">
+            <summary>
+            Optional specific address to validate
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesRequest.RuleId">
+            <summary>
+            Optional specific rule ID to validate against
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRuleResponse">
+            <summary>
+            Response for whitelist rule operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleResponse.Rule">
+            <summary>
+            The whitelist rule that was created or modified
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse">
+            <summary>
+            Response for listing whitelist rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse.Rules">
+            <summary>
+            List of whitelist rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse.TotalCount">
+            <summary>
+            Total number of rules matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ApplyRuleResponse">
+            <summary>
+            Response for applying a rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyRuleResponse.EntriesEvaluated">
+            <summary>
+            Number of whitelist entries evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyRuleResponse.EntriesPassed">
+            <summary>
+            Number of entries that passed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyRuleResponse.EntriesFailed">
+            <summary>
+            Number of entries that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyRuleResponse.FailedAddresses">
+            <summary>
+            List of addresses that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ApplyRuleResponse.ValidationErrors">
+            <summary>
+            List of validation errors
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesResponse">
+            <summary>
+            Response for validating entries against rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesResponse.IsValid">
+            <summary>
+            Whether all validations passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesResponse.RulesEvaluated">
+            <summary>
+            Number of rules evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesResponse.RulesPassed">
+            <summary>
+            Number of rules passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesResponse.RulesFailed">
+            <summary>
+            Number of rules failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesResponse.ValidationErrors">
+            <summary>
+            List of validation errors
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.RuleValidationError">
+            <summary>
+            Represents a validation error from a rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.RuleValidationError.RuleId">
+            <summary>
+            The rule ID that generated this error
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.RuleValidationError.RuleName">
+            <summary>
+            The rule name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.RuleValidationError.Address">
+            <summary>
+            The address that failed validation (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.RuleValidationError.ErrorMessage">
+            <summary>
+            The error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.RuleValidationError.FieldName">
+            <summary>
+            The field that failed validation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog">
+            <summary>
+            Audit log entry for rule changes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.Id">
+            <summary>
+            Unique identifier for the audit log entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.RuleId">
+            <summary>
+            The rule ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.AssetId">
+            <summary>
+            The asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.ActionType">
+            <summary>
+            Action performed (Create, Update, Delete, Apply)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.PerformedBy">
+            <summary>
+            The address of the user who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.PerformedAt">
+            <summary>
+            Timestamp when the action was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.OldState">
+            <summary>
+            Old rule state (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.NewState">
+            <summary>
+            New rule state (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog.Notes">
+            <summary>
+            Additional notes about the action
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Program">
             <summary>
             Configures and runs the web application for the Biatec Tokens API.
@@ -6477,6 +7102,81 @@
             <param name="assetId">The asset ID</param>
             <returns>Count of whitelist entries</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.IWhitelistRulesRepository">
+            <summary>
+            Repository interface for managing whitelist rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.CreateRuleAsync(BiatecTokensApi.Models.Whitelist.WhitelistRule)">
+            <summary>
+            Creates a new whitelist rule
+            </summary>
+            <param name="rule">The rule to create</param>
+            <returns>The created rule</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.GetRuleAsync(System.String)">
+            <summary>
+            Gets a rule by ID
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <returns>The rule if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.UpdateRuleAsync(BiatecTokensApi.Models.Whitelist.WhitelistRule)">
+            <summary>
+            Updates an existing rule
+            </summary>
+            <param name="rule">The rule to update</param>
+            <returns>True if updated successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.DeleteRuleAsync(System.String)">
+            <summary>
+            Deletes a rule
+            </summary>
+            <param name="ruleId">The rule ID to delete</param>
+            <returns>True if deleted successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.GetRulesForAssetAsync(System.UInt64)">
+            <summary>
+            Gets all rules for an asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <returns>List of rules</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.GetRulesForAssetAsync(System.UInt64,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistRuleType},System.String,System.Nullable{System.Boolean})">
+            <summary>
+            Gets rules for an asset with filtering
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="ruleType">Optional rule type filter</param>
+            <param name="network">Optional network filter</param>
+            <param name="isEnabled">Optional enabled status filter</param>
+            <returns>List of rules</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.AddAuditLogAsync(BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog)">
+            <summary>
+            Adds an audit log entry for rule changes
+            </summary>
+            <param name="auditLog">The audit log entry</param>
+            <returns>The created audit log entry</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.GetAuditLogAsync(System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets audit log entries for a rule
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>List of audit log entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.IWhitelistRulesRepository.GetAuditLogForAssetAsync(System.UInt64,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets audit log entries for an asset
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>List of audit log entries</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.WhitelistRepository">
             <summary>
             In-memory implementation of whitelist repository
@@ -6558,6 +7258,56 @@
             </summary>
             <param name="assetId">The asset ID</param>
             <returns>Count of whitelist entries</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.WhitelistRulesRepository">
+            <summary>
+            In-memory repository for managing whitelist rules with thread-safe operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.CreateRuleAsync(BiatecTokensApi.Models.Whitelist.WhitelistRule)">
+            <summary>
+            Creates a new whitelist rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.GetRuleAsync(System.String)">
+            <summary>
+            Gets a rule by ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.UpdateRuleAsync(BiatecTokensApi.Models.Whitelist.WhitelistRule)">
+            <summary>
+            Updates an existing rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.DeleteRuleAsync(System.String)">
+            <summary>
+            Deletes a rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.GetRulesForAssetAsync(System.UInt64)">
+            <summary>
+            Gets all rules for an asset
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.GetRulesForAssetAsync(System.UInt64,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistRuleType},System.String,System.Nullable{System.Boolean})">
+            <summary>
+            Gets rules for an asset with filtering
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.AddAuditLogAsync(BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog)">
+            <summary>
+            Adds an audit log entry for rule changes
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.GetAuditLogAsync(System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets audit log entries for a rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.WhitelistRulesRepository.GetAuditLogForAssetAsync(System.UInt64,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets audit log entries for an asset
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.ARC1400TokenService">
             <summary>
@@ -7382,6 +8132,72 @@
             Remaining capacity (-1 for unlimited)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IWhitelistRulesService">
+            <summary>
+            Service interface for managing whitelist rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.CreateRuleAsync(BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest,System.String)">
+            <summary>
+            Creates a new whitelist rule
+            </summary>
+            <param name="request">The rule creation request</param>
+            <param name="createdBy">The address of the user creating the rule</param>
+            <returns>The rule response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.UpdateRuleAsync(BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest,System.String)">
+            <summary>
+            Updates an existing whitelist rule
+            </summary>
+            <param name="request">The rule update request</param>
+            <param name="updatedBy">The address of the user updating the rule</param>
+            <returns>The rule response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.GetRuleAsync(System.String)">
+            <summary>
+            Gets a rule by ID
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <returns>The rule response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.DeleteRuleAsync(System.String,System.String)">
+            <summary>
+            Deletes a rule
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <param name="deletedBy">The address of the user deleting the rule</param>
+            <returns>The response indicating success or failure</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.ListRulesAsync(BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest)">
+            <summary>
+            Lists rules for an asset
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>The list response with rules and pagination</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.ApplyRuleAsync(BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest,System.String)">
+            <summary>
+            Applies a rule to existing whitelist entries
+            </summary>
+            <param name="request">The apply rule request</param>
+            <param name="performedBy">The address of the user applying the rule</param>
+            <returns>The apply rule response with validation results</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.ValidateAgainstRulesAsync(BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesRequest)">
+            <summary>
+            Validates whitelist entries against rules
+            </summary>
+            <param name="request">The validation request</param>
+            <returns>The validation response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistRulesService.ValidateEntryAgainstRuleAsync(BiatecTokensApi.Models.Whitelist.WhitelistEntry,BiatecTokensApi.Models.Whitelist.WhitelistRule)">
+            <summary>
+            Validates a single whitelist entry against a specific rule
+            </summary>
+            <param name="entry">The whitelist entry to validate</param>
+            <param name="rule">The rule to validate against</param>
+            <returns>Validation error if failed, null if passed</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IWhitelistService">
             <summary>
             Interface for whitelist service operations
@@ -7503,6 +8319,56 @@
             In a production environment, this would typically be managed through a separate admin API
             or integrated with a billing/subscription management system.
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Services.WhitelistRulesService">
+            <summary>
+            Service for managing whitelist rules with MICA compliance
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.#ctor(BiatecTokensApi.Repositories.IWhitelistRulesRepository,BiatecTokensApi.Repositories.IWhitelistRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WhitelistRulesService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.WhitelistRulesService"/> class.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.CreateRuleAsync(BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest,System.String)">
+            <summary>
+            Creates a new whitelist rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.UpdateRuleAsync(BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest,System.String)">
+            <summary>
+            Updates an existing whitelist rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.GetRuleAsync(System.String)">
+            <summary>
+            Gets a rule by ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.DeleteRuleAsync(System.String,System.String)">
+            <summary>
+            Deletes a rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.ListRulesAsync(BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest)">
+            <summary>
+            Lists rules for an asset
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.ApplyRuleAsync(BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest,System.String)">
+            <summary>
+            Applies a rule to existing whitelist entries
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.ValidateAgainstRulesAsync(BiatecTokensApi.Models.Whitelist.ValidateAgainstRulesRequest)">
+            <summary>
+            Validates whitelist entries against rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistRulesService.ValidateEntryAgainstRuleAsync(BiatecTokensApi.Models.Whitelist.WhitelistEntry,BiatecTokensApi.Models.Whitelist.WhitelistRule)">
+            <summary>
+            Validates a single whitelist entry against a specific rule
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.WhitelistService">
             <summary>

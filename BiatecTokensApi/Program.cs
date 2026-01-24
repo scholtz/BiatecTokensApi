@@ -83,6 +83,7 @@ namespace BiatecTokensApi
             // Register repositories
             builder.Services.AddSingleton<IIPFSRepository, IPFSRepository>();
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
+            builder.Services.AddSingleton<IWhitelistRulesRepository, WhitelistRulesRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceRepository, BiatecTokensApi.Repositories.ComplianceRepository>();
 
             // Register metering service
@@ -98,6 +99,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IARC200TokenService, ARC200TokenService>();
             builder.Services.AddSingleton<IARC1400TokenService, ARC1400TokenService>();
             builder.Services.AddSingleton<IWhitelistService, WhitelistService>();
+            builder.Services.AddSingleton<IWhitelistRulesService, WhitelistRulesService>();
             builder.Services.AddSingleton<IComplianceService, ComplianceService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
@@ -130,7 +132,9 @@ namespace BiatecTokensApi
             _ = app.Services.GetService<IERC20TokenService>() ?? throw new Exception("ERC20 Token Service is not registered");
             _ = app.Services.GetService<IIPFSRepository>() ?? throw new Exception("IPFS Repository is not registered");
             _ = app.Services.GetService<IWhitelistRepository>() ?? throw new Exception("Whitelist Repository is not registered");
+            _ = app.Services.GetService<IWhitelistRulesRepository>() ?? throw new Exception("Whitelist Rules Repository is not registered");
             _ = app.Services.GetService<IWhitelistService>() ?? throw new Exception("Whitelist Service is not registered");
+            _ = app.Services.GetService<IWhitelistRulesService>() ?? throw new Exception("Whitelist Rules Service is not registered");
 
             app.Run();
         }
