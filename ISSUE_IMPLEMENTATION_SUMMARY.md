@@ -159,11 +159,11 @@ The BiatecTokensApi repository contains a complete, production-ready implementat
 ## 🧪 Test Coverage
 
 ### Test Suite Summary
-**Total Tests**: 647  
-**Passed**: 634  
-**Failed**: 0  
-**Skipped**: 13 (IPFS integration tests requiring external service)  
-**Success Rate**: 100% (of executable tests)
+- **Total Tests**: 647  
+- **Passed**: 634  
+- **Failed**: 0  
+- **Skipped**: 13 (IPFS integration tests requiring external service)  
+- **Success Rate**: 100% (of executable tests)
 
 ### Whitelist Audit Tests
 **File**: `BiatecTokensTests/WhitelistAuditLogEndpointTests.cs`  
@@ -299,13 +299,17 @@ The BiatecTokensApi repository contains a complete, production-ready implementat
 - ✅ MICA compliance notes
 - ✅ Use case descriptions
 
-**Access Swagger UI**: `https://localhost:7000/swagger`
+**Access Swagger UI**: `https://{your-api-host}:7000/swagger` (default port: 7000)
 
 ### Documentation Files
 - `WHITELIST_AUDIT_ENDPOINTS_IMPLEMENTATION.md` - Detailed whitelist audit implementation
 - `AUDIT_LOG_IMPLEMENTATION.md` - Compliance audit implementation
 - `WHITELIST_ENFORCEMENT_IMPLEMENTATION.md` - Transfer enforcement
 - `COMPLIANCE_API.md` - Complete compliance API documentation
+
+### Accessing the API
+- **Local Development**: `https://localhost:7000/swagger`
+- **Production**: `https://{your-api-host}:{port}/swagger` (configure host and port in deployment)
 
 ---
 
@@ -436,10 +440,12 @@ The BiatecTokensApi repository contains a **complete, production-ready implement
 ```
 Build succeeded.
 0 Error(s)
-Total tests: 647
-Passed: 634
-Failed: 0
-Skipped: 13
+
+Test Results:
+- Total tests: 647
+- Passed: 634
+- Failed: 0
+- Skipped: 13
 ```
 
 ### Next Steps
@@ -453,7 +459,9 @@ No additional implementation is required. The system is ready for:
 
 ## 📞 Support & Resources
 
-- **Swagger Documentation**: `https://localhost:7000/swagger`
+- **Swagger Documentation**: 
+  - Local development: `https://localhost:7000/swagger`
+  - Production: `https://{your-api-host}:{port}/swagger`
 - **Implementation Docs**: See `WHITELIST_AUDIT_ENDPOINTS_IMPLEMENTATION.md`
 - **Compliance Guide**: See `COMPLIANCE_API.md`
 - **Repository**: https://github.com/scholtz/BiatecTokensApi
