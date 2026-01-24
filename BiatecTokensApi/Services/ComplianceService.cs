@@ -2607,9 +2607,13 @@ namespace BiatecTokensApi.Services
                     foreach (var (path, (content, description, format)) in evidenceData)
                     {
                         var entry = archive.CreateEntry(path);
-                        using var entryStream = entry.Open();
                         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-                        await entryStream.WriteAsync(bytes.AsMemory());
+                        
+                        // Write content to entry and explicitly dispose the stream
+                        using (var entryStream = entry.Open())
+                        {
+                            await entryStream.WriteAsync(bytes.AsMemory());
+                        } // Stream is closed here before next iteration
 
                         // Calculate SHA256 checksum using HashData (more robust than Create())
                         var hash = SHA256.HashData(bytes);
@@ -2645,16 +2649,20 @@ namespace BiatecTokensApi.Services
                     var manifestJson = System.Text.Json.JsonSerializer.Serialize(manifest,
                         new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                     var manifestEntry = archive.CreateEntry("manifest.json");
-                    using var manifestStream = manifestEntry.Open();
                     var manifestBytes = System.Text.Encoding.UTF8.GetBytes(manifestJson);
-                    await manifestStream.WriteAsync(manifestBytes.AsMemory());
+                    using (var manifestStream = manifestEntry.Open())
+                    {
+                        await manifestStream.WriteAsync(manifestBytes.AsMemory());
+                    } // Stream is closed here
 
                     // Add README
                     var readme = GenerateReadme(manifest);
                     var readmeEntry = archive.CreateEntry("README.txt");
-                    using var readmeStream = readmeEntry.Open();
                     var readmeBytes = System.Text.Encoding.UTF8.GetBytes(readme);
-                    await readmeStream.WriteAsync(readmeBytes.AsMemory());
+                    using (var readmeStream = readmeEntry.Open())
+                    {
+                        await readmeStream.WriteAsync(readmeBytes.AsMemory());
+                    } // Stream is closed here
                 }
 
                 // Calculate bundle checksum using HashData (more robust than Create())

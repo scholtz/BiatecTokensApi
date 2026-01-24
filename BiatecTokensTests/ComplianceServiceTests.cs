@@ -723,7 +723,7 @@ namespace BiatecTokensTests
             var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
 
             // Assert
-            Assert.That(result.Success, Is.True);
+            Assert.That(result.Success, Is.True, $"Bundle generation failed: {result.ErrorMessage}");
             Assert.That(result.BundleMetadata, Is.Not.Null);
             Assert.That(result.BundleMetadata!.AssetId, Is.EqualTo(assetId));
             Assert.That(result.BundleMetadata.GeneratedBy, Is.EqualTo(requestedBy));
@@ -795,7 +795,7 @@ namespace BiatecTokensTests
             var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
 
             // Assert
-            Assert.That(result.Success, Is.True);
+            Assert.That(result.Success, Is.True, $"Bundle generation failed: {result.ErrorMessage}");
             Assert.That(result.BundleMetadata, Is.Not.Null);
             Assert.That(result.BundleMetadata!.FromDate, Is.EqualTo(fromDate));
             Assert.That(result.BundleMetadata.ToDate, Is.EqualTo(toDate));
@@ -846,7 +846,7 @@ namespace BiatecTokensTests
             var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
 
             // Assert
-            Assert.That(result.Success, Is.True);
+            Assert.That(result.Success, Is.True, $"Bundle generation failed: {result.ErrorMessage}");
             Assert.That(result.BundleMetadata, Is.Not.Null);
             Assert.That(result.BundleMetadata!.BundleSha256, Is.Not.Empty);
             Assert.That(result.BundleMetadata.BundleSha256.Length, Is.EqualTo(64)); // SHA256 hex string is 64 characters
@@ -865,15 +865,28 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task GenerateComplianceEvidenceBundleAsync_RepositoryError_ShouldReturnFailure()
+        public async Task GenerateComplianceEvidenceBundleAsync_WhitelistServiceError_ShouldReturnFailure()
         {
             // Arrange
             var assetId = 12345ul;
             var requestedBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
-            var request = new GenerateComplianceEvidenceBundleRequest { AssetId = assetId };
+            var request = new GenerateComplianceEvidenceBundleRequest 
+            { 
+                AssetId = assetId,
+                IncludeWhitelistHistory = true  // This will trigger the whitelist service call
+            };
 
+            // Mock metadata calls to succeed
             _repositoryMock.Setup(r => r.GetMetadataByAssetIdAsync(assetId))
-                .ThrowsAsync(new Exception("Database connection failed"));
+                .ReturnsAsync(new ComplianceMetadata { AssetId = assetId, Network = "testnet" });
+            
+            // Mock whitelist service to throw an exception
+            _whitelistServiceMock.Setup(w => w.ListEntriesAsync(It.IsAny<BiatecTokensApi.Models.Whitelist.ListWhitelistRequest>()))
+                .ThrowsAsync(new Exception("Whitelist service unavailable"));
+            
+            // Mock AddAuditLogEntryAsync to allow the failed log to be recorded
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
+                .Returns(Task.FromResult(true));
 
             // Act
             var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
@@ -881,7 +894,8 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Is.Not.Null);
-            Assert.That(result.ErrorMessage!.Contains("Database connection failed"), Is.True);
+            Assert.That(result.ErrorMessage, Does.Contain("Failed to generate compliance evidence bundle"));
+            Assert.That(result.ErrorMessage, Does.Contain("Whitelist service unavailable"));
 
             // Verify failed audit log was attempted
             _repositoryMock.Verify(
