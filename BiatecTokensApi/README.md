@@ -521,6 +521,11 @@ For detailed documentation, see [COMPLIANCE_INDICATORS_API.md](../COMPLIANCE_IND
 - `DELETE /api/v1/whitelist` - Remove address from whitelist
 - `POST /api/v1/whitelist/bulk` - Bulk add addresses
 - `GET /api/v1/whitelist/{assetId}/audit-log` - Get compliance audit trail
+- `GET /api/v1/whitelist/audit-log` - Get audit logs across all assets
+- `GET /api/v1/whitelist/audit-log/export/csv` - Export audit log as CSV
+- `GET /api/v1/whitelist/audit-log/export/json` - Export audit log as JSON
+
+For frontend integration guide, see [RWA_WHITELIST_FRONTEND_INTEGRATION.md](../RWA_WHITELIST_FRONTEND_INTEGRATION.md)
 
 ### Network-Specific Compliance Rules
 
