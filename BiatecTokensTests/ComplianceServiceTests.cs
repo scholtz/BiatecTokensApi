@@ -690,37 +690,34 @@ namespace BiatecTokensTests
                         new BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry
                         {
                             AssetId = assetId,
-                            ActionType = "Add",
+                            ActionType = BiatecTokensApi.Models.Whitelist.WhitelistActionType.Add,
                             PerformedBy = requestedBy,
-                            Success = true,
-                            Timestamp = DateTime.UtcNow.AddDays(-5)
+                            PerformedAt = DateTime.UtcNow.AddDays(-5)
                         }
                     }
                 });
 
             // Mock compliance audit log
             _repositoryMock.Setup(r => r.GetAuditLogAsync(It.IsAny<GetComplianceAuditLogRequest>()))
-                .ReturnsAsync(new ComplianceAuditLogResponse
+                .ReturnsAsync(new List<ComplianceAuditLogEntry>
                 {
-                    Success = true,
-                    Entries = new List<ComplianceAuditLogEntry>
+                    new ComplianceAuditLogEntry
                     {
-                        new ComplianceAuditLogEntry
-                        {
-                            AssetId = assetId,
-                            ActionType = ComplianceActionType.Create,
-                            PerformedBy = requestedBy,
-                            Success = true,
-                            Timestamp = DateTime.UtcNow.AddDays(-2)
-                        }
+                        AssetId = assetId,
+                        ActionType = ComplianceActionType.Create,
+                        PerformedBy = requestedBy,
+                        Success = true,
+                        PerformedAt = DateTime.UtcNow.AddDays(-2)
                     }
                 });
 
-            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
-                .Returns(Task.CompletedTask);
+            _repositoryMock.Setup(r => r.GetAuditLogCountAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(1);
 
-            _meteringServiceMock.Setup(m => m.EmitMeteringEventAsync(It.IsAny<MeteringEvent>()))
-                .Returns(Task.CompletedTask);
+            _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
+                .Returns(Task.FromResult(true));
+
+            _meteringServiceMock.Setup(m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()));
 
             // Act
             var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
@@ -741,10 +738,10 @@ namespace BiatecTokensTests
 
             // Verify metering event was emitted
             _meteringServiceMock.Verify(
-                m => m.EmitMeteringEventAsync(It.Is<MeteringEvent>(
-                    e => e.EventType == "compliance_evidence_export" &&
-                         e.ActorAddress == requestedBy &&
-                         e.AssetId == assetId.ToString()
+                m => m.EmitMeteringEvent(It.Is<SubscriptionMeteringEvent>(
+                    e => e.OperationType == MeteringOperationType.Export &&
+                         e.PerformedBy == requestedBy &&
+                         e.AssetId == assetId
                 )),
                 Times.Once);
 
@@ -784,13 +781,15 @@ namespace BiatecTokensTests
                 .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse { Success = true, Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry>() });
 
             _repositoryMock.Setup(r => r.GetAuditLogAsync(It.IsAny<GetComplianceAuditLogRequest>()))
-                .ReturnsAsync(new ComplianceAuditLogResponse { Success = true, Entries = new List<ComplianceAuditLogEntry>() });
+                .ReturnsAsync(new List<ComplianceAuditLogEntry>());
+
+            _repositoryMock.Setup(r => r.GetAuditLogCountAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(0);
 
             _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
-                .Returns(Task.CompletedTask);
+                .Returns(Task.FromResult(true));
 
-            _meteringServiceMock.Setup(m => m.EmitMeteringEventAsync(It.IsAny<MeteringEvent>()))
-                .Returns(Task.CompletedTask);
+            _meteringServiceMock.Setup(m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()));
 
             // Act
             var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
@@ -833,13 +832,15 @@ namespace BiatecTokensTests
                 .ReturnsAsync(new BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse { Success = true, Entries = new List<BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry>() });
 
             _repositoryMock.Setup(r => r.GetAuditLogAsync(It.IsAny<GetComplianceAuditLogRequest>()))
-                .ReturnsAsync(new ComplianceAuditLogResponse { Success = true, Entries = new List<ComplianceAuditLogEntry>() });
+                .ReturnsAsync(new List<ComplianceAuditLogEntry>());
+
+            _repositoryMock.Setup(r => r.GetAuditLogCountAsync(It.IsAny<GetComplianceAuditLogRequest>()))
+                .ReturnsAsync(0);
 
             _repositoryMock.Setup(r => r.AddAuditLogEntryAsync(It.IsAny<ComplianceAuditLogEntry>()))
-                .Returns(Task.CompletedTask);
+                .Returns(Task.FromResult(true));
 
-            _meteringServiceMock.Setup(m => m.EmitMeteringEventAsync(It.IsAny<MeteringEvent>()))
-                .Returns(Task.CompletedTask);
+            _meteringServiceMock.Setup(m => m.EmitMeteringEvent(It.IsAny<SubscriptionMeteringEvent>()));
 
             // Act
             var result = await _service.GenerateComplianceEvidenceBundleAsync(request, requestedBy);
