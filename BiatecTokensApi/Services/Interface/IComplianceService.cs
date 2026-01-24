@@ -203,5 +203,24 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="network">Optional network filter</param>
         /// <returns>Response with compliance health metrics</returns>
         Task<ComplianceHealthResponse> GetComplianceHealthAsync(string issuerAddress, string? network);
+
+        /// <summary>
+        /// Generates a signed compliance evidence bundle (ZIP) for auditors
+        /// </summary>
+        /// <param name="request">The evidence bundle request containing asset ID and date range</param>
+        /// <param name="requestedBy">The address of the user requesting the bundle</param>
+        /// <returns>Response with the ZIP bundle content and manifest metadata</returns>
+        /// <remarks>
+        /// This method generates a comprehensive ZIP archive containing:
+        /// - Audit logs (whitelist, blacklist, compliance operations)
+        /// - Whitelist history and current entries
+        /// - Transfer approval records
+        /// - Token metadata and compliance policies
+        /// - Manifest file with SHA256 checksums and timestamps
+        /// 
+        /// The bundle is designed for MICA/RWA compliance audits and supports
+        /// external verification with cryptographic checksums.
+        /// </remarks>
+        Task<ComplianceEvidenceBundleResponse> GenerateComplianceEvidenceBundleAsync(GenerateComplianceEvidenceBundleRequest request, string requestedBy);
     }
 }

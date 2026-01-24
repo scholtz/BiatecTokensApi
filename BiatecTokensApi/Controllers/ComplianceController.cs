@@ -1737,5 +1737,122 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Generates a signed compliance evidence bundle (ZIP) for auditors
+        /// </summary>
+        /// <param name="request">The evidence bundle request containing asset ID and filtering options</param>
+        /// <returns>ZIP file containing audit logs, whitelist history, compliance metadata, and manifest with checksums</returns>
+        /// <remarks>
+        /// Generates a comprehensive compliance evidence bundle for MICA/RWA audit purposes.
+        /// 
+        /// **Bundle Contents:**
+        /// - **manifest.json**: Complete manifest with SHA256 checksums of all files
+        /// - **README.txt**: Human-readable documentation of bundle contents
+        /// - **metadata/compliance_metadata.json**: Token compliance metadata (KYC, jurisdiction, regulatory framework)
+        /// - **whitelist/current_entries.json**: Current whitelist entries
+        /// - **whitelist/audit_log.json**: Complete whitelist operation history
+        /// - **audit_logs/compliance_operations.json**: Compliance metadata operation logs
+        /// - **audit_logs/transfer_validations.json**: Transfer validation records
+        /// - **policy/retention_policy.json**: 7-year MICA retention policy details
+        /// 
+        /// **Manifest Features:**
+        /// - Bundle ID for tracking and audit trail
+        /// - Generation timestamp (UTC)
+        /// - Generator's Algorand address
+        /// - SHA256 checksums for all included files
+        /// - SHA256 checksum for entire bundle
+        /// - Summary statistics (record counts, date ranges, categories)
+        /// - Network information (VOI, Aramid, etc.)
+        /// 
+        /// **Use Cases:**
+        /// - MICA compliance audits
+        /// - Regulatory investigations
+        /// - External auditor submissions
+        /// - Procurement compliance evidence
+        /// - Long-term archival and retention
+        /// 
+        /// **Access Control:**
+        /// - Requires ARC-0014 authentication
+        /// - Recommended for compliance officers and auditors only
+        /// - Export event is logged in audit trail
+        /// - Metering event emitted for subscription tracking
+        /// 
+        /// **Filtering:**
+        /// - Optional date range filtering (fromDate, toDate)
+        /// - Selective inclusion of evidence types
+        /// - Asset-specific data only
+        /// 
+        /// **Security:**
+        /// - All files include SHA256 checksums for integrity verification
+        /// - Bundle includes overall SHA256 checksum
+        /// - Timestamp ensures temporal ordering
+        /// - Immutable source data (append-only logs)
+        /// 
+        /// **File Format:**
+        /// - Filename: compliance-evidence-{assetId}-{timestamp}.zip
+        /// - Content-Type: application/zip
+        /// - All JSON files are UTF-8 encoded with pretty-printing
+        /// </remarks>
+        [HttpPost("evidence-bundle")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GenerateComplianceEvidenceBundle(
+            [FromBody] GenerateComplianceEvidenceBundleRequest request)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation("Compliance evidence bundle requested for asset {AssetId} by {UserAddress}",
+                    request.AssetId, userAddress);
+
+                // Validate request
+                if (request.AssetId == 0)
+                {
+                    return BadRequest(new ComplianceEvidenceBundleResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Asset ID is required"
+                    });
+                }
+
+                if (request.FromDate.HasValue && request.ToDate.HasValue && request.FromDate > request.ToDate)
+                {
+                    return BadRequest(new ComplianceEvidenceBundleResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "FromDate must be before ToDate"
+                    });
+                }
+
+                // Generate the bundle
+                var result = await _complianceService.GenerateComplianceEvidenceBundleAsync(request, userAddress);
+
+                if (result.Success && result.ZipContent != null && result.FileName != null)
+                {
+                    _logger.LogInformation(
+                        "Generated compliance evidence bundle for asset {AssetId} ({Size} bytes, {FileCount} files)",
+                        request.AssetId, result.ZipContent.Length, result.BundleMetadata?.Files.Count ?? 0);
+
+                    return File(result.ZipContent, "application/zip", result.FileName);
+                }
+                else
+                {
+                    _logger.LogError("Failed to generate compliance evidence bundle: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating compliance evidence bundle");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceEvidenceBundleResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
     }
 }

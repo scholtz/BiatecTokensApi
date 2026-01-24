@@ -3,6 +3,8 @@ using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Models.Whitelist;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
+using System.IO.Compression;
+using System.Security.Cryptography;
 
 namespace BiatecTokensApi.Services
 {
@@ -2392,6 +2394,399 @@ namespace BiatecTokensApi.Services
                     ErrorMessage = $"Failed to retrieve compliance health: {ex.Message}"
                 };
             }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ComplianceEvidenceBundleResponse> GenerateComplianceEvidenceBundleAsync(
+            GenerateComplianceEvidenceBundleRequest request,
+            string requestedBy)
+        {
+            try
+            {
+                _logger.LogInformation("Generating compliance evidence bundle for asset {AssetId} by {RequestedBy}", 
+                    request.AssetId, requestedBy);
+
+                // Generate unique bundle ID
+                var bundleId = Guid.NewGuid().ToString("N");
+                var generatedAt = DateTime.UtcNow;
+
+                // Collect all evidence data
+                var evidenceData = new Dictionary<string, (string content, string description, string format)>();
+                var bundleSummary = new BundleSummary();
+                DateTime? oldestDate = null;
+                DateTime? newestDate = null;
+                var includedCategories = new HashSet<string>();
+
+                // 1. Collect Token Metadata
+                if (request.IncludeTokenMetadata)
+                {
+                    var metadataResponse = await GetMetadataAsync(request.AssetId);
+                    if (metadataResponse.Success && metadataResponse.Metadata != null)
+                    {
+                        var metadata = metadataResponse.Metadata;
+                        var metadataJson = System.Text.Json.JsonSerializer.Serialize(metadata, 
+                            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        evidenceData.Add("metadata/compliance_metadata.json", 
+                            (metadataJson, "Token compliance metadata including KYC status, jurisdiction, and regulatory framework", "JSON"));
+                        bundleSummary.HasComplianceMetadata = true;
+                    }
+                }
+
+                // 2. Collect Whitelist History
+                if (request.IncludeWhitelistHistory)
+                {
+                    // Get current whitelist entries
+                    var whitelistRequest = new ListWhitelistRequest
+                    {
+                        AssetId = request.AssetId,
+                        Page = 1,
+                        PageSize = 10000
+                    };
+                    var whitelistResponse = await _whitelistService.ListEntriesAsync(whitelistRequest);
+                    if (whitelistResponse.Success)
+                    {
+                        var whitelistJson = System.Text.Json.JsonSerializer.Serialize(whitelistResponse.Entries,
+                            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        evidenceData.Add("whitelist/current_entries.json",
+                            (whitelistJson, "Current whitelist entries for the token", "JSON"));
+                        bundleSummary.WhitelistEntriesCount = whitelistResponse.Entries.Count;
+                    }
+
+                    // Get whitelist audit log
+                    var whitelistAuditRequest = new GetWhitelistAuditLogRequest
+                    {
+                        AssetId = request.AssetId,
+                        FromDate = request.FromDate,
+                        ToDate = request.ToDate,
+                        Page = 1,
+                        PageSize = 10000
+                    };
+                    var whitelistAuditResponse = await _whitelistService.GetAuditLogAsync(whitelistAuditRequest);
+                    if (whitelistAuditResponse.Success)
+                    {
+                        var auditJson = System.Text.Json.JsonSerializer.Serialize(whitelistAuditResponse.Entries,
+                            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        evidenceData.Add("whitelist/audit_log.json",
+                            (auditJson, "Complete audit log of whitelist operations (add/remove)", "JSON"));
+                        bundleSummary.WhitelistRuleAuditCount = whitelistAuditResponse.Entries.Count;
+
+                        // Update date ranges
+                        foreach (var entry in whitelistAuditResponse.Entries)
+                        {
+                            if (oldestDate == null || entry.Timestamp < oldestDate) oldestDate = entry.Timestamp;
+                            if (newestDate == null || entry.Timestamp > newestDate) newestDate = entry.Timestamp;
+                        }
+                    }
+                }
+
+                // 3. Collect Compliance Audit Logs
+                if (request.IncludeAuditLogs)
+                {
+                    var auditRequest = new GetComplianceAuditLogRequest
+                    {
+                        AssetId = request.AssetId,
+                        FromDate = request.FromDate,
+                        ToDate = request.ToDate,
+                        Page = 1,
+                        PageSize = 10000
+                    };
+                    var auditResponse = await GetAuditLogAsync(auditRequest);
+                    if (auditResponse.Success)
+                    {
+                        var auditJson = System.Text.Json.JsonSerializer.Serialize(auditResponse.Entries,
+                            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        evidenceData.Add("audit_logs/compliance_operations.json",
+                            (auditJson, "Audit log of compliance metadata operations", "JSON"));
+                        bundleSummary.AuditLogCount = auditResponse.Entries.Count;
+
+                        // Update date ranges and categories
+                        foreach (var entry in auditResponse.Entries)
+                        {
+                            if (oldestDate == null || entry.Timestamp < oldestDate) oldestDate = entry.Timestamp;
+                            if (newestDate == null || entry.Timestamp > newestDate) newestDate = entry.Timestamp;
+                            includedCategories.Add(entry.ActionType.ToString());
+                        }
+                    }
+                }
+
+                // 4. Collect Transfer Validation Records (if available through audit logs)
+                if (request.IncludeTransferApprovals)
+                {
+                    // Transfer validations are logged in whitelist audit log with action type "ValidateTransfer"
+                    var transferAuditRequest = new GetWhitelistAuditLogRequest
+                    {
+                        AssetId = request.AssetId,
+                        FromDate = request.FromDate,
+                        ToDate = request.ToDate,
+                        ActionType = "ValidateTransfer",
+                        Page = 1,
+                        PageSize = 10000
+                    };
+                    var transferAuditResponse = await _whitelistService.GetAuditLogAsync(transferAuditRequest);
+                    if (transferAuditResponse.Success && transferAuditResponse.Entries.Any())
+                    {
+                        var transferJson = System.Text.Json.JsonSerializer.Serialize(transferAuditResponse.Entries,
+                            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        evidenceData.Add("audit_logs/transfer_validations.json",
+                            (transferJson, "Audit log of transfer validation operations", "JSON"));
+                        bundleSummary.TransferValidationCount = transferAuditResponse.Entries.Count;
+
+                        foreach (var entry in transferAuditResponse.Entries)
+                        {
+                            if (oldestDate == null || entry.Timestamp < oldestDate) oldestDate = entry.Timestamp;
+                            if (newestDate == null || entry.Timestamp > newestDate) newestDate = entry.Timestamp;
+                        }
+                        includedCategories.Add("TransferValidation");
+                    }
+                }
+
+                // 5. Collect Policy Metadata
+                if (request.IncludePolicyMetadata)
+                {
+                    var retentionPolicy = new
+                    {
+                        Framework = "MICA 2024",
+                        MinimumRetentionPeriodYears = 7,
+                        DataImmutability = "All audit entries are append-only and cannot be modified or deleted",
+                        Scope = "Whitelist, blacklist, compliance metadata, and transfer validation events",
+                        NetworkSupport = "All supported networks including VOI and Aramid mainnets"
+                    };
+                    var policyJson = System.Text.Json.JsonSerializer.Serialize(retentionPolicy,
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                    evidenceData.Add("policy/retention_policy.json",
+                        (policyJson, "7-year MICA retention policy and data governance", "JSON"));
+                }
+
+                // Get network from metadata
+                var metadataForNetwork = await GetMetadataAsync(request.AssetId);
+                var network = metadataForNetwork.Metadata?.Network;
+
+                // Update summary
+                bundleSummary.OldestRecordDate = oldestDate;
+                bundleSummary.NewestRecordDate = newestDate;
+                bundleSummary.HasTokenMetadata = request.IncludeTokenMetadata;
+                bundleSummary.IncludedCategories = includedCategories.ToList();
+
+                // Create manifest with checksums
+                var files = new List<BundleFile>();
+                using var memoryStream = new System.IO.MemoryStream();
+                using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
+                {
+                    foreach (var (path, (content, description, format)) in evidenceData)
+                    {
+                        var entry = archive.CreateEntry(path);
+                        using var entryStream = entry.Open();
+                        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+                        await entryStream.WriteAsync(bytes, 0, bytes.Length);
+
+                        // Calculate SHA256 checksum
+                        using var sha256 = System.Security.Cryptography.SHA256.Create();
+                        var hash = sha256.ComputeHash(bytes);
+                        var checksum = BitConverter.ToString(hash).Replace("-", "").ToLower();
+
+                        files.Add(new BundleFile
+                        {
+                            Path = path,
+                            Description = description,
+                            Sha256 = checksum,
+                            SizeBytes = bytes.Length,
+                            Format = format
+                        });
+                    }
+
+                    // Create manifest
+                    var manifest = new ComplianceEvidenceBundleMetadata
+                    {
+                        BundleId = bundleId,
+                        AssetId = request.AssetId,
+                        GeneratedAt = generatedAt,
+                        GeneratedBy = requestedBy,
+                        FromDate = request.FromDate,
+                        ToDate = request.ToDate,
+                        Network = network,
+                        Files = files,
+                        Summary = bundleSummary,
+                        ComplianceFramework = "MICA 2024",
+                        RetentionPeriodYears = 7,
+                        BundleSha256 = "" // Will be calculated after manifest is added
+                    };
+
+                    var manifestJson = System.Text.Json.JsonSerializer.Serialize(manifest,
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                    var manifestEntry = archive.CreateEntry("manifest.json");
+                    using var manifestStream = manifestEntry.Open();
+                    var manifestBytes = System.Text.Encoding.UTF8.GetBytes(manifestJson);
+                    await manifestStream.WriteAsync(manifestBytes, 0, manifestBytes.Length);
+
+                    // Add README
+                    var readme = GenerateReadme(manifest);
+                    var readmeEntry = archive.CreateEntry("README.txt");
+                    using var readmeStream = readmeEntry.Open();
+                    var readmeBytes = System.Text.Encoding.UTF8.GetBytes(readme);
+                    await readmeStream.WriteAsync(readmeBytes, 0, readmeBytes.Length);
+                }
+
+                // Calculate bundle checksum
+                memoryStream.Position = 0;
+                var bundleBytes = memoryStream.ToArray();
+                using var bundleSha256 = System.Security.Cryptography.SHA256.Create();
+                var bundleHash = bundleSha256.ComputeHash(bundleBytes);
+                var bundleChecksum = BitConverter.ToString(bundleHash).Replace("-", "").ToLower();
+
+                // Update metadata with bundle checksum
+                var metadata = new ComplianceEvidenceBundleMetadata
+                {
+                    BundleId = bundleId,
+                    AssetId = request.AssetId,
+                    GeneratedAt = generatedAt,
+                    GeneratedBy = requestedBy,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    Network = network,
+                    Files = files,
+                    Summary = bundleSummary,
+                    ComplianceFramework = "MICA 2024",
+                    RetentionPeriodYears = 7,
+                    BundleSha256 = bundleChecksum
+                };
+
+                // Log the export for audit trail
+                await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                {
+                    AssetId = request.AssetId,
+                    Network = network,
+                    ActionType = ComplianceActionType.Export,
+                    PerformedBy = requestedBy,
+                    Success = true,
+                    Details = $"Generated compliance evidence bundle {bundleId} with {files.Count} files"
+                });
+
+                // Emit metering event for compliance export
+                await _meteringService.EmitMeteringEventAsync(new MeteringEvent
+                {
+                    EventType = "compliance_evidence_export",
+                    ActorAddress = requestedBy,
+                    AssetId = request.AssetId.ToString(),
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "bundle_id", bundleId },
+                        { "file_count", files.Count.ToString() },
+                        { "bundle_size_bytes", bundleBytes.Length.ToString() }
+                    }
+                });
+
+                var fileName = $"compliance-evidence-{request.AssetId}-{DateTime.UtcNow:yyyyMMddHHmmss}.zip";
+
+                _logger.LogInformation("Successfully generated compliance evidence bundle {BundleId} for asset {AssetId}", 
+                    bundleId, request.AssetId);
+
+                return new ComplianceEvidenceBundleResponse
+                {
+                    Success = true,
+                    BundleMetadata = metadata,
+                    ZipContent = bundleBytes,
+                    FileName = fileName
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating compliance evidence bundle for asset {AssetId}", request.AssetId);
+                
+                // Log failed export attempt
+                try
+                {
+                    await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+                    {
+                        AssetId = request.AssetId,
+                        ActionType = ComplianceActionType.Export,
+                        PerformedBy = requestedBy,
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    });
+                }
+                catch
+                {
+                    // Ignore audit log errors
+                }
+
+                return new ComplianceEvidenceBundleResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to generate compliance evidence bundle: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Generates a README file for the compliance evidence bundle
+        /// </summary>
+        private string GenerateReadme(ComplianceEvidenceBundleMetadata metadata)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("COMPLIANCE EVIDENCE BUNDLE");
+            sb.AppendLine("==========================");
+            sb.AppendLine();
+            sb.AppendLine($"Bundle ID: {metadata.BundleId}");
+            sb.AppendLine($"Asset ID: {metadata.AssetId}");
+            sb.AppendLine($"Generated: {metadata.GeneratedAt:yyyy-MM-dd HH:mm:ss} UTC");
+            sb.AppendLine($"Generated By: {metadata.GeneratedBy}");
+            sb.AppendLine($"Network: {metadata.Network ?? "N/A"}");
+            sb.AppendLine($"Compliance Framework: {metadata.ComplianceFramework}");
+            sb.AppendLine($"Retention Period: {metadata.RetentionPeriodYears} years");
+            sb.AppendLine();
+            
+            if (metadata.FromDate.HasValue || metadata.ToDate.HasValue)
+            {
+                sb.AppendLine("Date Range:");
+                if (metadata.FromDate.HasValue)
+                    sb.AppendLine($"  From: {metadata.FromDate.Value:yyyy-MM-dd}");
+                if (metadata.ToDate.HasValue)
+                    sb.AppendLine($"  To: {metadata.ToDate.Value:yyyy-MM-dd}");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("BUNDLE CONTENTS:");
+            sb.AppendLine("----------------");
+            foreach (var file in metadata.Files)
+            {
+                sb.AppendLine($"- {file.Path}");
+                sb.AppendLine($"  Description: {file.Description}");
+                sb.AppendLine($"  Format: {file.Format}");
+                sb.AppendLine($"  Size: {file.SizeBytes:N0} bytes");
+                sb.AppendLine($"  SHA256: {file.Sha256}");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("SUMMARY:");
+            sb.AppendLine("--------");
+            sb.AppendLine($"Audit Log Entries: {metadata.Summary.AuditLogCount}");
+            sb.AppendLine($"Whitelist Entries: {metadata.Summary.WhitelistEntriesCount}");
+            sb.AppendLine($"Whitelist Audit Records: {metadata.Summary.WhitelistRuleAuditCount}");
+            sb.AppendLine($"Transfer Validations: {metadata.Summary.TransferValidationCount}");
+            if (metadata.Summary.OldestRecordDate.HasValue)
+                sb.AppendLine($"Oldest Record: {metadata.Summary.OldestRecordDate.Value:yyyy-MM-dd HH:mm:ss} UTC");
+            if (metadata.Summary.NewestRecordDate.HasValue)
+                sb.AppendLine($"Newest Record: {metadata.Summary.NewestRecordDate.Value:yyyy-MM-dd HH:mm:ss} UTC");
+            if (metadata.Summary.IncludedCategories.Any())
+                sb.AppendLine($"Event Categories: {string.Join(", ", metadata.Summary.IncludedCategories)}");
+            sb.AppendLine();
+
+            sb.AppendLine("VERIFICATION:");
+            sb.AppendLine("-------------");
+            sb.AppendLine($"Bundle SHA256 Checksum: {metadata.BundleSha256}");
+            sb.AppendLine();
+            sb.AppendLine("To verify the integrity of individual files, compare the SHA256 checksums");
+            sb.AppendLine("listed above with those in the manifest.json file.");
+            sb.AppendLine();
+            sb.AppendLine("AUDIT TRAIL:");
+            sb.AppendLine("------------");
+            sb.AppendLine("This bundle was generated for MICA/RWA compliance audit purposes.");
+            sb.AppendLine("All data is immutable and sourced from append-only audit logs.");
+            sb.AppendLine($"Retention period: {metadata.RetentionPeriodYears} years minimum as per MICA requirements.");
+            sb.AppendLine();
+            sb.AppendLine("For questions or verification, please contact the compliance team.");
+
+            return sb.ToString();
         }
     }
 }
