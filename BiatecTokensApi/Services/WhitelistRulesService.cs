@@ -14,6 +14,10 @@ namespace BiatecTokensApi.Services
         private readonly IWhitelistRepository _whitelistRepository;
         private readonly ILogger<WhitelistRulesService> _logger;
 
+        // Network constants for MICA compliance
+        private const string AramidNetwork = "aramidmain-v1.0";
+        private const string VoiNetwork = "voimain-v1.0";
+
         /// <summary>
         /// Initializes a new instance of the <see cref="WhitelistRulesService"/> class.
         /// </summary>
@@ -286,6 +290,12 @@ namespace BiatecTokensApi.Services
                 // Get whitelist entries to apply rule to
                 var entries = await _whitelistRepository.GetEntriesByAssetIdAsync(rule.AssetId);
                 
+                // Filter by network if rule is network-specific
+                if (!string.IsNullOrEmpty(rule.Network))
+                {
+                    entries = entries.Where(e => e.Network == rule.Network).ToList();
+                }
+                
                 // Filter by target addresses if specified
                 if (request.TargetAddresses != null && request.TargetAddresses.Count > 0)
                 {
@@ -527,7 +537,7 @@ namespace BiatecTokensApi.Services
             bool dryRun)
         {
             // For Aramid network, KYC is mandatory for Active status
-            var targetNetwork = rule.Network ?? "aramidmain-v1.0";
+            var targetNetwork = rule.Network ?? AramidNetwork;
             
             var entriesOnNetwork = entries
                 .Where(e => e.Network == targetNetwork && e.Status == WhitelistStatus.Active && !e.KycVerified)

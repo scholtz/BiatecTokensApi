@@ -1059,6 +1059,11 @@
             Rules enable automated compliance policies aligned with MICA (Markets in Crypto-Assets) regulation.
             </remarks>
         </member>
+        <member name="F:BiatecTokensApi.Controllers.WhitelistRulesController.MaxPageSize">
+            <summary>
+            Maximum number of results to return in a single request
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistRulesController.#ctor(BiatecTokensApi.Services.Interface.IWhitelistRulesService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.WhitelistRulesController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.WhitelistRulesController"/> class.

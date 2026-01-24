@@ -23,6 +23,11 @@ namespace BiatecTokensApi.Controllers
         private readonly ILogger<WhitelistRulesController> _logger;
 
         /// <summary>
+        /// Maximum number of results to return in a single request
+        /// </summary>
+        private const int MaxPageSize = 100;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="WhitelistRulesController"/> class.
         /// </summary>
         /// <param name="rulesService">The whitelist rules service</param>
@@ -217,7 +222,7 @@ namespace BiatecTokensApi.Controllers
                     IsActive = isActive,
                     Network = network,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxPageSize)
                 };
 
                 if (!ModelState.IsValid)
@@ -440,7 +445,7 @@ namespace BiatecTokensApi.Controllers
                     fromDate,
                     toDate,
                     page,
-                    Math.Min(pageSize, 100)); // Cap at 100
+                    Math.Min(pageSize, MaxPageSize));
 
                 if (result.Success)
                 {
