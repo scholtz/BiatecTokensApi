@@ -2510,9 +2510,10 @@ namespace BiatecTokensApi.Services
                 }
 
                 // 4. Collect Transfer Validation Records (if available through audit logs)
-                if (request.IncludeTransferApprovals)
+                // Note: Only collect if NOT already included in whitelist history to avoid duplicates
+                if (request.IncludeTransferApprovals && !request.IncludeWhitelistHistory)
                 {
-                    // Transfer validations are logged in whitelist audit log with action type "ValidateTransfer"
+                    // Transfer validations are logged in whitelist audit log with action type ValidateTransfer
                     var transferAuditRequest = new GetWhitelistAuditLogRequest
                     {
                         AssetId = request.AssetId,
@@ -2522,20 +2523,52 @@ namespace BiatecTokensApi.Services
                         PageSize = 10000
                     };
                     var transferAuditResponse = await _whitelistService.GetAuditLogAsync(transferAuditRequest);
-                    if (transferAuditResponse.Success && transferAuditResponse.Entries.Any())
+                    if (transferAuditResponse.Success)
                     {
-                        var transferJson = System.Text.Json.JsonSerializer.Serialize(transferAuditResponse.Entries,
-                            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-                        evidenceData.Add("audit_logs/transfer_validations.json",
-                            (transferJson, "Audit log of transfer validation operations", "JSON"));
-                        bundleSummary.TransferValidationCount = transferAuditResponse.Entries.Count;
-
-                        foreach (var entry in transferAuditResponse.Entries)
+                        // Filter to only transfer validation entries
+                        var transferValidations = transferAuditResponse.Entries
+                            .Where(e => e.ActionType == BiatecTokensApi.Models.Whitelist.WhitelistActionType.TransferValidation)
+                            .ToList();
+                        
+                        if (transferValidations.Any())
                         {
-                            if (oldestDate == null || entry.PerformedAt < oldestDate) oldestDate = entry.PerformedAt;
-                            if (newestDate == null || entry.PerformedAt > newestDate) newestDate = entry.PerformedAt;
+                            var transferJson = System.Text.Json.JsonSerializer.Serialize(transferValidations,
+                                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                            evidenceData.Add("audit_logs/transfer_validations.json",
+                                (transferJson, "Audit log of transfer validation operations", "JSON"));
+                            bundleSummary.TransferValidationCount = transferValidations.Count;
+
+                            foreach (var entry in transferValidations)
+                            {
+                                if (oldestDate == null || entry.PerformedAt < oldestDate) oldestDate = entry.PerformedAt;
+                                if (newestDate == null || entry.PerformedAt > newestDate) newestDate = entry.PerformedAt;
+                            }
+                            includedCategories.Add("TransferValidation");
                         }
-                        includedCategories.Add("TransferValidation");
+                    }
+                }
+                else if (request.IncludeTransferApprovals && request.IncludeWhitelistHistory)
+                {
+                    // If whitelist history is included, transfer validations are already in whitelist/audit_log.json
+                    // Just count them for the summary
+                    var transferAuditRequest = new GetWhitelistAuditLogRequest
+                    {
+                        AssetId = request.AssetId,
+                        FromDate = request.FromDate,
+                        ToDate = request.ToDate,
+                        Page = 1,
+                        PageSize = 10000
+                    };
+                    var transferAuditResponse = await _whitelistService.GetAuditLogAsync(transferAuditRequest);
+                    if (transferAuditResponse.Success)
+                    {
+                        var transferValidationCount = transferAuditResponse.Entries
+                            .Count(e => e.ActionType == BiatecTokensApi.Models.Whitelist.WhitelistActionType.TransferValidation);
+                        bundleSummary.TransferValidationCount = transferValidationCount;
+                        if (transferValidationCount > 0)
+                        {
+                            includedCategories.Add("TransferValidation");
+                        }
                     }
                 }
 
@@ -2576,11 +2609,10 @@ namespace BiatecTokensApi.Services
                         var entry = archive.CreateEntry(path);
                         using var entryStream = entry.Open();
                         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-                        await entryStream.WriteAsync(bytes, 0, bytes.Length);
+                        await entryStream.WriteAsync(bytes.AsMemory());
 
-                        // Calculate SHA256 checksum
-                        using var sha256 = System.Security.Cryptography.SHA256.Create();
-                        var hash = sha256.ComputeHash(bytes);
+                        // Calculate SHA256 checksum using HashData (more robust than Create())
+                        var hash = SHA256.HashData(bytes);
                         var checksum = BitConverter.ToString(hash).Replace("-", "").ToLower();
 
                         files.Add(new BundleFile
@@ -2593,7 +2625,7 @@ namespace BiatecTokensApi.Services
                         });
                     }
 
-                    // Create manifest
+                    // Create manifest (without bundle checksum initially)
                     var manifest = new ComplianceEvidenceBundleMetadata
                     {
                         BundleId = bundleId,
@@ -2607,7 +2639,7 @@ namespace BiatecTokensApi.Services
                         Summary = bundleSummary,
                         ComplianceFramework = "MICA 2024",
                         RetentionPeriodYears = 7,
-                        BundleSha256 = "" // Will be calculated after manifest is added
+                        BundleSha256 = "pending" // Will be calculated after ZIP is complete
                     };
 
                     var manifestJson = System.Text.Json.JsonSerializer.Serialize(manifest,
@@ -2615,21 +2647,20 @@ namespace BiatecTokensApi.Services
                     var manifestEntry = archive.CreateEntry("manifest.json");
                     using var manifestStream = manifestEntry.Open();
                     var manifestBytes = System.Text.Encoding.UTF8.GetBytes(manifestJson);
-                    await manifestStream.WriteAsync(manifestBytes, 0, manifestBytes.Length);
+                    await manifestStream.WriteAsync(manifestBytes.AsMemory());
 
                     // Add README
                     var readme = GenerateReadme(manifest);
                     var readmeEntry = archive.CreateEntry("README.txt");
                     using var readmeStream = readmeEntry.Open();
                     var readmeBytes = System.Text.Encoding.UTF8.GetBytes(readme);
-                    await readmeStream.WriteAsync(readmeBytes, 0, readmeBytes.Length);
+                    await readmeStream.WriteAsync(readmeBytes.AsMemory());
                 }
 
-                // Calculate bundle checksum
+                // Calculate bundle checksum using HashData (more robust than Create())
                 memoryStream.Position = 0;
                 var bundleBytes = memoryStream.ToArray();
-                using var bundleSha256 = System.Security.Cryptography.SHA256.Create();
-                var bundleHash = bundleSha256.ComputeHash(bundleBytes);
+                var bundleHash = SHA256.HashData(bundleBytes);
                 var bundleChecksum = BitConverter.ToString(bundleHash).Replace("-", "").ToLower();
 
                 // Update metadata with bundle checksum
