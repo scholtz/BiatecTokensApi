@@ -1,3 +1,5 @@
+using BiatecTokensApi.Models;
+
 namespace BiatecTokensApi.Models.Compliance
 {
     /// <summary>

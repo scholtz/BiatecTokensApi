@@ -1664,6 +1664,9 @@ namespace BiatecTokensApi.Services
         {
             try
             {
+                // Store timestamp once for consistency across all networks
+                var lastUpdated = DateTime.UtcNow;
+                
                 // Define supported networks with their compliance requirements
                 var networks = new List<NetworkComplianceMetadata>
                 {
@@ -1677,7 +1680,7 @@ namespace BiatecTokensApi.Services
                         RequiresRegulatoryFramework = false,
                         ComplianceRequirements = "VOI network requires jurisdiction specification for RWA token compliance tracking. Whitelisting is strongly recommended for enterprise tokens.",
                         Source = "Network policy and MICA compliance guidelines",
-                        LastUpdated = DateTime.UtcNow
+                        LastUpdated = lastUpdated
                     },
                     new NetworkComplianceMetadata
                     {
@@ -1689,7 +1692,7 @@ namespace BiatecTokensApi.Services
                         RequiresRegulatoryFramework = true,
                         ComplianceRequirements = "Aramid network requires regulatory framework specification when compliance status is 'Compliant'. Whitelisting controls are mandatory for RWA tokens.",
                         Source = "Network policy and MICA compliance guidelines",
-                        LastUpdated = DateTime.UtcNow
+                        LastUpdated = lastUpdated
                     },
                     new NetworkComplianceMetadata
                     {
@@ -1701,7 +1704,7 @@ namespace BiatecTokensApi.Services
                         RequiresRegulatoryFramework = false,
                         ComplianceRequirements = "Algorand mainnet supports optional compliance features. MICA compliance can be achieved through metadata and whitelisting configuration.",
                         Source = "Network policy",
-                        LastUpdated = DateTime.UtcNow
+                        LastUpdated = lastUpdated
                     },
                     new NetworkComplianceMetadata
                     {
@@ -1713,7 +1716,7 @@ namespace BiatecTokensApi.Services
                         RequiresRegulatoryFramework = false,
                         ComplianceRequirements = "Testnet is for development and testing purposes only. Not suitable for production RWA tokens or MICA compliance.",
                         Source = "Network policy",
-                        LastUpdated = DateTime.UtcNow
+                        LastUpdated = lastUpdated
                     },
                     new NetworkComplianceMetadata
                     {
@@ -1725,7 +1728,7 @@ namespace BiatecTokensApi.Services
                         RequiresRegulatoryFramework = false,
                         ComplianceRequirements = "Betanet is for testing protocol upgrades. Not suitable for production use or MICA compliance.",
                         Source = "Network policy",
-                        LastUpdated = DateTime.UtcNow
+                        LastUpdated = lastUpdated
                     }
                 };
 
