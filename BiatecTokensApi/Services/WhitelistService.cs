@@ -991,6 +991,39 @@ namespace BiatecTokensApi.Services
                     ItemCount = 1
                 });
 
+                // Emit webhook event for transfer deny (only if transfer was not allowed)
+                if (!isAllowed)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _webhookService.EmitEventAsync(new WebhookEvent
+                            {
+                                EventType = WebhookEventType.TransferDeny,
+                                AssetId = request.AssetId,
+                                Network = null, // Network not available in ValidateTransferRequest
+                                Actor = performedBy,
+                                AffectedAddress = request.FromAddress,
+                                Timestamp = DateTime.UtcNow,
+                                Data = new Dictionary<string, object>
+                                {
+                                    { "fromAddress", request.FromAddress },
+                                    { "toAddress", request.ToAddress },
+                                    { "amount", request.Amount?.ToString() ?? "0" },
+                                    { "denialReason", denialReason ?? "Unknown" },
+                                    { "senderWhitelisted", senderEntry != null },
+                                    { "receiverWhitelisted", receiverEntry != null }
+                                }
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to emit webhook event for transfer deny");
+                        }
+                    });
+                }
+
                 return new ValidateTransferResponse
                 {
                     Success = true,

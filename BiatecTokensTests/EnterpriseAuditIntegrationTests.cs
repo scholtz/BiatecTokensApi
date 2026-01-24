@@ -4,6 +4,7 @@ using BiatecTokensApi.Models.Whitelist;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
+using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -45,9 +46,11 @@ namespace BiatecTokensTests
                 _whitelistRepository,
                 _complianceRepository,
                 _enterpriseLoggerMock.Object);
+            var webhookService = Mock.Of<IWebhookService>();
             _enterpriseAuditService = new EnterpriseAuditService(
                 _enterpriseAuditRepository,
-                _serviceLoggerMock.Object);
+                _serviceLoggerMock.Object,
+                webhookService);
         }
 
         [Test]

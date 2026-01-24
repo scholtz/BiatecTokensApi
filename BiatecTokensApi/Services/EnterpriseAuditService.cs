@@ -1,5 +1,6 @@
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.Compliance;
+using BiatecTokensApi.Models.Webhook;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 using System.Text;
@@ -19,18 +20,22 @@ namespace BiatecTokensApi.Services
     {
         private readonly IEnterpriseAuditRepository _repository;
         private readonly ILogger<EnterpriseAuditService> _logger;
+        private readonly IWebhookService _webhookService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EnterpriseAuditService"/> class.
         /// </summary>
         /// <param name="repository">The enterprise audit repository</param>
         /// <param name="logger">The logger instance</param>
+        /// <param name="webhookService">The webhook service</param>
         public EnterpriseAuditService(
             IEnterpriseAuditRepository repository,
-            ILogger<EnterpriseAuditService> logger)
+            ILogger<EnterpriseAuditService> logger,
+            IWebhookService webhookService)
         {
             _repository = repository;
             _logger = logger;
+            _webhookService = webhookService;
         }
 
         /// <summary>
@@ -135,6 +140,35 @@ namespace BiatecTokensApi.Services
             }
 
             _logger.LogInformation("Exported {Count} enterprise audit entries as CSV", entries.Count);
+            
+            // Emit webhook event for audit export creation
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _webhookService.EmitEventAsync(new WebhookEvent
+                    {
+                        EventType = WebhookEventType.AuditExportCreated,
+                        AssetId = request.AssetId,
+                        Network = request.Network,
+                        Actor = "SYSTEM",
+                        Timestamp = DateTime.UtcNow,
+                        Data = new Dictionary<string, object>
+                        {
+                            { "format", "CSV" },
+                            { "recordCount", entries.Count },
+                            { "category", request.Category?.ToString() ?? "All" },
+                            { "fromDate", request.FromDate?.ToString("o") ?? "N/A" },
+                            { "toDate", request.ToDate?.ToString("o") ?? "N/A" }
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to emit webhook event for CSV audit export");
+                }
+            });
+            
             return csv.ToString();
         }
 
@@ -161,6 +195,35 @@ namespace BiatecTokensApi.Services
             var json = JsonSerializer.Serialize(response, options);
 
             _logger.LogInformation("Exported {Count} enterprise audit entries as JSON", response.Entries.Count);
+            
+            // Emit webhook event for audit export creation
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _webhookService.EmitEventAsync(new WebhookEvent
+                    {
+                        EventType = WebhookEventType.AuditExportCreated,
+                        AssetId = request.AssetId,
+                        Network = request.Network,
+                        Actor = "SYSTEM",
+                        Timestamp = DateTime.UtcNow,
+                        Data = new Dictionary<string, object>
+                        {
+                            { "format", "JSON" },
+                            { "recordCount", response.Entries.Count },
+                            { "category", request.Category?.ToString() ?? "All" },
+                            { "fromDate", request.FromDate?.ToString("o") ?? "N/A" },
+                            { "toDate", request.ToDate?.ToString("o") ?? "N/A" }
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to emit webhook event for JSON audit export");
+                }
+            });
+            
             return json;
         }
 

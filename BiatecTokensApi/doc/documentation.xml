@@ -9227,12 +9227,13 @@
             Supports 7-year retention requirements and comprehensive filtering.
             </remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.#ctor(BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.EnterpriseAuditService})">
+        <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.#ctor(BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.EnterpriseAuditService},BiatecTokensApi.Services.Interface.IWebhookService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.EnterpriseAuditService"/> class.
             </summary>
             <param name="repository">The enterprise audit repository</param>
             <param name="logger">The logger instance</param>
+            <param name="webhookService">The webhook service</param>
         </member>
         <member name="M:BiatecTokensApi.Services.EnterpriseAuditService.GetAuditLogAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
             <summary>
