@@ -1854,5 +1854,61 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Gets per-network compliance metadata for all supported blockchain networks
+        /// </summary>
+        /// <returns>List of networks with their compliance requirements and flags</returns>
+        /// <remarks>
+        /// This endpoint returns compliance metadata for each supported blockchain network,
+        /// including MICA readiness status, whitelisting requirements, and regulatory specifications.
+        /// 
+        /// Use this to display network-specific compliance indicators in the frontend and help
+        /// users understand compliance requirements when deploying tokens to different networks.
+        /// 
+        /// Response includes cache headers (CacheDurationSeconds) to optimize frontend performance.
+        /// 
+        /// Networks included:
+        /// - VOI Mainnet (voimain-v1.0): MICA-ready, requires jurisdiction
+        /// - Aramid Mainnet (aramidmain-v1.0): MICA-ready, requires regulatory framework
+        /// - Algorand Mainnet (mainnet-v1.0): MICA-ready, optional compliance
+        /// - Algorand Testnet (testnet-v1.0): Development only
+        /// - Algorand Betanet (betanet-v1.0): Testing only
+        /// </remarks>
+        [HttpGet("networks")]
+        [ProducesResponseType(typeof(NetworkComplianceMetadataResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetNetworkComplianceMetadata()
+        {
+            try
+            {
+                var result = await _complianceService.GetNetworkComplianceMetadataAsync();
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved network compliance metadata for {Count} networks", result.Networks.Count);
+                    
+                    // Add cache control header as requested in acceptance criteria
+                    Response.Headers.Append("Cache-Control", $"public, max-age={result.CacheDurationSeconds}");
+                    
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to retrieve network compliance metadata: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving network compliance metadata");
+                return StatusCode(StatusCodes.Status500InternalServerError, new NetworkComplianceMetadataResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
     }
 }
