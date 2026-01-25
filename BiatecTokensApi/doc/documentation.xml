@@ -81,6 +81,171 @@
             Whether to validate content hashes when retrieving data
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.BillingController">
+            <summary>
+            Provides endpoints for subscription usage metering and plan limit management
+            </summary>
+            <remarks>
+            This controller implements the subscription-funded platform vision with enterprise governance.
+            It tracks per-tenant usage across token issuance, transfers, audit exports, and storage,
+            enforces plan limits with clear error codes, and provides admin endpoints for plan management.
+            All endpoints require ARC-0014 authentication with role checks for admin operations.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.BillingController.#ctor(BiatecTokensApi.Services.Interface.IBillingService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.BillingController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.BillingController"/> class.
+            </summary>
+            <param name="billingService">The billing service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.BillingController.GetUsageSummary">
+            <summary>
+            Gets usage summary for the authenticated tenant
+            </summary>
+            <returns>Usage summary with current plan limits and period statistics</returns>
+            <remarks>
+            This endpoint provides a comprehensive view of usage across all metered operations
+            for the current billing period. It includes:
+            - Token issuance count
+            - Transfer validation count
+            - Audit export count
+            - Storage items count
+            - Compliance operation count
+            - Whitelist operation count
+            - Current plan limits
+            - Limit violation warnings
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used as the tenant identifier.
+            
+            **Billing Period:**
+            Usage is tracked per calendar month. The period automatically resets on the first day of each month.
+            
+            **Use Cases:**
+            - Billing dashboard display
+            - Usage analytics and forecasting
+            - Limit monitoring and alerts
+            - Compliance reporting
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.BillingController.CheckLimits(BiatecTokensApi.Models.Billing.LimitCheckRequest)">
+            <summary>
+            Checks if a planned operation would exceed plan limits (preflight check)
+            </summary>
+            <param name="request">The limit check request specifying operation type and count</param>
+            <returns>Limit check result indicating if operation is allowed</returns>
+            <remarks>
+            This endpoint performs a preflight check to determine if a planned operation
+            would exceed the tenant's plan limits. It does NOT record usage or perform
+            the actual operation - it only checks if the operation would be allowed.
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used as the tenant identifier.
+            
+            **Operation Types:**
+            - TokenIssuance: Token creation/deployment operations
+            - TransferValidation: Transfer validation checks
+            - AuditExport: Audit log export operations
+            - Storage: Storage item additions (whitelist entries, compliance metadata)
+            - ComplianceOperation: Compliance metadata operations
+            - WhitelistOperation: Whitelist management operations
+            
+            **Response:**
+            - IsAllowed: Whether the operation is permitted
+            - CurrentUsage: Current usage count for this operation type
+            - MaxAllowed: Maximum allowed operations (-1 for unlimited)
+            - RemainingCapacity: Available capacity (-1 for unlimited)
+            - DenialReason: Explanation if operation is denied
+            - ErrorCode: "LIMIT_EXCEEDED" if denied due to limit
+            
+            **Error Handling:**
+            When limits are exceeded, the response includes:
+            - Clear error message explaining the violation
+            - Current usage vs limit details
+            - Suggestion to upgrade subscription
+            - Audit log entry for compliance review
+            
+            **Use Cases:**
+            - Pre-flight validation before expensive operations
+            - UI elements showing available capacity
+            - Preventing unnecessary API calls that would fail
+            - Billing reconciliation and limit enforcement
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.BillingController.UpdatePlanLimits(System.String,BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest)">
+            <summary>
+            Updates plan limits for a specific tenant (admin only)
+            </summary>
+            <param name="tenantAddress">The tenant's Algorand address</param>
+            <param name="request">The update request with new plan limits</param>
+            <returns>Success status and updated limits</returns>
+            <remarks>
+            This endpoint allows administrators to customize plan limits for specific tenants,
+            overriding the default tier-based limits. Changes are logged to the audit repository
+            for compliance review and billing reconciliation.
+            
+            **Authorization:**
+            Requires ARC-0014 authentication AND admin role. Only addresses configured as admins
+            (currently the app account) can call this endpoint. Non-admin attempts are logged
+            and return a 403 Forbidden response.
+            
+            **Plan Limits:**
+            All limits use -1 to indicate unlimited capacity:
+            - MaxTokenIssuance: Maximum tokens that can be issued per period
+            - MaxTransferValidations: Maximum transfer validations per period
+            - MaxAuditExports: Maximum audit exports per period
+            - MaxStorageItems: Maximum storage items (whitelist entries, etc.)
+            - MaxComplianceOperations: Maximum compliance operations per period
+            - MaxWhitelistOperations: Maximum whitelist operations per period
+            
+            **Audit Trail:**
+            Every plan limit update creates an audit log entry containing:
+            - Admin who performed the update
+            - Tenant whose limits were changed
+            - Timestamp of the change
+            - Optional notes explaining the change
+            - All new limit values
+            
+            **Use Cases:**
+            - Custom enterprise agreements
+            - Temporary limit increases for special events
+            - Granular control over tenant capabilities
+            - Compliance with custom SLAs
+            - Testing and development environments
+            
+            **Security:**
+            Failed authorization attempts are logged for security monitoring.
+            Admin status is determined by comparing authenticated address against
+            configured admin addresses.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.BillingController.GetPlanLimits">
+            <summary>
+            Gets current plan limits for the authenticated tenant
+            </summary>
+            <returns>Current plan limits</returns>
+            <remarks>
+            This endpoint retrieves the current plan limits for the authenticated tenant.
+            Limits may be tier-based defaults or custom limits set by an administrator.
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used as the tenant identifier.
+            
+            **Limit Sources:**
+            1. Custom limits (set via admin endpoint) - highest priority
+            2. Tier-based defaults (from subscription tier)
+            
+            **Response:**
+            Returns PlanLimits object with all limit values. A value of -1 indicates unlimited capacity.
+            
+            **Use Cases:**
+            - Displaying current plan details in UI
+            - Determining available features
+            - Planning resource usage
+            - Upgrade decision support
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.ComplianceController">
             <summary>
             Provides endpoints for managing RWA token compliance metadata
@@ -2802,6 +2967,283 @@
         <member name="P:BiatecTokensApi.Models.BaseResponse.Success">
             <summary>
             Status of the deployment
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.LimitCheckRequest">
+            <summary>
+            Request model for checking if an operation is allowed (preflight check)
+            </summary>
+            <remarks>
+            This model is used to verify if a planned operation would exceed plan limits
+            before actually performing the operation.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckRequest.OperationType">
+            <summary>
+            Type of operation to check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckRequest.OperationCount">
+            <summary>
+            Number of operations to check (default: 1)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckRequest.AssetId">
+            <summary>
+            Optional asset ID for context
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckRequest.Network">
+            <summary>
+            Optional network for context
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.OperationType">
+            <summary>
+            Types of operations that can be limited
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Billing.OperationType.TokenIssuance">
+            <summary>
+            Token issuance operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Billing.OperationType.TransferValidation">
+            <summary>
+            Transfer validation operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Billing.OperationType.AuditExport">
+            <summary>
+            Audit export operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Billing.OperationType.Storage">
+            <summary>
+            Storage operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Billing.OperationType.ComplianceOperation">
+            <summary>
+            Compliance metadata operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Billing.OperationType.WhitelistOperation">
+            <summary>
+            Whitelist operation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.LimitCheckResponse">
+            <summary>
+            Response model for limit check endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckResponse.IsAllowed">
+            <summary>
+            Whether the operation is allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckResponse.CurrentUsage">
+            <summary>
+            Current usage for this operation type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckResponse.MaxAllowed">
+            <summary>
+            Maximum allowed for this operation type (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckResponse.RemainingCapacity">
+            <summary>
+            Remaining capacity (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckResponse.DenialReason">
+            <summary>
+            Reason if the operation is denied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckResponse.ErrorCode">
+            <summary>
+            Error code for programmatic handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.LimitCheckResponse.SubscriptionTier">
+            <summary>
+            Subscription tier of the tenant
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.PlanLimits">
+            <summary>
+            Defines plan limits for a subscription tier
+            </summary>
+            <remarks>
+            These limits control usage across token issuance, transfers, exports, and storage
+            to enable subscription-based billing and enterprise governance.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimits.MaxTokenIssuance">
+            <summary>
+            Maximum number of tokens that can be issued per period (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimits.MaxTransferValidations">
+            <summary>
+            Maximum number of transfer validations per period (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimits.MaxAuditExports">
+            <summary>
+            Maximum number of audit exports per period (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimits.MaxStorageItems">
+            <summary>
+            Maximum storage items allowed (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimits.MaxComplianceOperations">
+            <summary>
+            Maximum compliance operations per period (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimits.MaxWhitelistOperations">
+            <summary>
+            Maximum whitelist operations per period (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest">
+            <summary>
+            Request model for updating plan limits (admin only)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest.TenantAddress">
+            <summary>
+            The tenant's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest.Limits">
+            <summary>
+            New plan limits to set
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest.Notes">
+            <summary>
+            Optional notes about why limits were changed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.PlanLimitsResponse">
+            <summary>
+            Response model for plan limits operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimitsResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimitsResponse.Limits">
+            <summary>
+            The updated plan limits
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.PlanLimitsResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.UsageSummary">
+            <summary>
+            Summary of usage metrics for a tenant
+            </summary>
+            <remarks>
+            This model aggregates metering events to provide billing-relevant usage statistics
+            for subscription-funded platform operations.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.TenantAddress">
+            <summary>
+            The tenant's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.SubscriptionTier">
+            <summary>
+            Current subscription tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.PeriodStart">
+            <summary>
+            Start date of the usage period (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.PeriodEnd">
+            <summary>
+            End date of the usage period (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.TokenIssuanceCount">
+            <summary>
+            Total number of tokens issued
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.TransferValidationCount">
+            <summary>
+            Total number of transfer validations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.AuditExportCount">
+            <summary>
+            Total number of audit exports performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.StorageItemsCount">
+            <summary>
+            Total storage used (in items/records)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.ComplianceOperationCount">
+            <summary>
+            Number of compliance metadata operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.WhitelistOperationCount">
+            <summary>
+            Number of whitelist operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.CurrentLimits">
+            <summary>
+            Current plan limits for this tenant
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.HasExceededLimits">
+            <summary>
+            Whether any limits have been exceeded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummary.LimitViolations">
+            <summary>
+            List of limit violations if any
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.UsageSummaryResponse">
+            <summary>
+            Response model for usage summary endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummaryResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummaryResponse.Data">
+            <summary>
+            Usage summary data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.UsageSummaryResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.BlacklistEntry">
@@ -10340,6 +10782,44 @@
             <returns>A task that represents the asynchronous operation. The task result contains the response of the FNFT
             deployment, including deployment details and status.</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.BillingService">
+            <summary>
+            Service for billing operations including usage tracking and plan limit enforcement
+            </summary>
+            <remarks>
+            This service tracks per-tenant usage across token issuance, transfers, exports, and storage.
+            It enforces plan limits with clear error codes and maintains audit logs for compliance.
+            Current implementation uses in-memory storage for usage tracking and plan limits.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BillingService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.BillingService},BiatecTokensApi.Services.Interface.ISubscriptionTierService,Microsoft.Extensions.Options.IOptions{BiatecTokensApi.Models.AppConfiguration})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.BillingService"/> class.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BillingService.GetUsageSummaryAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BillingService.CheckLimitAsync(System.String,BiatecTokensApi.Models.Billing.LimitCheckRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BillingService.UpdatePlanLimitsAsync(BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BillingService.GetPlanLimitsAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BillingService.IsAdmin(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BillingService.RecordUsageAsync(System.String,BiatecTokensApi.Models.Billing.OperationType,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="T:BiatecTokensApi.Services.BillingService.UsageData">
+            <summary>
+            Internal class for tracking usage data per tenant
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ComplianceService">
             <summary>
             Service for managing compliance metadata with network-specific validation
@@ -10732,6 +11212,56 @@
             <param name="request">Token creation parameters</param>
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details and asset ID</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IBillingService">
+            <summary>
+            Service for billing operations including usage tracking and plan limit enforcement
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IBillingService.GetUsageSummaryAsync(System.String)">
+            <summary>
+            Gets usage summary for a tenant for the current billing period
+            </summary>
+            <param name="tenantAddress">The tenant's Algorand address</param>
+            <returns>Usage summary with current plan limits</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IBillingService.CheckLimitAsync(System.String,BiatecTokensApi.Models.Billing.LimitCheckRequest)">
+            <summary>
+            Checks if an operation is allowed based on current usage and plan limits (preflight check)
+            </summary>
+            <param name="tenantAddress">The tenant's Algorand address</param>
+            <param name="request">The limit check request</param>
+            <returns>Limit check result indicating if operation is allowed</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IBillingService.UpdatePlanLimitsAsync(BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest,System.String)">
+            <summary>
+            Updates plan limits for a tenant (admin only)
+            </summary>
+            <param name="request">The update request with new limits</param>
+            <param name="performedBy">Address of the admin performing the update</param>
+            <returns>Success status and updated limits</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IBillingService.GetPlanLimitsAsync(System.String)">
+            <summary>
+            Gets current plan limits for a tenant
+            </summary>
+            <param name="tenantAddress">The tenant's Algorand address</param>
+            <returns>Current plan limits</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IBillingService.IsAdmin(System.String)">
+            <summary>
+            Checks if an address is an admin
+            </summary>
+            <param name="address">The address to check</param>
+            <returns>True if the address is an admin</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IBillingService.RecordUsageAsync(System.String,BiatecTokensApi.Models.Billing.OperationType,System.Int32)">
+            <summary>
+            Records usage for billing purposes (called when operations are performed)
+            </summary>
+            <param name="tenantAddress">The tenant's Algorand address</param>
+            <param name="operationType">Type of operation performed</param>
+            <param name="count">Number of operations performed</param>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IComplianceService">
             <summary>

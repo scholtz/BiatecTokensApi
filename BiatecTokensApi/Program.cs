@@ -96,6 +96,9 @@ namespace BiatecTokensApi
             // Register subscription tier service
             builder.Services.AddSingleton<ISubscriptionTierService, SubscriptionTierService>();
 
+            // Register billing service
+            builder.Services.AddSingleton<IBillingService, BillingService>();
+
             // Register the token services
             builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();
             builder.Services.AddSingleton<IARC3TokenService, ARC3TokenService>();
