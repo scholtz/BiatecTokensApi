@@ -6311,6 +6311,11 @@
             Transfer validation event
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.AuditEventCategory.TokenIssuance">
+            <summary>
+            Token issuance/deployment event
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.GetEnterpriseAuditLogRequest">
             <summary>
             Request to retrieve enterprise audit logs with comprehensive filtering
@@ -6429,6 +6434,11 @@
         <member name="P:BiatecTokensApi.Models.AuditLogSummary.ComplianceEvents">
             <summary>
             Number of compliance events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditLogSummary.TokenIssuanceEvents">
+            <summary>
+            Number of token issuance events
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.AuditLogSummary.SuccessfulOperations">
@@ -6927,6 +6937,205 @@
             <param name="tier">The subscription tier</param>
             <param name="currentCount">Current number of addresses</param>
             <returns>Remaining capacity (-1 for unlimited)</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry">
+            <summary>
+            Audit log entry for token issuance/deployment events
+            </summary>
+            <remarks>
+            Tracks all token creation events across different token standards (ERC20, ASA, ARC3, ARC200, ARC1400)
+            for MICA compliance and regulatory reporting. Supports 7-year retention requirements.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.Id">
+            <summary>
+            Unique identifier for the audit log entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.AssetIdentifier">
+            <summary>
+            The asset ID of the created token (for Algorand tokens) or contract address (for EVM tokens)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.AssetId">
+            <summary>
+            The numeric asset ID for Algorand tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ContractAddress">
+            <summary>
+            The contract address for EVM tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.Network">
+            <summary>
+            Network on which the token was deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, base-mainnet, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.TokenType">
+            <summary>
+            Token standard type (ERC20_Mintable, ERC20_Preminted, ASA_FT, ASA_NFT, ARC3_FT, ARC3_NFT, ARC200_Mintable, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.TokenName">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.TokenSymbol">
+            <summary>
+            Token symbol/unit name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.TotalSupply">
+            <summary>
+            Total supply of the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.Decimals">
+            <summary>
+            Number of decimal places for the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.DeployedBy">
+            <summary>
+            The address of the user who deployed the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.DeployedAt">
+            <summary>
+            Timestamp when the token was deployed (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.Success">
+            <summary>
+            Whether the deployment was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ErrorMessage">
+            <summary>
+            Error message if the deployment failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.TransactionHash">
+            <summary>
+            Transaction hash/ID for the deployment transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ConfirmedRound">
+            <summary>
+            Block number or round when the token was deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.Notes">
+            <summary>
+            Additional metadata or notes about the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.IsMintable">
+            <summary>
+            Whether the token is mintable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.IsPausable">
+            <summary>
+            Whether the token is pausable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.IsBurnable">
+            <summary>
+            Whether the token is burnable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ManagerAddress">
+            <summary>
+            Manager address for the token (Algorand)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ReserveAddress">
+            <summary>
+            Reserve address for the token (Algorand)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.FreezeAddress">
+            <summary>
+            Freeze address for the token (Algorand)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ClawbackAddress">
+            <summary>
+            Clawback address for the token (Algorand)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.MetadataUrl">
+            <summary>
+            IPFS URL for metadata (ARC3 tokens)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.SourceSystem">
+            <summary>
+            Source system that generated this audit entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.CorrelationId">
+            <summary>
+            Correlation ID for related events
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest">
+            <summary>
+            Request to retrieve token issuance audit logs with filtering
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.AssetId">
+            <summary>
+            Optional filter by asset ID (for Algorand tokens)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.ContractAddress">
+            <summary>
+            Optional filter by contract address (for EVM tokens)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.TokenType">
+            <summary>
+            Optional filter by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.DeployedBy">
+            <summary>
+            Optional filter by deployer address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.Success">
+            <summary>
+            Optional filter by operation result (success/failure)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.TokenType">
             <summary>
@@ -8559,12 +8768,13 @@
             for MICA reporting and regulatory compliance.
             </remarks>
         </member>
-        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.EnterpriseAuditRepository})">
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.#ctor(BiatecTokensApi.Repositories.IWhitelistRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.EnterpriseAuditRepository})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.EnterpriseAuditRepository"/> class.
             </summary>
             <param name="whitelistRepository">The whitelist repository</param>
             <param name="complianceRepository">The compliance repository</param>
+            <param name="tokenIssuanceRepository">The token issuance repository</param>
             <param name="logger">The logger instance</param>
         </member>
         <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.GetAuditLogAsync(BiatecTokensApi.Models.GetEnterpriseAuditLogRequest)">
@@ -8590,6 +8800,11 @@
         <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.MapComplianceEntry(BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry)">
             <summary>
             Maps a compliance audit entry to an enterprise audit entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.MapTokenIssuanceEntry(BiatecTokensApi.Models.TokenIssuanceAuditLogEntry)">
+            <summary>
+            Maps a token issuance audit entry to an enterprise audit entry
             </summary>
         </member>
         <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.GetComplianceStatusString(System.Nullable{BiatecTokensApi.Models.Compliance.ComplianceStatus},System.Nullable{BiatecTokensApi.Models.Compliance.VerificationStatus})">
@@ -8890,6 +9105,36 @@
             <param name="request">The audit log request with filters</param>
             <returns>Summary statistics including event counts and date ranges</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository">
+            <summary>
+            Repository interface for token issuance audit log operations
+            </summary>
+            <remarks>
+            Provides data access for token issuance audit logs across all token standards
+            (ERC20, ASA, ARC3, ARC200, ARC1400) for MICA reporting and regulatory compliance.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository.AddAuditLogEntryAsync(BiatecTokensApi.Models.TokenIssuanceAuditLogEntry)">
+            <summary>
+            Adds a token issuance audit log entry
+            </summary>
+            <param name="entry">The audit log entry to add</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository.GetAuditLogAsync(BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest)">
+            <summary>
+            Gets token issuance audit log entries with filtering
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>List of token issuance audit log entries ordered by most recent first</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository.GetAuditLogCountAsync(BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest)">
+            <summary>
+            Gets the total count of token issuance audit log entries matching the filter
+            </summary>
+            <param name="request">The audit log request with filters</param>
+            <returns>Total count of matching entries</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IWebhookRepository">
             <summary>
             Repository interface for webhook operations
@@ -9176,6 +9421,36 @@
             <param name="toDate">Optional end date filter</param>
             <returns>List of audit log entries</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.TokenIssuanceRepository">
+            <summary>
+            Repository implementation for token issuance audit log operations
+            </summary>
+            <remarks>
+            Provides thread-safe, in-memory storage for token issuance audit logs across all token standards.
+            Supports MICA 7-year retention requirements and comprehensive filtering.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenIssuanceRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.TokenIssuanceRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.TokenIssuanceRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenIssuanceRepository.AddAuditLogEntryAsync(BiatecTokensApi.Models.TokenIssuanceAuditLogEntry)">
+            <summary>
+            Adds a token issuance audit log entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenIssuanceRepository.GetAuditLogAsync(BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest)">
+            <summary>
+            Gets token issuance audit log entries with filtering
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenIssuanceRepository.GetAuditLogCountAsync(BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest)">
+            <summary>
+            Gets the total count of token issuance audit log entries matching the filter
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.WebhookRepository">
             <summary>
             In-memory implementation of webhook repository
@@ -9389,7 +9664,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC1400TokenService})">
+        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC1400TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC1400TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -9401,6 +9676,7 @@
             <param name="config">The configuration monitor for blockchain-related settings.</param>
             <param name="appConfig">The configuration monitor for application-specific settings.</param>
             <param name="logger">The logger used to log information and errors for this service.</param>
+            <param name="tokenIssuanceRepository">The token issuance audit repository</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ARC1400TokenService.ValidateRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -9447,7 +9723,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC200TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC200TokenService})">
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC200TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC200TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -9459,6 +9735,7 @@
             <param name="config">The configuration monitor for blockchain-related settings.</param>
             <param name="appConfig">The configuration monitor for application-specific settings.</param>
             <param name="logger">The logger used to log information and errors for this service.</param>
+            <param name="tokenIssuanceRepository">The token issuance audit repository</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ARC200TokenService.ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -9498,7 +9775,7 @@
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.IIPFSRepository,BiatecTokensApi.Services.Interface.IASATokenService)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.IIPFSRepository,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
             with Algorand nodes and IPFS repositories based on the provided options.
@@ -9514,6 +9791,7 @@
             <param name="ipfsRepository">An implementation of <see cref="T:BiatecTokensApi.Repositories.IIPFSRepository"/> used to interact with IPFS for managing decentralized
             file storage.</param>
             <param name="asaTokenService">Token service to create ASAs</param>
+            <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         </member>
         <member name="M:BiatecTokensApi.Services.ARC3TokenService.CreateARC3TokenAsync(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
@@ -9852,7 +10130,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService})">
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ERC20TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -9864,6 +10142,7 @@
             <param name="config">The configuration monitor for blockchain-related settings.</param>
             <param name="appConfig">The configuration monitor for application-specific settings.</param>
             <param name="logger">The logger used to log information and errors for this service.</param>
+            <param name="tokenIssuanceRepository">The token issuance audit repository</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ERC20TokenService.ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -9889,6 +10168,16 @@
             <returns>A <see cref="T:BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse"/> containing the deployment result, including the contract
             address, transaction hash, and success status. If the deployment fails, the response includes an error
             message.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.GetNetworkName(System.Int32)">
+            <summary>
+            Gets network name from chain ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.LogTokenIssuanceAudit(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType,System.String,System.String,System.String,System.Boolean,System.String,System.String)">
+            <summary>
+            Logs token issuance audit entry
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IARC1400TokenService">
             <summary>

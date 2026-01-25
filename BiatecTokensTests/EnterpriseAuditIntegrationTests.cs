@@ -26,6 +26,7 @@ namespace BiatecTokensTests
         private Mock<ILogger<ComplianceRepository>> _complianceLoggerMock;
         private Mock<ILogger<EnterpriseAuditRepository>> _enterpriseLoggerMock;
         private Mock<ILogger<EnterpriseAuditService>> _serviceLoggerMock;
+        private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
 
         private const string TestPerformedBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
         private const string ValidAddress1 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
@@ -39,12 +40,14 @@ namespace BiatecTokensTests
             _complianceLoggerMock = new Mock<ILogger<ComplianceRepository>>();
             _enterpriseLoggerMock = new Mock<ILogger<EnterpriseAuditRepository>>();
             _serviceLoggerMock = new Mock<ILogger<EnterpriseAuditService>>();
+            _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
 
             _whitelistRepository = new WhitelistRepository(_whitelistLoggerMock.Object);
             _complianceRepository = new ComplianceRepository(_complianceLoggerMock.Object);
             _enterpriseAuditRepository = new EnterpriseAuditRepository(
                 _whitelistRepository,
                 _complianceRepository,
+                _tokenIssuanceRepositoryMock.Object,
                 _enterpriseLoggerMock.Object);
             var webhookService = Mock.Of<IWebhookService>();
             _enterpriseAuditService = new EnterpriseAuditService(

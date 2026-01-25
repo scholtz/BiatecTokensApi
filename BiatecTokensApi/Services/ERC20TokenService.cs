@@ -243,7 +243,7 @@ namespace BiatecTokensApi.Services
 
                     // Log token issuance audit entry
                     await LogTokenIssuanceAudit(request, tokenType, receipt.ContractAddress, receipt.TransactionHash, 
-                        account.Address, true, null, chainConfig.Network);
+                        account.Address, true, null, GetNetworkName(chainConfig.ChainId));
                 }
                 else
                 {
@@ -258,7 +258,7 @@ namespace BiatecTokensApi.Services
 
                     // Log failed token issuance audit entry
                     await LogTokenIssuanceAudit(request, tokenType, null, receipt?.TransactionHash, 
-                        account.Address, false, response.ErrorMessage, chainConfig.Network);
+                        account.Address, false, response.ErrorMessage, GetNetworkName(chainConfig.ChainId));
                 }
             }
             catch (Exception ex)
@@ -278,7 +278,7 @@ namespace BiatecTokensApi.Services
                     var acc = ARC76.GetEVMAccount(_appConfig.CurrentValue.Account, Convert.ToInt32(request.ChainId));
                     var account = new Account(acc, request.ChainId);
                     var chainConfig = GetBlockchainConfig(Convert.ToInt32(request.ChainId));
-                    await LogTokenIssuanceAudit(request, tokenType, null, null, account.Address, false, ex.Message, chainConfig.Network);
+                    await LogTokenIssuanceAudit(request, tokenType, null, null, account.Address, false, ex.Message, GetNetworkName(chainConfig.ChainId));
                 }
                 catch
                 {
@@ -287,6 +287,21 @@ namespace BiatecTokensApi.Services
             }
 
             return response;
+        }
+
+        /// <summary>
+        /// Gets network name from chain ID
+        /// </summary>
+        private string GetNetworkName(int chainId)
+        {
+            return chainId switch
+            {
+                8453 => "base-mainnet",
+                84532 => "base-sepolia",
+                1 => "ethereum-mainnet",
+                11155111 => "ethereum-sepolia",
+                _ => $"evm-chain-{chainId}"
+            };
         }
 
         /// <summary>

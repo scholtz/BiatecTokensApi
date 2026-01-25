@@ -1,6 +1,7 @@
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ERC20.Request;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,7 @@ namespace BiatecTokensTests
         private Mock<IOptionsMonitor<EVMChains>> _blockchainConfigMock;
         private Mock<IOptionsMonitor<AppConfiguration>> _appConfigMock;
         private Mock<ILogger<ERC20TokenService>> _loggerMock;
+        private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
         private EVMChains _blockchainConfig;
         private AppConfiguration _appConfig;
         private ERC20MintableTokenDeploymentRequest _validRequest;
@@ -49,8 +51,9 @@ namespace BiatecTokensTests
             _appConfigMock.Setup(x => x.CurrentValue).Returns(_appConfig);
 
             _loggerMock = new Mock<ILogger<ERC20TokenService>>();
+            _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
 
-            _tokenService = new ERC20TokenService(_blockchainConfigMock.Object, _appConfigMock.Object, _loggerMock.Object);
+            _tokenService = new ERC20TokenService(_blockchainConfigMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
 
             // Create a valid deployment request for testing
             _validRequest = new ERC20MintableTokenDeploymentRequest
