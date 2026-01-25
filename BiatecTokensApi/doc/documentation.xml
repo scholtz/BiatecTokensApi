@@ -669,6 +669,123 @@
             - Algorand Betanet (betanet-v1.0): Testing only
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetDashboardAggregation(System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Boolean,System.Int32)">
+            <summary>
+            Gets aggregated compliance dashboard metrics for enterprise reporting
+            </summary>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+            <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <param name="includeAssetBreakdown">Include detailed asset breakdown (default: false)</param>
+            <param name="topRestrictionsCount">Maximum number of top restriction reasons to include (default: 10)</param>
+            <returns>Aggregated compliance dashboard metrics</returns>
+            <remarks>
+            This endpoint provides enterprise-grade compliance dashboard aggregations for scheduled exports
+            and compliance posture tracking. Supports filtering by network, token standard, and date range.
+            
+            **Use Cases:**
+            - Enterprise compliance dashboards
+            - Scheduled compliance exports
+            - Compliance posture tracking across assets
+            - Regulatory reporting automation
+            - MICA readiness assessment
+            
+            **Aggregations Provided:**
+            - MICA readiness statistics (compliant, nearly compliant, in progress, non-compliant)
+            - Whitelist status metrics (enabled/disabled, active/revoked/suspended addresses)
+            - Jurisdiction coverage (distribution, unique jurisdictions)
+            - Compliant vs restricted asset counts
+            - Top restriction reasons with occurrence counts
+            - Token standard and network distribution
+            
+            **Filters:**
+            All filters are optional and can be combined for precise queries.
+            
+            **Asset Breakdown:**
+            Set includeAssetBreakdown=true to get detailed per-asset compliance information.
+            This is useful for drill-down analysis but increases response size.
+            
+            **Security:**
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ExportDashboardAggregationCsv(System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Boolean,System.Int32)">
+            <summary>
+            Exports compliance dashboard aggregation data as CSV
+            </summary>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+            <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <param name="includeAssetBreakdown">Include detailed asset breakdown (default: false)</param>
+            <param name="topRestrictionsCount">Maximum number of top restriction reasons to include (default: 10)</param>
+            <returns>CSV file with compliance dashboard aggregation data</returns>
+            <remarks>
+            Exports aggregated compliance metrics in CSV format for enterprise reporting and scheduled exports.
+            
+            **CSV Format:**
+            - UTF-8 encoding with proper CSV escaping
+            - Summary metrics section with all aggregations
+            - MICA readiness section
+            - Whitelist status section
+            - Jurisdiction coverage section
+            - Compliance counts section
+            - Top restriction reasons section
+            - Token standard distribution section
+            - Network distribution section
+            - Optional detailed asset breakdown section
+            
+            **Use Cases:**
+            - Scheduled compliance exports for enterprise systems
+            - Executive reporting (spreadsheet analysis)
+            - Compliance posture tracking over time
+            - Cross-asset compliance analysis
+            - Regulatory audit preparation
+            
+            **Filename:**
+            - Format: compliance-dashboard-{timestamp}.csv
+            - Timestamp in yyyyMMddHHmmss format
+            
+            **Security:**
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.ExportDashboardAggregationJson(System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Boolean,System.Int32)">
+            <summary>
+            Exports compliance dashboard aggregation data as JSON
+            </summary>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+            <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <param name="includeAssetBreakdown">Include detailed asset breakdown (default: false)</param>
+            <param name="topRestrictionsCount">Maximum number of top restriction reasons to include (default: 10)</param>
+            <returns>JSON file with compliance dashboard aggregation data</returns>
+            <remarks>
+            Exports aggregated compliance metrics in JSON format for programmatic access and API integrations.
+            
+            **JSON Format:**
+            - Pretty-printed JSON with camelCase property names
+            - Includes full aggregation response structure with metadata
+            - Complete metrics with all distribution data
+            - Optional detailed asset breakdown
+            
+            **Use Cases:**
+            - Programmatic dashboard data feeds
+            - API integrations with compliance management systems
+            - Automated compliance monitoring
+            - Data archival for long-term tracking
+            - Real-time compliance posture analysis
+            
+            **Filename:**
+            - Format: compliance-dashboard-{timestamp}.json
+            - Timestamp in yyyyMMddHHmmss format
+            
+            **Security:**
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
             <summary>
             Provides enterprise-grade audit export endpoints for MICA reporting
@@ -3529,6 +3646,355 @@
         <member name="P:BiatecTokensApi.Models.Compliance.AuditRetentionPolicy.Description">
             <summary>
             Description of retention policy
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest">
+            <summary>
+            Request for compliance dashboard aggregation export
+            </summary>
+            <remarks>
+            This request supports filtering aggregated compliance metrics for enterprise reporting
+            and scheduled compliance exports. Designed for compliance dashboard data feeds.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest.Network">
+            <summary>
+            Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest.TokenStandard">
+            <summary>
+            Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest.FromDate">
+            <summary>
+            Optional start date filter for compliance data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest.ToDate">
+            <summary>
+            Optional end date filter for compliance data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest.IncludeAssetBreakdown">
+            <summary>
+            Include detailed asset breakdown
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest.TopRestrictionsCount">
+            <summary>
+            Maximum number of top restriction reasons to include
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse">
+            <summary>
+            Compliance dashboard aggregation response with export formats
+            </summary>
+            <remarks>
+            This response provides aggregated compliance metrics suitable for
+            enterprise dashboards, scheduled reports, and compliance posture tracking.
+            Includes MICA readiness, whitelist status, jurisdiction coverage, and restriction analysis.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse.Metrics">
+            <summary>
+            Aggregated compliance metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse.NetworkFilter">
+            <summary>
+            Network filter applied (if any)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse.TokenStandardFilter">
+            <summary>
+            Token standard filter applied (if any)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse.DateRangeFilter">
+            <summary>
+            Date range filter applied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse.GeneratedAt">
+            <summary>
+            Timestamp when aggregation was generated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse.AssetBreakdown">
+            <summary>
+            Detailed asset breakdown (if requested)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics">
+            <summary>
+            Aggregated compliance metrics for dashboard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.TotalAssets">
+            <summary>
+            Total number of assets in the dataset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.MicaReadiness">
+            <summary>
+            MICA readiness metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.WhitelistStatus">
+            <summary>
+            Whitelist status metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.Jurisdictions">
+            <summary>
+            Jurisdiction coverage metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.ComplianceCounts">
+            <summary>
+            Compliant vs restricted asset counts
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.TopRestrictionReasons">
+            <summary>
+            Top restriction reasons with counts
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.TokenStandardDistribution">
+            <summary>
+            Token standard distribution
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics.NetworkDistribution">
+            <summary>
+            Network distribution
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics">
+            <summary>
+            MICA readiness aggregation metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.AssetsWithMetadata">
+            <summary>
+            Number of assets with MICA compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.AssetsWithoutMetadata">
+            <summary>
+            Number of assets without MICA compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.FullyCompliantAssets">
+            <summary>
+            Number of fully compliant assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.NearlyCompliantAssets">
+            <summary>
+            Number of nearly compliant assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.InProgressAssets">
+            <summary>
+            Number of assets in progress
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.NonCompliantAssets">
+            <summary>
+            Number of non-compliant assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.NotStartedAssets">
+            <summary>
+            Number of assets not started
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessMetrics.AverageCompliancePercentage">
+            <summary>
+            Average MICA compliance percentage across all assets
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics">
+            <summary>
+            Whitelist status aggregation metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics.AssetsWithWhitelist">
+            <summary>
+            Number of assets with whitelist enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics.AssetsWithoutWhitelist">
+            <summary>
+            Number of assets without whitelist
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics.TotalWhitelistedAddresses">
+            <summary>
+            Total whitelisted addresses across all assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics.ActiveWhitelistedAddresses">
+            <summary>
+            Number of active whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics.RevokedWhitelistedAddresses">
+            <summary>
+            Number of revoked whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics.SuspendedWhitelistedAddresses">
+            <summary>
+            Number of suspended whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics.AverageWhitelistedAddressesPerAsset">
+            <summary>
+            Average number of whitelisted addresses per asset
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.JurisdictionMetrics">
+            <summary>
+            Jurisdiction coverage aggregation metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionMetrics.AssetsWithJurisdiction">
+            <summary>
+            Number of assets with jurisdiction information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionMetrics.AssetsWithoutJurisdiction">
+            <summary>
+            Number of assets without jurisdiction information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionMetrics.JurisdictionDistribution">
+            <summary>
+            Distribution of assets by jurisdiction (country code -> count)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionMetrics.UniqueJurisdictions">
+            <summary>
+            Number of unique jurisdictions covered
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionMetrics.MostCommonJurisdiction">
+            <summary>
+            Most common jurisdiction
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceCountMetrics">
+            <summary>
+            Compliant vs restricted asset count metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceCountMetrics.CompliantAssets">
+            <summary>
+            Number of compliant assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceCountMetrics.RestrictedAssets">
+            <summary>
+            Number of restricted assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceCountMetrics.UnderReviewAssets">
+            <summary>
+            Number of assets under review
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceCountMetrics.SuspendedAssets">
+            <summary>
+            Number of suspended assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceCountMetrics.ExemptAssets">
+            <summary>
+            Number of exempt assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceCountMetrics.ComplianceRate">
+            <summary>
+            Compliance rate as percentage (0-100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RestrictionReasonCount">
+            <summary>
+            Restriction reason with occurrence count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RestrictionReasonCount.Reason">
+            <summary>
+            The restriction reason
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RestrictionReasonCount.Count">
+            <summary>
+            Number of assets with this restriction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RestrictionReasonCount.Percentage">
+            <summary>
+            Percentage of total restricted assets
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AssetComplianceSummary">
+            <summary>
+            Summary of compliance status for a single asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.AssetId">
+            <summary>
+            Asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.Network">
+            <summary>
+            Network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.TokenStandard">
+            <summary>
+            Token standard (ASA, ARC3, ARC200, ARC1400, ERC20)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.MicaComplianceStatus">
+            <summary>
+            MICA compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.ComplianceStatus">
+            <summary>
+            Compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.HasWhitelist">
+            <summary>
+            Whether whitelist is enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.WhitelistedAddressCount">
+            <summary>
+            Number of whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.Jurisdiction">
+            <summary>
+            Jurisdiction(s)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.TransferRestrictions">
+            <summary>
+            Transfer restrictions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetComplianceSummary.LastComplianceReview">
+            <summary>
+            Last compliance review date
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest">
@@ -9320,6 +9786,15 @@
             Generates a README file for the compliance evidence bundle
             </summary>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetDashboardAggregationAsync(BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ExportDashboardAggregationCsvAsync(BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.ExportDashboardAggregationJsonAsync(BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest,System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.EnterpriseAuditService">
             <summary>
             Service implementation for enterprise audit log operations
@@ -9705,6 +10180,60 @@
             
             The bundle is designed for MICA/RWA compliance audits and supports
             external verification with cryptographic checksums.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetDashboardAggregationAsync(BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest,System.String)">
+            <summary>
+            Gets aggregated compliance dashboard metrics for enterprise reporting
+            </summary>
+            <param name="request">The dashboard aggregation request with filters</param>
+            <param name="requestedBy">The address of the user requesting the dashboard data</param>
+            <returns>Response with aggregated compliance metrics including MICA readiness, whitelist status, and jurisdiction flags</returns>
+            <remarks>
+            This method aggregates compliance data across assets to provide:
+            - MICA readiness statistics (compliant, nearly compliant, in progress, non-compliant)
+            - Whitelist status metrics (enabled/disabled, active/revoked/suspended addresses)
+            - Jurisdiction coverage (distribution, unique jurisdictions)
+            - Compliant vs restricted asset counts
+            - Top restriction reasons with occurrence counts
+            - Token standard and network distribution
+            
+            Supports filtering by network, token standard, and date range for targeted reporting.
+            Designed for enterprise compliance dashboards and scheduled compliance exports.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ExportDashboardAggregationCsvAsync(BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest,System.String)">
+            <summary>
+            Exports compliance dashboard aggregation data as CSV
+            </summary>
+            <param name="request">The dashboard aggregation request with filters</param>
+            <param name="requestedBy">The address of the user requesting the export</param>
+            <returns>CSV content as string</returns>
+            <remarks>
+            Exports aggregated compliance metrics in CSV format suitable for:
+            - Enterprise reporting systems
+            - Scheduled compliance exports
+            - Spreadsheet analysis
+            - Compliance posture tracking
+            
+            CSV includes summary metrics and optional detailed asset breakdown.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.ExportDashboardAggregationJsonAsync(BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest,System.String)">
+            <summary>
+            Exports compliance dashboard aggregation data as JSON
+            </summary>
+            <param name="request">The dashboard aggregation request with filters</param>
+            <param name="requestedBy">The address of the user requesting the export</param>
+            <returns>JSON content as string</returns>
+            <remarks>
+            Exports aggregated compliance metrics in JSON format suitable for:
+            - Programmatic dashboard data feeds
+            - API integrations
+            - Compliance management systems
+            - Data archival
+            
+            JSON includes full aggregation response with metadata.
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">
