@@ -41,13 +41,15 @@ spec:
           #   - name: ASPNETCORE_Kestrel__Endpoints__Https__Url
           #     value: https://biatec-tokens-api-main-app-deployment.biatec:5443
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /health
               port: 8080
             initialDelaySeconds: 10
             timeoutSeconds: 5
             failureThreshold: 2
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /health
               port: 8080
             initialDelaySeconds: 20
             timeoutSeconds: 5
