@@ -16,6 +16,7 @@ namespace BiatecTokensApi.Repositories
     {
         private readonly IWhitelistRepository _whitelistRepository;
         private readonly IComplianceRepository _complianceRepository;
+        private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
         private readonly ILogger<EnterpriseAuditRepository> _logger;
 
         /// <summary>
@@ -23,14 +24,17 @@ namespace BiatecTokensApi.Repositories
         /// </summary>
         /// <param name="whitelistRepository">The whitelist repository</param>
         /// <param name="complianceRepository">The compliance repository</param>
+        /// <param name="tokenIssuanceRepository">The token issuance repository</param>
         /// <param name="logger">The logger instance</param>
         public EnterpriseAuditRepository(
             IWhitelistRepository whitelistRepository,
             IComplianceRepository complianceRepository,
+            ITokenIssuanceRepository tokenIssuanceRepository,
             ILogger<EnterpriseAuditRepository> logger)
         {
             _whitelistRepository = whitelistRepository;
             _complianceRepository = complianceRepository;
+            _tokenIssuanceRepository = tokenIssuanceRepository;
             _logger = logger;
         }
 
@@ -86,6 +90,27 @@ namespace BiatecTokensApi.Repositories
                 var complianceLogs = await _complianceRepository.GetAuditLogAsync(complianceRequest);
                 allEntries.AddRange(complianceLogs.Select(MapComplianceEntry));
                 _logger.LogDebug("Retrieved {Count} compliance audit entries", complianceLogs.Count);
+            }
+
+            // Get token issuance audit logs if category allows
+            if (!request.Category.HasValue || 
+                request.Category == AuditEventCategory.TokenIssuance)
+            {
+                var tokenIssuanceRequest = new GetTokenIssuanceAuditLogRequest
+                {
+                    AssetId = request.AssetId,
+                    Network = request.Network,
+                    DeployedBy = request.PerformedBy,
+                    Success = request.Success,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    Page = 1,
+                    PageSize = int.MaxValue // Get all for aggregation
+                };
+
+                var tokenIssuanceLogs = await _tokenIssuanceRepository.GetAuditLogAsync(tokenIssuanceRequest);
+                allEntries.AddRange(tokenIssuanceLogs.Select(MapTokenIssuanceEntry));
+                _logger.LogDebug("Retrieved {Count} token issuance audit entries", tokenIssuanceLogs.Count);
             }
 
             // Apply additional filters
@@ -155,6 +180,26 @@ namespace BiatecTokensApi.Repositories
                 allEntries.AddRange(complianceLogs.Select(MapComplianceEntry));
             }
 
+            // Get token issuance audit logs if category allows
+            if (!request.Category.HasValue || 
+                request.Category == AuditEventCategory.TokenIssuance)
+            {
+                var tokenIssuanceRequest = new GetTokenIssuanceAuditLogRequest
+                {
+                    AssetId = request.AssetId,
+                    Network = request.Network,
+                    DeployedBy = request.PerformedBy,
+                    Success = request.Success,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    Page = 1,
+                    PageSize = int.MaxValue
+                };
+
+                var tokenIssuanceLogs = await _tokenIssuanceRepository.GetAuditLogAsync(tokenIssuanceRequest);
+                allEntries.AddRange(tokenIssuanceLogs.Select(MapTokenIssuanceEntry));
+            }
+
             // Apply additional filters
             var filteredEntries = ApplyFilters(allEntries, request);
 
@@ -211,6 +256,26 @@ namespace BiatecTokensApi.Repositories
                 allEntries.AddRange(complianceLogs.Select(MapComplianceEntry));
             }
 
+            // Get token issuance audit logs if category allows
+            if (!request.Category.HasValue || 
+                request.Category == AuditEventCategory.TokenIssuance)
+            {
+                var tokenIssuanceRequest = new GetTokenIssuanceAuditLogRequest
+                {
+                    AssetId = request.AssetId,
+                    Network = request.Network,
+                    DeployedBy = request.PerformedBy,
+                    Success = request.Success,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    Page = 1,
+                    PageSize = int.MaxValue
+                };
+
+                var tokenIssuanceLogs = await _tokenIssuanceRepository.GetAuditLogAsync(tokenIssuanceRequest);
+                allEntries.AddRange(tokenIssuanceLogs.Select(MapTokenIssuanceEntry));
+            }
+
             // Apply additional filters
             var filteredEntries = ApplyFilters(allEntries, request);
 
@@ -220,6 +285,7 @@ namespace BiatecTokensApi.Repositories
                 WhitelistEvents = filteredEntries.Count(e => e.Category == AuditEventCategory.Whitelist || e.Category == AuditEventCategory.TransferValidation),
                 BlacklistEvents = filteredEntries.Count(e => e.Category == AuditEventCategory.Blacklist),
                 ComplianceEvents = filteredEntries.Count(e => e.Category == AuditEventCategory.Compliance),
+                TokenIssuanceEvents = filteredEntries.Count(e => e.Category == AuditEventCategory.TokenIssuance),
                 SuccessfulOperations = filteredEntries.Count(e => e.Success),
                 FailedOperations = filteredEntries.Count(e => !e.Success),
                 Networks = filteredEntries.Where(e => !string.IsNullOrEmpty(e.Network))
@@ -302,6 +368,27 @@ namespace BiatecTokensApi.Repositories
                 NewStatus = GetComplianceStatusString(entry.NewComplianceStatus, entry.NewVerificationStatus),
                 Notes = entry.Notes,
                 ItemCount = entry.ItemCount
+            };
+        }
+
+        /// <summary>
+        /// Maps a token issuance audit entry to an enterprise audit entry
+        /// </summary>
+        private EnterpriseAuditLogEntry MapTokenIssuanceEntry(TokenIssuanceAuditLogEntry entry)
+        {
+            return new EnterpriseAuditLogEntry
+            {
+                Id = entry.Id,
+                AssetId = entry.AssetId,
+                Network = entry.Network,
+                Category = AuditEventCategory.TokenIssuance,
+                ActionType = "Create",
+                PerformedBy = entry.DeployedBy,
+                PerformedAt = entry.DeployedAt,
+                Success = entry.Success,
+                ErrorMessage = entry.ErrorMessage,
+                Notes = $"Token: {entry.TokenName} ({entry.TokenSymbol}), Type: {entry.TokenType}, Supply: {entry.TotalSupply}",
+                CorrelationId = entry.TransactionHash
             };
         }
 
