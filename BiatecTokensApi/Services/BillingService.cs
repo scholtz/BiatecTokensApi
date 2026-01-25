@@ -20,7 +20,6 @@ namespace BiatecTokensApi.Services
     {
         private readonly ILogger<BillingService> _logger;
         private readonly ISubscriptionTierService _tierService;
-        private readonly IEnterpriseAuditRepository _auditRepository;
         private readonly AppConfiguration _appConfig;
 
         // In-memory storage for usage tracking (per billing period)
@@ -40,12 +39,10 @@ namespace BiatecTokensApi.Services
         public BillingService(
             ILogger<BillingService> logger,
             ISubscriptionTierService tierService,
-            IEnterpriseAuditRepository auditRepository,
             IOptions<AppConfiguration> appConfig)
         {
             _logger = logger;
             _tierService = tierService;
-            _auditRepository = auditRepository;
             _appConfig = appConfig.Value;
             _usageTracking = new ConcurrentDictionary<string, UsageData>(StringComparer.OrdinalIgnoreCase);
             _customPlanLimits = new ConcurrentDictionary<string, PlanLimits>(StringComparer.OrdinalIgnoreCase);
@@ -391,53 +388,34 @@ namespace BiatecTokensApi.Services
             return periodStart.AddMonths(1).AddSeconds(-1);
         }
 
-        private async Task LogLimitDenialAsync(string tenantAddress, LimitCheckRequest request, string denialReason)
+        private Task LogLimitDenialAsync(string tenantAddress, LimitCheckRequest request, string denialReason)
         {
-            try
-            {
-                var auditEntry = new EnterpriseAuditLogEntry
-                {
-                    Category = Models.AuditEventCategory.Compliance,
-                    ActionType = "LimitCheckDenied",
-                    PerformedBy = tenantAddress,
-                    PerformedAt = DateTime.UtcNow,
-                    Success = false,
-                    ErrorMessage = denialReason,
-                    AssetId = request.AssetId,
-                    Network = request.Network,
-                    Notes = $"Operation type: {request.OperationType}, Count: {request.OperationCount}"
-                };
+            // Log denial event for audit/compliance purposes
+            _logger.LogWarning(
+                "BILLING_AUDIT: LimitCheckDenied | Tenant: {TenantAddress} | " +
+                "OperationType: {OperationType} | OperationCount: {OperationCount} | " +
+                "AssetId: {AssetId} | Network: {Network} | Reason: {Reason}",
+                tenantAddress, request.OperationType, request.OperationCount,
+                request.AssetId, request.Network, denialReason);
 
-                await _auditRepository.AddAuditLogEntryAsync(auditEntry);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to log limit denial to audit repository");
-            }
+            return Task.CompletedTask;
         }
 
-        private async Task LogPlanLimitUpdateAsync(UpdatePlanLimitsRequest request, string performedBy)
+        private Task LogPlanLimitUpdateAsync(UpdatePlanLimitsRequest request, string performedBy)
         {
-            try
-            {
-                var auditEntry = new EnterpriseAuditLogEntry
-                {
-                    Category = Models.AuditEventCategory.Compliance,
-                    ActionType = "PlanLimitUpdate",
-                    PerformedBy = performedBy,
-                    PerformedAt = DateTime.UtcNow,
-                    Success = true,
-                    AffectedAddress = request.TenantAddress,
-                    Notes = request.Notes ?? "Plan limits updated by admin",
-                    Role = "Admin"
-                };
+            // Log plan limit update for audit/compliance purposes
+            _logger.LogInformation(
+                "BILLING_AUDIT: PlanLimitUpdate | PerformedBy: {PerformedBy} (Admin) | " +
+                "TenantAddress: {TenantAddress} | Limits: TokenIssuance={TokenIssuance}, " +
+                "Transfers={Transfers}, Exports={Exports}, Storage={Storage}, " +
+                "Compliance={Compliance}, Whitelist={Whitelist} | Notes: {Notes}",
+                performedBy, request.TenantAddress,
+                request.Limits.MaxTokenIssuance, request.Limits.MaxTransferValidations,
+                request.Limits.MaxAuditExports, request.Limits.MaxStorageItems,
+                request.Limits.MaxComplianceOperations, request.Limits.MaxWhitelistOperations,
+                request.Notes ?? "No notes provided");
 
-                await _auditRepository.AddAuditLogEntryAsync(auditEntry);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to log plan limit update to audit repository");
-            }
+            return Task.CompletedTask;
         }
 
         #endregion
