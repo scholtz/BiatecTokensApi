@@ -85,6 +85,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
             builder.Services.AddSingleton<IWhitelistRulesRepository, WhitelistRulesRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceRepository, BiatecTokensApi.Repositories.ComplianceRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository, BiatecTokensApi.Repositories.TokenIssuanceRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository, BiatecTokensApi.Repositories.EnterpriseAuditRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IWebhookRepository, BiatecTokensApi.Repositories.WebhookRepository>();
 

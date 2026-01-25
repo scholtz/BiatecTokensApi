@@ -3,6 +3,7 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ARC3;
 using BiatecTokensApi.Models.ARC3.Request;
 using BiatecTokensApi.Repositories;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,7 @@ namespace BiatecTokensTests
         private Mock<ILogger<ARC3TokenService>> _loggerMock;
         private Mock<IIPFSRepository> _ipfsRepositoryMock;
         private Mock<IASATokenService> _asaTokenServiceMock;
+        private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
         private AlgorandAuthenticationOptionsV2 _algoConfig;
 
         [SetUp]
@@ -35,6 +37,7 @@ namespace BiatecTokensTests
             _loggerMock = new Mock<ILogger<ARC3TokenService>>();
             _ipfsRepositoryMock = new Mock<IIPFSRepository>();
             _asaTokenServiceMock = new Mock<IASATokenService>();
+            _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
         }
 
         #region ARC3 FNFT Validation Tests
@@ -731,7 +734,8 @@ namespace BiatecTokensTests
                     _configMock.Object,
                     _loggerMock.Object,
                     _ipfsRepositoryMock.Object,
-                    _asaTokenServiceMock.Object
+                    _asaTokenServiceMock.Object,
+                    _tokenIssuanceRepositoryMock.Object
                 );
             }
             catch

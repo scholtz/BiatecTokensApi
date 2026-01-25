@@ -144,7 +144,12 @@ namespace BiatecTokensApi.Models
         /// <summary>
         /// Transfer validation event
         /// </summary>
-        TransferValidation
+        TransferValidation,
+
+        /// <summary>
+        /// Token issuance/deployment event
+        /// </summary>
+        TokenIssuance
     }
 
     /// <summary>
@@ -268,6 +273,11 @@ namespace BiatecTokensApi.Models
         /// Number of compliance events
         /// </summary>
         public int ComplianceEvents { get; set; }
+
+        /// <summary>
+        /// Number of token issuance events
+        /// </summary>
+        public int TokenIssuanceEvents { get; set; }
 
         /// <summary>
         /// Number of successful operations

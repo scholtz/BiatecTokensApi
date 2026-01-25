@@ -1,6 +1,7 @@
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ARC1400.Request;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,7 @@ namespace BiatecTokensTests
         private Mock<IOptionsMonitor<AlgorandAuthenticationOptionsV2>> _configMock;
         private Mock<IOptionsMonitor<AppConfiguration>> _appConfigMock;
         private Mock<ILogger<ARC1400TokenService>> _loggerMock;
+        private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
         private AlgorandAuthenticationOptionsV2 _algoConfig;
         private AppConfiguration _appConfig;
 
@@ -38,6 +40,7 @@ namespace BiatecTokensTests
             _appConfigMock.Setup(x => x.CurrentValue).Returns(_appConfig);
 
             _loggerMock = new Mock<ILogger<ARC1400TokenService>>();
+            _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
         }
 
         #region ARC1400 Mintable Token Validation Tests
@@ -456,7 +459,7 @@ namespace BiatecTokensTests
         {
             try
             {
-                return new ARC1400TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object);
+                return new ARC1400TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
             }
             catch
             {

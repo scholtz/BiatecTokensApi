@@ -1,6 +1,7 @@
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ERC20.Request;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,6 +15,7 @@ namespace BiatecTokensTests
         private Mock<IOptionsMonitor<EVMChains>> _configMock;
         private Mock<IOptionsMonitor<AppConfiguration>> _appConfigMock;
         private Mock<ILogger<ERC20TokenService>> _loggerMock;
+        private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
         private EVMChains _evmConfig;
         private AppConfiguration _appConfig;
 
@@ -51,6 +53,7 @@ namespace BiatecTokensTests
             _appConfigMock.Setup(x => x.CurrentValue).Returns(_appConfig);
 
             _loggerMock = new Mock<ILogger<ERC20TokenService>>();
+            _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
         }
 
         #region ERC20 Mintable Token Validation Tests
@@ -545,7 +548,7 @@ namespace BiatecTokensTests
 
         private ERC20TokenService CreateService()
         {
-            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object);
+            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
         }
 
         #endregion

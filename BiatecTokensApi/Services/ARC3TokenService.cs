@@ -9,6 +9,7 @@ using BiatecTokensApi.Models.ARC3.Request;
 using BiatecTokensApi.Models.ARC3.Response;
 using BiatecTokensApi.Models.ASA.Request;
 using BiatecTokensApi.Repositories;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Options;
 using Nethereum.Signer;
@@ -24,11 +25,15 @@ namespace BiatecTokensApi.Services
     /// </summary>
     public class ARC3TokenService : IARC3TokenService
     {
+        private const ulong NFT_TOTAL_SUPPLY = 1;
+        private const uint NFT_DECIMALS = 0;
+
         private readonly IOptionsMonitor<AlgorandAuthenticationOptionsV2> _config;
         private readonly ILogger<ARC3TokenService> _logger;
         private readonly Dictionary<string, string> _genesisId2GenesisHash = new();
         private readonly IIPFSRepository _ipfsRepository;
         private readonly IASATokenService _asaTokenService;
+        private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
         /// <summary>
         /// Initializes a new instance of the <see cref="ARC3TokenService"/> class, configuring it to interact
         /// with Algorand nodes and IPFS repositories based on the provided options.
@@ -44,16 +49,19 @@ namespace BiatecTokensApi.Services
         /// <param name="ipfsRepository">An implementation of <see cref="IIPFSRepository"/> used to interact with IPFS for managing decentralized
         /// file storage.</param>
         /// <param name="asaTokenService">Token service to create ASAs</param>
+        /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         public ARC3TokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             ILogger<ARC3TokenService> logger,
             IIPFSRepository ipfsRepository,
-            IASATokenService asaTokenService)
+            IASATokenService asaTokenService,
+            ITokenIssuanceRepository tokenIssuanceRepository)
         {
             _config = config;
             _logger = logger;
             _ipfsRepository = ipfsRepository;
             _asaTokenService = asaTokenService;
+            _tokenIssuanceRepository = tokenIssuanceRepository;
             foreach (var chain in _config.CurrentValue.AllowedNetworks)
             {
                 _logger.LogInformation("Allowed network: {Network}", chain);
@@ -154,12 +162,44 @@ namespace BiatecTokensApi.Services
                 response.MetadataUrl = metadataUrl;
                 response.MetadataHash = metadataHash;
                 response.ConfirmedRound = asaResponse.ConfirmedRound;
+
+                // Log audit entry
+                await LogTokenIssuanceAudit(
+                    request.Name,
+                    request.UnitName,
+                    request.TotalSupply,
+                    request.Decimals,
+                    TokenType.ARC3_FNFT,
+                    asaResponse.AssetId,
+                    asaResponse.TransactionId,
+                    asaResponse.CreatorAddress ?? string.Empty,
+                    request.Network,
+                    asaResponse.ConfirmedRound,
+                    asaResponse.Success,
+                    asaResponse.ErrorMessage,
+                    metadataUrl: metadataUrl);
+
                 return response;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating ARC3 token: {Message}", ex.Message);
                 response.ErrorMessage = $"Failed to create token: {ex.Message}";
+
+                // Log audit entry for failure
+                await LogTokenIssuanceAudit(
+                    request.Name,
+                    request.UnitName,
+                    request.TotalSupply,
+                    request.Decimals,
+                    TokenType.ARC3_FNFT,
+                    null,
+                    null,
+                    string.Empty,
+                    request.Network,
+                    null,
+                    false,
+                    ex.Message);
             }
             return response;
         }
@@ -227,6 +267,23 @@ namespace BiatecTokensApi.Services
                 response.MetadataUrl = metadataUrl;
                 response.MetadataHash = metadataHash;
                 response.ConfirmedRound = asaResponse.ConfirmedRound;
+
+                // Log audit entry
+                await LogTokenIssuanceAudit(
+                    request.Name,
+                    request.UnitName,
+                    request.TotalSupply,
+                    request.Decimals,
+                    TokenType.ARC3_FT,
+                    asaResponse.AssetId,
+                    asaResponse.TransactionId,
+                    asaResponse.CreatorAddress ?? string.Empty,
+                    request.Network,
+                    asaResponse.ConfirmedRound,
+                    asaResponse.Success,
+                    asaResponse.ErrorMessage,
+                    metadataUrl: metadataUrl);
+
                 return response;
             }
             catch (Exception ex)
@@ -298,12 +355,44 @@ namespace BiatecTokensApi.Services
                 response.MetadataUrl = metadataUrl;
                 response.MetadataHash = metadataHash;
                 response.ConfirmedRound = asaResponse.ConfirmedRound;
+
+                // Log audit entry (NFTs have total supply of 1 and 0 decimals)
+                await LogTokenIssuanceAudit(
+                    request.Name,
+                    request.UnitName,
+                    NFT_TOTAL_SUPPLY,
+                    NFT_DECIMALS,
+                    TokenType.ARC3_NFT,
+                    asaResponse.AssetId,
+                    asaResponse.TransactionId,
+                    asaResponse.CreatorAddress ?? string.Empty,
+                    request.Network,
+                    asaResponse.ConfirmedRound,
+                    asaResponse.Success,
+                    asaResponse.ErrorMessage,
+                    metadataUrl: metadataUrl);
+
                 return response;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating ARC3 token: {Message}", ex.Message);
                 response.ErrorMessage = $"Failed to create token: {ex.Message}";
+
+                // Log audit entry for failure (NFTs have total supply of 1 and 0 decimals)
+                await LogTokenIssuanceAudit(
+                    request.Name,
+                    request.UnitName,
+                    NFT_TOTAL_SUPPLY,
+                    NFT_DECIMALS,
+                    TokenType.ARC3_NFT,
+                    null,
+                    null,
+                    string.Empty,
+                    request.Network,
+                    null,
+                    false,
+                    ex.Message);
             }
             return response;
         }
@@ -575,6 +664,60 @@ namespace BiatecTokensApi.Services
             // Extract CID from IPFS URL like "https://ipfs.biatec.io/ipfs/QmHash"
             var match = Regex.Match(url, @"/ipfs/([a-zA-Z0-9]+)");
             return match.Success ? match.Groups[1].Value : null;
+        }
+
+        private async Task LogTokenIssuanceAudit(
+            string? tokenName,
+            string? tokenSymbol,
+            ulong? totalSupply,
+            uint decimals,
+            TokenType tokenType,
+            ulong? assetId,
+            string? transactionId,
+            string creatorAddress,
+            string network,
+            ulong? confirmedRound,
+            bool success,
+            string? errorMessage,
+            string? managerAddress = null,
+            string? reserveAddress = null,
+            string? freezeAddress = null,
+            string? clawbackAddress = null,
+            string? metadataUrl = null)
+        {
+            try
+            {
+                var auditEntry = new TokenIssuanceAuditLogEntry
+                {
+                    AssetId = assetId,
+                    AssetIdentifier = assetId?.ToString(),
+                    Network = network,
+                    TokenType = tokenType.ToString(),
+                    TokenName = tokenName,
+                    TokenSymbol = tokenSymbol,
+                    TotalSupply = totalSupply?.ToString(),
+                    Decimals = (int)decimals,
+                    DeployedBy = creatorAddress,
+                    DeployedAt = DateTime.UtcNow,
+                    Success = success,
+                    ErrorMessage = errorMessage,
+                    TransactionHash = transactionId,
+                    ConfirmedRound = confirmedRound,
+                    ManagerAddress = managerAddress,
+                    ReserveAddress = reserveAddress,
+                    FreezeAddress = freezeAddress,
+                    ClawbackAddress = clawbackAddress,
+                    MetadataUrl = metadataUrl,
+                    IsMintable = !string.IsNullOrEmpty(managerAddress),
+                    IsBurnable = !string.IsNullOrEmpty(clawbackAddress)
+                };
+
+                await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging token issuance audit entry");
+            }
         }
     }
 }

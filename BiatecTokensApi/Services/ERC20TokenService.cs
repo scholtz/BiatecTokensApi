@@ -14,6 +14,7 @@ using BiatecTokensApi.Models.ERC20.Request;
 using BiatecTokensApi.Models.ERC20.Response;
 using BiatecTokensApi.Models;
 using AlgorandARC76AccountDotNet;
+using BiatecTokensApi.Repositories.Interface;
 
 namespace BiatecTokensApi.Services
 {
@@ -32,6 +33,7 @@ namespace BiatecTokensApi.Services
         private readonly IOptionsMonitor<EVMChains> _config;
         private readonly IOptionsMonitor<AppConfiguration> _appConfig;
         private readonly ILogger<ERC20TokenService> _logger;
+        private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -49,16 +51,19 @@ namespace BiatecTokensApi.Services
         /// <param name="config">The configuration monitor for blockchain-related settings.</param>
         /// <param name="appConfig">The configuration monitor for application-specific settings.</param>
         /// <param name="logger">The logger used to log information and errors for this service.</param>
+        /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ERC20TokenService(
             IOptionsMonitor<EVMChains> config,
             IOptionsMonitor<AppConfiguration> appConfig,
-            ILogger<ERC20TokenService> logger
+            ILogger<ERC20TokenService> logger,
+            ITokenIssuanceRepository tokenIssuanceRepository
             )
         {
             _config = config;
             _appConfig = appConfig;
             _logger = logger;
+            _tokenIssuanceRepository = tokenIssuanceRepository;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -235,6 +240,10 @@ namespace BiatecTokensApi.Services
 
                     _logger.LogInformation("BiatecToken {Symbol} deployed successfully at address {Address} with transaction {TxHash}",
                         request.Symbol, receipt.ContractAddress, receipt.TransactionHash);
+
+                    // Log token issuance audit entry
+                    await LogTokenIssuanceAudit(request, tokenType, receipt.ContractAddress, receipt.TransactionHash, 
+                        account.Address, true, null, GetNetworkName(chainConfig.ChainId));
                 }
                 else
                 {
@@ -246,6 +255,10 @@ namespace BiatecTokensApi.Services
                         ErrorMessage = "Contract deployment failed - transaction reverted or no contract address received"
                     };
                     _logger.LogError("BiatecToken deployment failed: {Error}", response.ErrorMessage);
+
+                    // Log failed token issuance audit entry
+                    await LogTokenIssuanceAudit(request, tokenType, null, receipt?.TransactionHash, 
+                        account.Address, false, response.ErrorMessage, GetNetworkName(chainConfig.ChainId));
                 }
             }
             catch (Exception ex)
@@ -258,9 +271,80 @@ namespace BiatecTokensApi.Services
                     ErrorMessage = ex.Message
                 };
                 _logger.LogError(ex, "Error deploying BiatecToken: {Message}", ex.Message);
+
+                // Log failed token issuance audit entry
+                try
+                {
+                    var acc = ARC76.GetEVMAccount(_appConfig.CurrentValue.Account, Convert.ToInt32(request.ChainId));
+                    var account = new Account(acc, request.ChainId);
+                    var chainConfig = GetBlockchainConfig(Convert.ToInt32(request.ChainId));
+                    await LogTokenIssuanceAudit(request, tokenType, null, null, account.Address, false, ex.Message, GetNetworkName(chainConfig.ChainId));
+                }
+                catch
+                {
+                    // Ignore audit logging errors
+                }
             }
 
             return response;
+        }
+
+        /// <summary>
+        /// Gets network name from chain ID
+        /// </summary>
+        private string GetNetworkName(int chainId)
+        {
+            return chainId switch
+            {
+                8453 => "base-mainnet",
+                84532 => "base-sepolia",
+                1 => "ethereum-mainnet",
+                11155111 => "ethereum-sepolia",
+                _ => $"evm-chain-{chainId}"
+            };
+        }
+
+        /// <summary>
+        /// Logs token issuance audit entry
+        /// </summary>
+        private async Task LogTokenIssuanceAudit(
+            ERC20TokenDeploymentRequest request,
+            TokenType tokenType,
+            string? contractAddress,
+            string? transactionHash,
+            string deployedBy,
+            bool success,
+            string? errorMessage,
+            string network)
+        {
+            try
+            {
+                var auditEntry = new TokenIssuanceAuditLogEntry
+                {
+                    ContractAddress = contractAddress,
+                    AssetIdentifier = contractAddress,
+                    Network = network,
+                    TokenType = tokenType.ToString(),
+                    TokenName = request.Name,
+                    TokenSymbol = request.Symbol,
+                    TotalSupply = request.InitialSupply.ToString(),
+                    Decimals = request.Decimals,
+                    DeployedBy = deployedBy,
+                    DeployedAt = DateTime.UtcNow,
+                    Success = success,
+                    ErrorMessage = errorMessage,
+                    TransactionHash = transactionHash,
+                    IsMintable = tokenType == TokenType.ERC20_Mintable,
+                    IsPausable = true, // BiatecToken is pausable
+                    IsBurnable = true  // BiatecToken is burnable
+                };
+
+                await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging token issuance audit entry");
+            }
         }
 
 

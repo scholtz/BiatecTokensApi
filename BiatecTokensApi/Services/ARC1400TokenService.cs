@@ -9,6 +9,7 @@ using BiatecTokensApi.Models.ARC1400.Request;
 using BiatecTokensApi.Models.ARC1400.Response;
 using BiatecTokensApi.Models.ARC200.Response;
 using BiatecTokensApi.Models.AVM;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Options;
 using Nethereum.Contracts;
@@ -38,6 +39,7 @@ namespace BiatecTokensApi.Services
         private readonly IOptionsMonitor<AlgorandAuthenticationOptionsV2> _config;
         private readonly IOptionsMonitor<AppConfiguration> _appConfig;
         private readonly ILogger<ARC1400TokenService> _logger;
+        private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -56,16 +58,19 @@ namespace BiatecTokensApi.Services
         /// <param name="config">The configuration monitor for blockchain-related settings.</param>
         /// <param name="appConfig">The configuration monitor for application-specific settings.</param>
         /// <param name="logger">The logger used to log information and errors for this service.</param>
+        /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ARC1400TokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             IOptionsMonitor<AppConfiguration> appConfig,
-            ILogger<ARC1400TokenService> logger
+            ILogger<ARC1400TokenService> logger,
+            ITokenIssuanceRepository tokenIssuanceRepository
             )
         {
             _config = config;
             _appConfig = appConfig;
             _logger = logger;
+            _tokenIssuanceRepository = tokenIssuanceRepository;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -222,7 +227,7 @@ namespace BiatecTokensApi.Services
 
                 var appInfo = await algod.GetApplicationByIDAsync(client.appId);
 
-                return new ARC1400TokenDeploymentResponse()
+                var successResponse = new ARC1400TokenDeploymentResponse()
                 {
                     Success = true,
                     ErrorMessage = string.Empty,
@@ -232,6 +237,23 @@ namespace BiatecTokensApi.Services
                     ConfirmedRound = txs.First().FirstValid,
                     CreatorAddress = acc.Address.ToString()
                 };
+
+                // Log audit entry
+                await LogTokenIssuanceAudit(
+                    request.Name,
+                    request.Symbol,
+                    (ulong)initialSupplyBigint,
+                    (uint)request.Decimals,
+                    tokenType,
+                    client.appId,
+                    txs.First().TxID(),
+                    acc.Address.ToString(),
+                    request.Network,
+                    txs.First().FirstValid,
+                    true,
+                    null);
+
+                return successResponse;
             }
             catch (Exception ex)
             {
@@ -246,6 +268,22 @@ namespace BiatecTokensApi.Services
                     CreatorAddress = string.Empty
                 };
                 _logger.LogError(ex, "Error deploying BiatecToken: {Message}", ex.Message);
+
+                // Log audit entry for failure
+                var acc = ARC76.GetAccount(_appConfig.CurrentValue.Account);
+                await LogTokenIssuanceAudit(
+                    request.Name,
+                    request.Symbol,
+                    (ulong)request.InitialSupply,
+                    (uint)request.Decimals,
+                    tokenType,
+                    null,
+                    null,
+                    acc.Address.ToString(),
+                    request.Network,
+                    null,
+                    false,
+                    ex.Message);
             }
 
             return response;
@@ -260,6 +298,48 @@ namespace BiatecTokensApi.Services
 
             [JsonPropertyName("bytecode")]
             public string? Bytecode { get; set; }
+        }
+
+        private async Task LogTokenIssuanceAudit(
+            string? tokenName,
+            string? tokenSymbol,
+            ulong? totalSupply,
+            uint decimals,
+            TokenType tokenType,
+            ulong? appId,
+            string? transactionId,
+            string creatorAddress,
+            string network,
+            ulong? confirmedRound,
+            bool success,
+            string? errorMessage)
+        {
+            try
+            {
+                var auditEntry = new TokenIssuanceAuditLogEntry
+                {
+                    AssetId = appId,
+                    AssetIdentifier = appId?.ToString(),
+                    Network = network,
+                    TokenType = tokenType.ToString(),
+                    TokenName = tokenName,
+                    TokenSymbol = tokenSymbol,
+                    TotalSupply = totalSupply?.ToString(),
+                    Decimals = (int)decimals,
+                    DeployedBy = creatorAddress,
+                    DeployedAt = DateTime.UtcNow,
+                    Success = success,
+                    ErrorMessage = errorMessage,
+                    TransactionHash = transactionId,
+                    ConfirmedRound = confirmedRound
+                };
+
+                await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging token issuance audit entry");
+            }
         }
     }
 }
