@@ -14,13 +14,11 @@ namespace BiatecTokensApi.Models
         /// <summary>
         /// The asset ID (token ID) for the mint operation
         /// </summary>
-        [Required]
         public required ulong AssetId { get; set; }
 
         /// <summary>
         /// The recipient's Algorand address
         /// </summary>
-        [Required]
         public required string ToAddress { get; set; }
 
         /// <summary>

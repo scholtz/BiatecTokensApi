@@ -14,13 +14,11 @@ namespace BiatecTokensApi.Models
         /// <summary>
         /// The asset ID (token ID) for the burn operation
         /// </summary>
-        [Required]
         public required ulong AssetId { get; set; }
 
         /// <summary>
         /// The token holder's Algorand address
         /// </summary>
-        [Required]
         public required string FromAddress { get; set; }
 
         /// <summary>
