@@ -520,12 +520,17 @@ For detailed documentation, see [COMPLIANCE_INDICATORS_API.md](../COMPLIANCE_IND
 - `POST /api/v1/whitelist` - Add address to whitelist (with KYC fields)
 - `DELETE /api/v1/whitelist` - Remove address from whitelist
 - `POST /api/v1/whitelist/bulk` - Bulk add addresses
+- `POST /api/v1/whitelist/validate-transfer` - Validate if transfer is allowed
 - `GET /api/v1/whitelist/{assetId}/audit-log` - Get compliance audit trail
 - `GET /api/v1/whitelist/audit-log` - Get audit logs across all assets
 - `GET /api/v1/whitelist/audit-log/export/csv` - Export audit log as CSV
 - `GET /api/v1/whitelist/audit-log/export/json` - Export audit log as JSON
+- `GET /api/v1/whitelist/audit-log/retention-policy` - Get MICA compliance policy
 
-For frontend integration guide, see [RWA_WHITELIST_FRONTEND_INTEGRATION.md](../RWA_WHITELIST_FRONTEND_INTEGRATION.md)
+**Documentation:**
+- [Enforcement Examples & Integration Guide](../WHITELIST_ENFORCEMENT_EXAMPLES.md) - Complete examples for applying whitelist enforcement to token operations
+- [Frontend Integration Guide](../RWA_WHITELIST_FRONTEND_INTEGRATION.md) - Frontend developer integration guide
+- [Feature Overview](../WHITELIST_FEATURE.md) - Business value and technical overview
 
 ### Network-Specific Compliance Rules
 
