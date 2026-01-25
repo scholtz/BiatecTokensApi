@@ -16,9 +16,11 @@ This document demonstrates how to use the token whitelisting API to enforce MICA
 
 ### Prerequisites
 
-- Token deployed on Algorand (ASA, ARC3, ARC200, ARC1400)
+- Token deployed on Algorand (ASA, ARC3, ARC200, ARC1400/ARC1644)
 - ARC-0014 authentication configured
 - Admin role for whitelist management
+
+**Note**: ARC1400 (also known as ARC1644) is an Algorand security token standard that provides advanced compliance features including partitions, transfer restrictions, and regulatory controls.
 
 ### Basic Whitelist Setup
 
@@ -266,7 +268,7 @@ public class RWATokenService : IRWATokenService
             return new TransferResult
             {
                 Success = false,
-                ErrorMessage = $"Validation failed: {validation.ErrorMessage}"
+                ErrorMessage = validation.ErrorMessage ?? "Whitelist validation failed"
             };
         }
 
@@ -333,11 +335,15 @@ public class RWATokenService : IRWATokenService
 
 ```bash
 # 1. Admin authenticates with ARC-0014
+# Note: Generate the ARC-14 signed transaction using your Algorand wallet SDK
+# Example: const signedTx = await wallet.signTransaction(authTransaction);
+# Then base64 encode it: btoa(String.fromCharCode(...signedTx))
+
 # 2. Add addresses to whitelist
 
 # Add investor 1
 curl -X POST https://api.biatectokens.com/api/v1/whitelist \
-  -H "Authorization: SigTx <arc14-signed-tx>" \
+  -H "Authorization: SigTx <base64-encoded-arc14-signed-transaction>" \
   -H "Content-Type: application/json" \
   -d '{
     "assetId": 12345,
@@ -692,7 +698,7 @@ public class WhitelistEnforcementIntegrationTests
 Never execute a blockchain transaction without first validating the whitelist status:
 
 ```csharp
-// ✅ CORRECT
+// ✅ CORRECT - Always validate before executing transfer
 var validation = await ValidateTransfer(request);
 if (validation.IsAllowed)
 {
@@ -700,6 +706,9 @@ if (validation.IsAllowed)
 }
 
 // ❌ INCORRECT - No validation
+// RISK: Violates compliance requirements, exposes to regulatory penalties,
+//       could result in tokens being transferred to sanctioned addresses,
+//       no audit trail of compliance checks
 await ExecuteBlockchainTransfer(request);
 ```
 
