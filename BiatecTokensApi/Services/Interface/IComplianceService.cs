@@ -287,5 +287,50 @@ namespace BiatecTokensApi.Services.Interface
         /// JSON includes full aggregation response with metadata.
         /// </remarks>
         Task<string> ExportDashboardAggregationJsonAsync(GetComplianceDashboardAggregationRequest request, string requestedBy);
+
+        /// <summary>
+        /// Gets compliance monitoring metrics including whitelist enforcement and audit health
+        /// </summary>
+        /// <param name="request">The monitoring metrics request with filters</param>
+        /// <returns>Response with compliance monitoring metrics</returns>
+        /// <remarks>
+        /// This method provides enterprise-grade compliance observability metrics:
+        /// - Whitelist enforcement metrics (validations, allowed/denied transfers)
+        /// - Audit log health status (retention, completeness)
+        /// - Per-network retention status (VOI/Aramid)
+        /// 
+        /// Designed for MICA/RWA compliance monitoring dashboards.
+        /// </remarks>
+        Task<ComplianceMonitoringMetricsResponse> GetMonitoringMetricsAsync(GetComplianceMonitoringMetricsRequest request);
+
+        /// <summary>
+        /// Gets audit log health status
+        /// </summary>
+        /// <param name="request">The audit health request with filters</param>
+        /// <returns>Response with audit log health status</returns>
+        /// <remarks>
+        /// This method provides audit log health monitoring including:
+        /// - Total audit entries and coverage
+        /// - Retention compliance status
+        /// - Health status and issues
+        /// 
+        /// Critical for MICA compliance monitoring.
+        /// </remarks>
+        Task<AuditHealthResponse> GetAuditHealthAsync(GetAuditHealthRequest request);
+
+        /// <summary>
+        /// Gets retention status per network (VOI/Aramid)
+        /// </summary>
+        /// <param name="request">The retention status request with optional network filter</param>
+        /// <returns>Response with per-network retention status</returns>
+        /// <remarks>
+        /// This method provides network-specific retention monitoring:
+        /// - Audit entry counts per network
+        /// - Retention period compliance
+        /// - Compliance metadata coverage
+        /// 
+        /// Focuses on VOI and Aramid networks for RWA compliance.
+        /// </remarks>
+        Task<RetentionStatusResponse> GetRetentionStatusAsync(GetRetentionStatusRequest request);
     }
 }
