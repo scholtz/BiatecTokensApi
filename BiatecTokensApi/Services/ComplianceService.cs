@@ -3253,13 +3253,13 @@ namespace BiatecTokensApi.Services
             {
                 try
                 {
-                    var whitelistRequest = new GetWhitelistRequest
+                    var whitelistRequest = new ListWhitelistRequest
                     {
                         AssetId = metadata.AssetId,
-                        Network = networkFilter ?? metadata.Network
+                        PageSize = 1000 // Get large page for counting
                     };
 
-                    var whitelistResponse = await _whitelistService.GetWhitelistAsync(whitelistRequest);
+                    var whitelistResponse = await _whitelistService.ListEntriesAsync(whitelistRequest);
                     if (whitelistResponse.Success && whitelistResponse.Entries != null && whitelistResponse.Entries.Any())
                     {
                         metrics.AssetsWithWhitelist++;
@@ -3271,13 +3271,13 @@ namespace BiatecTokensApi.Services
                         {
                             switch (entry.Status)
                             {
-                                case WhitelistEntryStatus.Active:
+                                case WhitelistStatus.Active:
                                     metrics.ActiveWhitelistedAddresses++;
                                     break;
-                                case WhitelistEntryStatus.Revoked:
+                                case WhitelistStatus.Revoked:
                                     metrics.RevokedWhitelistedAddresses++;
                                     break;
-                                case WhitelistEntryStatus.Suspended:
+                                case WhitelistStatus.Inactive:
                                     metrics.SuspendedWhitelistedAddresses++;
                                     break;
                             }
@@ -3507,13 +3507,13 @@ namespace BiatecTokensApi.Services
                 // Get whitelist info
                 try
                 {
-                    var whitelistRequest = new GetWhitelistRequest
+                    var whitelistRequest = new ListWhitelistRequest
                     {
                         AssetId = metadata.AssetId,
-                        Network = metadata.Network
+                        PageSize = 1000
                     };
 
-                    var whitelistResponse = await _whitelistService.GetWhitelistAsync(whitelistRequest);
+                    var whitelistResponse = await _whitelistService.ListEntriesAsync(whitelistRequest);
                     if (whitelistResponse.Success && whitelistResponse.Entries != null)
                     {
                         summary.HasWhitelist = whitelistResponse.Entries.Any();
