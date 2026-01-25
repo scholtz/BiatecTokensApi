@@ -2,15 +2,17 @@
 
 ## Overview
 
-The Enterprise Audit Export API provides a unified, enterprise-grade audit log system for MICA (Markets in Crypto-Assets Regulation) compliance reporting. This API consolidates audit events from whitelist/blacklist and compliance operations across all blockchain networks, including VOI and Aramid mainnets.
+The Enterprise Audit Export API provides a unified, enterprise-grade audit log system for MICA (Markets in Crypto-Assets Regulation) compliance reporting. This API consolidates audit events from **token issuance, whitelist/blacklist, and compliance operations** across all blockchain networks, including VOI and Aramid mainnets.
 
-**Implementation Date:** January 24, 2026
+**Implementation Date:** January 24, 2026  
+**Token Issuance Tracking Added:** January 25, 2026
 
 ## Features
 
 ### Core Capabilities
 
-✅ **Unified Audit Trail**: Single API to access all whitelist, blacklist, and compliance events  
+✅ **Unified Audit Trail**: Single API to access all token issuance, whitelist, blacklist, and compliance events  
+✅ **Token Issuance Tracking**: Complete audit trail for all token deployments (ERC20, ASA, ARC3, ARC200, ARC1400)  
 ✅ **7-Year Retention**: MICA-compliant 7-year minimum retention policy  
 ✅ **Comprehensive Filtering**: Filter by asset, network, category, date range, and more  
 ✅ **Multiple Export Formats**: CSV and JSON exports for compliance reporting  
@@ -29,8 +31,8 @@ Retrieves enterprise audit log entries with comprehensive filtering and paginati
 
 **Query Parameters:**
 - `assetId` (optional): Filter by specific token asset ID
-- `network` (optional): Filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)
-- `category` (optional): Filter by event category (Whitelist, Blacklist, Compliance, TransferValidation)
+- `network` (optional): Filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, base-mainnet, etc.)
+- `category` (optional): Filter by event category (TokenIssuance, Whitelist, Blacklist, Compliance, TransferValidation)
 - `actionType` (optional): Filter by action type (Add, Update, Remove, Create, Delete, etc.)
 - `performedBy` (optional): Filter by Algorand address of user who performed the action
 - `affectedAddress` (optional): Filter by affected address (for whitelist/blacklist operations)
@@ -236,15 +238,34 @@ Unified audit log entry combining whitelist/blacklist and compliance events.
 ### AuditEventCategory
 
 Categories of audit events:
+- `TokenIssuance`: Token deployment/issuance events (NEW - tracks all token creation across ERC20, ASA, ARC3, ARC200, ARC1400)
 - `Whitelist`: Whitelist management events
 - `Blacklist`: Blacklist management events
 - `Compliance`: Compliance metadata events
 - `WhitelistRules`: Whitelist rule configuration events
 - `TransferValidation`: Transfer validation events
 
+### Token Issuance Events
+
+Token issuance events capture comprehensive information about token deployments:
+- **Supported Standards:** ERC20 (mintable/preminted), ASA (FT/NFT/FNFT), ARC3 (FT/NFT/FNFT), ARC200 (mintable/preminted), ARC1400 (security tokens)
+- **Networks:** All Algorand networks (VOI, Aramid, mainnet, testnet) and EVM networks (Base, Ethereum)
+- **Tracked Data:**
+  - Token metadata (name, symbol, total supply, decimals)
+  - Deployment details (transaction hash, deployer address, confirmed round/block)
+  - Token capabilities (mintable, pausable, burnable)
+  - Algorand-specific (manager, reserve, freeze, clawback addresses)
+  - Success/failure status with error messages
+- **Use Cases:**
+  - Track all token issuance activities for regulatory reporting
+  - Monitor token creation patterns and trends
+  - Verify token deployment parameters for compliance
+  - Generate token issuance reports for MICA submissions
+
 ### AuditLogSummary
 
 Summary statistics for audit log exports:
+- `tokenIssuanceEvents` (int): Number of token issuance events (NEW)
 - `whitelistEvents` (int): Number of whitelist events
 - `blacklistEvents` (int): Number of blacklist events
 - `complianceEvents` (int): Number of compliance events
