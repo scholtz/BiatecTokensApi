@@ -42,6 +42,14 @@ namespace BiatecTokensTests
             _serviceLoggerMock = new Mock<ILogger<EnterpriseAuditService>>();
             _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
 
+            // Setup token issuance repository mock to return empty list by default
+            _tokenIssuanceRepositoryMock
+                .Setup(r => r.GetAuditLogAsync(It.IsAny<GetTokenIssuanceAuditLogRequest>()))
+                .ReturnsAsync(new List<TokenIssuanceAuditLogEntry>());
+            _tokenIssuanceRepositoryMock
+                .Setup(r => r.GetAuditLogCountAsync(It.IsAny<GetTokenIssuanceAuditLogRequest>()))
+                .ReturnsAsync(0);
+
             _whitelistRepository = new WhitelistRepository(_whitelistLoggerMock.Object);
             _complianceRepository = new ComplianceRepository(_complianceLoggerMock.Object);
             _enterpriseAuditRepository = new EnterpriseAuditRepository(
