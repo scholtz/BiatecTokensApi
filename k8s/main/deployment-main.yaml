@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: biatec-tokens-api-main-app
-          image: scholtz2/biatec-tokens-api:1.2026.01.24-main
+          image: scholtz2/biatec-tokens-api:1.2026.01.25-main
           imagePullPolicy: Always
           resources:
             requests:
