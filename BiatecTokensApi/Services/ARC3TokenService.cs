@@ -25,6 +25,9 @@ namespace BiatecTokensApi.Services
     /// </summary>
     public class ARC3TokenService : IARC3TokenService
     {
+        private const ulong NFT_TOTAL_SUPPLY = 1;
+        private const uint NFT_DECIMALS = 0;
+
         private readonly IOptionsMonitor<AlgorandAuthenticationOptionsV2> _config;
         private readonly ILogger<ARC3TokenService> _logger;
         private readonly Dictionary<string, string> _genesisId2GenesisHash = new();
@@ -357,8 +360,8 @@ namespace BiatecTokensApi.Services
                 await LogTokenIssuanceAudit(
                     request.Name,
                     request.UnitName,
-                    1,
-                    0,
+                    NFT_TOTAL_SUPPLY,
+                    NFT_DECIMALS,
                     TokenType.ARC3_NFT,
                     asaResponse.AssetId,
                     asaResponse.TransactionId,
@@ -380,8 +383,8 @@ namespace BiatecTokensApi.Services
                 await LogTokenIssuanceAudit(
                     request.Name,
                     request.UnitName,
-                    1,
-                    0,
+                    NFT_TOTAL_SUPPLY,
+                    NFT_DECIMALS,
                     TokenType.ARC3_NFT,
                     null,
                     null,
