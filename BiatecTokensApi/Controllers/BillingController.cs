@@ -426,6 +426,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> RecordUsage([FromBody] RecordUsageRequest request)
         {
+            string? tenantAddress = null;
             try
             {
                 if (!ModelState.IsValid)
@@ -433,7 +434,7 @@ namespace BiatecTokensApi.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var tenantAddress = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                tenantAddress = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(tenantAddress))
                 {
                     _logger.LogWarning("RecordUsage called without authenticated user");
@@ -493,8 +494,9 @@ namespace BiatecTokensApi.Controllers
                 if (maxAllowed > 0 && currentUsage >= (maxAllowed * 0.8))
                 {
                     double percentUsed = (double)currentUsage / maxAllowed * 100;
-                    warningMessage = $"Warning: You have used {percentUsed:F1}% of your {request.OperationType} quota. " +
-                                   $"Current usage: {currentUsage}/{maxAllowed}. Consider upgrading your subscription.";
+                    warningMessage = 
+                        $"Warning: You have used {percentUsed:F1}% of your {request.OperationType} quota. " +
+                        $"Current usage: {currentUsage}/{maxAllowed}. Consider upgrading your subscription.";
                 }
 
                 // Emit audit event
@@ -518,11 +520,11 @@ namespace BiatecTokensApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error recording usage");
+                _logger.LogError(ex, "Error recording usage for tenant {TenantAddress}", tenantAddress);
                 return StatusCode(StatusCodes.Status500InternalServerError, new RecordUsageResponse
                 {
                     Success = false,
-                    ErrorMessage = $"Internal error: {ex.Message}"
+                    ErrorMessage = "An error occurred while recording usage. Please try again later."
                 });
             }
         }
