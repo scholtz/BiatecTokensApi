@@ -4,6 +4,25 @@
 
 This document provides a comprehensive summary of the subscription usage metering and plan limits API implementation for the BiatecTokensApi platform.
 
+**Related Issue**: [Add subscription usage metering and plan limits API](https://github.com/scholtz/BiatecTokensApi/issues/XXX)
+
+## Business Value & Risk Assessment
+
+### Business Value
+1. **Revenue Generation**: Enables subscription-based monetization model with tiered pricing (Free, Basic, Premium, Enterprise)
+2. **Enterprise Governance**: Provides admin controls for custom tenant limits and enterprise agreements
+3. **Cost Control**: Prevents resource abuse through plan limit enforcement and preflight checks
+4. **Compliance**: Audit trail for billing reconciliation and regulatory compliance (MICA)
+5. **Scalability**: Metered usage allows for predictable growth and capacity planning
+6. **Customer Success**: Clear limit notifications help users understand their subscription tier and upgrade path
+
+### Risk Mitigation
+1. **Technical Risk**: In-memory storage requires migration to persistent backend for production (documented in Future Enhancements)
+2. **Performance Risk**: Monthly period resets and concurrent dictionary usage ensure low latency
+3. **Security Risk**: ARC-0014 authentication and admin role checks prevent unauthorized access
+4. **Compliance Risk**: Structured audit logging provides complete trail for regulatory review
+5. **Operational Risk**: Clear error codes and user-friendly messages reduce support burden
+
 ## Vision
 
 Implement a subscription-funded platform with enterprise governance, tracking per-tenant usage and enforcing plan limits with clear error codes and audit logging.
