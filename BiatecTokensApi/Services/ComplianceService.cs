@@ -27,6 +27,11 @@ namespace BiatecTokensApi.Services
         private const int MaxAggregationAssets = 10000;
         private const int MaxWhitelistEntriesPerAsset = 1000;
 
+        // Monitoring metrics constants
+        private const int MonitoringEnforcementPageSize = 1000;  // For enforcement metrics
+        private const int MonitoringAuditPageSize = 100;         // For audit health checks
+        private const int MonitoringMetadataPageSize = 1000;     // For retention status
+
         // Verification scoring weights
         private const int ScoreLegalName = 5;
         private const int ScoreCountry = 5;
@@ -3561,7 +3566,7 @@ namespace BiatecTokensApi.Services
                     ActionType = Models.Whitelist.WhitelistActionType.TransferValidation,
                     FromDate = request.FromDate,
                     ToDate = request.ToDate,
-                    PageSize = 1000 // Get up to 1000 validation entries
+                    PageSize = MonitoringEnforcementPageSize
                 };
 
                 var whitelistAuditResponse = await _whitelistService.GetAuditLogAsync(whitelistAuditRequest);
@@ -3619,7 +3624,7 @@ namespace BiatecTokensApi.Services
                 {
                     Network = request.Network,
                     AssetId = request.AssetId,
-                    PageSize = 100
+                    PageSize = MonitoringAuditPageSize
                 };
                 var complianceAudit = await GetAuditLogAsync(complianceAuditRequest);
                 response.AuditHealth.ComplianceEntries = complianceAudit.TotalCount;
@@ -3629,7 +3634,7 @@ namespace BiatecTokensApi.Services
                 {
                     Network = request.Network,
                     AssetId = request.AssetId,
-                    PageSize = 100
+                    PageSize = MonitoringAuditPageSize
                 };
                 var whitelistAudit = await _whitelistService.GetAuditLogAsync(whitelistAuditRequest);
                 response.AuditHealth.WhitelistEntries = whitelistAudit.TotalCount;
@@ -3715,14 +3720,14 @@ namespace BiatecTokensApi.Services
                     var complianceAuditRequest = new GetComplianceAuditLogRequest
                     {
                         Network = network,
-                        PageSize = 100
+                        PageSize = MonitoringAuditPageSize
                     };
                     var complianceAudit = await GetAuditLogAsync(complianceAuditRequest);
 
                     var whitelistAuditRequest = new GetWhitelistAuditLogRequest
                     {
                         Network = network,
-                        PageSize = 100
+                        PageSize = MonitoringAuditPageSize
                     };
                     var whitelistAudit = await _whitelistService.GetAuditLogAsync(whitelistAuditRequest);
 
@@ -3757,7 +3762,7 @@ namespace BiatecTokensApi.Services
                     var metadataRequest = new ListComplianceMetadataRequest
                     {
                         Network = network,
-                        PageSize = 1000
+                        PageSize = MonitoringMetadataPageSize
                     };
                     var metadataResponse = await ListMetadataAsync(metadataRequest);
                     
