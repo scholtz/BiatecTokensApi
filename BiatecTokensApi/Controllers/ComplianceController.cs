@@ -2169,5 +2169,242 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Gets comprehensive compliance monitoring metrics including whitelist enforcement, audit health, and retention status
+        /// </summary>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+        /// <param name="assetId">Optional filter by asset ID</param>
+        /// <param name="fromDate">Optional start date for metrics calculation (ISO 8601 format)</param>
+        /// <param name="toDate">Optional end date for metrics calculation (ISO 8601 format)</param>
+        /// <returns>Compliance monitoring metrics including enforcement, audit, and retention data</returns>
+        /// <remarks>
+        /// Provides enterprise-grade MICA/RWA compliance observability metrics including:
+        /// 
+        /// **Whitelist Enforcement Metrics:**
+        /// - Total transfer validations performed
+        /// - Allowed vs denied transfers with percentages
+        /// - Top denial reasons with occurrence counts
+        /// - Network-specific enforcement breakdown
+        /// - Assets with enforcement enabled count
+        /// 
+        /// **Audit Log Health:**
+        /// - Total audit entries (compliance + whitelist)
+        /// - Oldest and newest entry timestamps
+        /// - MICA retention compliance status (7-year requirement)
+        /// - Health status (Healthy, Warning, Critical)
+        /// - Coverage percentage and health issues
+        /// 
+        /// **Network Retention Status:**
+        /// - Per-network audit entry counts (VOI/Aramid focus)
+        /// - Retention period compliance
+        /// - Asset counts and compliance coverage
+        /// - Network-specific status messages
+        /// 
+        /// **Overall Health Score:**
+        /// - Composite score (0-100) based on all metrics
+        /// 
+        /// Designed for real-time compliance monitoring dashboards and regulatory reporting.
+        /// </remarks>
+        [HttpGet("monitoring/metrics")]
+        [ProducesResponseType(typeof(ComplianceMonitoringMetricsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetMonitoringMetrics(
+            [FromQuery] string? network = null,
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            try
+            {
+                var userAddress = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userAddress))
+                {
+                    _logger.LogWarning("User address not found in authentication context");
+                    return Unauthorized(new { success = false, errorMessage = "User address not found in authentication context" });
+                }
+
+                var request = new GetComplianceMonitoringMetricsRequest
+                {
+                    Network = network,
+                    AssetId = assetId,
+                    FromDate = fromDate,
+                    ToDate = toDate
+                };
+
+                var result = await _complianceService.GetMonitoringMetricsAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved compliance monitoring metrics for user {UserAddress}, network={Network}, assetId={AssetId}", 
+                        userAddress, network, assetId);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to retrieve compliance monitoring metrics: {ErrorMessage}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception getting compliance monitoring metrics");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceMonitoringMetricsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets audit log health status including retention compliance and coverage metrics
+        /// </summary>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+        /// <param name="assetId">Optional filter by asset ID</param>
+        /// <returns>Audit log health status with retention and coverage metrics</returns>
+        /// <remarks>
+        /// Provides audit log health monitoring metrics for MICA compliance:
+        /// 
+        /// **Metrics Included:**
+        /// - Total audit entries (compliance + whitelist)
+        /// - Compliance and whitelist entry counts
+        /// - Oldest and newest entry timestamps
+        /// - MICA retention compliance (7-year requirement)
+        /// - Health status: Healthy, Warning, or Critical
+        /// - Coverage percentage (estimated)
+        /// - List of health issues if any
+        /// 
+        /// **Health Status Determination:**
+        /// - Healthy: All requirements met, adequate logging
+        /// - Warning: Minor issues (e.g., low entry count, recent deployment)
+        /// - Critical: Major issues (e.g., no audit entries, retention violation)
+        /// 
+        /// Critical for demonstrating compliance with MICA audit trail requirements.
+        /// </remarks>
+        [HttpGet("monitoring/audit-health")]
+        [ProducesResponseType(typeof(AuditHealthResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetAuditHealth(
+            [FromQuery] string? network = null,
+            [FromQuery] ulong? assetId = null)
+        {
+            try
+            {
+                var userAddress = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userAddress))
+                {
+                    _logger.LogWarning("User address not found in authentication context");
+                    return Unauthorized(new { success = false, errorMessage = "User address not found in authentication context" });
+                }
+
+                var request = new GetAuditHealthRequest
+                {
+                    Network = network,
+                    AssetId = assetId
+                };
+
+                var result = await _complianceService.GetAuditHealthAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved audit health status for user {UserAddress}, network={Network}, assetId={AssetId}", 
+                        userAddress, network, assetId);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to retrieve audit health status: {ErrorMessage}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception getting audit health status");
+                return StatusCode(StatusCodes.Status500InternalServerError, new AuditHealthResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets retention status per network with focus on VOI and Aramid networks for RWA compliance
+        /// </summary>
+        /// <param name="network">Optional filter by specific network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0)</param>
+        /// <returns>Retention status for each network including audit counts, compliance coverage, and status</returns>
+        /// <remarks>
+        /// Provides per-network retention monitoring for RWA compliance:
+        /// 
+        /// **Per-Network Metrics:**
+        /// - Network name and MICA compliance requirement flag
+        /// - Total audit entries for the network
+        /// - Oldest audit entry timestamp
+        /// - Retention period (7 years for MICA)
+        /// - Retention compliance status (met/not met)
+        /// - Asset count on the network
+        /// - Assets with compliance metadata count
+        /// - Compliance coverage percentage
+        /// - Status: Active, Warning, or Critical
+        /// - Human-readable status message
+        /// 
+        /// **Network Focus:**
+        /// - VOI (voimain-v1.0) - Requires MICA compliance
+        /// - Aramid (aramidmain-v1.0) - Requires MICA compliance
+        /// - Also supports mainnet-v1.0 and testnet-v1.0
+        /// 
+        /// **Overall Retention Score:**
+        /// - Composite score (0-100) across all networks
+        /// - Weighted by retention compliance and coverage
+        /// 
+        /// Essential for demonstrating network-specific compliance with regulatory requirements.
+        /// </remarks>
+        [HttpGet("monitoring/retention-status")]
+        [ProducesResponseType(typeof(RetentionStatusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetRetentionStatus([FromQuery] string? network = null)
+        {
+            try
+            {
+                var userAddress = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userAddress))
+                {
+                    _logger.LogWarning("User address not found in authentication context");
+                    return Unauthorized(new { success = false, errorMessage = "User address not found in authentication context" });
+                }
+
+                var request = new GetRetentionStatusRequest
+                {
+                    Network = network
+                };
+
+                var result = await _complianceService.GetRetentionStatusAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved retention status for user {UserAddress}, network={Network}", 
+                        userAddress, network);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to retrieve retention status: {ErrorMessage}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception getting retention status");
+                return StatusCode(StatusCodes.Status500InternalServerError, new RetentionStatusResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
     }
 }

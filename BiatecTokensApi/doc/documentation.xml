@@ -786,6 +786,104 @@
             Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetMonitoringMetrics(System.String,System.Nullable{System.UInt64},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets comprehensive compliance monitoring metrics including whitelist enforcement, audit health, and retention status
+            </summary>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+            <param name="assetId">Optional filter by asset ID</param>
+            <param name="fromDate">Optional start date for metrics calculation (ISO 8601 format)</param>
+            <param name="toDate">Optional end date for metrics calculation (ISO 8601 format)</param>
+            <returns>Compliance monitoring metrics including enforcement, audit, and retention data</returns>
+            <remarks>
+            Provides enterprise-grade MICA/RWA compliance observability metrics including:
+            
+            **Whitelist Enforcement Metrics:**
+            - Total transfer validations performed
+            - Allowed vs denied transfers with percentages
+            - Top denial reasons with occurrence counts
+            - Network-specific enforcement breakdown
+            - Assets with enforcement enabled count
+            
+            **Audit Log Health:**
+            - Total audit entries (compliance + whitelist)
+            - Oldest and newest entry timestamps
+            - MICA retention compliance status (7-year requirement)
+            - Health status (Healthy, Warning, Critical)
+            - Coverage percentage and health issues
+            
+            **Network Retention Status:**
+            - Per-network audit entry counts (VOI/Aramid focus)
+            - Retention period compliance
+            - Asset counts and compliance coverage
+            - Network-specific status messages
+            
+            **Overall Health Score:**
+            - Composite score (0-100) based on all metrics
+            
+            Designed for real-time compliance monitoring dashboards and regulatory reporting.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetAuditHealth(System.String,System.Nullable{System.UInt64})">
+            <summary>
+            Gets audit log health status including retention compliance and coverage metrics
+            </summary>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+            <param name="assetId">Optional filter by asset ID</param>
+            <returns>Audit log health status with retention and coverage metrics</returns>
+            <remarks>
+            Provides audit log health monitoring metrics for MICA compliance:
+            
+            **Metrics Included:**
+            - Total audit entries (compliance + whitelist)
+            - Compliance and whitelist entry counts
+            - Oldest and newest entry timestamps
+            - MICA retention compliance (7-year requirement)
+            - Health status: Healthy, Warning, or Critical
+            - Coverage percentage (estimated)
+            - List of health issues if any
+            
+            **Health Status Determination:**
+            - Healthy: All requirements met, adequate logging
+            - Warning: Minor issues (e.g., low entry count, recent deployment)
+            - Critical: Major issues (e.g., no audit entries, retention violation)
+            
+            Critical for demonstrating compliance with MICA audit trail requirements.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetRetentionStatus(System.String)">
+            <summary>
+            Gets retention status per network with focus on VOI and Aramid networks for RWA compliance
+            </summary>
+            <param name="network">Optional filter by specific network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0)</param>
+            <returns>Retention status for each network including audit counts, compliance coverage, and status</returns>
+            <remarks>
+            Provides per-network retention monitoring for RWA compliance:
+            
+            **Per-Network Metrics:**
+            - Network name and MICA compliance requirement flag
+            - Total audit entries for the network
+            - Oldest audit entry timestamp
+            - Retention period (7 years for MICA)
+            - Retention compliance status (met/not met)
+            - Asset count on the network
+            - Assets with compliance metadata count
+            - Compliance coverage percentage
+            - Status: Active, Warning, or Critical
+            - Human-readable status message
+            
+            **Network Focus:**
+            - VOI (voimain-v1.0) - Requires MICA compliance
+            - Aramid (aramidmain-v1.0) - Requires MICA compliance
+            - Also supports mainnet-v1.0 and testnet-v1.0
+            
+            **Overall Retention Score:**
+            - Composite score (0-100) across all networks
+            - Weighted by retention compliance and coverage
+            
+            Essential for demonstrating network-specific compliance with regulatory requirements.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
             <summary>
             Provides enterprise-grade audit export endpoints for MICA reporting
@@ -4374,6 +4472,346 @@
         <member name="F:BiatecTokensApi.Models.Compliance.ComplianceStatus.Exempt">
             <summary>
             Token is exempt from certain regulations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest">
+            <summary>
+            Request to get compliance monitoring metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest.Network">
+            <summary>
+            Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest.AssetId">
+            <summary>
+            Optional filter by asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest.FromDate">
+            <summary>
+            Optional start date for metrics calculation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest.ToDate">
+            <summary>
+            Optional end date for metrics calculation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse">
+            <summary>
+            Response containing compliance monitoring metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse.WhitelistEnforcement">
+            <summary>
+            Whitelist enforcement metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse.AuditHealth">
+            <summary>
+            Audit log health status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse.NetworkRetentionStatus">
+            <summary>
+            Retention status per network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse.OverallHealthScore">
+            <summary>
+            Overall compliance health score (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse.CalculatedAt">
+            <summary>
+            Timestamp when metrics were calculated
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics">
+            <summary>
+            Whitelist enforcement metrics for transfer validations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics.TotalValidations">
+            <summary>
+            Total number of transfer validations performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics.AllowedTransfers">
+            <summary>
+            Number of transfers that were allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics.DeniedTransfers">
+            <summary>
+            Number of transfers that were denied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics.AllowedPercentage">
+            <summary>
+            Percentage of transfers allowed (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics.TopDenialReasons">
+            <summary>
+            Top denial reasons with occurrence counts
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics.AssetsWithEnforcement">
+            <summary>
+            Number of unique assets with enforcement enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics.NetworkBreakdown">
+            <summary>
+            Breakdown by network
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics">
+            <summary>
+            Enforcement metrics per network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics.Network">
+            <summary>
+            Network name (voimain-v1.0, aramidmain-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics.TotalValidations">
+            <summary>
+            Total validations on this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics.AllowedTransfers">
+            <summary>
+            Allowed transfers on this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics.DeniedTransfers">
+            <summary>
+            Denied transfers on this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics.AssetCount">
+            <summary>
+            Number of assets on this network
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.DenialReasonCount">
+            <summary>
+            Denial reason with occurrence count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DenialReasonCount.Reason">
+            <summary>
+            Reason for denial
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DenialReasonCount.Count">
+            <summary>
+            Number of times this reason occurred
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditLogHealth">
+            <summary>
+            Audit log health status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.TotalEntries">
+            <summary>
+            Total number of audit log entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.ComplianceEntries">
+            <summary>
+            Number of compliance audit entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.WhitelistEntries">
+            <summary>
+            Number of whitelist audit entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.OldestEntry">
+            <summary>
+            Oldest audit entry timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.NewestEntry">
+            <summary>
+            Most recent audit entry timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.MeetsRetentionRequirements">
+            <summary>
+            Whether audit logs meet MICA retention requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.Status">
+            <summary>
+            Health status (Healthy, Warning, Critical)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.HealthIssues">
+            <summary>
+            Health issues if any
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditLogHealth.CoveragePercentage">
+            <summary>
+            Audit coverage percentage (0-100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditHealthStatus">
+            <summary>
+            Audit log health status enum
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AuditHealthStatus.Healthy">
+            <summary>
+            All audit logs are healthy and meet requirements
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AuditHealthStatus.Warning">
+            <summary>
+            Some audit logs have minor issues
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AuditHealthStatus.Critical">
+            <summary>
+            Critical audit log issues detected
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus">
+            <summary>
+            Network retention status for compliance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.Network">
+            <summary>
+            Network name (voimain-v1.0, aramidmain-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.RequiresMicaCompliance">
+            <summary>
+            Whether this network requires MICA compliance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.TotalAuditEntries">
+            <summary>
+            Total audit entries for this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.OldestEntry">
+            <summary>
+            Oldest audit entry for this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.RetentionYears">
+            <summary>
+            Retention period in years
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.MeetsRetentionRequirements">
+            <summary>
+            Whether retention requirements are met
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.AssetCount">
+            <summary>
+            Number of assets on this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.AssetsWithCompliance">
+            <summary>
+            Number of assets with compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.ComplianceCoverage">
+            <summary>
+            Compliance coverage percentage (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.Status">
+            <summary>
+            Retention status (Active, Warning, Critical)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.NetworkRetentionStatus.StatusMessage">
+            <summary>
+            Status message
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RetentionStatus">
+            <summary>
+            Retention status enum
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RetentionStatus.Active">
+            <summary>
+            Retention requirements are met
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RetentionStatus.Warning">
+            <summary>
+            Approaching retention limits
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RetentionStatus.Critical">
+            <summary>
+            Retention requirements not met
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetAuditHealthRequest">
+            <summary>
+            Request to get audit log health status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetAuditHealthRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetAuditHealthRequest.AssetId">
+            <summary>
+            Optional filter by asset ID
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditHealthResponse">
+            <summary>
+            Response containing audit log health status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditHealthResponse.AuditHealth">
+            <summary>
+            Audit log health status
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetRetentionStatusRequest">
+            <summary>
+            Request to get retention status per network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetRetentionStatusRequest.Network">
+            <summary>
+            Optional filter by specific network
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RetentionStatusResponse">
+            <summary>
+            Response containing retention status per network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RetentionStatusResponse.Networks">
+            <summary>
+            Retention status for each network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RetentionStatusResponse.OverallRetentionScore">
+            <summary>
+            Overall retention health score (0-100)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest">
@@ -10073,6 +10511,56 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.ExportDashboardAggregationJsonAsync(BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest,System.String)">
             <inheritdoc/>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetMonitoringMetricsAsync(BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest)">
+            <summary>
+            Gets compliance monitoring metrics including whitelist enforcement and audit health
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetAuditHealthAsync(BiatecTokensApi.Models.Compliance.GetAuditHealthRequest)">
+            <summary>
+            Gets audit log health status
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetRetentionStatusAsync(BiatecTokensApi.Models.Compliance.GetRetentionStatusRequest)">
+            <summary>
+            Gets retention status per network
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CalculateWhitelistEnforcementMetrics(BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse)">
+            <summary>
+            Calculates whitelist enforcement metrics from audit log
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.DetermineAuditHealthStatus(BiatecTokensApi.Models.Compliance.AuditLogHealth)">
+            <summary>
+            Determines audit health status based on metrics
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CalculateAuditCoverage(BiatecTokensApi.Models.Compliance.AuditLogHealth)">
+            <summary>
+            Calculates audit coverage percentage
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.DetermineRetentionStatus(BiatecTokensApi.Models.Compliance.NetworkRetentionStatus)">
+            <summary>
+            Determines retention status for a network
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.GetRetentionStatusMessage(BiatecTokensApi.Models.Compliance.NetworkRetentionStatus)">
+            <summary>
+            Gets human-readable status message for retention status
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CalculateOverallRetentionScore(System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.NetworkRetentionStatus})">
+            <summary>
+            Calculates overall retention score across networks
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CalculateOverallHealthScore(BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse)">
+            <summary>
+            Calculates overall health score from all monitoring metrics
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.EnterpriseAuditService">
             <summary>
             Service implementation for enterprise audit log operations
@@ -10523,6 +11011,51 @@
             - Data archival
             
             JSON includes full aggregation response with metadata.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetMonitoringMetricsAsync(BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest)">
+            <summary>
+            Gets compliance monitoring metrics including whitelist enforcement and audit health
+            </summary>
+            <param name="request">The monitoring metrics request with filters</param>
+            <returns>Response with compliance monitoring metrics</returns>
+            <remarks>
+            This method provides enterprise-grade compliance observability metrics:
+            - Whitelist enforcement metrics (validations, allowed/denied transfers)
+            - Audit log health status (retention, completeness)
+            - Per-network retention status (VOI/Aramid)
+            
+            Designed for MICA/RWA compliance monitoring dashboards.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetAuditHealthAsync(BiatecTokensApi.Models.Compliance.GetAuditHealthRequest)">
+            <summary>
+            Gets audit log health status
+            </summary>
+            <param name="request">The audit health request with filters</param>
+            <returns>Response with audit log health status</returns>
+            <remarks>
+            This method provides audit log health monitoring including:
+            - Total audit entries and coverage
+            - Retention compliance status
+            - Health status and issues
+            
+            Critical for MICA compliance monitoring.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetRetentionStatusAsync(BiatecTokensApi.Models.Compliance.GetRetentionStatusRequest)">
+            <summary>
+            Gets retention status per network (VOI/Aramid)
+            </summary>
+            <param name="request">The retention status request with optional network filter</param>
+            <returns>Response with per-network retention status</returns>
+            <remarks>
+            This method provides network-specific retention monitoring:
+            - Audit entry counts per network
+            - Retention period compliance
+            - Compliance metadata coverage
+            
+            Focuses on VOI and Aramid networks for RWA compliance.
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">

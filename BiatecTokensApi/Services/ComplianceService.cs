@@ -27,6 +27,11 @@ namespace BiatecTokensApi.Services
         private const int MaxAggregationAssets = 10000;
         private const int MaxWhitelistEntriesPerAsset = 1000;
 
+        // Monitoring metrics constants
+        private const int MonitoringEnforcementPageSize = 1000;  // For enforcement metrics
+        private const int MonitoringAuditPageSize = 100;         // For audit health checks
+        private const int MonitoringMetadataPageSize = 1000;     // For retention status
+
         // Verification scoring weights
         private const int ScoreLegalName = 5;
         private const int ScoreCountry = 5;
@@ -3540,5 +3545,472 @@ namespace BiatecTokensApi.Services
 
             return breakdown;
         }
+
+        /// <summary>
+        /// Gets compliance monitoring metrics including whitelist enforcement and audit health
+        /// </summary>
+        public async Task<ComplianceMonitoringMetricsResponse> GetMonitoringMetricsAsync(GetComplianceMonitoringMetricsRequest request)
+        {
+            try
+            {
+                var response = new ComplianceMonitoringMetricsResponse
+                {
+                    Success = true
+                };
+
+                // Get whitelist enforcement metrics
+                var whitelistAuditRequest = new GetWhitelistAuditLogRequest
+                {
+                    Network = request.Network,
+                    AssetId = request.AssetId,
+                    ActionType = Models.Whitelist.WhitelistActionType.TransferValidation,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    PageSize = MonitoringEnforcementPageSize
+                };
+
+                var whitelistAuditResponse = await _whitelistService.GetAuditLogAsync(whitelistAuditRequest);
+                
+                response.WhitelistEnforcement = CalculateWhitelistEnforcementMetrics(whitelistAuditResponse);
+
+                // Get audit health
+                var auditHealthRequest = new GetAuditHealthRequest
+                {
+                    Network = request.Network,
+                    AssetId = request.AssetId
+                };
+                var auditHealthResponse = await GetAuditHealthAsync(auditHealthRequest);
+                response.AuditHealth = auditHealthResponse.AuditHealth;
+
+                // Get retention status
+                var retentionRequest = new GetRetentionStatusRequest
+                {
+                    Network = request.Network
+                };
+                var retentionResponse = await GetRetentionStatusAsync(retentionRequest);
+                response.NetworkRetentionStatus = retentionResponse.Networks;
+
+                // Calculate overall health score
+                response.OverallHealthScore = CalculateOverallHealthScore(response);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting compliance monitoring metrics");
+                return new ComplianceMonitoringMetricsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to get monitoring metrics: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets audit log health status
+        /// </summary>
+        public async Task<AuditHealthResponse> GetAuditHealthAsync(GetAuditHealthRequest request)
+        {
+            try
+            {
+                var response = new AuditHealthResponse
+                {
+                    Success = true,
+                    AuditHealth = new AuditLogHealth()
+                };
+
+                // Get compliance audit entries
+                var complianceAuditRequest = new GetComplianceAuditLogRequest
+                {
+                    Network = request.Network,
+                    AssetId = request.AssetId,
+                    PageSize = MonitoringAuditPageSize
+                };
+                var complianceAudit = await GetAuditLogAsync(complianceAuditRequest);
+                response.AuditHealth.ComplianceEntries = complianceAudit.TotalCount;
+
+                // Get whitelist audit entries
+                var whitelistAuditRequest = new GetWhitelistAuditLogRequest
+                {
+                    Network = request.Network,
+                    AssetId = request.AssetId,
+                    PageSize = MonitoringAuditPageSize
+                };
+                var whitelistAudit = await _whitelistService.GetAuditLogAsync(whitelistAuditRequest);
+                response.AuditHealth.WhitelistEntries = whitelistAudit.TotalCount;
+
+                response.AuditHealth.TotalEntries = response.AuditHealth.ComplianceEntries + response.AuditHealth.WhitelistEntries;
+
+                // Find oldest and newest entries
+                if (complianceAudit.Entries.Any() || whitelistAudit.Entries.Any())
+                {
+                    var allDates = new List<DateTime>();
+                    
+                    if (complianceAudit.Entries.Any())
+                    {
+                        allDates.AddRange(complianceAudit.Entries.Select(e => e.PerformedAt));
+                    }
+                    
+                    if (whitelistAudit.Entries.Any())
+                    {
+                        allDates.AddRange(whitelistAudit.Entries.Select(e => e.PerformedAt));
+                    }
+
+                    if (allDates.Any())
+                    {
+                        response.AuditHealth.OldestEntry = allDates.Min();
+                        response.AuditHealth.NewestEntry = allDates.Max();
+
+                        // Check if meets 7-year MICA retention
+                        var retentionYears = (DateTime.UtcNow - response.AuditHealth.OldestEntry.Value).TotalDays / 365.25;
+                        response.AuditHealth.MeetsRetentionRequirements = retentionYears >= 7 || 
+                            response.AuditHealth.OldestEntry.Value > DateTime.UtcNow.AddYears(-7);
+                    }
+                }
+
+                // Calculate health status
+                response.AuditHealth.Status = DetermineAuditHealthStatus(response.AuditHealth);
+                
+                // Calculate coverage (basic estimate based on entry count)
+                response.AuditHealth.CoveragePercentage = CalculateAuditCoverage(response.AuditHealth);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting audit health status");
+                return new AuditHealthResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to get audit health: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets retention status per network
+        /// </summary>
+        public async Task<RetentionStatusResponse> GetRetentionStatusAsync(GetRetentionStatusRequest request)
+        {
+            try
+            {
+                var response = new RetentionStatusResponse
+                {
+                    Success = true,
+                    Networks = new List<NetworkRetentionStatus>()
+                };
+
+                // Define supported networks (focusing on VOI and Aramid for RWA)
+                var networks = new List<string> { "voimain-v1.0", "aramidmain-v1.0", "mainnet-v1.0", "testnet-v1.0" };
+                
+                if (!string.IsNullOrEmpty(request.Network))
+                {
+                    networks = new List<string> { request.Network };
+                }
+
+                foreach (var network in networks)
+                {
+                    var networkStatus = new NetworkRetentionStatus
+                    {
+                        Network = network,
+                        RequiresMicaCompliance = network == "voimain-v1.0" || network == "aramidmain-v1.0"
+                    };
+
+                    // Get audit entries for this network
+                    var complianceAuditRequest = new GetComplianceAuditLogRequest
+                    {
+                        Network = network,
+                        PageSize = MonitoringAuditPageSize
+                    };
+                    var complianceAudit = await GetAuditLogAsync(complianceAuditRequest);
+
+                    var whitelistAuditRequest = new GetWhitelistAuditLogRequest
+                    {
+                        Network = network,
+                        PageSize = MonitoringAuditPageSize
+                    };
+                    var whitelistAudit = await _whitelistService.GetAuditLogAsync(whitelistAuditRequest);
+
+                    networkStatus.TotalAuditEntries = complianceAudit.TotalCount + whitelistAudit.TotalCount;
+
+                    // Find oldest entry
+                    var allDates = new List<DateTime>();
+                    if (complianceAudit.Entries.Any())
+                    {
+                        allDates.AddRange(complianceAudit.Entries.Select(e => e.PerformedAt));
+                    }
+                    if (whitelistAudit.Entries.Any())
+                    {
+                        allDates.AddRange(whitelistAudit.Entries.Select(e => e.PerformedAt));
+                    }
+
+                    if (allDates.Any())
+                    {
+                        networkStatus.OldestEntry = allDates.Min();
+                        
+                        // Check retention compliance
+                        var retentionYears = (DateTime.UtcNow - networkStatus.OldestEntry.Value).TotalDays / 365.25;
+                        networkStatus.MeetsRetentionRequirements = retentionYears >= 7 || 
+                            networkStatus.OldestEntry.Value > DateTime.UtcNow.AddYears(-7);
+                    }
+                    else
+                    {
+                        networkStatus.MeetsRetentionRequirements = true; // No data yet means compliant
+                    }
+
+                    // Get asset counts for this network
+                    var metadataRequest = new ListComplianceMetadataRequest
+                    {
+                        Network = network,
+                        PageSize = MonitoringMetadataPageSize
+                    };
+                    var metadataResponse = await ListMetadataAsync(metadataRequest);
+                    
+                    networkStatus.AssetCount = metadataResponse.TotalCount;
+                    networkStatus.AssetsWithCompliance = metadataResponse.Metadata?.Count(m => 
+                        m.ComplianceStatus == ComplianceStatus.Compliant || 
+                        m.ComplianceStatus == ComplianceStatus.UnderReview) ?? 0;
+
+                    if (networkStatus.AssetCount > 0)
+                    {
+                        networkStatus.ComplianceCoverage = (decimal)networkStatus.AssetsWithCompliance / networkStatus.AssetCount * 100;
+                    }
+
+                    // Determine status
+                    networkStatus.Status = DetermineRetentionStatus(networkStatus);
+                    networkStatus.StatusMessage = GetRetentionStatusMessage(networkStatus);
+
+                    response.Networks.Add(networkStatus);
+                }
+
+                // Calculate overall retention score
+                response.OverallRetentionScore = CalculateOverallRetentionScore(response.Networks);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting retention status");
+                return new RetentionStatusResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to get retention status: {ex.Message}"
+                };
+            }
+        }
+
+        #region Private Helper Methods
+
+        /// <summary>
+        /// Calculates whitelist enforcement metrics from audit log
+        /// </summary>
+        private WhitelistEnforcementMetrics CalculateWhitelistEnforcementMetrics(Models.Whitelist.WhitelistAuditLogResponse auditLog)
+        {
+            var metrics = new WhitelistEnforcementMetrics
+            {
+                TotalValidations = auditLog.TotalCount
+            };
+
+            if (auditLog.Entries == null || !auditLog.Entries.Any())
+            {
+                return metrics;
+            }
+
+            metrics.AllowedTransfers = auditLog.Entries.Count(e => e.TransferAllowed == true);
+            metrics.DeniedTransfers = auditLog.Entries.Count(e => e.TransferAllowed == false);
+
+            if (metrics.TotalValidations > 0)
+            {
+                metrics.AllowedPercentage = (decimal)metrics.AllowedTransfers / metrics.TotalValidations * 100;
+            }
+
+            // Top denial reasons
+            var denialReasons = auditLog.Entries
+                .Where(e => e.TransferAllowed == false && !string.IsNullOrEmpty(e.DenialReason))
+                .GroupBy(e => e.DenialReason!)
+                .Select(g => new DenialReasonCount
+                {
+                    Reason = g.Key,
+                    Count = g.Count()
+                })
+                .OrderByDescending(d => d.Count)
+                .Take(5)
+                .ToList();
+
+            metrics.TopDenialReasons = denialReasons;
+
+            // Assets with enforcement
+            metrics.AssetsWithEnforcement = auditLog.Entries
+                .Select(e => e.AssetId)
+                .Distinct()
+                .Count();
+
+            // Network breakdown
+            metrics.NetworkBreakdown = auditLog.Entries
+                .Where(e => !string.IsNullOrEmpty(e.Network))
+                .GroupBy(e => e.Network!)
+                .Select(g => new NetworkEnforcementMetrics
+                {
+                    Network = g.Key,
+                    TotalValidations = g.Count(),
+                    AllowedTransfers = g.Count(e => e.TransferAllowed == true),
+                    DeniedTransfers = g.Count(e => e.TransferAllowed == false),
+                    AssetCount = g.Select(e => e.AssetId).Distinct().Count()
+                })
+                .OrderByDescending(n => n.TotalValidations)
+                .ToList();
+
+            return metrics;
+        }
+
+        /// <summary>
+        /// Determines audit health status based on metrics
+        /// </summary>
+        private AuditHealthStatus DetermineAuditHealthStatus(AuditLogHealth health)
+        {
+            if (health.TotalEntries == 0)
+            {
+                health.HealthIssues.Add("No audit entries found");
+                return AuditHealthStatus.Warning;
+            }
+
+            if (!health.MeetsRetentionRequirements && health.OldestEntry.HasValue)
+            {
+                health.HealthIssues.Add("Audit logs do not meet 7-year MICA retention requirement");
+                return AuditHealthStatus.Warning;
+            }
+
+            if (health.TotalEntries < 10)
+            {
+                health.HealthIssues.Add("Low audit entry count may indicate incomplete logging");
+                return AuditHealthStatus.Warning;
+            }
+
+            return AuditHealthStatus.Healthy;
+        }
+
+        /// <summary>
+        /// Calculates audit coverage percentage
+        /// </summary>
+        private decimal CalculateAuditCoverage(AuditLogHealth health)
+        {
+            // Basic coverage estimate based on presence of both compliance and whitelist entries
+            if (health.ComplianceEntries > 0 && health.WhitelistEntries > 0)
+            {
+                return 100m;
+            }
+            else if (health.ComplianceEntries > 0 || health.WhitelistEntries > 0)
+            {
+                return 50m;
+            }
+            return 0m;
+        }
+
+        /// <summary>
+        /// Determines retention status for a network
+        /// </summary>
+        private RetentionStatus DetermineRetentionStatus(NetworkRetentionStatus networkStatus)
+        {
+            if (!networkStatus.MeetsRetentionRequirements)
+            {
+                return RetentionStatus.Warning;
+            }
+
+            if (networkStatus.RequiresMicaCompliance && networkStatus.ComplianceCoverage < 50)
+            {
+                return RetentionStatus.Warning;
+            }
+
+            if (networkStatus.TotalAuditEntries == 0)
+            {
+                return RetentionStatus.Warning;
+            }
+
+            return RetentionStatus.Active;
+        }
+
+        /// <summary>
+        /// Gets human-readable status message for retention status
+        /// </summary>
+        private string GetRetentionStatusMessage(NetworkRetentionStatus networkStatus)
+        {
+            if (networkStatus.Status == RetentionStatus.Active)
+            {
+                return "Retention requirements met";
+            }
+            else if (!networkStatus.MeetsRetentionRequirements)
+            {
+                return "Retention period does not meet 7-year MICA requirement";
+            }
+            else if (networkStatus.RequiresMicaCompliance && networkStatus.ComplianceCoverage < 50)
+            {
+                return $"Low compliance coverage: {networkStatus.ComplianceCoverage:F1}%";
+            }
+            else if (networkStatus.TotalAuditEntries == 0)
+            {
+                return "No audit entries found for this network";
+            }
+            return "Compliance monitoring active";
+        }
+
+        /// <summary>
+        /// Calculates overall retention score across networks
+        /// </summary>
+        private int CalculateOverallRetentionScore(List<NetworkRetentionStatus> networks)
+        {
+            if (!networks.Any())
+            {
+                return 0;
+            }
+
+            var scores = networks.Select(n =>
+            {
+                int score = 0;
+                
+                if (n.MeetsRetentionRequirements) score += 40;
+                score += (int)(n.ComplianceCoverage * 0.6m); // Up to 60 points
+                
+                return score;
+            });
+
+            return (int)scores.Average();
+        }
+
+        /// <summary>
+        /// Calculates overall health score from all monitoring metrics
+        /// </summary>
+        private int CalculateOverallHealthScore(ComplianceMonitoringMetricsResponse response)
+        {
+            int score = 0;
+
+            // Audit health contributes 40 points
+            if (response.AuditHealth.Status == AuditHealthStatus.Healthy)
+            {
+                score += 40;
+            }
+            else if (response.AuditHealth.Status == AuditHealthStatus.Warning)
+            {
+                score += 20;
+            }
+
+            // Retention score contributes 40 points
+            var retentionScore = response.NetworkRetentionStatus.Any() ? 
+                CalculateOverallRetentionScore(response.NetworkRetentionStatus) : 0;
+            score += (int)(retentionScore * 0.4m);
+
+            // Enforcement metrics contribute 20 points
+            if (response.WhitelistEnforcement.TotalValidations > 0)
+            {
+                score += 20;
+            }
+            else if (response.WhitelistEnforcement.AssetsWithEnforcement > 0)
+            {
+                score += 10;
+            }
+
+            return Math.Min(score, 100);
+        }
+
+        #endregion
     }
 }
