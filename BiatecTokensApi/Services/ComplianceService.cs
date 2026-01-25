@@ -23,6 +23,10 @@ namespace BiatecTokensApi.Services
         /// </summary>
         private const string SystemActor = "System";
 
+        // Dashboard aggregation limits to prevent performance issues
+        private const int MaxAggregationAssets = 10000;
+        private const int MaxWhitelistEntriesPerAsset = 1000;
+
         // Verification scoring weights
         private const int ScoreLegalName = 5;
         private const int ScoreCountry = 5;
@@ -2935,7 +2939,7 @@ namespace BiatecTokensApi.Services
                 {
                     Network = request.Network,
                     Page = 1,
-                    PageSize = 10000 // Get all for aggregation
+                    PageSize = MaxAggregationAssets // Limited to prevent memory exhaustion
                 };
 
                 var metadataResponse = await ListMetadataAsync(metadataRequest);
@@ -3249,6 +3253,9 @@ namespace BiatecTokensApi.Services
             var metrics = new WhitelistStatusMetrics();
             var whitelistCounts = new List<int>();
 
+            // NOTE: This iterates through all assets to fetch whitelist data (N+1 pattern).
+            // Future optimization: Consider adding a bulk whitelist query method to WhitelistService
+            // to fetch whitelist summaries for multiple assets in a single database call.
             foreach (var metadata in allMetadata)
             {
                 try
@@ -3256,7 +3263,7 @@ namespace BiatecTokensApi.Services
                     var whitelistRequest = new ListWhitelistRequest
                     {
                         AssetId = metadata.AssetId,
-                        PageSize = 1000 // Get large page for counting
+                        PageSize = MaxWhitelistEntriesPerAsset // Limited to prevent N+1 performance issues
                     };
 
                     var whitelistResponse = await _whitelistService.ListEntriesAsync(whitelistRequest);
@@ -3477,6 +3484,9 @@ namespace BiatecTokensApi.Services
         {
             var breakdown = new List<AssetComplianceSummary>();
 
+            // NOTE: This iterates through all assets to fetch additional data (N+1 pattern).
+            // For large datasets, consider implementing pagination at the request level
+            // or adding bulk query methods to fetch MICA checklist and whitelist data efficiently.
             foreach (var metadata in allMetadata)
             {
                 var summary = new AssetComplianceSummary
@@ -3510,7 +3520,7 @@ namespace BiatecTokensApi.Services
                     var whitelistRequest = new ListWhitelistRequest
                     {
                         AssetId = metadata.AssetId,
-                        PageSize = 1000
+                        PageSize = MaxWhitelistEntriesPerAsset // Limited to prevent N+1 performance issues
                     };
 
                     var whitelistResponse = await _whitelistService.ListEntriesAsync(whitelistRequest);
