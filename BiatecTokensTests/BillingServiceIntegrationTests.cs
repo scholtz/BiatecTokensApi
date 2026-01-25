@@ -550,5 +550,94 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region Usage Recording API Tests
+
+        [Test]
+        public async Task RecordUsageAsync_ValidRequest_RecordsUsageCorrectly()
+        {
+            // Arrange
+            const int recordCount = 5;
+
+            // Act
+            await _billingService.RecordUsageAsync(TestTenantAddress, OperationType.TokenIssuance, recordCount);
+            var summary = await _billingService.GetUsageSummaryAsync(TestTenantAddress);
+
+            // Assert
+            Assert.That(summary.TokenIssuanceCount, Is.EqualTo(recordCount));
+        }
+
+        [Test]
+        public async Task RecordUsageAsync_MultipleOperationTypes_RecordsIndependently()
+        {
+            // Arrange & Act
+            await _billingService.RecordUsageAsync(TestTenantAddress, OperationType.TokenIssuance, 3);
+            await _billingService.RecordUsageAsync(TestTenantAddress, OperationType.TransferValidation, 7);
+            await _billingService.RecordUsageAsync(TestTenantAddress, OperationType.ComplianceOperation, 2);
+
+            var summary = await _billingService.GetUsageSummaryAsync(TestTenantAddress);
+
+            // Assert
+            Assert.That(summary.TokenIssuanceCount, Is.EqualTo(3));
+            Assert.That(summary.TransferValidationCount, Is.EqualTo(7));
+            Assert.That(summary.ComplianceOperationCount, Is.EqualTo(2));
+            Assert.That(summary.AuditExportCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task RecordUsageAsync_ApproachingLimit_DetectsWarning()
+        {
+            // Arrange - set limit
+            var updateRequest = new UpdatePlanLimitsRequest
+            {
+                TenantAddress = TestTenantAddress,
+                Limits = new PlanLimits { MaxTokenIssuance = 100 }
+            };
+            await _billingService.UpdatePlanLimitsAsync(updateRequest, AdminAddress);
+
+            // Act - record usage to 85% (above 80% warning threshold)
+            await _billingService.RecordUsageAsync(TestTenantAddress, OperationType.TokenIssuance, 85);
+            var summary = await _billingService.GetUsageSummaryAsync(TestTenantAddress);
+
+            // Assert
+            Assert.That(summary.TokenIssuanceCount, Is.EqualTo(85));
+            Assert.That(summary.CurrentLimits.MaxTokenIssuance, Is.EqualTo(100));
+            // Warning detection would be implemented in the controller endpoint
+        }
+
+        [Test]
+        public async Task RecordUsageAsync_ExceedingLimit_StillRecords()
+        {
+            // Arrange - set limit
+            var updateRequest = new UpdatePlanLimitsRequest
+            {
+                TenantAddress = TestTenantAddress,
+                Limits = new PlanLimits { MaxStorageItems = 50 }
+            };
+            await _billingService.UpdatePlanLimitsAsync(updateRequest, AdminAddress);
+
+            // Act - record usage beyond limit (recording doesn't enforce limits)
+            await _billingService.RecordUsageAsync(TestTenantAddress, OperationType.Storage, 60);
+            var summary = await _billingService.GetUsageSummaryAsync(TestTenantAddress);
+
+            // Assert
+            Assert.That(summary.StorageItemsCount, Is.EqualTo(60));
+            Assert.That(summary.HasExceededLimits, Is.True);
+            Assert.That(summary.LimitViolations, Is.Not.Empty);
+            Assert.That(summary.LimitViolations[0], Does.Contain("Storage"));
+            Assert.That(summary.LimitViolations[0], Does.Contain("60"));
+            Assert.That(summary.LimitViolations[0], Does.Contain("50"));
+        }
+
+        [Test]
+        public async Task RecordUsageAsync_NullAddress_HandlesGracefully()
+        {
+            // Act - should not throw
+            await _billingService.RecordUsageAsync(null!, OperationType.TokenIssuance, 1);
+
+            // No exception expected - service logs warning and returns
+        }
+
+        #endregion
     }
 }

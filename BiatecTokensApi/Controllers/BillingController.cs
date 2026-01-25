@@ -374,5 +374,159 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Records usage for billing purposes (manual usage tracking)
+        /// </summary>
+        /// <param name="request">The usage recording request</param>
+        /// <returns>Success status with updated usage information</returns>
+        /// <remarks>
+        /// This endpoint allows manual recording of usage events for billing purposes.
+        /// It is useful for tracking operations that are not automatically captured by the platform,
+        /// or for external systems that need to report usage.
+        /// 
+        /// **Authentication:**
+        /// Requires ARC-0014 authentication. The authenticated user's address is used as the tenant identifier.
+        /// 
+        /// **Recording Behavior:**
+        /// - Records the specified number of operations for the given operation type
+        /// - Returns the updated usage and remaining capacity
+        /// - Emits audit events for MICA/RWA auditability
+        /// - Provides warnings when approaching limits (80% capacity)
+        /// 
+        /// **Quota Enforcement:**
+        /// - This endpoint does NOT enforce quotas - it records usage regardless of limits
+        /// - Use the preflight check endpoint (POST /api/v1/billing/limits/check) to verify limits before operations
+        /// - The response includes current usage and remaining capacity for awareness
+        /// - A warning message is returned if usage exceeds 80% of the limit
+        /// 
+        /// **Audit Events:**
+        /// All usage recording operations are logged with structured logging for:
+        /// - Compliance reporting (MICA, RWA)
+        /// - Billing reconciliation
+        /// - Usage analytics and forecasting
+        /// - Fraud detection and monitoring
+        /// 
+        /// **Use Cases:**
+        /// - Manual correction of usage data
+        /// - External system integration (e.g., off-chain operations)
+        /// - Batch processing of historical operations
+        /// - Custom metering for specialized features
+        /// - Testing and development environments
+        /// 
+        /// **Security:**
+        /// - Only the authenticated tenant can record usage for themselves
+        /// - All operations are logged for audit purposes
+        /// - Rate limiting may apply to prevent abuse
+        /// </remarks>
+        [HttpPost("usage/record")]
+        [ProducesResponseType(typeof(RecordUsageResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> RecordUsage([FromBody] RecordUsageRequest request)
+        {
+            string? tenantAddress = null;
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                tenantAddress = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(tenantAddress))
+                {
+                    _logger.LogWarning("RecordUsage called without authenticated user");
+                    return Unauthorized(new RecordUsageResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Authentication required"
+                    });
+                }
+
+                // Record the usage
+                await _billingService.RecordUsageAsync(
+                    tenantAddress, 
+                    request.OperationType, 
+                    request.OperationCount);
+
+                // Get updated usage information
+                var summary = await _billingService.GetUsageSummaryAsync(tenantAddress);
+                var limits = await _billingService.GetPlanLimitsAsync(tenantAddress);
+
+                // Determine current usage and max allowed based on operation type
+                int currentUsage = 0;
+                int maxAllowed = -1;
+
+                switch (request.OperationType)
+                {
+                    case OperationType.TokenIssuance:
+                        currentUsage = summary.TokenIssuanceCount;
+                        maxAllowed = limits.MaxTokenIssuance;
+                        break;
+                    case OperationType.TransferValidation:
+                        currentUsage = summary.TransferValidationCount;
+                        maxAllowed = limits.MaxTransferValidations;
+                        break;
+                    case OperationType.AuditExport:
+                        currentUsage = summary.AuditExportCount;
+                        maxAllowed = limits.MaxAuditExports;
+                        break;
+                    case OperationType.Storage:
+                        currentUsage = summary.StorageItemsCount;
+                        maxAllowed = limits.MaxStorageItems;
+                        break;
+                    case OperationType.ComplianceOperation:
+                        currentUsage = summary.ComplianceOperationCount;
+                        maxAllowed = limits.MaxComplianceOperations;
+                        break;
+                    case OperationType.WhitelistOperation:
+                        currentUsage = summary.WhitelistOperationCount;
+                        maxAllowed = limits.MaxWhitelistOperations;
+                        break;
+                }
+
+                int remainingCapacity = maxAllowed == -1 ? -1 : Math.Max(0, maxAllowed - currentUsage);
+
+                // Check if approaching limits (80% threshold)
+                string? warningMessage = null;
+                if (maxAllowed > 0 && currentUsage >= (maxAllowed * 0.8))
+                {
+                    double percentUsed = (double)currentUsage / maxAllowed * 100;
+                    warningMessage = 
+                        $"Warning: You have used {percentUsed:F1}% of your {request.OperationType} quota. " +
+                        $"Current usage: {currentUsage}/{maxAllowed}. Consider upgrading your subscription.";
+                }
+
+                // Emit audit event
+                _logger.LogInformation(
+                    "BILLING_AUDIT: UsageRecorded | Tenant: {TenantAddress} | OperationType: {OperationType} | " +
+                    "Count: {Count} | AssetId: {AssetId} | Network: {Network} | Notes: {Notes} | " +
+                    "CurrentUsage: {CurrentUsage} | MaxAllowed: {MaxAllowed}",
+                    tenantAddress, request.OperationType, request.OperationCount,
+                    request.AssetId, request.Network ?? "N/A", request.Notes ?? "N/A",
+                    currentUsage, maxAllowed);
+
+                return Ok(new RecordUsageResponse
+                {
+                    Success = true,
+                    RecordedCount = request.OperationCount,
+                    CurrentUsage = currentUsage,
+                    MaxAllowed = maxAllowed,
+                    RemainingCapacity = remainingCapacity,
+                    WarningMessage = warningMessage
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error recording usage for tenant {TenantAddress}", tenantAddress);
+                return StatusCode(StatusCodes.Status500InternalServerError, new RecordUsageResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while recording usage. Please try again later."
+                });
+            }
+        }
     }
 }

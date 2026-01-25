@@ -246,6 +246,52 @@
             - Upgrade decision support
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.BillingController.RecordUsage(BiatecTokensApi.Models.Billing.RecordUsageRequest)">
+            <summary>
+            Records usage for billing purposes (manual usage tracking)
+            </summary>
+            <param name="request">The usage recording request</param>
+            <returns>Success status with updated usage information</returns>
+            <remarks>
+            This endpoint allows manual recording of usage events for billing purposes.
+            It is useful for tracking operations that are not automatically captured by the platform,
+            or for external systems that need to report usage.
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used as the tenant identifier.
+            
+            **Recording Behavior:**
+            - Records the specified number of operations for the given operation type
+            - Returns the updated usage and remaining capacity
+            - Emits audit events for MICA/RWA auditability
+            - Provides warnings when approaching limits (80% capacity)
+            
+            **Quota Enforcement:**
+            - This endpoint does NOT enforce quotas - it records usage regardless of limits
+            - Use the preflight check endpoint (POST /api/v1/billing/limits/check) to verify limits before operations
+            - The response includes current usage and remaining capacity for awareness
+            - A warning message is returned if usage exceeds 80% of the limit
+            
+            **Audit Events:**
+            All usage recording operations are logged with structured logging for:
+            - Compliance reporting (MICA, RWA)
+            - Billing reconciliation
+            - Usage analytics and forecasting
+            - Fraud detection and monitoring
+            
+            **Use Cases:**
+            - Manual correction of usage data
+            - External system integration (e.g., off-chain operations)
+            - Batch processing of historical operations
+            - Custom metering for specialized features
+            - Testing and development environments
+            
+            **Security:**
+            - Only the authenticated tenant can record usage for themselves
+            - All operations are logged for audit purposes
+            - Rate limiting may apply to prevent abuse
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.ComplianceController">
             <summary>
             Provides endpoints for managing RWA token compliance metadata
@@ -3148,6 +3194,81 @@
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Billing.PlanLimitsResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.RecordUsageRequest">
+            <summary>
+            Request model for recording usage events
+            </summary>
+            <remarks>
+            This model is used to manually record usage events for billing purposes.
+            It allows external systems or manual processes to track operations that
+            are not automatically captured by the platform.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageRequest.OperationType">
+            <summary>
+            Type of operation to record
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageRequest.OperationCount">
+            <summary>
+            Number of operations to record (default: 1, minimum: 1)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageRequest.AssetId">
+            <summary>
+            Optional asset ID for context
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageRequest.Network">
+            <summary>
+            Optional network for context
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageRequest.Notes">
+            <summary>
+            Optional notes about the operation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Billing.RecordUsageResponse">
+            <summary>
+            Response model for record usage endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageResponse.RecordedCount">
+            <summary>
+            Number of operations recorded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageResponse.CurrentUsage">
+            <summary>
+            Current usage after recording
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageResponse.MaxAllowed">
+            <summary>
+            Maximum allowed for this operation type (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageResponse.RemainingCapacity">
+            <summary>
+            Remaining capacity after recording (-1 for unlimited)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageResponse.WarningMessage">
+            <summary>
+            Warning message if approaching limits
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Billing.RecordUsageResponse.ErrorMessage">
             <summary>
             Error message if the request failed
             </summary>
