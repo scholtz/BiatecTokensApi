@@ -233,5 +233,59 @@ namespace BiatecTokensApi.Services.Interface
         /// external verification with cryptographic checksums.
         /// </remarks>
         Task<ComplianceEvidenceBundleResponse> GenerateComplianceEvidenceBundleAsync(GenerateComplianceEvidenceBundleRequest request, string requestedBy);
+
+        /// <summary>
+        /// Gets aggregated compliance dashboard metrics for enterprise reporting
+        /// </summary>
+        /// <param name="request">The dashboard aggregation request with filters</param>
+        /// <param name="requestedBy">The address of the user requesting the dashboard data</param>
+        /// <returns>Response with aggregated compliance metrics including MICA readiness, whitelist status, and jurisdiction flags</returns>
+        /// <remarks>
+        /// This method aggregates compliance data across assets to provide:
+        /// - MICA readiness statistics (compliant, nearly compliant, in progress, non-compliant)
+        /// - Whitelist status metrics (enabled/disabled, active/revoked/suspended addresses)
+        /// - Jurisdiction coverage (distribution, unique jurisdictions)
+        /// - Compliant vs restricted asset counts
+        /// - Top restriction reasons with occurrence counts
+        /// - Token standard and network distribution
+        /// 
+        /// Supports filtering by network, token standard, and date range for targeted reporting.
+        /// Designed for enterprise compliance dashboards and scheduled compliance exports.
+        /// </remarks>
+        Task<ComplianceDashboardAggregationResponse> GetDashboardAggregationAsync(GetComplianceDashboardAggregationRequest request, string requestedBy);
+
+        /// <summary>
+        /// Exports compliance dashboard aggregation data as CSV
+        /// </summary>
+        /// <param name="request">The dashboard aggregation request with filters</param>
+        /// <param name="requestedBy">The address of the user requesting the export</param>
+        /// <returns>CSV content as string</returns>
+        /// <remarks>
+        /// Exports aggregated compliance metrics in CSV format suitable for:
+        /// - Enterprise reporting systems
+        /// - Scheduled compliance exports
+        /// - Spreadsheet analysis
+        /// - Compliance posture tracking
+        /// 
+        /// CSV includes summary metrics and optional detailed asset breakdown.
+        /// </remarks>
+        Task<string> ExportDashboardAggregationCsvAsync(GetComplianceDashboardAggregationRequest request, string requestedBy);
+
+        /// <summary>
+        /// Exports compliance dashboard aggregation data as JSON
+        /// </summary>
+        /// <param name="request">The dashboard aggregation request with filters</param>
+        /// <param name="requestedBy">The address of the user requesting the export</param>
+        /// <returns>JSON content as string</returns>
+        /// <remarks>
+        /// Exports aggregated compliance metrics in JSON format suitable for:
+        /// - Programmatic dashboard data feeds
+        /// - API integrations
+        /// - Compliance management systems
+        /// - Data archival
+        /// 
+        /// JSON includes full aggregation response with metadata.
+        /// </remarks>
+        Task<string> ExportDashboardAggregationJsonAsync(GetComplianceDashboardAggregationRequest request, string requestedBy);
     }
 }

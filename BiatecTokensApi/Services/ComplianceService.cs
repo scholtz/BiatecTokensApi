@@ -2919,5 +2919,616 @@ namespace BiatecTokensApi.Services
 
             return sb.ToString();
         }
+
+        /// <inheritdoc/>
+        public async Task<ComplianceDashboardAggregationResponse> GetDashboardAggregationAsync(
+            GetComplianceDashboardAggregationRequest request,
+            string requestedBy)
+        {
+            try
+            {
+                _logger.LogInformation("Generating compliance dashboard aggregation for {RequestedBy}, Network={Network}, TokenStandard={TokenStandard}",
+                    requestedBy, request.Network, request.TokenStandard);
+
+                // Get all compliance metadata with filters
+                var metadataRequest = new ListComplianceMetadataRequest
+                {
+                    Network = request.Network,
+                    Page = 1,
+                    PageSize = 10000 // Get all for aggregation
+                };
+
+                var metadataResponse = await ListMetadataAsync(metadataRequest);
+                if (!metadataResponse.Success)
+                {
+                    return new ComplianceDashboardAggregationResponse
+                    {
+                        Success = false,
+                        ErrorMessage = $"Failed to retrieve compliance metadata: {metadataResponse.ErrorMessage}"
+                    };
+                }
+
+                var allMetadata = metadataResponse.Metadata;
+
+                // Apply date range filter if specified
+                if (request.FromDate.HasValue)
+                {
+                    allMetadata = allMetadata.Where(m => m.CreatedAt >= request.FromDate.Value).ToList();
+                }
+                if (request.ToDate.HasValue)
+                {
+                    allMetadata = allMetadata.Where(m => m.CreatedAt <= request.ToDate.Value).ToList();
+                }
+
+                var metrics = new ComplianceDashboardMetrics
+                {
+                    TotalAssets = allMetadata.Count
+                };
+
+                // Calculate MICA readiness metrics
+                metrics.MicaReadiness = await CalculateMicaReadinessMetricsAsync(allMetadata);
+
+                // Calculate whitelist status metrics
+                metrics.WhitelistStatus = await CalculateWhitelistStatusMetricsAsync(allMetadata, request.Network);
+
+                // Calculate jurisdiction metrics
+                metrics.Jurisdictions = CalculateJurisdictionMetrics(allMetadata);
+
+                // Calculate compliance counts
+                metrics.ComplianceCounts = CalculateComplianceCountMetrics(allMetadata);
+
+                // Calculate top restriction reasons
+                metrics.TopRestrictionReasons = CalculateTopRestrictionReasons(allMetadata, request.TopRestrictionsCount);
+
+                // Calculate token standard distribution
+                metrics.TokenStandardDistribution = CalculateTokenStandardDistribution(allMetadata, request.TokenStandard);
+
+                // Calculate network distribution
+                metrics.NetworkDistribution = CalculateNetworkDistribution(allMetadata);
+
+                // Prepare response
+                var response = new ComplianceDashboardAggregationResponse
+                {
+                    Success = true,
+                    Metrics = metrics,
+                    NetworkFilter = request.Network,
+                    TokenStandardFilter = request.TokenStandard,
+                    DateRangeFilter = request.FromDate.HasValue || request.ToDate.HasValue
+                        ? new Models.AuditDateRange
+                        {
+                            EarliestEvent = request.FromDate,
+                            LatestEvent = request.ToDate
+                        }
+                        : null
+                };
+
+                // Add detailed asset breakdown if requested
+                if (request.IncludeAssetBreakdown)
+                {
+                    response.AssetBreakdown = await GenerateAssetBreakdownAsync(allMetadata);
+                }
+
+                _logger.LogInformation("Generated compliance dashboard aggregation for {RequestedBy}: {TotalAssets} assets",
+                    requestedBy, metrics.TotalAssets);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating compliance dashboard aggregation for {RequestedBy}", requestedBy);
+                return new ComplianceDashboardAggregationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<string> ExportDashboardAggregationCsvAsync(
+            GetComplianceDashboardAggregationRequest request,
+            string requestedBy)
+        {
+            var response = await GetDashboardAggregationAsync(request, requestedBy);
+            if (!response.Success)
+            {
+                throw new InvalidOperationException($"Failed to get dashboard aggregation: {response.ErrorMessage}");
+            }
+
+            var csv = new System.Text.StringBuilder();
+            var metrics = response.Metrics;
+
+            // Header
+            csv.AppendLine("Compliance Dashboard Aggregation Export");
+            csv.AppendLine($"Generated: {response.GeneratedAt:yyyy-MM-dd HH:mm:ss} UTC");
+            csv.AppendLine($"Requested By: {requestedBy}");
+            if (!string.IsNullOrEmpty(response.NetworkFilter))
+                csv.AppendLine($"Network Filter: {response.NetworkFilter}");
+            if (!string.IsNullOrEmpty(response.TokenStandardFilter))
+                csv.AppendLine($"Token Standard Filter: {response.TokenStandardFilter}");
+            if (response.DateRangeFilter != null)
+                csv.AppendLine($"Date Range: {response.DateRangeFilter.EarliestEvent:yyyy-MM-dd} to {response.DateRangeFilter.LatestEvent:yyyy-MM-dd}");
+            csv.AppendLine();
+
+            // Summary metrics
+            csv.AppendLine("SUMMARY METRICS");
+            csv.AppendLine($"Total Assets,{metrics.TotalAssets}");
+            csv.AppendLine();
+
+            // MICA Readiness
+            csv.AppendLine("MICA READINESS");
+            csv.AppendLine("Metric,Count");
+            csv.AppendLine($"Assets with Metadata,{metrics.MicaReadiness.AssetsWithMetadata}");
+            csv.AppendLine($"Assets without Metadata,{metrics.MicaReadiness.AssetsWithoutMetadata}");
+            csv.AppendLine($"Fully Compliant,{metrics.MicaReadiness.FullyCompliantAssets}");
+            csv.AppendLine($"Nearly Compliant,{metrics.MicaReadiness.NearlyCompliantAssets}");
+            csv.AppendLine($"In Progress,{metrics.MicaReadiness.InProgressAssets}");
+            csv.AppendLine($"Non-Compliant,{metrics.MicaReadiness.NonCompliantAssets}");
+            csv.AppendLine($"Not Started,{metrics.MicaReadiness.NotStartedAssets}");
+            csv.AppendLine($"Average Compliance %,{metrics.MicaReadiness.AverageCompliancePercentage:F2}");
+            csv.AppendLine();
+
+            // Whitelist Status
+            csv.AppendLine("WHITELIST STATUS");
+            csv.AppendLine("Metric,Count");
+            csv.AppendLine($"Assets with Whitelist,{metrics.WhitelistStatus.AssetsWithWhitelist}");
+            csv.AppendLine($"Assets without Whitelist,{metrics.WhitelistStatus.AssetsWithoutWhitelist}");
+            csv.AppendLine($"Total Whitelisted Addresses,{metrics.WhitelistStatus.TotalWhitelistedAddresses}");
+            csv.AppendLine($"Active Addresses,{metrics.WhitelistStatus.ActiveWhitelistedAddresses}");
+            csv.AppendLine($"Revoked Addresses,{metrics.WhitelistStatus.RevokedWhitelistedAddresses}");
+            csv.AppendLine($"Suspended Addresses,{metrics.WhitelistStatus.SuspendedWhitelistedAddresses}");
+            csv.AppendLine($"Average Addresses per Asset,{metrics.WhitelistStatus.AverageWhitelistedAddressesPerAsset:F2}");
+            csv.AppendLine();
+
+            // Jurisdiction Coverage
+            csv.AppendLine("JURISDICTION COVERAGE");
+            csv.AppendLine("Metric,Count");
+            csv.AppendLine($"Assets with Jurisdiction,{metrics.Jurisdictions.AssetsWithJurisdiction}");
+            csv.AppendLine($"Assets without Jurisdiction,{metrics.Jurisdictions.AssetsWithoutJurisdiction}");
+            csv.AppendLine($"Unique Jurisdictions,{metrics.Jurisdictions.UniqueJurisdictions}");
+            if (!string.IsNullOrEmpty(metrics.Jurisdictions.MostCommonJurisdiction))
+                csv.AppendLine($"Most Common Jurisdiction,{metrics.Jurisdictions.MostCommonJurisdiction}");
+            csv.AppendLine();
+
+            // Jurisdiction Distribution
+            if (metrics.Jurisdictions.JurisdictionDistribution.Any())
+            {
+                csv.AppendLine("Jurisdiction,Asset Count");
+                foreach (var kvp in metrics.Jurisdictions.JurisdictionDistribution.OrderByDescending(x => x.Value))
+                {
+                    csv.AppendLine($"{kvp.Key},{kvp.Value}");
+                }
+                csv.AppendLine();
+            }
+
+            // Compliance Counts
+            csv.AppendLine("COMPLIANCE STATUS COUNTS");
+            csv.AppendLine("Status,Count");
+            csv.AppendLine($"Compliant,{metrics.ComplianceCounts.CompliantAssets}");
+            csv.AppendLine($"Restricted,{metrics.ComplianceCounts.RestrictedAssets}");
+            csv.AppendLine($"Under Review,{metrics.ComplianceCounts.UnderReviewAssets}");
+            csv.AppendLine($"Suspended,{metrics.ComplianceCounts.SuspendedAssets}");
+            csv.AppendLine($"Exempt,{metrics.ComplianceCounts.ExemptAssets}");
+            csv.AppendLine($"Compliance Rate %,{metrics.ComplianceCounts.ComplianceRate:F2}");
+            csv.AppendLine();
+
+            // Top Restriction Reasons
+            if (metrics.TopRestrictionReasons.Any())
+            {
+                csv.AppendLine("TOP RESTRICTION REASONS");
+                csv.AppendLine("Reason,Count,Percentage");
+                foreach (var reason in metrics.TopRestrictionReasons)
+                {
+                    csv.AppendLine($"\"{reason.Reason}\",{reason.Count},{reason.Percentage:F2}");
+                }
+                csv.AppendLine();
+            }
+
+            // Token Standard Distribution
+            if (metrics.TokenStandardDistribution.Any())
+            {
+                csv.AppendLine("TOKEN STANDARD DISTRIBUTION");
+                csv.AppendLine("Standard,Count");
+                foreach (var kvp in metrics.TokenStandardDistribution.OrderByDescending(x => x.Value))
+                {
+                    csv.AppendLine($"{kvp.Key},{kvp.Value}");
+                }
+                csv.AppendLine();
+            }
+
+            // Network Distribution
+            if (metrics.NetworkDistribution.Any())
+            {
+                csv.AppendLine("NETWORK DISTRIBUTION");
+                csv.AppendLine("Network,Count");
+                foreach (var kvp in metrics.NetworkDistribution.OrderByDescending(x => x.Value))
+                {
+                    csv.AppendLine($"{kvp.Key},{kvp.Value}");
+                }
+                csv.AppendLine();
+            }
+
+            // Asset Breakdown
+            if (response.AssetBreakdown != null && response.AssetBreakdown.Any())
+            {
+                csv.AppendLine("DETAILED ASSET BREAKDOWN");
+                csv.AppendLine("Asset ID,Network,Token Standard,MICA Status,Compliance Status,Has Whitelist,Whitelisted Count,Jurisdiction,Transfer Restrictions,Last Review");
+                foreach (var asset in response.AssetBreakdown)
+                {
+                    csv.AppendLine($"{asset.AssetId}," +
+                        $"{asset.Network ?? "N/A"}," +
+                        $"{asset.TokenStandard ?? "N/A"}," +
+                        $"{asset.MicaComplianceStatus ?? "N/A"}," +
+                        $"{asset.ComplianceStatus ?? "N/A"}," +
+                        $"{asset.HasWhitelist}," +
+                        $"{asset.WhitelistedAddressCount}," +
+                        $"\"{asset.Jurisdiction ?? "N/A"}\"," +
+                        $"\"{asset.TransferRestrictions ?? "N/A"}\"," +
+                        $"{(asset.LastComplianceReview.HasValue ? asset.LastComplianceReview.Value.ToString("yyyy-MM-dd") : "N/A")}");
+                }
+            }
+
+            return csv.ToString();
+        }
+
+        /// <inheritdoc/>
+        public async Task<string> ExportDashboardAggregationJsonAsync(
+            GetComplianceDashboardAggregationRequest request,
+            string requestedBy)
+        {
+            var response = await GetDashboardAggregationAsync(request, requestedBy);
+            if (!response.Success)
+            {
+                throw new InvalidOperationException($"Failed to get dashboard aggregation: {response.ErrorMessage}");
+            }
+
+            return System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            });
+        }
+
+        private async Task<MicaReadinessMetrics> CalculateMicaReadinessMetricsAsync(List<ComplianceMetadata> allMetadata)
+        {
+            var metrics = new MicaReadinessMetrics
+            {
+                AssetsWithMetadata = allMetadata.Count,
+                AssetsWithoutMetadata = 0 // We only have assets with metadata
+            };
+
+            // Get MICA checklist status for each asset
+            var compliancePercentages = new List<double>();
+            
+            foreach (var metadata in allMetadata)
+            {
+                try
+                {
+                    var checklist = await GetMicaComplianceChecklistAsync(metadata.AssetId);
+                    if (checklist.Success && checklist.Checklist != null)
+                    {
+                        switch (checklist.Checklist.OverallStatus)
+                        {
+                            case MicaComplianceStatus.FullyCompliant:
+                                metrics.FullyCompliantAssets++;
+                                break;
+                            case MicaComplianceStatus.NearlyCompliant:
+                                metrics.NearlyCompliantAssets++;
+                                break;
+                            case MicaComplianceStatus.InProgress:
+                                metrics.InProgressAssets++;
+                                break;
+                            case MicaComplianceStatus.NonCompliant:
+                                metrics.NonCompliantAssets++;
+                                break;
+                            case MicaComplianceStatus.NotStarted:
+                                metrics.NotStartedAssets++;
+                                break;
+                        }
+                        
+                        compliancePercentages.Add(checklist.Checklist.CompliancePercentage);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get MICA checklist for asset {AssetId}", metadata.AssetId);
+                    metrics.NotStartedAssets++;
+                }
+            }
+
+            if (compliancePercentages.Any())
+            {
+                metrics.AverageCompliancePercentage = compliancePercentages.Average();
+            }
+
+            return metrics;
+        }
+
+        private async Task<WhitelistStatusMetrics> CalculateWhitelistStatusMetricsAsync(List<ComplianceMetadata> allMetadata, string? networkFilter)
+        {
+            var metrics = new WhitelistStatusMetrics();
+            var whitelistCounts = new List<int>();
+
+            foreach (var metadata in allMetadata)
+            {
+                try
+                {
+                    var whitelistRequest = new GetWhitelistRequest
+                    {
+                        AssetId = metadata.AssetId,
+                        Network = networkFilter ?? metadata.Network
+                    };
+
+                    var whitelistResponse = await _whitelistService.GetWhitelistAsync(whitelistRequest);
+                    if (whitelistResponse.Success && whitelistResponse.Entries != null && whitelistResponse.Entries.Any())
+                    {
+                        metrics.AssetsWithWhitelist++;
+                        var totalCount = whitelistResponse.Entries.Count;
+                        whitelistCounts.Add(totalCount);
+                        metrics.TotalWhitelistedAddresses += totalCount;
+
+                        foreach (var entry in whitelistResponse.Entries)
+                        {
+                            switch (entry.Status)
+                            {
+                                case WhitelistEntryStatus.Active:
+                                    metrics.ActiveWhitelistedAddresses++;
+                                    break;
+                                case WhitelistEntryStatus.Revoked:
+                                    metrics.RevokedWhitelistedAddresses++;
+                                    break;
+                                case WhitelistEntryStatus.Suspended:
+                                    metrics.SuspendedWhitelistedAddresses++;
+                                    break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        metrics.AssetsWithoutWhitelist++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get whitelist for asset {AssetId}", metadata.AssetId);
+                    metrics.AssetsWithoutWhitelist++;
+                }
+            }
+
+            if (whitelistCounts.Any())
+            {
+                metrics.AverageWhitelistedAddressesPerAsset = whitelistCounts.Average();
+            }
+
+            return metrics;
+        }
+
+        private JurisdictionMetrics CalculateJurisdictionMetrics(List<ComplianceMetadata> allMetadata)
+        {
+            var metrics = new JurisdictionMetrics();
+            var jurisdictionCounts = new Dictionary<string, int>();
+
+            foreach (var metadata in allMetadata)
+            {
+                if (!string.IsNullOrWhiteSpace(metadata.Jurisdiction))
+                {
+                    metrics.AssetsWithJurisdiction++;
+
+                    // Split comma-separated jurisdictions
+                    var jurisdictions = metadata.Jurisdiction.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var jurisdiction in jurisdictions)
+                    {
+                        if (jurisdictionCounts.ContainsKey(jurisdiction))
+                            jurisdictionCounts[jurisdiction]++;
+                        else
+                            jurisdictionCounts[jurisdiction] = 1;
+                    }
+                }
+                else
+                {
+                    metrics.AssetsWithoutJurisdiction++;
+                }
+            }
+
+            metrics.JurisdictionDistribution = jurisdictionCounts;
+            metrics.UniqueJurisdictions = jurisdictionCounts.Keys.Count;
+            if (jurisdictionCounts.Any())
+            {
+                metrics.MostCommonJurisdiction = jurisdictionCounts.OrderByDescending(x => x.Value).First().Key;
+            }
+
+            return metrics;
+        }
+
+        private ComplianceCountMetrics CalculateComplianceCountMetrics(List<ComplianceMetadata> allMetadata)
+        {
+            var metrics = new ComplianceCountMetrics();
+
+            foreach (var metadata in allMetadata)
+            {
+                switch (metadata.ComplianceStatus)
+                {
+                    case ComplianceStatus.Compliant:
+                        metrics.CompliantAssets++;
+                        break;
+                    case ComplianceStatus.NonCompliant:
+                        metrics.RestrictedAssets++;
+                        break;
+                    case ComplianceStatus.UnderReview:
+                        metrics.UnderReviewAssets++;
+                        break;
+                    case ComplianceStatus.Suspended:
+                        metrics.SuspendedAssets++;
+                        break;
+                    case ComplianceStatus.Exempt:
+                        metrics.ExemptAssets++;
+                        break;
+                }
+            }
+
+            var totalAssets = allMetadata.Count;
+            if (totalAssets > 0)
+            {
+                metrics.ComplianceRate = (double)metrics.CompliantAssets / totalAssets * 100.0;
+            }
+
+            return metrics;
+        }
+
+        private List<RestrictionReasonCount> CalculateTopRestrictionReasons(List<ComplianceMetadata> allMetadata, int topCount)
+        {
+            var restrictionCounts = new Dictionary<string, int>();
+            var totalRestricted = 0;
+
+            foreach (var metadata in allMetadata)
+            {
+                if (!string.IsNullOrWhiteSpace(metadata.TransferRestrictions))
+                {
+                    totalRestricted++;
+                    
+                    // Split multiple restrictions
+                    var restrictions = metadata.TransferRestrictions.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var restriction in restrictions)
+                    {
+                        if (restrictionCounts.ContainsKey(restriction))
+                            restrictionCounts[restriction]++;
+                        else
+                            restrictionCounts[restriction] = 1;
+                    }
+                }
+            }
+
+            return restrictionCounts
+                .OrderByDescending(x => x.Value)
+                .Take(topCount)
+                .Select(x => new RestrictionReasonCount
+                {
+                    Reason = x.Key,
+                    Count = x.Value,
+                    Percentage = totalRestricted > 0 ? (double)x.Value / totalRestricted * 100.0 : 0
+                })
+                .ToList();
+        }
+
+        private Dictionary<string, int> CalculateTokenStandardDistribution(List<ComplianceMetadata> allMetadata, string? standardFilter)
+        {
+            var distribution = new Dictionary<string, int>();
+
+            foreach (var metadata in allMetadata)
+            {
+                // Try to infer token standard from asset type or network
+                var standard = InferTokenStandard(metadata);
+                
+                if (!string.IsNullOrEmpty(standardFilter) && standard != standardFilter)
+                    continue;
+
+                if (distribution.ContainsKey(standard))
+                    distribution[standard]++;
+                else
+                    distribution[standard] = 1;
+            }
+
+            return distribution;
+        }
+
+        private Dictionary<string, int> CalculateNetworkDistribution(List<ComplianceMetadata> allMetadata)
+        {
+            var distribution = new Dictionary<string, int>();
+
+            foreach (var metadata in allMetadata)
+            {
+                var network = metadata.Network ?? "Unknown";
+                if (distribution.ContainsKey(network))
+                    distribution[network]++;
+                else
+                    distribution[network] = 1;
+            }
+
+            return distribution;
+        }
+
+        private string InferTokenStandard(ComplianceMetadata metadata)
+        {
+            // Try to infer from asset type or notes
+            if (!string.IsNullOrWhiteSpace(metadata.AssetType))
+            {
+                var assetType = metadata.AssetType.ToLowerInvariant();
+                if (assetType.Contains("arc200")) return "ARC200";
+                if (assetType.Contains("arc1400")) return "ARC1400";
+                if (assetType.Contains("arc3") || assetType.Contains("arc-3")) return "ARC3";
+                if (assetType.Contains("erc20") || assetType.Contains("erc-20")) return "ERC20";
+                if (assetType.Contains("asa")) return "ASA";
+            }
+
+            // Try to infer from network
+            if (!string.IsNullOrWhiteSpace(metadata.Network))
+            {
+                var network = metadata.Network.ToLowerInvariant();
+                if (network.Contains("voi") || network.Contains("aramid") || network.Contains("mainnet") || network.Contains("testnet"))
+                    return "ASA"; // Default for Algorand networks
+                if (network.Contains("base") || network.Contains("eth") || network.Contains("evm"))
+                    return "ERC20";
+            }
+
+            return "Unknown";
+        }
+
+        private async Task<List<AssetComplianceSummary>> GenerateAssetBreakdownAsync(List<ComplianceMetadata> allMetadata)
+        {
+            var breakdown = new List<AssetComplianceSummary>();
+
+            foreach (var metadata in allMetadata)
+            {
+                var summary = new AssetComplianceSummary
+                {
+                    AssetId = metadata.AssetId,
+                    Network = metadata.Network,
+                    TokenStandard = InferTokenStandard(metadata),
+                    ComplianceStatus = metadata.ComplianceStatus.ToString(),
+                    Jurisdiction = metadata.Jurisdiction,
+                    TransferRestrictions = metadata.TransferRestrictions,
+                    LastComplianceReview = metadata.LastComplianceReview
+                };
+
+                // Get MICA status
+                try
+                {
+                    var checklist = await GetMicaComplianceChecklistAsync(metadata.AssetId);
+                    if (checklist.Success && checklist.Checklist != null)
+                    {
+                        summary.MicaComplianceStatus = checklist.Checklist.OverallStatus.ToString();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get MICA checklist for asset {AssetId} in breakdown", metadata.AssetId);
+                }
+
+                // Get whitelist info
+                try
+                {
+                    var whitelistRequest = new GetWhitelistRequest
+                    {
+                        AssetId = metadata.AssetId,
+                        Network = metadata.Network
+                    };
+
+                    var whitelistResponse = await _whitelistService.GetWhitelistAsync(whitelistRequest);
+                    if (whitelistResponse.Success && whitelistResponse.Entries != null)
+                    {
+                        summary.HasWhitelist = whitelistResponse.Entries.Any();
+                        summary.WhitelistedAddressCount = whitelistResponse.Entries.Count;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get whitelist for asset {AssetId} in breakdown", metadata.AssetId);
+                }
+
+                breakdown.Add(summary);
+            }
+
+            return breakdown;
+        }
     }
 }

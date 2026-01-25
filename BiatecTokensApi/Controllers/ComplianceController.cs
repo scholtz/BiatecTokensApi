@@ -1910,5 +1910,264 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Gets aggregated compliance dashboard metrics for enterprise reporting
+        /// </summary>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+        /// <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+        /// <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+        /// <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+        /// <param name="includeAssetBreakdown">Include detailed asset breakdown (default: false)</param>
+        /// <param name="topRestrictionsCount">Maximum number of top restriction reasons to include (default: 10)</param>
+        /// <returns>Aggregated compliance dashboard metrics</returns>
+        /// <remarks>
+        /// This endpoint provides enterprise-grade compliance dashboard aggregations for scheduled exports
+        /// and compliance posture tracking. Supports filtering by network, token standard, and date range.
+        /// 
+        /// **Use Cases:**
+        /// - Enterprise compliance dashboards
+        /// - Scheduled compliance exports
+        /// - Compliance posture tracking across assets
+        /// - Regulatory reporting automation
+        /// - MICA readiness assessment
+        /// 
+        /// **Aggregations Provided:**
+        /// - MICA readiness statistics (compliant, nearly compliant, in progress, non-compliant)
+        /// - Whitelist status metrics (enabled/disabled, active/revoked/suspended addresses)
+        /// - Jurisdiction coverage (distribution, unique jurisdictions)
+        /// - Compliant vs restricted asset counts
+        /// - Top restriction reasons with occurrence counts
+        /// - Token standard and network distribution
+        /// 
+        /// **Filters:**
+        /// All filters are optional and can be combined for precise queries.
+        /// 
+        /// **Asset Breakdown:**
+        /// Set includeAssetBreakdown=true to get detailed per-asset compliance information.
+        /// This is useful for drill-down analysis but increases response size.
+        /// 
+        /// **Security:**
+        /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+        /// </remarks>
+        [HttpGet("dashboard-aggregation")]
+        [ProducesResponseType(typeof(ComplianceDashboardAggregationResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetDashboardAggregation(
+            [FromQuery] string? network = null,
+            [FromQuery] string? tokenStandard = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] bool includeAssetBreakdown = false,
+            [FromQuery] int topRestrictionsCount = 10)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation("Dashboard aggregation requested by {UserAddress}: Network={Network}, TokenStandard={TokenStandard}",
+                    userAddress, network, tokenStandard);
+
+                var request = new GetComplianceDashboardAggregationRequest
+                {
+                    Network = network,
+                    TokenStandard = tokenStandard,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    IncludeAssetBreakdown = includeAssetBreakdown,
+                    TopRestrictionsCount = topRestrictionsCount
+                };
+
+                var result = await _complianceService.GetDashboardAggregationAsync(request, userAddress);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved dashboard aggregation for user {UserAddress}: {TotalAssets} assets",
+                        userAddress, result.Metrics.TotalAssets);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to retrieve dashboard aggregation: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving dashboard aggregation");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceDashboardAggregationResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports compliance dashboard aggregation data as CSV
+        /// </summary>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+        /// <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+        /// <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+        /// <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+        /// <param name="includeAssetBreakdown">Include detailed asset breakdown (default: false)</param>
+        /// <param name="topRestrictionsCount">Maximum number of top restriction reasons to include (default: 10)</param>
+        /// <returns>CSV file with compliance dashboard aggregation data</returns>
+        /// <remarks>
+        /// Exports aggregated compliance metrics in CSV format for enterprise reporting and scheduled exports.
+        /// 
+        /// **CSV Format:**
+        /// - UTF-8 encoding with proper CSV escaping
+        /// - Summary metrics section with all aggregations
+        /// - MICA readiness section
+        /// - Whitelist status section
+        /// - Jurisdiction coverage section
+        /// - Compliance counts section
+        /// - Top restriction reasons section
+        /// - Token standard distribution section
+        /// - Network distribution section
+        /// - Optional detailed asset breakdown section
+        /// 
+        /// **Use Cases:**
+        /// - Scheduled compliance exports for enterprise systems
+        /// - Executive reporting (spreadsheet analysis)
+        /// - Compliance posture tracking over time
+        /// - Cross-asset compliance analysis
+        /// - Regulatory audit preparation
+        /// 
+        /// **Filename:**
+        /// - Format: compliance-dashboard-{timestamp}.csv
+        /// - Timestamp in yyyyMMddHHmmss format
+        /// 
+        /// **Security:**
+        /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+        /// </remarks>
+        [HttpGet("dashboard-aggregation/csv")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportDashboardAggregationCsv(
+            [FromQuery] string? network = null,
+            [FromQuery] string? tokenStandard = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] bool includeAssetBreakdown = false,
+            [FromQuery] int topRestrictionsCount = 10)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation("Dashboard aggregation CSV export requested by {UserAddress}: Network={Network}, TokenStandard={TokenStandard}",
+                    userAddress, network, tokenStandard);
+
+                var request = new GetComplianceDashboardAggregationRequest
+                {
+                    Network = network,
+                    TokenStandard = tokenStandard,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    IncludeAssetBreakdown = includeAssetBreakdown,
+                    TopRestrictionsCount = topRestrictionsCount
+                };
+
+                var csv = await _complianceService.ExportDashboardAggregationCsvAsync(request, userAddress);
+                var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
+                var fileName = $"compliance-dashboard-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+
+                _logger.LogInformation("Exported dashboard aggregation as CSV for user {UserAddress}", userAddress);
+                return File(bytes, "text/csv", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting dashboard aggregation as CSV");
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    errorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports compliance dashboard aggregation data as JSON
+        /// </summary>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+        /// <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+        /// <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+        /// <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+        /// <param name="includeAssetBreakdown">Include detailed asset breakdown (default: false)</param>
+        /// <param name="topRestrictionsCount">Maximum number of top restriction reasons to include (default: 10)</param>
+        /// <returns>JSON file with compliance dashboard aggregation data</returns>
+        /// <remarks>
+        /// Exports aggregated compliance metrics in JSON format for programmatic access and API integrations.
+        /// 
+        /// **JSON Format:**
+        /// - Pretty-printed JSON with camelCase property names
+        /// - Includes full aggregation response structure with metadata
+        /// - Complete metrics with all distribution data
+        /// - Optional detailed asset breakdown
+        /// 
+        /// **Use Cases:**
+        /// - Programmatic dashboard data feeds
+        /// - API integrations with compliance management systems
+        /// - Automated compliance monitoring
+        /// - Data archival for long-term tracking
+        /// - Real-time compliance posture analysis
+        /// 
+        /// **Filename:**
+        /// - Format: compliance-dashboard-{timestamp}.json
+        /// - Timestamp in yyyyMMddHHmmss format
+        /// 
+        /// **Security:**
+        /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+        /// </remarks>
+        [HttpGet("dashboard-aggregation/json")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportDashboardAggregationJson(
+            [FromQuery] string? network = null,
+            [FromQuery] string? tokenStandard = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] bool includeAssetBreakdown = false,
+            [FromQuery] int topRestrictionsCount = 10)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation("Dashboard aggregation JSON export requested by {UserAddress}: Network={Network}, TokenStandard={TokenStandard}",
+                    userAddress, network, tokenStandard);
+
+                var request = new GetComplianceDashboardAggregationRequest
+                {
+                    Network = network,
+                    TokenStandard = tokenStandard,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    IncludeAssetBreakdown = includeAssetBreakdown,
+                    TopRestrictionsCount = topRestrictionsCount
+                };
+
+                var json = await _complianceService.ExportDashboardAggregationJsonAsync(request, userAddress);
+                var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+                var fileName = $"compliance-dashboard-{DateTime.UtcNow:yyyyMMddHHmmss}.json";
+
+                _logger.LogInformation("Exported dashboard aggregation as JSON for user {UserAddress}", userAddress);
+                return File(bytes, "application/json", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting dashboard aggregation as JSON");
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    errorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
     }
 }
