@@ -1069,5 +1069,153 @@ namespace BiatecTokensApi.Services
                 };
             }
         }
+
+        /// <summary>
+        /// Gets whitelist enforcement audit report (transfer validation events only) with summary statistics
+        /// </summary>
+        public async Task<WhitelistEnforcementReportResponse> GetEnforcementReportAsync(GetWhitelistEnforcementReportRequest request)
+        {
+            _logger.LogInformation("Retrieving whitelist enforcement report: AssetId={AssetId}, Network={Network}, Page={Page}",
+                request.AssetId, request.Network, request.Page);
+
+            try
+            {
+                // Validate and cap page size
+                if (request.PageSize < 1)
+                    request.PageSize = 50;
+                if (request.PageSize > 100)
+                    request.PageSize = 100;
+
+                if (request.Page < 1)
+                    request.Page = 1;
+
+                // Get all entries with TransferValidation filter
+                var allEntriesRequest = new GetWhitelistAuditLogRequest
+                {
+                    AssetId = request.AssetId,
+                    ActionType = WhitelistActionType.TransferValidation,
+                    PerformedBy = request.PerformedBy,
+                    Network = request.Network,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    Page = 1,
+                    PageSize = 100000 // Use reasonable max instead of int.MaxValue
+                };
+
+                // Get all entries and apply enforcement-specific filters in one pass
+                var allEntriesQuery = await _repository.GetAuditLogAsync(allEntriesRequest);
+
+                IEnumerable<WhitelistAuditLogEntry> filteredQuery = allEntriesQuery;
+
+                if (!string.IsNullOrEmpty(request.FromAddress))
+                {
+                    filteredQuery = filteredQuery.Where(e => !string.IsNullOrEmpty(e.Address) &&
+                        e.Address.Equals(request.FromAddress, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!string.IsNullOrEmpty(request.ToAddress))
+                {
+                    filteredQuery = filteredQuery.Where(e => !string.IsNullOrEmpty(e.ToAddress) &&
+                        e.ToAddress.Equals(request.ToAddress, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (request.TransferAllowed.HasValue)
+                {
+                    filteredQuery = filteredQuery.Where(e => e.TransferAllowed == request.TransferAllowed.Value);
+                }
+
+                // Materialize filtered results once
+                var allEntries = filteredQuery.ToList();
+
+                var totalCount = allEntries.Count;
+                var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+                // Apply pagination to filtered results
+                var entries = allEntries
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                // Calculate summary statistics on all entries (not just current page)
+                var summary = CalculateEnforcementSummary(allEntries);
+
+                var response = new WhitelistEnforcementReportResponse
+                {
+                    Success = true,
+                    Entries = entries,
+                    TotalCount = totalCount,
+                    Page = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPages,
+                    Summary = summary,
+                    RetentionPolicy = new Models.Compliance.AuditRetentionPolicy
+                    {
+                        MinimumRetentionYears = 7,
+                        RegulatoryFramework = "MICA",
+                        ImmutableEntries = true,
+                        Description = "Audit logs are retained for a minimum of 7 years to comply with MICA (Markets in Crypto-Assets Regulation) and other regulatory requirements. All entries are immutable and cannot be modified or deleted."
+                    }
+                };
+
+                _logger.LogInformation("Retrieved {Count} enforcement entries (page {Page} of {TotalPages}), {Allowed} allowed, {Denied} denied",
+                    entries.Count, request.Page, totalPages, summary.AllowedTransfers, summary.DeniedTransfers);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving enforcement report");
+                return new WhitelistEnforcementReportResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Error retrieving enforcement report: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Calculates summary statistics for enforcement events
+        /// </summary>
+        private EnforcementSummaryStatistics CalculateEnforcementSummary(List<WhitelistAuditLogEntry> entries)
+        {
+            var summary = new EnforcementSummaryStatistics
+            {
+                TotalValidations = entries.Count,
+                AllowedTransfers = entries.Count(e => e.TransferAllowed == true),
+                DeniedTransfers = entries.Count(e => e.TransferAllowed == false)
+            };
+
+            if (summary.TotalValidations > 0)
+            {
+                summary.AllowedPercentage = Math.Round((double)summary.AllowedTransfers / summary.TotalValidations * 100, 2);
+                summary.DeniedPercentage = Math.Round((double)summary.DeniedTransfers / summary.TotalValidations * 100, 2);
+            }
+
+            summary.UniqueAssets = entries.Select(e => e.AssetId).Distinct().ToList();
+            summary.UniqueNetworks = entries.Where(e => !string.IsNullOrEmpty(e.Network))
+                .Select(e => e.Network!).Distinct().ToList();
+
+            if (entries.Any())
+            {
+                summary.DateRange = new EnforcementDateRange
+                {
+                    EarliestEvent = entries.Min(e => e.PerformedAt),
+                    LatestEvent = entries.Max(e => e.PerformedAt)
+                };
+            }
+
+            // Top denial reasons
+            var denialReasons = entries.Where(e => !string.IsNullOrEmpty(e.DenialReason))
+                .GroupBy(e => e.DenialReason!)
+                .OrderByDescending(g => g.Count())
+                .Take(10);
+
+            foreach (var group in denialReasons)
+            {
+                summary.DenialReasons[group.Key] = group.Count();
+            }
+
+            return summary;
+        }
     }
 }

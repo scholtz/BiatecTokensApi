@@ -27,6 +27,11 @@ namespace BiatecTokensApi.Controllers
         private const int MaxExportRecords = 10000;
 
         /// <summary>
+        /// Maximum page size for pagination
+        /// </summary>
+        private const int MaxPageSize = 100;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="WhitelistController"/> class.
         /// </summary>
         /// <param name="whitelistService">The whitelist service</param>
@@ -65,7 +70,7 @@ namespace BiatecTokensApi.Controllers
                     AssetId = assetId,
                     Status = status,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxPageSize) // Cap at 100
                 };
 
                 if (!ModelState.IsValid)
@@ -336,7 +341,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxPageSize) // Cap at 100
                 };
 
                 if (!ModelState.IsValid)
@@ -428,7 +433,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxPageSize) // Cap at 100
                 };
 
                 if (!ModelState.IsValid)
@@ -656,6 +661,336 @@ namespace BiatecTokensApi.Controllers
             };
 
             return Ok(policy);
+        }
+
+        /// <summary>
+        /// Gets whitelist enforcement audit report focused on transfer validation events
+        /// </summary>
+        /// <param name="assetId">Optional filter by asset ID (token ID)</param>
+        /// <param name="fromAddress">Optional filter by sender address</param>
+        /// <param name="toAddress">Optional filter by receiver address</param>
+        /// <param name="performedBy">Optional filter by user who performed the validation</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="transferAllowed">Optional filter by transfer result (true=allowed, false=denied)</param>
+        /// <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+        /// <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 50, max: 100)</param>
+        /// <returns>Enforcement audit report with entries and summary statistics</returns>
+        /// <remarks>
+        /// This endpoint provides a focused view of whitelist enforcement events (transfer validations only)
+        /// for enterprise compliance dashboards and MICA/RWA regulatory reporting.
+        /// 
+        /// **Key Features:**
+        /// - Filters specifically for TransferValidation actions (enforcement events)
+        /// - Includes comprehensive summary statistics (allowed/denied counts, percentages)
+        /// - Top denial reasons for compliance analysis
+        /// - Date range and network tracking
+        /// - Supports filtering by transfer result (allowed/denied)
+        /// 
+        /// **Use Cases:**
+        /// - Enterprise compliance dashboards showing enforcement effectiveness
+        /// - Regulatory audit trails for MICA compliance
+        /// - Analysis of denied transfer patterns
+        /// - Network-specific enforcement monitoring (VOI, Aramid)
+        /// - Investigating specific transfer validation incidents
+        /// 
+        /// **Business Value:**
+        /// - Demonstrates enforcement effectiveness to regulators
+        /// - Identifies compliance gaps and patterns
+        /// - Supports evidence-based policy adjustments
+        /// - Enables proactive risk management
+        /// 
+        /// **Retention Policy**: 7-year minimum retention for MICA compliance.
+        /// All entries are immutable and cannot be modified or deleted.
+        /// 
+        /// Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+        /// </remarks>
+        [HttpGet("enforcement-report")]
+        [ProducesResponseType(typeof(WhitelistEnforcementReportResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetEnforcementReport(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? fromAddress = null,
+            [FromQuery] string? toAddress = null,
+            [FromQuery] string? performedBy = null,
+            [FromQuery] string? network = null,
+            [FromQuery] bool? transferAllowed = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation("Enforcement report requested by {UserAddress}: AssetId={AssetId}, Network={Network}",
+                    userAddress, assetId, network);
+
+                var request = new GetWhitelistEnforcementReportRequest
+                {
+                    AssetId = assetId,
+                    FromAddress = fromAddress,
+                    ToAddress = toAddress,
+                    PerformedBy = performedBy,
+                    Network = network,
+                    TransferAllowed = transferAllowed,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = page,
+                    PageSize = Math.Min(pageSize, MaxPageSize)
+                };
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var result = await _whitelistService.GetEnforcementReportAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Retrieved {Count} enforcement entries for user {UserAddress}",
+                        result.Entries.Count, userAddress);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to retrieve enforcement report: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving enforcement report");
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistEnforcementReportResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports whitelist enforcement audit report as CSV
+        /// </summary>
+        /// <param name="assetId">Optional filter by asset ID</param>
+        /// <param name="fromAddress">Optional filter by sender address</param>
+        /// <param name="toAddress">Optional filter by receiver address</param>
+        /// <param name="performedBy">Optional filter by validator</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="transferAllowed">Optional filter by result</param>
+        /// <param name="fromDate">Optional start date filter</param>
+        /// <param name="toDate">Optional end date filter</param>
+        /// <returns>CSV file with enforcement audit entries</returns>
+        /// <remarks>
+        /// Exports up to 10,000 enforcement audit entries in CSV format for compliance reporting.
+        /// 
+        /// **CSV Format:**
+        /// - UTF-8 encoding with proper CSV escaping
+        /// - Header row with all enforcement-relevant fields
+        /// - One row per transfer validation event
+        /// - Includes sender, receiver, result, denial reason, timestamp
+        /// 
+        /// **Use Cases:**
+        /// - MICA compliance submissions to regulators
+        /// - Excel analysis of enforcement patterns
+        /// - Integration with enterprise compliance systems
+        /// - Long-term archival of enforcement records
+        /// 
+        /// **Business Value:**
+        /// - Simplifies regulatory reporting workflows
+        /// - Enables offline analysis and auditing
+        /// - Supports evidence-based compliance decisions
+        /// 
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpGet("enforcement-report/export/csv")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportEnforcementReportCsv(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? fromAddress = null,
+            [FromQuery] string? toAddress = null,
+            [FromQuery] string? performedBy = null,
+            [FromQuery] string? network = null,
+            [FromQuery] bool? transferAllowed = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation("Enforcement report CSV export requested by {UserAddress}: AssetId={AssetId}",
+                    userAddress, assetId);
+
+                var request = new GetWhitelistEnforcementReportRequest
+                {
+                    AssetId = assetId,
+                    FromAddress = fromAddress,
+                    ToAddress = toAddress,
+                    PerformedBy = performedBy,
+                    Network = network,
+                    TransferAllowed = transferAllowed,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = 1,
+                    PageSize = MaxExportRecords
+                };
+
+                var result = await _whitelistService.GetEnforcementReportAsync(request);
+
+                if (!result.Success)
+                {
+                    _logger.LogError("Failed to export enforcement report as CSV: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+
+                // Build CSV
+                var csv = new System.Text.StringBuilder();
+                csv.AppendLine("Id,AssetId,FromAddress,ToAddress,PerformedBy,PerformedAt,TransferAllowed,DenialReason,Amount,Network,Role,Notes");
+
+                foreach (var entry in result.Entries)
+                {
+                    csv.AppendLine(
+                        $"\"{EscapeCsv(entry.Id)}\"," +
+                        $"{entry.AssetId}," +
+                        $"\"{EscapeCsv(entry.Address)}\"," +
+                        $"\"{EscapeCsv(entry.ToAddress)}\"," +
+                        $"\"{EscapeCsv(entry.PerformedBy)}\"," +
+                        $"\"{entry.PerformedAt:o}\"," +
+                        $"{entry.TransferAllowed}," +
+                        $"\"{EscapeCsv(entry.DenialReason)}\"," +
+                        $"{entry.Amount}," +
+                        $"\"{EscapeCsv(entry.Network)}\"," +
+                        $"\"{entry.Role}\"," +
+                        $"\"{EscapeCsv(entry.Notes)}\""
+                    );
+                }
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+                var fileName = $"whitelist-enforcement-report-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+                _logger.LogInformation("Exported {Count} enforcement entries as CSV for user {UserAddress}",
+                    result.Entries.Count, userAddress);
+
+                return File(bytes, "text/csv", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting enforcement report as CSV");
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    errorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports whitelist enforcement audit report as JSON
+        /// </summary>
+        /// <param name="assetId">Optional filter by asset ID</param>
+        /// <param name="fromAddress">Optional filter by sender address</param>
+        /// <param name="toAddress">Optional filter by receiver address</param>
+        /// <param name="performedBy">Optional filter by validator</param>
+        /// <param name="network">Optional filter by network</param>
+        /// <param name="transferAllowed">Optional filter by result</param>
+        /// <param name="fromDate">Optional start date filter</param>
+        /// <param name="toDate">Optional end date filter</param>
+        /// <returns>JSON file with enforcement audit entries and statistics</returns>
+        /// <remarks>
+        /// Exports up to 10,000 enforcement audit entries in JSON format with summary statistics.
+        /// 
+        /// **JSON Format:**
+        /// - Pretty-printed JSON with camelCase property names
+        /// - Includes full response structure with summary statistics
+        /// - Contains retention policy metadata
+        /// - Includes enforcement metrics (allowed/denied percentages, denial reasons)
+        /// 
+        /// **Use Cases:**
+        /// - Programmatic analysis of enforcement patterns
+        /// - Integration with compliance management systems
+        /// - Dashboard data feeds
+        /// - Long-term archival with metadata
+        /// 
+        /// **Business Value:**
+        /// - Enables automated compliance monitoring
+        /// - Supports data-driven policy decisions
+        /// - Facilitates integration with enterprise systems
+        /// 
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpGet("enforcement-report/export/json")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportEnforcementReportJson(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? fromAddress = null,
+            [FromQuery] string? toAddress = null,
+            [FromQuery] string? performedBy = null,
+            [FromQuery] string? network = null,
+            [FromQuery] bool? transferAllowed = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation("Enforcement report JSON export requested by {UserAddress}: AssetId={AssetId}",
+                    userAddress, assetId);
+
+                var request = new GetWhitelistEnforcementReportRequest
+                {
+                    AssetId = assetId,
+                    FromAddress = fromAddress,
+                    ToAddress = toAddress,
+                    PerformedBy = performedBy,
+                    Network = network,
+                    TransferAllowed = transferAllowed,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Page = 1,
+                    PageSize = MaxExportRecords
+                };
+
+                var result = await _whitelistService.GetEnforcementReportAsync(request);
+
+                if (!result.Success)
+                {
+                    _logger.LogError("Failed to export enforcement report as JSON: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+
+                var json = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                });
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+                var fileName = $"whitelist-enforcement-report-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+
+                _logger.LogInformation("Exported {Count} enforcement entries as JSON for user {UserAddress}",
+                    result.Entries.Count, userAddress);
+
+                return File(bytes, "application/json", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception exporting enforcement report as JSON");
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    errorMessage = $"Internal error: {ex.Message}"
+                });
+            }
         }
 
         /// <summary>
