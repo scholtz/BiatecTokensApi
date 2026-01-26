@@ -143,7 +143,7 @@ namespace BiatecTokensApi
 
             app.UseSwagger();
             app.UseSwaggerUI();
-            app.UseCors();
+            app.UseCors("cors");
             app.Logger.LogInformation("CORS: " + string.Join(",", corsConfig));
 
             app.UseAuthentication();
