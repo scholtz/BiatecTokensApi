@@ -1956,6 +1956,123 @@
             regulatory framework, and immutability guarantees.
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetEnforcementReport(System.Nullable{System.UInt64},System.String,System.String,System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Gets whitelist enforcement audit report focused on transfer validation events
+            </summary>
+            <param name="assetId">Optional filter by asset ID (token ID)</param>
+            <param name="fromAddress">Optional filter by sender address</param>
+            <param name="toAddress">Optional filter by receiver address</param>
+            <param name="performedBy">Optional filter by user who performed the validation</param>
+            <param name="network">Optional filter by network</param>
+            <param name="transferAllowed">Optional filter by transfer result (true=allowed, false=denied)</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 50, max: 100)</param>
+            <returns>Enforcement audit report with entries and summary statistics</returns>
+            <remarks>
+            This endpoint provides a focused view of whitelist enforcement events (transfer validations only)
+            for enterprise compliance dashboards and MICA/RWA regulatory reporting.
+            
+            **Key Features:**
+            - Filters specifically for TransferValidation actions (enforcement events)
+            - Includes comprehensive summary statistics (allowed/denied counts, percentages)
+            - Top denial reasons for compliance analysis
+            - Date range and network tracking
+            - Supports filtering by transfer result (allowed/denied)
+            
+            **Use Cases:**
+            - Enterprise compliance dashboards showing enforcement effectiveness
+            - Regulatory audit trails for MICA compliance
+            - Analysis of denied transfer patterns
+            - Network-specific enforcement monitoring (VOI, Aramid)
+            - Investigating specific transfer validation incidents
+            
+            **Business Value:**
+            - Demonstrates enforcement effectiveness to regulators
+            - Identifies compliance gaps and patterns
+            - Supports evidence-based policy adjustments
+            - Enables proactive risk management
+            
+            **Retention Policy**: 7-year minimum retention for MICA compliance.
+            All entries are immutable and cannot be modified or deleted.
+            
+            Requires ARC-0014 authentication. Recommended for compliance and admin roles only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ExportEnforcementReportCsv(System.Nullable{System.UInt64},System.String,System.String,System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports whitelist enforcement audit report as CSV
+            </summary>
+            <param name="assetId">Optional filter by asset ID</param>
+            <param name="fromAddress">Optional filter by sender address</param>
+            <param name="toAddress">Optional filter by receiver address</param>
+            <param name="performedBy">Optional filter by validator</param>
+            <param name="network">Optional filter by network</param>
+            <param name="transferAllowed">Optional filter by result</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>CSV file with enforcement audit entries</returns>
+            <remarks>
+            Exports up to 10,000 enforcement audit entries in CSV format for compliance reporting.
+            
+            **CSV Format:**
+            - UTF-8 encoding with proper CSV escaping
+            - Header row with all enforcement-relevant fields
+            - One row per transfer validation event
+            - Includes sender, receiver, result, denial reason, timestamp
+            
+            **Use Cases:**
+            - MICA compliance submissions to regulators
+            - Excel analysis of enforcement patterns
+            - Integration with enterprise compliance systems
+            - Long-term archival of enforcement records
+            
+            **Business Value:**
+            - Simplifies regulatory reporting workflows
+            - Enables offline analysis and auditing
+            - Supports evidence-based compliance decisions
+            
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ExportEnforcementReportJson(System.Nullable{System.UInt64},System.String,System.String,System.String,System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports whitelist enforcement audit report as JSON
+            </summary>
+            <param name="assetId">Optional filter by asset ID</param>
+            <param name="fromAddress">Optional filter by sender address</param>
+            <param name="toAddress">Optional filter by receiver address</param>
+            <param name="performedBy">Optional filter by validator</param>
+            <param name="network">Optional filter by network</param>
+            <param name="transferAllowed">Optional filter by result</param>
+            <param name="fromDate">Optional start date filter</param>
+            <param name="toDate">Optional end date filter</param>
+            <returns>JSON file with enforcement audit entries and statistics</returns>
+            <remarks>
+            Exports up to 10,000 enforcement audit entries in JSON format with summary statistics.
+            
+            **JSON Format:**
+            - Pretty-printed JSON with camelCase property names
+            - Includes full response structure with summary statistics
+            - Contains retention policy metadata
+            - Includes enforcement metrics (allowed/denied percentages, denial reasons)
+            
+            **Use Cases:**
+            - Programmatic analysis of enforcement patterns
+            - Integration with compliance management systems
+            - Dashboard data feeds
+            - Long-term archival with metadata
+            
+            **Business Value:**
+            - Enables automated compliance monitoring
+            - Supports data-driven policy decisions
+            - Facilitates integration with enterprise systems
+            
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.ValidateTransfer(BiatecTokensApi.Models.Whitelist.ValidateTransferRequest)">
             <summary>
             Validates if a transfer between two addresses is allowed based on whitelist rules
@@ -8981,6 +9098,174 @@
             Audit log retention policy metadata
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest">
+            <summary>
+            Request to retrieve whitelist enforcement audit report (transfer validation events only)
+            </summary>
+            <remarks>
+            This request filters specifically for TransferValidation actions, providing a focused
+            view of whitelist enforcement events for MICA/RWA compliance reporting.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.AssetId">
+            <summary>
+            Optional asset ID (token ID) for which to retrieve enforcement report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.FromAddress">
+            <summary>
+            Optional filter by sender address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.ToAddress">
+            <summary>
+            Optional filter by receiver address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.PerformedBy">
+            <summary>
+            Optional filter by user who performed the validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.TransferAllowed">
+            <summary>
+            Optional filter by transfer result (true for allowed, false for denied, null for all)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.FromDate">
+            <summary>
+            Optional start date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.ToDate">
+            <summary>
+            Optional end date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse">
+            <summary>
+            Response containing whitelist enforcement audit report with summary statistics
+            </summary>
+            <remarks>
+            Provides a focused view of whitelist enforcement events (transfer validations)
+            with statistics for enterprise compliance dashboards and MICA/RWA reporting.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse.Entries">
+            <summary>
+            List of enforcement audit log entries (TransferValidation actions only)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse.TotalCount">
+            <summary>
+            Total number of enforcement entries matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse.Summary">
+            <summary>
+            Summary statistics for the enforcement report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse.RetentionPolicy">
+            <summary>
+            Audit log retention policy metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics">
+            <summary>
+            Summary statistics for whitelist enforcement audit report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.TotalValidations">
+            <summary>
+            Total number of transfer validations (both allowed and denied)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.AllowedTransfers">
+            <summary>
+            Number of transfers that were allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.DeniedTransfers">
+            <summary>
+            Number of transfers that were denied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.AllowedPercentage">
+            <summary>
+            Percentage of transfers that were allowed (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.DeniedPercentage">
+            <summary>
+            Percentage of transfers that were denied (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.UniqueAssets">
+            <summary>
+            List of unique assets involved in enforcement events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.UniqueNetworks">
+            <summary>
+            List of unique networks involved in enforcement events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.DateRange">
+            <summary>
+            Date range of enforcement events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics.DenialReasons">
+            <summary>
+            Top denial reasons with their counts
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.EnforcementDateRange">
+            <summary>
+            Date range for enforcement events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementDateRange.EarliestEvent">
+            <summary>
+            Earliest enforcement event timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.EnforcementDateRange.LatestEvent">
+            <summary>
+            Latest enforcement event timestamp
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistEntry">
             <summary>
             Represents a whitelist entry for an RWA token
@@ -12316,6 +12601,13 @@
             <param name="performedBy">The address of the user performing the validation (for audit logging)</param>
             <returns>The validation response indicating if the transfer is allowed</returns>
         </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.GetEnforcementReportAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest)">
+            <summary>
+            Gets whitelist enforcement audit report (transfer validation events only) with summary statistics
+            </summary>
+            <param name="request">The enforcement report request with filters and pagination</param>
+            <returns>The enforcement report response with entries and summary statistics</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.SubscriptionMeteringService">
             <summary>
             Service for emitting subscription metering events for billing and analytics
@@ -12550,6 +12842,16 @@
             <param name="request">The transfer validation request</param>
             <param name="performedBy">The address of the user performing the validation (for audit logging)</param>
             <returns>The validation response indicating if the transfer is allowed</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.GetEnforcementReportAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest)">
+            <summary>
+            Gets whitelist enforcement audit report (transfer validation events only) with summary statistics
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.CalculateEnforcementSummary(System.Collections.Generic.List{BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry})">
+            <summary>
+            Calculates summary statistics for enforcement events
+            </summary>
         </member>
     </members>
 </doc>

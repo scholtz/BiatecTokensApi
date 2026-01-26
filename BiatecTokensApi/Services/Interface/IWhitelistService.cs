@@ -58,5 +58,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="performedBy">The address of the user performing the validation (for audit logging)</param>
         /// <returns>The validation response indicating if the transfer is allowed</returns>
         Task<ValidateTransferResponse> ValidateTransferAsync(ValidateTransferRequest request, string performedBy);
+
+        /// <summary>
+        /// Gets whitelist enforcement audit report (transfer validation events only) with summary statistics
+        /// </summary>
+        /// <param name="request">The enforcement report request with filters and pagination</param>
+        /// <returns>The enforcement report response with entries and summary statistics</returns>
+        Task<WhitelistEnforcementReportResponse> GetEnforcementReportAsync(GetWhitelistEnforcementReportRequest request);
     }
 }
