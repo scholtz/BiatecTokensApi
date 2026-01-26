@@ -1528,6 +1528,59 @@
             Use this endpoint to support subscription value features and enterprise readiness indicators in the UI.
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.SimulateTransfer(BiatecTokensApi.Models.SimulateTransferRequest)">
+            <summary>
+            Simulates a token transfer with whitelist enforcement (demonstration endpoint)
+            </summary>
+            <param name="request">Transfer simulation request</param>
+            <returns>Success if both addresses are whitelisted, HTTP 403 if not</returns>
+            <remarks>
+            This is a demonstration endpoint that shows how whitelist enforcement works.
+            It validates that both sender and receiver are whitelisted for the asset,
+            but does not actually execute a blockchain transaction.
+            
+            Use this endpoint to test whitelist enforcement before implementing actual transfer logic.
+            The WhitelistEnforcement attribute will automatically:
+            - Validate both fromAddress and toAddress are whitelisted for the assetId
+            - Return HTTP 403 Forbidden if any address is not whitelisted
+            - Log audit entries for blocked operations
+            - Allow the operation to proceed only if all validations pass
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.SimulateMint(BiatecTokensApi.Models.SimulateMintRequest)">
+            <summary>
+            Simulates token minting with whitelist enforcement (demonstration endpoint)
+            </summary>
+            <param name="request">Mint simulation request</param>
+            <returns>Success if recipient address is whitelisted, HTTP 403 if not</returns>
+            <remarks>
+            This is a demonstration endpoint that shows how whitelist enforcement works for minting.
+            It validates that the recipient is whitelisted for the asset,
+            but does not actually execute a blockchain transaction.
+            
+            The WhitelistEnforcement attribute will automatically:
+            - Validate the toAddress is whitelisted for the assetId
+            - Return HTTP 403 Forbidden if the address is not whitelisted
+            - Log audit entries for blocked operations
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.SimulateBurn(BiatecTokensApi.Models.SimulateBurnRequest)">
+            <summary>
+            Simulates token burning with whitelist enforcement (demonstration endpoint)
+            </summary>
+            <param name="request">Burn simulation request</param>
+            <returns>Success if address is whitelisted, HTTP 403 if not</returns>
+            <remarks>
+            This is a demonstration endpoint that shows how whitelist enforcement works for burning.
+            It validates that the token holder is whitelisted for the asset,
+            but does not actually execute a blockchain transaction.
+            
+            The WhitelistEnforcement attribute will automatically:
+            - Validate the fromAddress is whitelisted for the assetId
+            - Return HTTP 403 Forbidden if the address is not whitelisted
+            - Log audit entries for blocked operations
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.WebhookController">
             <summary>
             Provides endpoints for managing compliance webhook subscriptions
@@ -7822,6 +7875,83 @@
         <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Export">
             <summary>
             Export operation (CSV/JSON compliance data export)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.SimulateBurnRequest">
+            <summary>
+            Request model for simulating token burning with whitelist enforcement
+            </summary>
+            <remarks>
+            This model is used for demonstration purposes to show how whitelist enforcement
+            blocks burning when the token holder address is not whitelisted.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateBurnRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for the burn operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateBurnRequest.FromAddress">
+            <summary>
+            The token holder's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateBurnRequest.Amount">
+            <summary>
+            The amount to burn (for demonstration purposes)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.SimulateMintRequest">
+            <summary>
+            Request model for simulating token minting with whitelist enforcement
+            </summary>
+            <remarks>
+            This model is used for demonstration purposes to show how whitelist enforcement
+            blocks minting when the recipient address is not whitelisted.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateMintRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for the mint operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateMintRequest.ToAddress">
+            <summary>
+            The recipient's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateMintRequest.Amount">
+            <summary>
+            The amount to mint (for demonstration purposes)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.SimulateTransferRequest">
+            <summary>
+            Request model for simulating a token transfer with whitelist enforcement
+            </summary>
+            <remarks>
+            This model is used for demonstration purposes to show how whitelist enforcement
+            blocks transfers when addresses are not whitelisted.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateTransferRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for the transfer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateTransferRequest.FromAddress">
+            <summary>
+            The sender's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateTransferRequest.ToAddress">
+            <summary>
+            The receiver's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SimulateTransferRequest.Amount">
+            <summary>
+            The amount to transfer (for demonstration purposes)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionTier">

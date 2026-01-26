@@ -1,3 +1,4 @@
+using BiatecTokensApi.Filters;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ARC1400.Request;
 using BiatecTokensApi.Models.ARC200.Request;
@@ -611,6 +612,129 @@ namespace BiatecTokensApi.Controllers
                     ErrorMessage = $"Internal error: {ex.Message}"
                 });
             }
+        }
+
+        /// <summary>
+        /// Simulates a token transfer with whitelist enforcement (demonstration endpoint)
+        /// </summary>
+        /// <param name="request">Transfer simulation request</param>
+        /// <returns>Success if both addresses are whitelisted, HTTP 403 if not</returns>
+        /// <remarks>
+        /// This is a demonstration endpoint that shows how whitelist enforcement works.
+        /// It validates that both sender and receiver are whitelisted for the asset,
+        /// but does not actually execute a blockchain transaction.
+        /// 
+        /// Use this endpoint to test whitelist enforcement before implementing actual transfer logic.
+        /// The WhitelistEnforcement attribute will automatically:
+        /// - Validate both fromAddress and toAddress are whitelisted for the assetId
+        /// - Return HTTP 403 Forbidden if any address is not whitelisted
+        /// - Log audit entries for blocked operations
+        /// - Allow the operation to proceed only if all validations pass
+        /// </remarks>
+        [HttpPost("transfer/simulate")]
+        [WhitelistEnforcement(
+            AssetIdParameter = "assetId",
+            AddressParameters = new[] { "fromAddress", "toAddress" }
+        )]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public IActionResult SimulateTransfer([FromBody] SimulateTransferRequest request)
+        {
+            // If we reach here, the WhitelistEnforcement attribute has validated
+            // that both addresses are whitelisted. In a real implementation,
+            // this is where you would execute the actual blockchain transaction.
+            
+            _logger.LogInformation(
+                "Transfer simulation passed whitelist validation for asset {AssetId} from {From} to {To}",
+                request.AssetId, request.FromAddress, request.ToAddress);
+
+            return Ok(new BaseResponse
+            {
+                Success = true,
+                ErrorMessage = null
+            });
+        }
+
+        /// <summary>
+        /// Simulates token minting with whitelist enforcement (demonstration endpoint)
+        /// </summary>
+        /// <param name="request">Mint simulation request</param>
+        /// <returns>Success if recipient address is whitelisted, HTTP 403 if not</returns>
+        /// <remarks>
+        /// This is a demonstration endpoint that shows how whitelist enforcement works for minting.
+        /// It validates that the recipient is whitelisted for the asset,
+        /// but does not actually execute a blockchain transaction.
+        /// 
+        /// The WhitelistEnforcement attribute will automatically:
+        /// - Validate the toAddress is whitelisted for the assetId
+        /// - Return HTTP 403 Forbidden if the address is not whitelisted
+        /// - Log audit entries for blocked operations
+        /// </remarks>
+        [HttpPost("mint/simulate")]
+        [WhitelistEnforcement(
+            AssetIdParameter = "assetId",
+            AddressParameters = new[] { "toAddress" }
+        )]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public IActionResult SimulateMint([FromBody] SimulateMintRequest request)
+        {
+            // If we reach here, the WhitelistEnforcement attribute has validated
+            // that the recipient address is whitelisted.
+            
+            _logger.LogInformation(
+                "Mint simulation passed whitelist validation for asset {AssetId} to {To}",
+                request.AssetId, request.ToAddress);
+
+            return Ok(new BaseResponse
+            {
+                Success = true,
+                ErrorMessage = null
+            });
+        }
+
+        /// <summary>
+        /// Simulates token burning with whitelist enforcement (demonstration endpoint)
+        /// </summary>
+        /// <param name="request">Burn simulation request</param>
+        /// <returns>Success if address is whitelisted, HTTP 403 if not</returns>
+        /// <remarks>
+        /// This is a demonstration endpoint that shows how whitelist enforcement works for burning.
+        /// It validates that the token holder is whitelisted for the asset,
+        /// but does not actually execute a blockchain transaction.
+        /// 
+        /// The WhitelistEnforcement attribute will automatically:
+        /// - Validate the fromAddress is whitelisted for the assetId
+        /// - Return HTTP 403 Forbidden if the address is not whitelisted
+        /// - Log audit entries for blocked operations
+        /// </remarks>
+        [HttpPost("burn/simulate")]
+        [WhitelistEnforcement(
+            AssetIdParameter = "assetId",
+            AddressParameters = new[] { "fromAddress" }
+        )]
+        [ProducesResponseType(typeof(BaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public IActionResult SimulateBurn([FromBody] SimulateBurnRequest request)
+        {
+            // If we reach here, the WhitelistEnforcement attribute has validated
+            // that the address is whitelisted.
+            
+            _logger.LogInformation(
+                "Burn simulation passed whitelist validation for asset {AssetId} from {From}",
+                request.AssetId, request.FromAddress);
+
+            return Ok(new BaseResponse
+            {
+                Success = true,
+                ErrorMessage = null
+            });
         }
     }
 }
