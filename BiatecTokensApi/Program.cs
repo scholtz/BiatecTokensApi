@@ -4,6 +4,7 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi;
 
 namespace BiatecTokensApi
@@ -41,7 +42,7 @@ namespace BiatecTokensApi
                 {
                     Title = "Biatec Tokens API",
                     Version = "v1",
-                    Description = File.ReadAllText("README.md") + 
+                    Description = File.ReadAllText("README.md") +
                         "\n\n## Subscription Metering\n\n" +
                         "This API includes subscription metering for compliance and whitelist operations. " +
                         "Metering events are emitted as structured logs for billing analytics. " +
@@ -57,7 +58,7 @@ namespace BiatecTokensApi
 
                 c.SchemaFilter<BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample>();
                 c.SchemaFilter<BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample>();
-                
+
                 c.OperationFilter<Swashbuckle.AspNetCore.Filters.SecurityRequirementsOperationFilter>();
                 c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First()); //This line
                 var xmlFile = $"doc/documentation.xml";
@@ -77,7 +78,7 @@ namespace BiatecTokensApi
 
             builder.Services.Configure<AlgorandAuthenticationOptionsV2>(
                 builder.Configuration.GetSection("AlgorandAuthentication"));
-            
+
             // Register HTTP client for API calls
             builder.Services.AddHttpClient();
 
@@ -92,7 +93,7 @@ namespace BiatecTokensApi
 
             // Register metering service
             builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
-            
+
             // Register subscription tier service
             builder.Services.AddSingleton<ISubscriptionTierService, SubscriptionTierService>();
 
@@ -121,11 +122,29 @@ namespace BiatecTokensApi
                 a.AllowedNetworks = authOptions.AllowedNetworks;
                 a.Debug = authOptions.Debug;
             });
+            // setup cors
+            var corsConfig = builder.Configuration.GetSection("Cors").AsEnumerable().Select(k => k.Value).Where(k => !string.IsNullOrEmpty(k)).ToArray();
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(
+                    name: "cors",
+                    builder =>
+                    {
+                        builder.WithOrigins(corsConfig)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials();
+                    });
+            });
+
 
             var app = builder.Build();
 
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.UseCors();
+            app.Logger.LogInformation("CORS: " + string.Join(",", corsConfig));
 
             app.UseAuthentication();
             app.UseAuthorization();
