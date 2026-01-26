@@ -332,5 +332,17 @@ namespace BiatecTokensApi.Services.Interface
         /// Focuses on VOI and Aramid networks for RWA compliance.
         /// </remarks>
         Task<RetentionStatusResponse> GetRetentionStatusAsync(GetRetentionStatusRequest request);
+
+        /// <summary>
+        /// Verifies if an issuer owns a specific asset
+        /// </summary>
+        /// <param name="issuerAddress">The issuer's Algorand address</param>
+        /// <param name="assetId">The asset ID to verify</param>
+        /// <returns>True if the issuer owns the asset, false otherwise</returns>
+        /// <remarks>
+        /// This method checks if the provided issuer address matches the creator/issuer
+        /// of the specified asset. Used for authorization checks in issuer-specific operations.
+        /// </remarks>
+        Task<bool> VerifyIssuerOwnsAssetAsync(string issuerAddress, ulong assetId);
     }
 }
