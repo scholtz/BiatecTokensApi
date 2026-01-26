@@ -27,6 +27,11 @@ namespace BiatecTokensApi.Controllers
         private const int MaxExportRecords = 10000;
 
         /// <summary>
+        /// Maximum page size for pagination
+        /// </summary>
+        private const int MaxPageSize = 100;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="WhitelistController"/> class.
         /// </summary>
         /// <param name="whitelistService">The whitelist service</param>
@@ -65,7 +70,7 @@ namespace BiatecTokensApi.Controllers
                     AssetId = assetId,
                     Status = status,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxPageSize) // Cap at 100
                 };
 
                 if (!ModelState.IsValid)
@@ -336,7 +341,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxPageSize) // Cap at 100
                 };
 
                 if (!ModelState.IsValid)
@@ -428,7 +433,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100) // Cap at 100
+                    PageSize = Math.Min(pageSize, MaxPageSize) // Cap at 100
                 };
 
                 if (!ModelState.IsValid)
@@ -735,7 +740,7 @@ namespace BiatecTokensApi.Controllers
                     FromDate = fromDate,
                     ToDate = toDate,
                     Page = page,
-                    PageSize = Math.Min(pageSize, 100)
+                    PageSize = Math.Min(pageSize, MaxPageSize)
                 };
 
                 if (!ModelState.IsValid)

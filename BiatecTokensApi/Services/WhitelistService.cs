@@ -1099,29 +1099,33 @@ namespace BiatecTokensApi.Services
                     FromDate = request.FromDate,
                     ToDate = request.ToDate,
                     Page = 1,
-                    PageSize = int.MaxValue
+                    PageSize = 100000 // Use reasonable max instead of int.MaxValue
                 };
 
-                // Get all entries to apply additional filters
-                var allEntries = await _repository.GetAuditLogAsync(allEntriesRequest);
+                // Get all entries and apply enforcement-specific filters in one pass
+                var allEntriesQuery = await _repository.GetAuditLogAsync(allEntriesRequest);
 
-                // Apply enforcement-specific filters
+                IEnumerable<WhitelistAuditLogEntry> filteredQuery = allEntriesQuery;
+
                 if (!string.IsNullOrEmpty(request.FromAddress))
                 {
-                    allEntries = allEntries.Where(e => !string.IsNullOrEmpty(e.Address) &&
-                        e.Address.Equals(request.FromAddress, StringComparison.OrdinalIgnoreCase)).ToList();
+                    filteredQuery = filteredQuery.Where(e => !string.IsNullOrEmpty(e.Address) &&
+                        e.Address.Equals(request.FromAddress, StringComparison.OrdinalIgnoreCase));
                 }
 
                 if (!string.IsNullOrEmpty(request.ToAddress))
                 {
-                    allEntries = allEntries.Where(e => !string.IsNullOrEmpty(e.ToAddress) &&
-                        e.ToAddress.Equals(request.ToAddress, StringComparison.OrdinalIgnoreCase)).ToList();
+                    filteredQuery = filteredQuery.Where(e => !string.IsNullOrEmpty(e.ToAddress) &&
+                        e.ToAddress.Equals(request.ToAddress, StringComparison.OrdinalIgnoreCase));
                 }
 
                 if (request.TransferAllowed.HasValue)
                 {
-                    allEntries = allEntries.Where(e => e.TransferAllowed == request.TransferAllowed.Value).ToList();
+                    filteredQuery = filteredQuery.Where(e => e.TransferAllowed == request.TransferAllowed.Value);
                 }
+
+                // Materialize filtered results once
+                var allEntries = filteredQuery.ToList();
 
                 var totalCount = allEntries.Count;
                 var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
