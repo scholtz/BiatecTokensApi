@@ -4011,6 +4011,39 @@ namespace BiatecTokensApi.Services
             return Math.Min(score, 100);
         }
 
+        /// <inheritdoc/>
+        public async Task<bool> VerifyIssuerOwnsAssetAsync(string issuerAddress, ulong assetId)
+        {
+            try
+            {
+                _logger.LogInformation("Verifying ownership of asset {AssetId} for issuer {IssuerAddress}",
+                    assetId, issuerAddress);
+
+                // Get compliance metadata for the asset
+                var metadataResponse = await GetMetadataAsync(assetId);
+                if (!metadataResponse.Success || metadataResponse.Metadata == null)
+                {
+                    _logger.LogWarning("No metadata found for asset {AssetId}", assetId);
+                    return false;
+                }
+
+                // Check if the issuer address matches the creator address
+                var isOwner = string.Equals(metadataResponse.Metadata.CreatedBy, issuerAddress, 
+                    StringComparison.OrdinalIgnoreCase);
+
+                _logger.LogInformation("Ownership verification for asset {AssetId} by issuer {IssuerAddress}: {IsOwner}",
+                    assetId, issuerAddress, isOwner);
+
+                return isOwner;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying ownership of asset {AssetId} for issuer {IssuerAddress}",
+                    assetId, issuerAddress);
+                return false;
+            }
+        }
+
         #endregion
     }
 }

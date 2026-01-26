@@ -17,6 +17,7 @@ namespace BiatecTokensTests
     public class IssuerControllerTests
     {
         private Mock<IComplianceService> _mockService;
+        private Mock<IEnterpriseAuditService> _mockAuditService;
         private Mock<ILogger<IssuerController>> _mockLogger;
         private IssuerController _controller;
 
@@ -24,8 +25,9 @@ namespace BiatecTokensTests
         public void Setup()
         {
             _mockService = new Mock<IComplianceService>();
+            _mockAuditService = new Mock<IEnterpriseAuditService>();
             _mockLogger = new Mock<ILogger<IssuerController>>();
-            _controller = new IssuerController(_mockService.Object, _mockLogger.Object);
+            _controller = new IssuerController(_mockService.Object, _mockAuditService.Object, _mockLogger.Object);
 
             // Setup authentication context
             var claims = new List<Claim>
