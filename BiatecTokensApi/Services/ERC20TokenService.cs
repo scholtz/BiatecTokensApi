@@ -377,9 +377,11 @@ namespace BiatecTokensApi.Services
         {
             try
             {
-                // For EVM tokens, we use a hash of the contract address as the AssetId
-                // This is a simplified approach - in production you might want a better mapping
-                var assetIdHash = (ulong)contractAddress.GetHashCode() & 0x7FFFFFFFFFFFFFFF;
+                // For EVM tokens, we use a deterministic hash of the contract address as the AssetId
+                // Using SHA256 to ensure consistency across application restarts and environments
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(contractAddress.ToLowerInvariant()));
+                var assetIdHash = BitConverter.ToUInt64(hashBytes, 0) & 0x7FFFFFFFFFFFFFFF; // Take first 8 bytes and ensure positive
 
                 var complianceMetadata = new ComplianceMetadata
                 {
@@ -396,8 +398,8 @@ namespace BiatecTokensApi.Services
                     MaxHolders = deploymentMetadata.MaxHolders,
                     RequiresAccreditedInvestors = deploymentMetadata.RequiresAccreditedInvestors,
                     Notes = deploymentMetadata.Notes,
-                    ComplianceStatus = ComplianceStatus.UnderReview,
-                    VerificationStatus = VerificationStatus.Pending
+                    ComplianceStatus = ComplianceValidator.DefaultComplianceStatus,
+                    VerificationStatus = ComplianceValidator.DefaultVerificationStatus
                 };
 
                 await _complianceRepository.UpsertMetadataAsync(complianceMetadata);

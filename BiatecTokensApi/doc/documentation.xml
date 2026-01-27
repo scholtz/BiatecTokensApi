@@ -11799,6 +11799,16 @@
             while allowing utility tokens to optionally include compliance metadata.
             </remarks>
         </member>
+        <member name="F:BiatecTokensApi.Services.ComplianceValidator.DefaultComplianceStatus">
+            <summary>
+            Default compliance status for newly deployed tokens
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.ComplianceValidator.DefaultVerificationStatus">
+            <summary>
+            Default verification status for newly deployed tokens
+            </summary>
+        </member>
         <member name="M:BiatecTokensApi.Services.ComplianceValidator.ValidateComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.Boolean,System.Collections.Generic.List{System.String}@)">
             <summary>
             Validates compliance metadata for a token deployment based on asset type

@@ -1,4 +1,5 @@
 using BiatecTokensApi.Models;
+using BiatecTokensApi.Models.Compliance;
 
 namespace BiatecTokensApi.Services
 {
@@ -11,6 +12,16 @@ namespace BiatecTokensApi.Services
     /// </remarks>
     public class ComplianceValidator
     {
+        /// <summary>
+        /// Default compliance status for newly deployed tokens
+        /// </summary>
+        public const ComplianceStatus DefaultComplianceStatus = ComplianceStatus.UnderReview;
+
+        /// <summary>
+        /// Default verification status for newly deployed tokens
+        /// </summary>
+        public const VerificationStatus DefaultVerificationStatus = VerificationStatus.Pending;
+
         /// <summary>
         /// Validates compliance metadata for a token deployment based on asset type
         /// </summary>

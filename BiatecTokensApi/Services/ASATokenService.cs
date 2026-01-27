@@ -432,8 +432,8 @@ namespace BiatecTokensApi.Services
                     MaxHolders = deploymentMetadata.MaxHolders,
                     RequiresAccreditedInvestors = deploymentMetadata.RequiresAccreditedInvestors,
                     Notes = deploymentMetadata.Notes,
-                    ComplianceStatus = ComplianceStatus.UnderReview,
-                    VerificationStatus = VerificationStatus.Pending
+                    ComplianceStatus = ComplianceValidator.DefaultComplianceStatus,
+                    VerificationStatus = ComplianceValidator.DefaultVerificationStatus
                 };
 
                 await _complianceRepository.UpsertMetadataAsync(complianceMetadata);
