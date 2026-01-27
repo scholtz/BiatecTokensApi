@@ -341,5 +341,116 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result, Is.False, "Optional fields alone should not classify as RWA");
         }
+
+        [Test]
+        public void ValidateComplianceMetadata_RwaToken_EmptyStrings_ShouldFail()
+        {
+            // Arrange
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                IssuerName = "",
+                Jurisdiction = "",
+                AssetType = "",
+                RegulatoryFramework = "",
+                DisclosureUrl = ""
+            };
+            bool isRwaToken = true;
+
+            // Act
+            var result = ComplianceValidator.ValidateComplianceMetadata(metadata, isRwaToken, out var errors);
+
+            // Assert
+            Assert.That(result, Is.False, "Empty strings should be treated as missing fields");
+            Assert.That(errors.Count, Is.EqualTo(5), "All 5 required fields should be reported as missing");
+        }
+
+        [Test]
+        public void ValidateComplianceMetadata_RwaToken_ValidUrls_ShouldPass()
+        {
+            // Arrange
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                IssuerName = "Test Issuer",
+                Jurisdiction = "US,EU,GB",
+                AssetType = "Real Estate Token",
+                RegulatoryFramework = "SEC Reg D, MiFID II, MICA",
+                DisclosureUrl = "https://example.com/disclosure.pdf"
+            };
+            bool isRwaToken = true;
+
+            // Act
+            var result = ComplianceValidator.ValidateComplianceMetadata(metadata, isRwaToken, out var errors);
+
+            // Assert
+            Assert.That(result, Is.True, "Valid URLs should pass validation");
+            Assert.That(errors, Is.Empty);
+        }
+
+        [Test]
+        public void ValidateComplianceMetadata_RwaToken_WithOptionalFields_ShouldPass()
+        {
+            // Arrange - RWA with all required + optional fields
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                IssuerName = "Complete Issuer LLC",
+                Jurisdiction = "US",
+                AssetType = "Security Token",
+                RegulatoryFramework = "SEC Reg D",
+                DisclosureUrl = "https://example.com/disclosure",
+                RequiresWhitelist = true,
+                RequiresAccreditedInvestors = true,
+                MaxHolders = 500,
+                TransferRestrictions = "Lock-up period of 12 months",
+                KycProvider = "Sumsub",
+                Notes = "Additional compliance notes"
+            };
+            bool isRwaToken = true;
+
+            // Act
+            var result = ComplianceValidator.ValidateComplianceMetadata(metadata, isRwaToken, out var errors);
+
+            // Assert
+            Assert.That(result, Is.True, "RWA with optional fields should pass");
+            Assert.That(errors, Is.Empty);
+        }
+
+        [Test]
+        public void IsRwaToken_BoundaryConditions_MaxHoldersZero_ShouldReturnTrue()
+        {
+            // Arrange - MaxHolders set to 0 should still be treated as RWA indicator
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                MaxHolders = 0
+            };
+
+            // Act
+            var result = ComplianceValidator.IsRwaToken(metadata);
+
+            // Assert
+            Assert.That(result, Is.True, "MaxHolders with value 0 should still indicate RWA token");
+        }
+
+        [Test]
+        public void ValidateComplianceMetadata_UtilityToken_WithAllFields_ShouldPass()
+        {
+            // Arrange - Utility token with full compliance metadata (optional)
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                IssuerName = "Utility Issuer",
+                Jurisdiction = "GLOBAL",
+                AssetType = "Utility Token",
+                RegulatoryFramework = "N/A",
+                DisclosureUrl = "https://example.com/terms",
+                Notes = "Utility token for platform access"
+            };
+            bool isRwaToken = false; // Explicitly utility
+
+            // Act
+            var result = ComplianceValidator.ValidateComplianceMetadata(metadata, isRwaToken, out var errors);
+
+            // Assert
+            Assert.That(result, Is.True, "Utility tokens can have optional compliance metadata");
+            Assert.That(errors, Is.Empty);
+        }
     }
 }

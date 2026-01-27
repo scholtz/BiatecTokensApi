@@ -326,5 +326,150 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region Edge Case Tests
+
+        [Test]
+        public void ValidateComplianceMetadata_RwaToken_WhitespaceOnlyFields_ShouldFail()
+        {
+            // Arrange
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                IssuerName = "   ",
+                Jurisdiction = "  ",
+                AssetType = " ",
+                RegulatoryFramework = "   ",
+                DisclosureUrl = "  "
+            };
+            bool isRwaToken = true;
+
+            // Act
+            var result = ComplianceValidator.ValidateComplianceMetadata(metadata, isRwaToken, out var errors);
+
+            // Assert
+            Assert.That(result, Is.False, "Whitespace-only strings should be treated as missing");
+            Assert.That(errors.Count, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void ValidateComplianceMetadata_RwaToken_PartiallyFilled_ShouldFail()
+        {
+            // Arrange - only some fields filled
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                IssuerName = "Test Issuer",
+                Jurisdiction = "US"
+                // Missing: AssetType, RegulatoryFramework, DisclosureUrl
+            };
+            bool isRwaToken = true;
+
+            // Act
+            var result = ComplianceValidator.ValidateComplianceMetadata(metadata, isRwaToken, out var errors);
+
+            // Assert
+            Assert.That(result, Is.False);
+            Assert.That(errors.Count, Is.EqualTo(3), "Should report 3 missing fields");
+            Assert.That(errors, Has.Some.Contains("AssetType"));
+            Assert.That(errors, Has.Some.Contains("RegulatoryFramework"));
+            Assert.That(errors, Has.Some.Contains("DisclosureUrl"));
+        }
+
+        [Test]
+        public void IsRwaToken_WithMultipleRwaFields_ShouldReturnTrue()
+        {
+            // Arrange
+            var metadata = new TokenDeploymentComplianceMetadata
+            {
+                IssuerName = "Test Issuer",
+                RequiresWhitelist = true,
+                MaxHolders = 100
+            };
+
+            // Act
+            var result = ComplianceValidator.IsRwaToken(metadata);
+
+            // Assert
+            Assert.That(result, Is.True, "Multiple RWA indicators should clearly identify as RWA token");
+        }
+
+        [Test]
+        public async Task ComplianceMetadata_Update_ShouldPreserveOriginalFields()
+        {
+            // Arrange
+            var originalMetadata = new ComplianceMetadata
+            {
+                AssetId = 99999,
+                Network = "testnet-v1.0",
+                IssuerName = "Original Issuer",
+                Jurisdiction = "US",
+                AssetType = "Security",
+                RegulatoryFramework = "SEC",
+                CreatedBy = "CREATOR",
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            };
+
+            // Persist original
+            await _complianceRepository.UpsertMetadataAsync(originalMetadata);
+
+            // Update
+            var updatedMetadata = new ComplianceMetadata
+            {
+                AssetId = 99999,
+                Network = "testnet-v1.0",
+                IssuerName = "Updated Issuer",
+                Jurisdiction = "US,EU",
+                AssetType = "Security",
+                RegulatoryFramework = "SEC Reg D",
+                CreatedBy = "UPDATER", // This should be preserved from original
+                UpdatedBy = "UPDATER"
+            };
+
+            await _complianceRepository.UpsertMetadataAsync(updatedMetadata);
+
+            // Retrieve
+            var retrieved = await _complianceRepository.GetMetadataByAssetIdAsync(99999);
+
+            // Assert
+            Assert.That(retrieved, Is.Not.Null);
+            Assert.That(retrieved!.IssuerName, Is.EqualTo("Updated Issuer"));
+            Assert.That(retrieved.Jurisdiction, Is.EqualTo("US,EU"));
+            Assert.That(retrieved.RegulatoryFramework, Is.EqualTo("SEC Reg D"));
+        }
+
+        [Test]
+        public async Task ComplianceMetadata_FilterByNetwork_ShouldWork()
+        {
+            // Arrange
+            var metadata1 = new ComplianceMetadata
+            {
+                AssetId = 10001,
+                Network = "voimain-v1.0",
+                IssuerName = "VOI Issuer",
+                CreatedBy = "ADDRESS1"
+            };
+
+            var metadata2 = new ComplianceMetadata
+            {
+                AssetId = 10002,
+                Network = "aramidmain-v1.0",
+                IssuerName = "Aramid Issuer",
+                CreatedBy = "ADDRESS2"
+            };
+
+            await _complianceRepository.UpsertMetadataAsync(metadata1);
+            await _complianceRepository.UpsertMetadataAsync(metadata2);
+
+            // Act - retrieve by network
+            var voiMetadata = await _complianceRepository.GetMetadataByAssetIdAsync(10001);
+            var aramidMetadata = await _complianceRepository.GetMetadataByAssetIdAsync(10002);
+
+            // Assert
+            Assert.That(voiMetadata, Is.Not.Null);
+            Assert.That(aramidMetadata, Is.Not.Null);
+            Assert.That(voiMetadata!.Network, Is.EqualTo("voimain-v1.0"));
+            Assert.That(aramidMetadata!.Network, Is.EqualTo("aramidmain-v1.0"));
+        }
+
+        #endregion
     }
 }
