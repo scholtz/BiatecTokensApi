@@ -7,6 +7,7 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ARC200.Request;
 using BiatecTokensApi.Models.ARC200.Response;
 using BiatecTokensApi.Models.AVM;
+using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Options;
@@ -38,6 +39,7 @@ namespace BiatecTokensApi.Services
         private readonly IOptionsMonitor<AppConfiguration> _appConfig;
         private readonly ILogger<ARC200TokenService> _logger;
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
+        private readonly IComplianceRepository _complianceRepository;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -57,18 +59,21 @@ namespace BiatecTokensApi.Services
         /// <param name="appConfig">The configuration monitor for application-specific settings.</param>
         /// <param name="logger">The logger used to log information and errors for this service.</param>
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+        /// <param name="complianceRepository">The compliance metadata repository</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ARC200TokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             IOptionsMonitor<AppConfiguration> appConfig,
             ILogger<ARC200TokenService> logger,
-            ITokenIssuanceRepository tokenIssuanceRepository
+            ITokenIssuanceRepository tokenIssuanceRepository,
+            IComplianceRepository complianceRepository
             )
         {
             _config = config;
             _appConfig = appConfig;
             _logger = logger;
             _tokenIssuanceRepository = tokenIssuanceRepository;
+            _complianceRepository = complianceRepository;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -117,6 +122,13 @@ namespace BiatecTokensApi.Services
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void ValidateRequest(ARC200TokenDeploymentRequest request, TokenType tokenType)
         {
+            // Validate compliance metadata
+            var isRwaToken = ComplianceValidator.IsRwaToken(request.ComplianceMetadata);
+            if (!ComplianceValidator.ValidateComplianceMetadata(request.ComplianceMetadata, isRwaToken, out var complianceErrors))
+            {
+                throw new ArgumentException($"Compliance validation failed: {string.Join("; ", complianceErrors)}");
+            }
+
             switch (tokenType)
             {
                 case TokenType.ARC200_Mintable:
@@ -256,6 +268,13 @@ namespace BiatecTokensApi.Services
                     true,
                     null);
 
+                // Persist compliance metadata if provided
+                if (request.ComplianceMetadata != null)
+                {
+                    await PersistComplianceMetadata(request.ComplianceMetadata, client.appId, 
+                        request.Network, acc.Address.ToString());
+                }
+
                 return successResponse;
             }
             catch (Exception ex)
@@ -342,6 +361,45 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error logging token issuance audit entry");
+            }
+        }
+
+        /// <summary>
+        /// Persists compliance metadata for a deployed token
+        /// </summary>
+        private async Task PersistComplianceMetadata(
+            TokenDeploymentComplianceMetadata deploymentMetadata,
+            ulong appId,
+            string network,
+            string createdBy)
+        {
+            try
+            {
+                var complianceMetadata = new ComplianceMetadata
+                {
+                    AssetId = appId,
+                    Network = network,
+                    CreatedBy = createdBy,
+                    CreatedAt = DateTime.UtcNow,
+                    KycProvider = deploymentMetadata.KycProvider,
+                    Jurisdiction = deploymentMetadata.Jurisdiction,
+                    RegulatoryFramework = deploymentMetadata.RegulatoryFramework,
+                    AssetType = deploymentMetadata.AssetType,
+                    TransferRestrictions = deploymentMetadata.TransferRestrictions,
+                    MaxHolders = deploymentMetadata.MaxHolders,
+                    RequiresAccreditedInvestors = deploymentMetadata.RequiresAccreditedInvestors,
+                    Notes = deploymentMetadata.Notes,
+                    ComplianceStatus = ComplianceStatus.UnderReview,
+                    VerificationStatus = VerificationStatus.Pending
+                };
+
+                await _complianceRepository.UpsertMetadataAsync(complianceMetadata);
+                _logger.LogInformation("Persisted compliance metadata for ARC200 token {AppId} on network {Network}",
+                    appId, network);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error persisting compliance metadata for ARC200 token {AppId}", appId);
             }
         }
     }

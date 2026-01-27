@@ -16,6 +16,7 @@ namespace BiatecTokensTests
         private Mock<IOptionsMonitor<AppConfiguration>> _appConfigMock;
         private Mock<ILogger<ERC20TokenService>> _loggerMock;
         private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
+        private Mock<IComplianceRepository> _complianceRepositoryMock;
         private EVMChains _evmConfig;
         private AppConfiguration _appConfig;
 
@@ -54,6 +55,7 @@ namespace BiatecTokensTests
 
             _loggerMock = new Mock<ILogger<ERC20TokenService>>();
             _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
+            _complianceRepositoryMock = new Mock<IComplianceRepository>();
         }
 
         #region ERC20 Mintable Token Validation Tests
@@ -548,7 +550,7 @@ namespace BiatecTokensTests
 
         private ERC20TokenService CreateService()
         {
-            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
+            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object);
         }
 
         #endregion

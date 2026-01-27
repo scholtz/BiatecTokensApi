@@ -18,6 +18,7 @@ namespace BiatecTokensTests
         private Mock<IOptionsMonitor<AppConfiguration>> _appConfigMock;
         private Mock<ILogger<ERC20TokenService>> _loggerMock;
         private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
+        private Mock<IComplianceRepository> _complianceRepositoryMock;
         private EVMChains _blockchainConfig;
         private AppConfiguration _appConfig;
         private ERC20MintableTokenDeploymentRequest _validRequest;
@@ -52,8 +53,9 @@ namespace BiatecTokensTests
 
             _loggerMock = new Mock<ILogger<ERC20TokenService>>();
             _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
+            _complianceRepositoryMock = new Mock<IComplianceRepository>();
 
-            _tokenService = new ERC20TokenService(_blockchainConfigMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
+            _tokenService = new ERC20TokenService(_blockchainConfigMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object);
 
             // Create a valid deployment request for testing
             _validRequest = new ERC20MintableTokenDeploymentRequest
