@@ -387,6 +387,7 @@ namespace BiatecTokensApi.Services
                     Network = network,
                     CreatedBy = createdBy,
                     CreatedAt = DateTime.UtcNow,
+                    IssuerName = deploymentMetadata.IssuerName,
                     KycProvider = deploymentMetadata.KycProvider,
                     Jurisdiction = deploymentMetadata.Jurisdiction,
                     RegulatoryFramework = deploymentMetadata.RegulatoryFramework,

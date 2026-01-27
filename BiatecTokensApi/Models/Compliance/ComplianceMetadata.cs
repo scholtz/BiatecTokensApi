@@ -22,6 +22,11 @@ namespace BiatecTokensApi.Models.Compliance
         public ulong AssetId { get; set; }
 
         /// <summary>
+        /// Legal name of the token issuer
+        /// </summary>
+        public string? IssuerName { get; set; }
+
+        /// <summary>
         /// Name of the KYC/AML provider used for verification
         /// </summary>
         public string? KycProvider { get; set; }

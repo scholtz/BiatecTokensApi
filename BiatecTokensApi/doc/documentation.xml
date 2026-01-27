@@ -5180,6 +5180,11 @@
             The asset ID (token ID) for which this compliance metadata applies
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.IssuerName">
+            <summary>
+            Legal name of the token issuer
+            </summary>
+        </member>
         <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.KycProvider">
             <summary>
             Name of the KYC/AML provider used for verification
