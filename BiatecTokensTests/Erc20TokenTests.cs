@@ -27,6 +27,7 @@ namespace BiatecTokensTests
         private AppConfiguration _appConfig;
         private Mock<ILogger<ERC20TokenService>> _loggerMock;
         private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
+        private Mock<IComplianceRepository> _complianceRepositoryMock;
         private ERC20TokenService _tokenService;
         private string _tokenContractAddress;
         private Web3 _web3Owner;
@@ -71,8 +72,9 @@ namespace BiatecTokensTests
 
             _loggerMock = new Mock<ILogger<ERC20TokenService>>();
             _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
+            _complianceRepositoryMock = new Mock<IComplianceRepository>();
             
-            _tokenService = new ERC20TokenService(configMock.Object, appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
+            _tokenService = new ERC20TokenService(configMock.Object, appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object);
 
             // Setup accounts
             _ownerAccount = new Account(_accounts.Owner, 31337);

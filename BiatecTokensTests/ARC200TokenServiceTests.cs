@@ -17,6 +17,7 @@ namespace BiatecTokensTests
         private Mock<IOptionsMonitor<AppConfiguration>> _appConfigMock;
         private Mock<ILogger<ARC200TokenService>> _loggerMock;
         private Mock<ITokenIssuanceRepository> _tokenIssuanceRepositoryMock;
+        private Mock<IComplianceRepository> _complianceRepositoryMock;
         private AlgorandAuthenticationOptionsV2 _algoConfig;
         private AppConfiguration _appConfig;
 
@@ -41,6 +42,7 @@ namespace BiatecTokensTests
 
             _loggerMock = new Mock<ILogger<ARC200TokenService>>();
             _tokenIssuanceRepositoryMock = new Mock<ITokenIssuanceRepository>();
+            _complianceRepositoryMock = new Mock<IComplianceRepository>();
         }
 
         #region ARC200 Mintable Token Validation Tests
@@ -481,7 +483,7 @@ namespace BiatecTokensTests
         {
             try
             {
-                return new ARC200TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
+                return new ARC200TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object);
             }
             catch
             {

@@ -45,5 +45,10 @@ namespace BiatecTokensApi.Models.ERC20.Request
         [Required]
         public required ulong ChainId { get; set; } = 1;
 
+        /// <summary>
+        /// Optional compliance metadata for MICA/RWA tokens
+        /// </summary>
+        public TokenDeploymentComplianceMetadata? ComplianceMetadata { get; set; }
+
     }
 }

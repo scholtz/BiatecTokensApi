@@ -15,6 +15,7 @@ using BiatecTokensApi.Models.ERC20.Response;
 using BiatecTokensApi.Models;
 using AlgorandARC76AccountDotNet;
 using BiatecTokensApi.Repositories.Interface;
+using BiatecTokensApi.Models.Compliance;
 
 namespace BiatecTokensApi.Services
 {
@@ -34,6 +35,7 @@ namespace BiatecTokensApi.Services
         private readonly IOptionsMonitor<AppConfiguration> _appConfig;
         private readonly ILogger<ERC20TokenService> _logger;
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
+        private readonly IComplianceRepository _complianceRepository;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -52,18 +54,21 @@ namespace BiatecTokensApi.Services
         /// <param name="appConfig">The configuration monitor for application-specific settings.</param>
         /// <param name="logger">The logger used to log information and errors for this service.</param>
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+        /// <param name="complianceRepository">The compliance metadata repository</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ERC20TokenService(
             IOptionsMonitor<EVMChains> config,
             IOptionsMonitor<AppConfiguration> appConfig,
             ILogger<ERC20TokenService> logger,
-            ITokenIssuanceRepository tokenIssuanceRepository
+            ITokenIssuanceRepository tokenIssuanceRepository,
+            IComplianceRepository complianceRepository
             )
         {
             _config = config;
             _appConfig = appConfig;
             _logger = logger;
             _tokenIssuanceRepository = tokenIssuanceRepository;
+            _complianceRepository = complianceRepository;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -103,6 +108,13 @@ namespace BiatecTokensApi.Services
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void ValidateRequest(ERC20TokenDeploymentRequest request, TokenType tokenType)
         {
+            // Validate compliance metadata
+            var isRwaToken = ComplianceValidator.IsRwaToken(request.ComplianceMetadata);
+            if (!ComplianceValidator.ValidateComplianceMetadata(request.ComplianceMetadata, isRwaToken, out var complianceErrors))
+            {
+                throw new ArgumentException($"Compliance validation failed: {string.Join("; ", complianceErrors)}");
+            }
+
             switch (tokenType)
             {
                 case TokenType.ERC20_Mintable:
@@ -241,6 +253,13 @@ namespace BiatecTokensApi.Services
                     _logger.LogInformation("BiatecToken {Symbol} deployed successfully at address {Address} with transaction {TxHash}",
                         request.Symbol, receipt.ContractAddress, receipt.TransactionHash);
 
+                    // Persist compliance metadata if provided
+                    if (request.ComplianceMetadata != null)
+                    {
+                        await PersistComplianceMetadata(request.ComplianceMetadata, receipt.ContractAddress, 
+                            GetNetworkName(chainConfig.ChainId), account.Address);
+                    }
+
                     // Log token issuance audit entry
                     await LogTokenIssuanceAudit(request, tokenType, receipt.ContractAddress, receipt.TransactionHash, 
                         account.Address, true, null, GetNetworkName(chainConfig.ChainId));
@@ -344,6 +363,52 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error logging token issuance audit entry");
+            }
+        }
+
+        /// <summary>
+        /// Persists compliance metadata for a deployed token
+        /// </summary>
+        private async Task PersistComplianceMetadata(
+            TokenDeploymentComplianceMetadata deploymentMetadata,
+            string contractAddress,
+            string network,
+            string createdBy)
+        {
+            try
+            {
+                // For EVM tokens, we use a deterministic hash of the contract address as the AssetId
+                // Using SHA256 to ensure consistency across application restarts and environments
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(contractAddress.ToLowerInvariant()));
+                var assetIdHash = BitConverter.ToUInt64(hashBytes, 0) & 0x7FFFFFFFFFFFFFFF; // Take first 8 bytes and ensure positive
+
+                var complianceMetadata = new ComplianceMetadata
+                {
+                    AssetId = assetIdHash,
+                    Network = network,
+                    CreatedBy = createdBy,
+                    CreatedAt = DateTime.UtcNow,
+                    IssuerName = deploymentMetadata.IssuerName,
+                    KycProvider = deploymentMetadata.KycProvider,
+                    Jurisdiction = deploymentMetadata.Jurisdiction,
+                    RegulatoryFramework = deploymentMetadata.RegulatoryFramework,
+                    AssetType = deploymentMetadata.AssetType,
+                    TransferRestrictions = deploymentMetadata.TransferRestrictions,
+                    MaxHolders = deploymentMetadata.MaxHolders,
+                    RequiresAccreditedInvestors = deploymentMetadata.RequiresAccreditedInvestors,
+                    Notes = deploymentMetadata.Notes,
+                    ComplianceStatus = ComplianceValidator.DefaultComplianceStatus,
+                    VerificationStatus = ComplianceValidator.DefaultVerificationStatus
+                };
+
+                await _complianceRepository.UpsertMetadataAsync(complianceMetadata);
+                _logger.LogInformation("Persisted compliance metadata for contract {Address} on network {Network}",
+                    contractAddress, network);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error persisting compliance metadata for contract {Address}", contractAddress);
             }
         }
 

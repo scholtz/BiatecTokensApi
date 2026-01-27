@@ -68,5 +68,10 @@ namespace BiatecTokensApi.Models.ASA.Request
         
 
         public required string Network { get; set; } = "testnet-v1.0";
+
+        /// <summary>
+        /// Optional compliance metadata for MICA/RWA tokens
+        /// </summary>
+        public TokenDeploymentComplianceMetadata? ComplianceMetadata { get; set; }
     }
 }

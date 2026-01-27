@@ -1,6 +1,7 @@
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ASA.Request;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,7 @@ namespace BiatecTokensTests
         private Mock<IOptionsMonitor<AlgorandAuthenticationOptionsV2>> _configMock;
         private Mock<IOptionsMonitor<AppConfiguration>> _appConfigMock;
         private Mock<ILogger<ARC3TokenService>> _loggerMock;
+        private Mock<IComplianceRepository> _complianceRepositoryMock;
         private AlgorandAuthenticationOptionsV2 _algoConfig;
         private AppConfiguration _appConfig;
 
@@ -38,6 +40,7 @@ namespace BiatecTokensTests
             _appConfigMock.Setup(x => x.CurrentValue).Returns(_appConfig);
 
             _loggerMock = new Mock<ILogger<ARC3TokenService>>();
+            _complianceRepositoryMock = new Mock<IComplianceRepository>();
         }
 
         #region ASA Fungible Token Validation Tests
@@ -510,7 +513,7 @@ namespace BiatecTokensTests
         {
             try
             {
-                return new ASATokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object);
+                return new ASATokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _complianceRepositoryMock.Object);
             }
             catch
             {

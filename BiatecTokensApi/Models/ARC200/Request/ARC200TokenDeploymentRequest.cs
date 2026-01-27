@@ -45,5 +45,10 @@ namespace BiatecTokensApi.Models.ARC200.Request
         [Required]
         public required string Network { get; set; } = "testnet-v1.0";
 
+        /// <summary>
+        /// Optional compliance metadata for MICA/RWA tokens
+        /// </summary>
+        public TokenDeploymentComplianceMetadata? ComplianceMetadata { get; set; }
+
     }
 }

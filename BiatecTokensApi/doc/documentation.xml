@@ -2871,6 +2871,11 @@
             Algorand network to deploy to (mainnet-v1.0, testnet-v1.0, betanet-v1.0, voimain-v1.0, aramidmain-v1.0)
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest.ComplianceMetadata">
+            <summary>
+            Optional compliance metadata for MICA/RWA tokens
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse">
             <summary>
             Represents the response received after deploying an ERC-20 token contract.
@@ -3202,6 +3207,11 @@
         <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.Network">
             <summary>
             Algorand network to deploy to (mainnet-v1.0, testnet-v1.0, betanet-v1.0, voimain-v1.0, aramidmain-v1.0)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest.ComplianceMetadata">
+            <summary>
+            Optional compliance metadata for MICA/RWA tokens
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest">
@@ -5168,6 +5178,11 @@
         <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.AssetId">
             <summary>
             The asset ID (token ID) for which this compliance metadata applies
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.IssuerName">
+            <summary>
+            Legal name of the token issuer
             </summary>
         </member>
         <member name="P:BiatecTokensApi.Models.Compliance.ComplianceMetadata.KycProvider">
@@ -7832,6 +7847,11 @@
             EVM chain id
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest.ComplianceMetadata">
+            <summary>
+            Optional compliance metadata for MICA/RWA tokens
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse">
             <summary>
             Represents the response received after deploying an ERC-20 token contract.
@@ -8298,6 +8318,71 @@
             <param name="tier">The subscription tier</param>
             <param name="currentCount">Current number of addresses</param>
             <returns>Remaining capacity (-1 for unlimited)</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata">
+            <summary>
+            Compliance metadata for token deployment requests (MICA/RWA)
+            </summary>
+            <remarks>
+            This class captures compliance information during token deployment,
+            including issuer details, jurisdiction, regulatory disclosures, and whitelist policies.
+            Required for RWA tokens, optional for utility tokens.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.IssuerName">
+            <summary>
+            Legal name of the token issuer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.Jurisdiction">
+            <summary>
+            Jurisdiction(s) where the token is compliant (comma-separated country codes, e.g., "US,EU,GB")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.AssetType">
+            <summary>
+            Type of asset being tokenized (e.g., "Security Token", "Real Estate", "Utility Token")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.RegulatoryFramework">
+            <summary>
+            Regulatory framework(s) the token complies with (e.g., "SEC Reg D", "MiFID II", "MICA")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.DisclosureUrl">
+            <summary>
+            URL to regulatory disclosure documents
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.RequiresWhitelist">
+            <summary>
+            Whether the token requires a whitelist for transfers
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.RequiresAccreditedInvestors">
+            <summary>
+            Whether the token requires accredited investors only
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.MaxHolders">
+            <summary>
+            Maximum number of token holders allowed (for regulated securities)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.TransferRestrictions">
+            <summary>
+            Restrictions on token transfers (if any)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.KycProvider">
+            <summary>
+            Name of the KYC/AML provider used for verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentComplianceMetadata.Notes">
+            <summary>
+            Additional compliance notes
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry">
             <summary>
@@ -11252,7 +11337,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC200TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC200TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC200TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC200TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -11265,6 +11350,7 @@
             <param name="appConfig">The configuration monitor for application-specific settings.</param>
             <param name="logger">The logger used to log information and errors for this service.</param>
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+            <param name="complianceRepository">The compliance metadata repository</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ARC200TokenService.ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -11298,6 +11384,11 @@
             <returns>A <see cref="T:BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse"/> containing the deployment result, including the contract
             address, transaction hash, and success status. If the deployment fails, the response includes an error
             message.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.PersistComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.UInt64,System.String,System.String)">
+            <summary>
+            Persists compliance metadata for a deployed token
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.ARC3TokenService">
             <summary>
@@ -11357,7 +11448,7 @@
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService})">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.Interface.IComplianceRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
             with Algorand nodes and IPFS repositories based on the provided options.
@@ -11371,6 +11462,7 @@
             <param name="appConfig"></param>
             <param name="logger">An <see cref="T:Microsoft.Extensions.Logging.ILogger`1"/> instance used for logging information, warnings, and errors related
             to the service's operations.</param>
+            <param name="complianceRepository">The compliance metadata repository</param>
         </member>
         <member name="M:BiatecTokensApi.Services.ASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
@@ -11430,6 +11522,11 @@
             metadata, and supply details.</param>
             <returns>A task that represents the asynchronous operation. The task result contains the response of the FNFT
             deployment, including deployment details and status.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.PersistComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.UInt64,System.String,System.String)">
+            <summary>
+            Persists compliance metadata for a deployed token
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.BillingService">
             <summary>
@@ -11693,6 +11790,41 @@
         <member name="M:BiatecTokensApi.Services.ComplianceService.VerifyIssuerOwnsAssetAsync(System.String,System.UInt64)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Services.ComplianceValidator">
+            <summary>
+            Service for validating compliance metadata on token deployments
+            </summary>
+            <remarks>
+            Validates that RWA tokens have required compliance fields,
+            while allowing utility tokens to optionally include compliance metadata.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Services.ComplianceValidator.DefaultComplianceStatus">
+            <summary>
+            Default compliance status for newly deployed tokens
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.ComplianceValidator.DefaultVerificationStatus">
+            <summary>
+            Default verification status for newly deployed tokens
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceValidator.ValidateComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.Boolean,System.Collections.Generic.List{System.String}@)">
+            <summary>
+            Validates compliance metadata for a token deployment based on asset type
+            </summary>
+            <param name="metadata">The compliance metadata to validate</param>
+            <param name="isRwaToken">Whether this is an RWA token (requires compliance metadata)</param>
+            <param name="errors">List of validation errors (output parameter)</param>
+            <returns>True if validation passes, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceValidator.IsRwaToken(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata)">
+            <summary>
+            Determines if a token is an RWA token based on the compliance metadata
+            </summary>
+            <param name="metadata">The compliance metadata</param>
+            <returns>True if the token should be treated as RWA, false for utility tokens</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.EnterpriseAuditService">
             <summary>
             Service implementation for enterprise audit log operations
@@ -11750,7 +11882,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ERC20TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -11763,6 +11895,7 @@
             <param name="appConfig">The configuration monitor for application-specific settings.</param>
             <param name="logger">The logger used to log information and errors for this service.</param>
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+            <param name="complianceRepository">The compliance metadata repository</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ERC20TokenService.ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -11797,6 +11930,11 @@
         <member name="M:BiatecTokensApi.Services.ERC20TokenService.LogTokenIssuanceAudit(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType,System.String,System.String,System.String,System.Boolean,System.String,System.String)">
             <summary>
             Logs token issuance audit entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.PersistComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.String,System.String,System.String)">
+            <summary>
+            Persists compliance metadata for a deployed token
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IARC1400TokenService">

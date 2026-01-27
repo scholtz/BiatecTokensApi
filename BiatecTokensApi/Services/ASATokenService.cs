@@ -10,7 +10,9 @@ using BiatecTokensApi.Models.ARC3;
 using BiatecTokensApi.Models.ARC3.Request;
 using BiatecTokensApi.Models.ARC3.Response;
 using BiatecTokensApi.Models.ASA.Request;
+using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Repositories;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Options;
 using Nethereum.Signer;
@@ -30,6 +32,7 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<ARC3TokenService> _logger;
         private readonly Dictionary<string, string> _genesisId2GenesisHash = new();
         private readonly IOptionsMonitor<AppConfiguration> _appConfig;
+        private readonly IComplianceRepository _complianceRepository;
         /// <summary>
         /// Initializes a new instance of the <see cref="ARC3TokenService"/> class, configuring it to interact
         /// with Algorand nodes and IPFS repositories based on the provided options.
@@ -43,15 +46,18 @@ namespace BiatecTokensApi.Services
         /// <param name="appConfig"></param>
         /// <param name="logger">An <see cref="ILogger{TCategoryName}"/> instance used for logging information, warnings, and errors related
         /// to the service's operations.</param>
+        /// <param name="complianceRepository">The compliance metadata repository</param>
         public ASATokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             IOptionsMonitor<AppConfiguration> appConfig,
-            ILogger<ARC3TokenService> logger
+            ILogger<ARC3TokenService> logger,
+            IComplianceRepository complianceRepository
             )
         {
             _config = config;
             _appConfig = appConfig;
             _logger = logger;
+            _complianceRepository = complianceRepository;
 
             foreach (var chain in _config.CurrentValue.AllowedNetworks)
             {
@@ -143,6 +149,13 @@ namespace BiatecTokensApi.Services
 
         private bool ValidateASARequest(ASABaseTokenDeploymentRequest? request, TokenType tokenType)
         {
+            // Validate compliance metadata
+            var isRwaToken = ComplianceValidator.IsRwaToken(request?.ComplianceMetadata);
+            if (!ComplianceValidator.ValidateComplianceMetadata(request?.ComplianceMetadata, isRwaToken, out var complianceErrors))
+            {
+                throw new ArgumentException($"Compliance validation failed: {string.Join("; ", complianceErrors)}");
+            }
+
             switch (tokenType)
             {
                 case TokenType.ASA_FNFT:
@@ -312,6 +325,13 @@ namespace BiatecTokensApi.Services
             var assetResult = result as AssetCreateTransaction ?? throw new Exception("Unable to parse asset create transaction");
             var assetInfo = await apiInstance.GetAssetByIDAsync(assetResult.AssetIndex ?? throw new Exception("Unable to parse asset index after asset was created"));
 
+            // Persist compliance metadata if provided
+            if (request.ComplianceMetadata != null && assetResult.AssetIndex.HasValue)
+            {
+                await PersistComplianceMetadata(request.ComplianceMetadata, assetResult.AssetIndex.Value, 
+                    request.Network, acc.Address.EncodeAsString());
+            }
+
             return new ASATokenDeploymentResponse
             {
                 Success = true,
@@ -384,6 +404,46 @@ namespace BiatecTokensApi.Services
                 Url = request.Url
             };
             return CreateFTAsync(ftRequest);
+        }
+
+        /// <summary>
+        /// Persists compliance metadata for a deployed token
+        /// </summary>
+        private async Task PersistComplianceMetadata(
+            TokenDeploymentComplianceMetadata deploymentMetadata,
+            ulong assetId,
+            string network,
+            string createdBy)
+        {
+            try
+            {
+                var complianceMetadata = new ComplianceMetadata
+                {
+                    AssetId = assetId,
+                    Network = network,
+                    CreatedBy = createdBy,
+                    CreatedAt = DateTime.UtcNow,
+                    IssuerName = deploymentMetadata.IssuerName,
+                    KycProvider = deploymentMetadata.KycProvider,
+                    Jurisdiction = deploymentMetadata.Jurisdiction,
+                    RegulatoryFramework = deploymentMetadata.RegulatoryFramework,
+                    AssetType = deploymentMetadata.AssetType,
+                    TransferRestrictions = deploymentMetadata.TransferRestrictions,
+                    MaxHolders = deploymentMetadata.MaxHolders,
+                    RequiresAccreditedInvestors = deploymentMetadata.RequiresAccreditedInvestors,
+                    Notes = deploymentMetadata.Notes,
+                    ComplianceStatus = ComplianceValidator.DefaultComplianceStatus,
+                    VerificationStatus = ComplianceValidator.DefaultVerificationStatus
+                };
+
+                await _complianceRepository.UpsertMetadataAsync(complianceMetadata);
+                _logger.LogInformation("Persisted compliance metadata for ASA token {AssetId} on network {Network}",
+                    assetId, network);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error persisting compliance metadata for ASA token {AssetId}", assetId);
+            }
         }
     }
 }
