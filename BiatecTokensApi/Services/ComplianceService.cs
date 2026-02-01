@@ -1,5 +1,6 @@
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.Metering;
+using BiatecTokensApi.Models.Webhook;
 using BiatecTokensApi.Models.Whitelist;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
@@ -17,6 +18,7 @@ namespace BiatecTokensApi.Services
         private readonly IWhitelistService _whitelistService;
         private readonly ILogger<ComplianceService> _logger;
         private readonly ISubscriptionMeteringService _meteringService;
+        private readonly IWebhookService _webhookService;
         
         /// <summary>
         /// Constant for system-generated audit entries when no user context is available
@@ -52,16 +54,19 @@ namespace BiatecTokensApi.Services
         /// <param name="whitelistService">The whitelist service</param>
         /// <param name="logger">The logger instance</param>
         /// <param name="meteringService">The subscription metering service</param>
+        /// <param name="webhookService">The webhook service for event emission</param>
         public ComplianceService(
             IComplianceRepository complianceRepository,
             IWhitelistService whitelistService,
             ILogger<ComplianceService> logger,
-            ISubscriptionMeteringService meteringService)
+            ISubscriptionMeteringService meteringService,
+            IWebhookService webhookService)
         {
             _complianceRepository = complianceRepository;
             _whitelistService = whitelistService;
             _logger = logger;
             _meteringService = meteringService;
+            _webhookService = webhookService;
         }
 
         /// <inheritdoc/>
@@ -155,6 +160,12 @@ namespace BiatecTokensApi.Services
                         PerformedBy = createdBy,
                         ItemCount = 1
                     });
+
+                    // Emit webhook events for compliance status changes
+                    await EmitComplianceWebhookEventsAsync(
+                        existingMetadata, 
+                        metadata, 
+                        createdBy);
 
                     return new ComplianceMetadataResponse
                     {
@@ -4041,6 +4052,114 @@ namespace BiatecTokensApi.Services
                 _logger.LogError(ex, "Error verifying ownership of asset {AssetId} for issuer {IssuerAddress}",
                     assetId, issuerAddress);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Emits webhook events for compliance metadata changes
+        /// </summary>
+        /// <param name="oldMetadata">The previous metadata state (null if creating new)</param>
+        /// <param name="newMetadata">The new metadata state</param>
+        /// <param name="actor">The user who made the change</param>
+        private async Task EmitComplianceWebhookEventsAsync(
+            ComplianceMetadata? oldMetadata,
+            ComplianceMetadata newMetadata,
+            string actor)
+        {
+            try
+            {
+                // Emit KYC status change event if verification status changed
+                if (oldMetadata == null || oldMetadata.VerificationStatus != newMetadata.VerificationStatus)
+                {
+                    var kycEvent = new WebhookEvent
+                    {
+                        EventType = WebhookEventType.KycStatusChange,
+                        AssetId = newMetadata.AssetId,
+                        Network = newMetadata.Network,
+                        Actor = actor,
+                        Data = new Dictionary<string, object>
+                        {
+                            ["oldStatus"] = oldMetadata?.VerificationStatus.ToString() ?? "None",
+                            ["newStatus"] = newMetadata.VerificationStatus.ToString(),
+                            ["kycProvider"] = newMetadata.KycProvider ?? "Unknown",
+                            ["verificationDate"] = newMetadata.KycVerificationDate?.ToString("O") ?? "Not set",
+                            ["issuerName"] = newMetadata.IssuerName ?? "Unknown"
+                        }
+                    };
+
+                    await _webhookService.EmitEventAsync(kycEvent);
+
+                    _logger.LogInformation(
+                        "Emitted KYC status change webhook event for asset {AssetId}: {OldStatus} -> {NewStatus}",
+                        newMetadata.AssetId,
+                        oldMetadata?.VerificationStatus.ToString() ?? "None",
+                        newMetadata.VerificationStatus.ToString());
+                }
+
+                // Emit compliance badge update event if compliance status changed
+                if (oldMetadata == null || oldMetadata.ComplianceStatus != newMetadata.ComplianceStatus)
+                {
+                    var complianceEvent = new WebhookEvent
+                    {
+                        EventType = WebhookEventType.ComplianceBadgeUpdate,
+                        AssetId = newMetadata.AssetId,
+                        Network = newMetadata.Network,
+                        Actor = actor,
+                        Data = new Dictionary<string, object>
+                        {
+                            ["oldStatus"] = oldMetadata?.ComplianceStatus.ToString() ?? "None",
+                            ["newStatus"] = newMetadata.ComplianceStatus.ToString(),
+                            ["jurisdiction"] = newMetadata.Jurisdiction ?? "Unknown",
+                            ["regulatoryFramework"] = newMetadata.RegulatoryFramework ?? "Unknown",
+                            ["lastReview"] = newMetadata.LastComplianceReview?.ToString("O") ?? "Not set",
+                            ["nextReview"] = newMetadata.NextComplianceReview?.ToString("O") ?? "Not set",
+                            ["requiresAccreditedInvestors"] = newMetadata.RequiresAccreditedInvestors
+                        }
+                    };
+
+                    await _webhookService.EmitEventAsync(complianceEvent);
+
+                    _logger.LogInformation(
+                        "Emitted compliance badge update webhook event for asset {AssetId}: {OldStatus} -> {NewStatus}",
+                        newMetadata.AssetId,
+                        oldMetadata?.ComplianceStatus.ToString() ?? "None",
+                        newMetadata.ComplianceStatus.ToString());
+                }
+
+                // Emit AML status change event if any AML-related fields changed
+                // (For now, we'll emit this if verification status changed and includes AML provider info)
+                if ((oldMetadata == null || oldMetadata.VerificationStatus != newMetadata.VerificationStatus) &&
+                    !string.IsNullOrEmpty(newMetadata.KycProvider))
+                {
+                    var amlEvent = new WebhookEvent
+                    {
+                        EventType = WebhookEventType.AmlStatusChange,
+                        AssetId = newMetadata.AssetId,
+                        Network = newMetadata.Network,
+                        Actor = actor,
+                        Data = new Dictionary<string, object>
+                        {
+                            ["verificationStatus"] = newMetadata.VerificationStatus.ToString(),
+                            ["provider"] = newMetadata.KycProvider,
+                            ["verificationDate"] = newMetadata.KycVerificationDate?.ToString("O") ?? "Not set",
+                            ["issuerName"] = newMetadata.IssuerName ?? "Unknown",
+                            ["jurisdiction"] = newMetadata.Jurisdiction ?? "Unknown"
+                        }
+                    };
+
+                    await _webhookService.EmitEventAsync(amlEvent);
+
+                    _logger.LogInformation(
+                        "Emitted AML status change webhook event for asset {AssetId}",
+                        newMetadata.AssetId);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail the operation if webhook emission fails
+                _logger.LogError(ex,
+                    "Error emitting compliance webhook events for asset {AssetId}",
+                    newMetadata.AssetId);
             }
         }
 

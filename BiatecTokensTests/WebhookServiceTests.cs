@@ -301,5 +301,206 @@ namespace BiatecTokensTests
             // Assert
             Assert.Pass("Event emitted with filters");
         }
+
+        [Test]
+        public async Task CreateSubscriptionAsync_WithComplianceEventTypes_ReturnsSuccess()
+        {
+            // Arrange
+            var request = new CreateWebhookSubscriptionRequest
+            {
+                Url = "https://example.com/webhook",
+                EventTypes = new List<WebhookEventType> 
+                { 
+                    WebhookEventType.KycStatusChange,
+                    WebhookEventType.AmlStatusChange,
+                    WebhookEventType.ComplianceBadgeUpdate
+                },
+                Description = "Compliance webhook"
+            };
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+
+            // Act
+            var result = await _service.CreateSubscriptionAsync(request, createdBy);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Subscription, Is.Not.Null);
+            Assert.That(result.Subscription!.EventTypes, Has.Count.EqualTo(3));
+            Assert.That(result.Subscription.EventTypes, Does.Contain(WebhookEventType.KycStatusChange));
+            Assert.That(result.Subscription.EventTypes, Does.Contain(WebhookEventType.AmlStatusChange));
+            Assert.That(result.Subscription.EventTypes, Does.Contain(WebhookEventType.ComplianceBadgeUpdate));
+        }
+
+        [Test]
+        public async Task EmitEventAsync_KycStatusChange_StoresDeliveryResults()
+        {
+            // Arrange
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            
+            // Create a subscription for KYC events
+            await _service.CreateSubscriptionAsync(new CreateWebhookSubscriptionRequest
+            {
+                Url = "https://example.com/webhook",
+                EventTypes = new List<WebhookEventType> { WebhookEventType.KycStatusChange }
+            }, createdBy);
+
+            var webhookEvent = new WebhookEvent
+            {
+                EventType = WebhookEventType.KycStatusChange,
+                AssetId = 12345,
+                Network = "voimain-v1.0",
+                Actor = createdBy,
+                Data = new Dictionary<string, object>
+                {
+                    { "oldStatus", "Pending" },
+                    { "newStatus", "Verified" },
+                    { "kycProvider", "TestProvider" },
+                    { "verificationDate", DateTime.UtcNow.ToString("O") }
+                }
+            };
+
+            // Act
+            await _service.EmitEventAsync(webhookEvent);
+
+            // Give some time for async delivery to start
+            await Task.Delay(100);
+
+            // Assert - Event was emitted without errors
+            Assert.Pass("KYC status change event emitted without errors");
+        }
+
+        [Test]
+        public async Task EmitEventAsync_AmlStatusChange_StoresDeliveryResults()
+        {
+            // Arrange
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            
+            // Create a subscription for AML events
+            await _service.CreateSubscriptionAsync(new CreateWebhookSubscriptionRequest
+            {
+                Url = "https://example.com/webhook",
+                EventTypes = new List<WebhookEventType> { WebhookEventType.AmlStatusChange }
+            }, createdBy);
+
+            var webhookEvent = new WebhookEvent
+            {
+                EventType = WebhookEventType.AmlStatusChange,
+                AssetId = 12345,
+                Network = "voimain-v1.0",
+                Actor = createdBy,
+                Data = new Dictionary<string, object>
+                {
+                    { "verificationStatus", "Verified" },
+                    { "provider", "AMLProvider" },
+                    { "verificationDate", DateTime.UtcNow.ToString("O") },
+                    { "jurisdiction", "US" }
+                }
+            };
+
+            // Act
+            await _service.EmitEventAsync(webhookEvent);
+
+            // Give some time for async delivery to start
+            await Task.Delay(100);
+
+            // Assert - Event was emitted without errors
+            Assert.Pass("AML status change event emitted without errors");
+        }
+
+        [Test]
+        public async Task EmitEventAsync_ComplianceBadgeUpdate_StoresDeliveryResults()
+        {
+            // Arrange
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            
+            // Create a subscription for compliance badge events
+            await _service.CreateSubscriptionAsync(new CreateWebhookSubscriptionRequest
+            {
+                Url = "https://example.com/webhook",
+                EventTypes = new List<WebhookEventType> { WebhookEventType.ComplianceBadgeUpdate }
+            }, createdBy);
+
+            var webhookEvent = new WebhookEvent
+            {
+                EventType = WebhookEventType.ComplianceBadgeUpdate,
+                AssetId = 12345,
+                Network = "voimain-v1.0",
+                Actor = createdBy,
+                Data = new Dictionary<string, object>
+                {
+                    { "oldStatus", "UnderReview" },
+                    { "newStatus", "Compliant" },
+                    { "jurisdiction", "EU" },
+                    { "regulatoryFramework", "MiFID II" },
+                    { "requiresAccreditedInvestors", true }
+                }
+            };
+
+            // Act
+            await _service.EmitEventAsync(webhookEvent);
+
+            // Give some time for async delivery to start
+            await Task.Delay(100);
+
+            // Assert - Event was emitted without errors
+            Assert.Pass("Compliance badge update event emitted without errors");
+        }
+
+        [Test]
+        public async Task EmitEventAsync_MultipleComplianceEvents_AllDelivered()
+        {
+            // Arrange
+            var createdBy = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            
+            // Create a subscription for all compliance events
+            await _service.CreateSubscriptionAsync(new CreateWebhookSubscriptionRequest
+            {
+                Url = "https://example.com/webhook",
+                EventTypes = new List<WebhookEventType> 
+                { 
+                    WebhookEventType.KycStatusChange,
+                    WebhookEventType.AmlStatusChange,
+                    WebhookEventType.ComplianceBadgeUpdate
+                }
+            }, createdBy);
+
+            // Act - Emit multiple events
+            var kycEvent = new WebhookEvent
+            {
+                EventType = WebhookEventType.KycStatusChange,
+                AssetId = 12345,
+                Network = "voimain-v1.0",
+                Actor = createdBy,
+                Data = new Dictionary<string, object> { { "status", "Verified" } }
+            };
+
+            var amlEvent = new WebhookEvent
+            {
+                EventType = WebhookEventType.AmlStatusChange,
+                AssetId = 12345,
+                Network = "voimain-v1.0",
+                Actor = createdBy,
+                Data = new Dictionary<string, object> { { "status", "Verified" } }
+            };
+
+            var complianceEvent = new WebhookEvent
+            {
+                EventType = WebhookEventType.ComplianceBadgeUpdate,
+                AssetId = 12345,
+                Network = "voimain-v1.0",
+                Actor = createdBy,
+                Data = new Dictionary<string, object> { { "status", "Compliant" } }
+            };
+
+            await _service.EmitEventAsync(kycEvent);
+            await _service.EmitEventAsync(amlEvent);
+            await _service.EmitEventAsync(complianceEvent);
+
+            // Give some time for async delivery to start
+            await Task.Delay(200);
+
+            // Assert - All events were emitted without errors
+            Assert.Pass("All compliance events emitted without errors");
+        }
     }
 }

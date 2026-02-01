@@ -88,7 +88,22 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// Audit export created
         /// </summary>
-        AuditExportCreated
+        AuditExportCreated,
+
+        /// <summary>
+        /// KYC verification status changed
+        /// </summary>
+        KycStatusChange,
+
+        /// <summary>
+        /// AML verification status changed
+        /// </summary>
+        AmlStatusChange,
+
+        /// <summary>
+        /// Compliance badge or status updated
+        /// </summary>
+        ComplianceBadgeUpdate
     }
 
     /// <summary>
