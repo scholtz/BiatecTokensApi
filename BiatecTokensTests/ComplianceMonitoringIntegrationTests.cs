@@ -33,7 +33,8 @@ namespace BiatecTokensTests
                 _repositoryMock.Object,
                 _whitelistServiceMock.Object,
                 _loggerMock.Object,
-                _meteringServiceMock.Object);
+                _meteringServiceMock.Object,
+                Mock.Of<IWebhookService>());
         }
 
         #region GetMonitoringMetricsAsync Tests

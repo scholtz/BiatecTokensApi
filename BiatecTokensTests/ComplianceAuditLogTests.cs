@@ -27,7 +27,7 @@ namespace BiatecTokensTests
             _serviceLoggerMock = new Mock<ILogger<ComplianceService>>();
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
             var whitelistServiceMock = new Mock<IWhitelistService>();
-            _service = new ComplianceService(_repository, whitelistServiceMock.Object, _serviceLoggerMock.Object, _meteringServiceMock.Object);
+            _service = new ComplianceService(_repository, whitelistServiceMock.Object, _serviceLoggerMock.Object, _meteringServiceMock.Object, Mock.Of<IWebhookService>());
         }
 
         #region Create Operation Audit Tests

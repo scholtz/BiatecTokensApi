@@ -67,7 +67,8 @@ namespace BiatecTokensTests
                 _complianceRepository,
                 whitelistService,
                 _complianceServiceLoggerMock.Object,
-                meteringService);
+                meteringService,
+                Mock.Of<IWebhookService>());
         }
 
         [Test]

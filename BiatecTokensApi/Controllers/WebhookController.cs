@@ -46,6 +46,9 @@ namespace BiatecTokensApi.Controllers
         /// - WhitelistRemove: Triggered when an address is removed from the whitelist
         /// - TransferDeny: Triggered when a transfer is denied by whitelist rules
         /// - AuditExportCreated: Triggered when an audit export is created
+        /// - KycStatusChange: Triggered when KYC verification status changes
+        /// - AmlStatusChange: Triggered when AML verification status changes
+        /// - ComplianceBadgeUpdate: Triggered when compliance status or badge is updated
         /// 
         /// All webhook payloads include:
         /// - Event ID and type

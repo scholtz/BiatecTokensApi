@@ -24,7 +24,7 @@ namespace BiatecTokensTests
             _whitelistServiceMock = new Mock<IWhitelistService>();
             _loggerMock = new Mock<ILogger<ComplianceService>>();
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
-            _service = new ComplianceService(_repositoryMock.Object, _whitelistServiceMock.Object, _loggerMock.Object, _meteringServiceMock.Object);
+            _service = new ComplianceService(_repositoryMock.Object, _whitelistServiceMock.Object, _loggerMock.Object, _meteringServiceMock.Object, Mock.Of<IWebhookService>());
         }
 
         #region UpsertMetadataAsync Tests
