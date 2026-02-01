@@ -132,9 +132,10 @@ namespace BiatecTokensApi.Middleware
         /// <returns>Sanitized string safe for logging</returns>
         private static string SanitizeLogInput(string input)
         {
+            // Normalize null or empty values to a constant to avoid logging raw null/empty user input
             if (string.IsNullOrEmpty(input))
             {
-                return input;
+                return "UNKNOWN";
             }
 
             // Remove any control characters (including newlines) that could be used for log injection
@@ -148,7 +149,16 @@ namespace BiatecTokensApi.Middleware
                 }
             }
 
-            return builder.ToString();
+            var sanitized = builder.ToString();
+
+            // Enforce a maximum length to avoid log pollution from excessively long user-controlled values
+            const int maxLength = 20;
+            if (sanitized.Length > maxLength)
+            {
+                sanitized = sanitized.Substring(0, maxLength) + "...";
+            }
+
+            return sanitized;
         }
     }
 
