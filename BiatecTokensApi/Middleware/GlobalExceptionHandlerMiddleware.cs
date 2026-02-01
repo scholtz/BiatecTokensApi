@@ -1,6 +1,7 @@
 using BiatecTokensApi.Models;
 using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace BiatecTokensApi.Middleware
 {
@@ -42,11 +43,47 @@ namespace BiatecTokensApi.Middleware
             }
             catch (Exception ex)
             {
+                // Sanitize path to remove query parameters and potential injection attempts
+                var sanitizedPath = SanitizePath(context.Request.Path);
+                
                 _logger.LogError(ex, "Unhandled exception occurred. Path: {Path}, Method: {Method}", 
-                    context.Request.Path, context.Request.Method);
+                    sanitizedPath, context.Request.Method);
                 
                 await HandleExceptionAsync(context, ex);
             }
+        }
+
+        /// <summary>
+        /// Sanitizes the request path by removing query parameters and limiting length
+        /// </summary>
+        /// <param name="path">The request path to sanitize</param>
+        /// <returns>Sanitized path safe for logging</returns>
+        private static string SanitizePath(PathString path)
+        {
+            if (!path.HasValue)
+            {
+                return "/";
+            }
+
+            var pathValue = path.Value ?? "/";
+            
+            // Remove query string if present (should be handled by PathString but extra safety)
+            var queryIndex = pathValue.IndexOf('?');
+            if (queryIndex >= 0)
+            {
+                pathValue = pathValue.Substring(0, queryIndex);
+            }
+
+            // Limit length to prevent log injection
+            if (pathValue.Length > 200)
+            {
+                pathValue = pathValue.Substring(0, 200) + "...";
+            }
+
+            // Replace any control characters or newlines that could be used for log injection
+            pathValue = Regex.Replace(pathValue, @"[\r\n\t\x00-\x1F\x7F]", "");
+
+            return pathValue;
         }
 
         private async Task HandleExceptionAsync(HttpContext context, Exception exception)
@@ -54,11 +91,13 @@ namespace BiatecTokensApi.Middleware
             context.Response.ContentType = "application/json";
             
             var correlationId = context.TraceIdentifier;
+            var sanitizedPath = SanitizePath(context.Request.Path);
+            
             var response = new ApiErrorResponse
             {
                 Success = false,
                 Timestamp = DateTime.UtcNow,
-                Path = context.Request.Path,
+                Path = sanitizedPath,
                 CorrelationId = correlationId
             };
 

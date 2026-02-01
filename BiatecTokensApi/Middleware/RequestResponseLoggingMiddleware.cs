@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace BiatecTokensApi.Middleware
 {
@@ -33,12 +34,15 @@ namespace BiatecTokensApi.Middleware
         {
             var stopwatch = Stopwatch.StartNew();
             var correlationId = context.TraceIdentifier;
+            
+            // Sanitize path to remove query parameters and potential injection attempts
+            var sanitizedPath = SanitizePath(context.Request.Path);
 
             // Log request
             _logger.LogInformation(
                 "HTTP Request {Method} {Path} started. CorrelationId: {CorrelationId}",
                 context.Request.Method,
-                context.Request.Path,
+                sanitizedPath,
                 correlationId);
 
             // Capture the original response body stream
@@ -58,7 +62,7 @@ namespace BiatecTokensApi.Middleware
                 _logger.LogInformation(
                     "HTTP Response {Method} {Path} completed with status {StatusCode} in {ElapsedMs}ms. CorrelationId: {CorrelationId}",
                     context.Request.Method,
-                    context.Request.Path,
+                    sanitizedPath,
                     context.Response.StatusCode,
                     stopwatch.ElapsedMilliseconds,
                     correlationId);
@@ -75,7 +79,7 @@ namespace BiatecTokensApi.Middleware
                     ex,
                     "HTTP Request {Method} {Path} failed after {ElapsedMs}ms. CorrelationId: {CorrelationId}",
                     context.Request.Method,
-                    context.Request.Path,
+                    sanitizedPath,
                     stopwatch.ElapsedMilliseconds,
                     correlationId);
                 
@@ -85,6 +89,39 @@ namespace BiatecTokensApi.Middleware
             {
                 context.Response.Body = originalBodyStream;
             }
+        }
+
+        /// <summary>
+        /// Sanitizes the request path by removing query parameters and limiting length
+        /// </summary>
+        /// <param name="path">The request path to sanitize</param>
+        /// <returns>Sanitized path safe for logging</returns>
+        private static string SanitizePath(PathString path)
+        {
+            if (!path.HasValue)
+            {
+                return "/";
+            }
+
+            var pathValue = path.Value ?? "/";
+            
+            // Remove query string if present (should be handled by PathString but extra safety)
+            var queryIndex = pathValue.IndexOf('?');
+            if (queryIndex >= 0)
+            {
+                pathValue = pathValue.Substring(0, queryIndex);
+            }
+
+            // Limit length to prevent log injection
+            if (pathValue.Length > 200)
+            {
+                pathValue = pathValue.Substring(0, 200) + "...";
+            }
+
+            // Replace any control characters or newlines that could be used for log injection
+            pathValue = Regex.Replace(pathValue, @"[\r\n\t\x00-\x1F\x7F]", "");
+
+            return pathValue;
         }
     }
 

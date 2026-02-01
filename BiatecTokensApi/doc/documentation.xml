@@ -3135,6 +3135,13 @@
             <param name="context">HTTP context</param>
             <returns>Task representing the async operation</returns>
         </member>
+        <member name="M:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware.SanitizePath(Microsoft.AspNetCore.Http.PathString)">
+            <summary>
+            Sanitizes the request path by removing query parameters and limiting length
+            </summary>
+            <param name="path">The request path to sanitize</param>
+            <returns>Sanitized path safe for logging</returns>
+        </member>
         <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddlewareExtensions">
             <summary>
             Extension methods for registering the global exception handler middleware
@@ -3165,6 +3172,13 @@
             </summary>
             <param name="context">HTTP context</param>
             <returns>Task representing the async operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware.SanitizePath(Microsoft.AspNetCore.Http.PathString)">
+            <summary>
+            Sanitizes the request path by removing query parameters and limiting length
+            </summary>
+            <param name="path">The request path to sanitize</param>
+            <returns>Sanitized path safe for logging</returns>
         </member>
         <member name="T:BiatecTokensApi.Middleware.RequestResponseLoggingMiddlewareExtensions">
             <summary>
