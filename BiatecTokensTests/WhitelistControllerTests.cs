@@ -1048,7 +1048,7 @@ namespace BiatecTokensTests
                     Address = request.SenderAddress,
                     Status = AllowlistStatus.Expired,
                     IsWhitelisted = true,
-                    ExpirationDate = DateTime.UtcNow.AddDays(-1),
+                    ExpirationDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     StatusNotes = "Whitelist entry has expired"
                 },
                 RecipientStatus = new AllowlistParticipantStatus
