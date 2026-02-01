@@ -113,6 +113,13 @@ namespace BiatecTokensTests
             Assert.That(result.Summary, Is.Not.Null);
             Assert.That(result.Summary!.WhitelistEvents, Is.EqualTo(1));
             Assert.That(result.Summary.ComplianceEvents, Is.EqualTo(1));
+            
+            // Verify payload hash is present for all entries
+            foreach (var entry in result.Entries)
+            {
+                Assert.That(entry.PayloadHash, Is.Not.Null);
+                Assert.That(entry.PayloadHash, Is.Not.Empty);
+            }
         }
 
         [Test]
@@ -699,6 +706,156 @@ namespace BiatecTokensTests
             Assert.That(result.Success, Is.True);
             Assert.That(result.PageSize, Is.EqualTo(100)); // Should be capped at 100
             Assert.That(result.Entries.Count, Is.LessThanOrEqualTo(100));
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_PayloadHash_ShouldBeComputedForAllEntries()
+        {
+            // Arrange - Create audit entries
+            var assetId = (ulong)12345;
+
+            // Add whitelist event
+            await _whitelistRepository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+            {
+                AssetId = assetId,
+                Address = ValidAddress1,
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = TestPerformedBy,
+                PerformedAt = DateTime.UtcNow.AddHours(-2),
+                NewStatus = WhitelistStatus.Active,
+                Network = "voimain-v1.0"
+            });
+
+            // Add compliance event
+            await _complianceRepository.AddAuditLogEntryAsync(new ComplianceAuditLogEntry
+            {
+                AssetId = assetId,
+                ActionType = ComplianceActionType.Create,
+                PerformedBy = TestPerformedBy,
+                PerformedAt = DateTime.UtcNow.AddHours(-1),
+                Success = true,
+                NewComplianceStatus = ComplianceStatus.Compliant,
+                Network = "voimain-v1.0"
+            });
+
+            // Act
+            var request = new GetEnterpriseAuditLogRequest
+            {
+                AssetId = assetId
+            };
+
+            var result = await _enterpriseAuditService.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entries.Count, Is.EqualTo(2));
+
+            // Verify all entries have payload hash
+            foreach (var entry in result.Entries)
+            {
+                Assert.That(entry.PayloadHash, Is.Not.Null);
+                Assert.That(entry.PayloadHash, Is.Not.Empty);
+                Assert.That(entry.PayloadHash.Length, Is.EqualTo(64)); // SHA-256 hash is 64 hex characters
+                
+                // Verify it's a valid hex string
+                Assert.That(entry.PayloadHash, Does.Match("^[0-9a-f]{64}$"));
+            }
+        }
+
+        [Test]
+        public async Task ExportAuditLogCsvAsync_ShouldIncludePayloadHashColumn()
+        {
+            // Arrange - Create audit entry
+            var assetId = (ulong)12345;
+
+            await _whitelistRepository.AddAuditLogEntryAsync(new WhitelistAuditLogEntry
+            {
+                AssetId = assetId,
+                Address = ValidAddress1,
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = TestPerformedBy,
+                PerformedAt = DateTime.UtcNow,
+                NewStatus = WhitelistStatus.Active,
+                Network = "voimain-v1.0"
+            });
+
+            // Act
+            var request = new GetEnterpriseAuditLogRequest
+            {
+                AssetId = assetId
+            };
+
+            var csv = await _enterpriseAuditService.ExportAuditLogCsvAsync(request);
+
+            // Assert
+            Assert.That(csv, Is.Not.Null);
+            Assert.That(csv, Is.Not.Empty);
+
+            var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            Assert.That(lines.Length, Is.GreaterThanOrEqualTo(2)); // At least header + 1 row
+
+            // Verify header contains PayloadHash column
+            var header = lines[0];
+            Assert.That(header, Does.Contain("PayloadHash"));
+
+            // Verify data row contains a hash value (last column)
+            var dataRow = lines[1];
+            var columns = dataRow.Split(',');
+            var payloadHashColumn = columns[columns.Length - 1].Trim();
+            Assert.That(payloadHashColumn, Is.Not.Empty);
+            Assert.That(payloadHashColumn.Length, Is.EqualTo(64)); // SHA-256 hash
+        }
+
+        [Test]
+        public async Task GetAuditLogAsync_PayloadHash_ShouldBeConsistentForSameData()
+        {
+            // Arrange - Create the same audit entry twice
+            var assetId = (ulong)12345;
+            var timestamp = DateTime.UtcNow;
+
+            var entry1 = new WhitelistAuditLogEntry
+            {
+                Id = "test-id-1",
+                AssetId = assetId,
+                Address = ValidAddress1,
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = TestPerformedBy,
+                PerformedAt = timestamp,
+                NewStatus = WhitelistStatus.Active,
+                Network = "voimain-v1.0"
+            };
+
+            var entry2 = new WhitelistAuditLogEntry
+            {
+                Id = "test-id-2", // Different ID but same other data
+                AssetId = assetId,
+                Address = ValidAddress1,
+                ActionType = WhitelistActionType.Add,
+                PerformedBy = TestPerformedBy,
+                PerformedAt = timestamp,
+                NewStatus = WhitelistStatus.Active,
+                Network = "voimain-v1.0"
+            };
+
+            await _whitelistRepository.AddAuditLogEntryAsync(entry1);
+            await _whitelistRepository.AddAuditLogEntryAsync(entry2);
+
+            // Act
+            var request = new GetEnterpriseAuditLogRequest
+            {
+                AssetId = assetId
+            };
+
+            var result = await _enterpriseAuditService.GetAuditLogAsync(request);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Entries.Count, Is.EqualTo(2));
+
+            // Different IDs should result in different hashes (since ID is part of hash)
+            var hash1 = result.Entries.First(e => e.Id == "test-id-1").PayloadHash;
+            var hash2 = result.Entries.First(e => e.Id == "test-id-2").PayloadHash;
+            Assert.That(hash1, Is.Not.EqualTo(hash2));
         }
     }
 }

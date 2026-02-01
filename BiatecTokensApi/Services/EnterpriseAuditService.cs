@@ -109,7 +109,7 @@ namespace BiatecTokensApi.Services
             var csv = new StringBuilder();
             
             // CSV Header
-            csv.AppendLine("Id,AssetId,Network,Category,ActionType,PerformedBy,PerformedAt,Success,ErrorMessage,AffectedAddress,OldStatus,NewStatus,Notes,ToAddress,TransferAllowed,DenialReason,Amount,Role,ItemCount,SourceSystem,CorrelationId");
+            csv.AppendLine("Id,AssetId,Network,Category,ActionType,PerformedBy,PerformedAt,Success,ErrorMessage,AffectedAddress,OldStatus,NewStatus,Notes,ToAddress,TransferAllowed,DenialReason,Amount,Role,ItemCount,SourceSystem,CorrelationId,PayloadHash");
 
             // CSV Rows
             foreach (var entry in entries)
@@ -135,7 +135,8 @@ namespace BiatecTokensApi.Services
                     $"{EscapeCsv(entry.Role)}," +
                     $"{EscapeCsv(entry.ItemCount?.ToString())}," +
                     $"{EscapeCsv(entry.SourceSystem)}," +
-                    $"{EscapeCsv(entry.CorrelationId)}"
+                    $"{EscapeCsv(entry.CorrelationId)}," +
+                    $"{EscapeCsv(entry.PayloadHash)}"
                 );
             }
 

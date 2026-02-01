@@ -80,6 +80,7 @@ namespace BiatecTokensApi.Controllers
         /// 
         /// **Response includes:**
         /// - Paginated audit entries ordered by most recent first
+        /// - Each entry includes a SHA-256 payload hash for integrity verification
         /// - Total count and page information
         /// - 7-year MICA retention policy metadata
         /// - Summary statistics (event counts, date ranges, networks, assets)
@@ -169,16 +170,17 @@ namespace BiatecTokensApi.Controllers
         /// 
         /// **CSV Format:**
         /// - UTF-8 encoding with proper CSV escaping
-        /// - Header row with all field names
+        /// - Header row with all field names including PayloadHash
         /// - One row per audit event
         /// - Timestamp in ISO 8601 format
+        /// - SHA-256 payload hash for each entry to verify data integrity
         /// 
         /// **Use Cases:**
         /// - MICA compliance reporting
         /// - Regulatory audit submissions
         /// - Enterprise compliance system integration
         /// - Excel/spreadsheet analysis
-        /// - Long-term archival
+        /// - Long-term archival with integrity verification
         /// 
         /// **Limits:**
         /// - Maximum 10,000 records per export

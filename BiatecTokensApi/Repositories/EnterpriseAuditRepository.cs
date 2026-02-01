@@ -2,6 +2,8 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.Whitelist;
 using BiatecTokensApi.Repositories.Interface;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BiatecTokensApi.Repositories
 {
@@ -320,7 +322,7 @@ namespace BiatecTokensApi.Repositories
                 ? AuditEventCategory.TransferValidation 
                 : AuditEventCategory.Whitelist;
 
-            return new EnterpriseAuditLogEntry
+            var enterpriseEntry = new EnterpriseAuditLogEntry
             {
                 Id = entry.Id,
                 AssetId = entry.AssetId,
@@ -340,6 +342,11 @@ namespace BiatecTokensApi.Repositories
                 Amount = entry.Amount,
                 Role = entry.Role.ToString()
             };
+
+            // Compute and set payload hash for integrity verification
+            enterpriseEntry.PayloadHash = ComputePayloadHash(enterpriseEntry);
+
+            return enterpriseEntry;
         }
 
         /// <summary>
@@ -353,7 +360,7 @@ namespace BiatecTokensApi.Repositories
 
             var category = isBlacklistOperation ? AuditEventCategory.Blacklist : AuditEventCategory.Compliance;
 
-            return new EnterpriseAuditLogEntry
+            var enterpriseEntry = new EnterpriseAuditLogEntry
             {
                 Id = entry.Id,
                 AssetId = entry.AssetId,
@@ -369,6 +376,11 @@ namespace BiatecTokensApi.Repositories
                 Notes = entry.Notes,
                 ItemCount = entry.ItemCount
             };
+
+            // Compute and set payload hash for integrity verification
+            enterpriseEntry.PayloadHash = ComputePayloadHash(enterpriseEntry);
+
+            return enterpriseEntry;
         }
 
         /// <summary>
@@ -376,7 +388,7 @@ namespace BiatecTokensApi.Repositories
         /// </summary>
         private EnterpriseAuditLogEntry MapTokenIssuanceEntry(TokenIssuanceAuditLogEntry entry)
         {
-            return new EnterpriseAuditLogEntry
+            var enterpriseEntry = new EnterpriseAuditLogEntry
             {
                 Id = entry.Id,
                 AssetId = entry.AssetId,
@@ -390,6 +402,11 @@ namespace BiatecTokensApi.Repositories
                 Notes = $"Token: {entry.TokenName} ({entry.TokenSymbol}), Type: {entry.TokenType}, Supply: {entry.TotalSupply}",
                 CorrelationId = entry.TransactionHash
             };
+
+            // Compute and set payload hash for integrity verification
+            enterpriseEntry.PayloadHash = ComputePayloadHash(enterpriseEntry);
+
+            return enterpriseEntry;
         }
 
         /// <summary>
@@ -435,6 +452,31 @@ namespace BiatecTokensApi.Repositories
             }
 
             return query.ToList();
+        }
+
+        /// <summary>
+        /// Computes a SHA-256 hash of the audit entry payload for integrity verification
+        /// </summary>
+        /// <param name="entry">The audit entry to hash</param>
+        /// <returns>Hexadecimal string representation of the SHA-256 hash</returns>
+        private string ComputePayloadHash(EnterpriseAuditLogEntry entry)
+        {
+            // Build a canonical representation of key fields for hashing
+            var payload = new StringBuilder();
+            payload.Append($"Id:{entry.Id}|");
+            payload.Append($"AssetId:{entry.AssetId}|");
+            payload.Append($"Network:{entry.Network}|");
+            payload.Append($"Category:{entry.Category}|");
+            payload.Append($"ActionType:{entry.ActionType}|");
+            payload.Append($"PerformedBy:{entry.PerformedBy}|");
+            payload.Append($"PerformedAt:{entry.PerformedAt:O}|"); // ISO 8601 format
+            payload.Append($"Success:{entry.Success}|");
+            payload.Append($"AffectedAddress:{entry.AffectedAddress}|");
+            payload.Append($"Amount:{entry.Amount}");
+
+            var payloadBytes = Encoding.UTF8.GetBytes(payload.ToString());
+            var hashBytes = SHA256.HashData(payloadBytes);
+            return Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
     }
 }

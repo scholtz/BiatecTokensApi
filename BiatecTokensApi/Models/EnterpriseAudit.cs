@@ -114,6 +114,15 @@ namespace BiatecTokensApi.Models
         /// Correlation ID for related events
         /// </summary>
         public string? CorrelationId { get; set; }
+
+        /// <summary>
+        /// SHA-256 hash of the audit event payload for integrity verification
+        /// </summary>
+        /// <remarks>
+        /// Provides cryptographic proof of event data integrity for MICA compliance.
+        /// Hash is computed from key event fields (AssetId, Network, Category, ActionType, PerformedBy, PerformedAt, Success).
+        /// </remarks>
+        public string PayloadHash { get; set; } = string.Empty;
     }
 
     /// <summary>
