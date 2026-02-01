@@ -15,6 +15,26 @@ A comprehensive API for deploying and managing various types of tokens on differ
 - **Network-Specific Validation**: Enforce compliance rules for VOI and Aramid networks
 - **Authentication**: Secure API access using ARC-0014 Algorand authentication
 - **Multi-Network Support**: Support for various Algorand networks and EVM chains
+- **Health Monitoring**: Comprehensive health checks for all external dependencies (IPFS, Algorand, EVM chains)
+- **Enhanced Error Handling**: Global exception handling with standardized error responses and correlation IDs
+- **Request Tracing**: Request/response logging for debugging and monitoring
+
+## Health Monitoring & Stability
+
+The API includes comprehensive health monitoring and error handling for production reliability. See [HEALTH_MONITORING.md](../HEALTH_MONITORING.md) for detailed documentation.
+
+**Health Endpoints:**
+- `/health` - Basic health check
+- `/health/ready` - Kubernetes readiness probe
+- `/health/live` - Kubernetes liveness probe
+- `/api/v1/status` - Detailed component health and API information
+
+**Key Features:**
+- Real-time monitoring of IPFS, Algorand networks, and EVM chains
+- Graceful degradation when dependencies are unavailable
+- Structured error responses with error codes and correlation IDs
+- Request/response logging for debugging
+- Kubernetes-compatible probes for container orchestration
 
 ## Supported Token Types
 
