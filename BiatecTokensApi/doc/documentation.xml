@@ -1157,6 +1157,7 @@
             
             **Response includes:**
             - Paginated audit entries ordered by most recent first
+            - Each entry includes a SHA-256 payload hash for integrity verification
             - Total count and page information
             - 7-year MICA retention policy metadata
             - Summary statistics (event counts, date ranges, networks, assets)
@@ -1184,16 +1185,17 @@
             
             **CSV Format:**
             - UTF-8 encoding with proper CSV escaping
-            - Header row with all field names
+            - Header row with all field names including PayloadHash
             - One row per audit event
             - Timestamp in ISO 8601 format
+            - SHA-256 payload hash for each entry to verify data integrity
             
             **Use Cases:**
             - MICA compliance reporting
             - Regulatory audit submissions
             - Enterprise compliance system integration
             - Excel/spreadsheet analysis
-            - Long-term archival
+            - Long-term archival with integrity verification
             
             **Limits:**
             - Maximum 10,000 records per export
@@ -7580,6 +7582,15 @@
             Correlation ID for related events
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.EnterpriseAuditLogEntry.PayloadHash">
+            <summary>
+            SHA-256 hash of the audit event payload for integrity verification
+            </summary>
+            <remarks>
+            Provides cryptographic proof of event data integrity for MICA compliance.
+            Hash is computed from key event fields: Id, AssetId, Network, Category, ActionType, PerformedBy, PerformedAt, Success, AffectedAddress, Amount.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Models.AuditEventCategory">
             <summary>
             Category of audit event for enterprise reporting
@@ -10430,6 +10441,13 @@
             <summary>
             Applies additional filters to the audit log entries
             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.EnterpriseAuditRepository.ComputePayloadHash(BiatecTokensApi.Models.EnterpriseAuditLogEntry)">
+            <summary>
+            Computes a SHA-256 hash of the audit entry payload for integrity verification
+            </summary>
+            <param name="entry">The audit entry to hash</param>
+            <returns>Hexadecimal string representation of the SHA-256 hash</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.IIPFSRepository">
             <summary>
