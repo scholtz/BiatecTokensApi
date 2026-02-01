@@ -45,9 +45,10 @@ namespace BiatecTokensApi.Middleware
             {
                 // Sanitize path to remove query parameters and potential injection attempts
                 var sanitizedPath = SanitizePath(context.Request.Path);
+                var sanitizedMethod = SanitizeLogInput(context.Request.Method);
                 
                 _logger.LogError(ex, "Unhandled exception occurred. Path: {Path}, Method: {Method}", 
-                    sanitizedPath, context.Request.Method);
+                    sanitizedPath, sanitizedMethod);
                 
                 await HandleExceptionAsync(context, ex);
             }
@@ -84,6 +85,22 @@ namespace BiatecTokensApi.Middleware
             pathValue = Regex.Replace(pathValue, @"[\r\n\t\x00-\x1F\x7F]", "");
 
             return pathValue;
+        }
+
+        /// <summary>
+        /// Sanitizes a string input by removing control characters that could be used for log injection
+        /// </summary>
+        /// <param name="input">The string to sanitize</param>
+        /// <returns>Sanitized string safe for logging</returns>
+        private static string SanitizeLogInput(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return input;
+            }
+
+            // Replace any control characters or newlines that could be used for log injection
+            return Regex.Replace(input, @"[\r\n\t\x00-\x1F\x7F]", "");
         }
 
         private async Task HandleExceptionAsync(HttpContext context, Exception exception)

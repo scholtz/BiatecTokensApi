@@ -37,11 +37,12 @@ namespace BiatecTokensApi.Middleware
             
             // Sanitize path to remove query parameters and potential injection attempts
             var sanitizedPath = SanitizePath(context.Request.Path);
+            var sanitizedMethod = SanitizeLogInput(context.Request.Method);
 
             // Log request
             _logger.LogInformation(
                 "HTTP Request {Method} {Path} started. CorrelationId: {CorrelationId}",
-                context.Request.Method,
+                sanitizedMethod,
                 sanitizedPath,
                 correlationId);
 
@@ -61,7 +62,7 @@ namespace BiatecTokensApi.Middleware
                 // Log response
                 _logger.LogInformation(
                     "HTTP Response {Method} {Path} completed with status {StatusCode} in {ElapsedMs}ms. CorrelationId: {CorrelationId}",
-                    context.Request.Method,
+                    sanitizedMethod,
                     sanitizedPath,
                     context.Response.StatusCode,
                     stopwatch.ElapsedMilliseconds,
@@ -78,7 +79,7 @@ namespace BiatecTokensApi.Middleware
                 _logger.LogError(
                     ex,
                     "HTTP Request {Method} {Path} failed after {ElapsedMs}ms. CorrelationId: {CorrelationId}",
-                    context.Request.Method,
+                    sanitizedMethod,
                     sanitizedPath,
                     stopwatch.ElapsedMilliseconds,
                     correlationId);
@@ -122,6 +123,22 @@ namespace BiatecTokensApi.Middleware
             pathValue = Regex.Replace(pathValue, @"[\r\n\t\x00-\x1F\x7F]", "");
 
             return pathValue;
+        }
+
+        /// <summary>
+        /// Sanitizes a string input by removing control characters that could be used for log injection
+        /// </summary>
+        /// <param name="input">The string to sanitize</param>
+        /// <returns>Sanitized string safe for logging</returns>
+        private static string SanitizeLogInput(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return input;
+            }
+
+            // Replace any control characters or newlines that could be used for log injection
+            return Regex.Replace(input, @"[\r\n\t\x00-\x1F\x7F]", "");
         }
     }
 

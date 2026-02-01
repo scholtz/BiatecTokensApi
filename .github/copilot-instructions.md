@@ -151,6 +151,7 @@ public async Task<TokenCreationResponse> CreateERC20MintableAsync(CreateERC20Min
 - Use environment variables for production deployments
 - Validate all input parameters before processing
 - Use proper error handling to avoid leaking sensitive information
+- Sanitize all user-provided inputs before logging to prevent log forging attacks
 
 ### Secrets Management
 ```bash

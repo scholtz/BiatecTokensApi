@@ -3142,6 +3142,13 @@
             <param name="path">The request path to sanitize</param>
             <returns>Sanitized path safe for logging</returns>
         </member>
+        <member name="M:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware.SanitizeLogInput(System.String)">
+            <summary>
+            Sanitizes a string input by removing control characters that could be used for log injection
+            </summary>
+            <param name="input">The string to sanitize</param>
+            <returns>Sanitized string safe for logging</returns>
+        </member>
         <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddlewareExtensions">
             <summary>
             Extension methods for registering the global exception handler middleware
@@ -3179,6 +3186,13 @@
             </summary>
             <param name="path">The request path to sanitize</param>
             <returns>Sanitized path safe for logging</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware.SanitizeLogInput(System.String)">
+            <summary>
+            Sanitizes a string input by removing control characters that could be used for log injection
+            </summary>
+            <param name="input">The string to sanitize</param>
+            <returns>Sanitized string safe for logging</returns>
         </member>
         <member name="T:BiatecTokensApi.Middleware.RequestResponseLoggingMiddlewareExtensions">
             <summary>
