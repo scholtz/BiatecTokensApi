@@ -300,8 +300,24 @@ api_request_duration_seconds_bucket{method="GET",path="/api/v1/status",le="0.1"}
 
 ## Testing
 
+### Unit Tests
+20 unit tests for middleware have been added:
+- GlobalExceptionHandlerMiddleware: 10 tests
+- RequestResponseLoggingMiddleware: 10 tests
+
+These tests verify:
+- Path sanitization with injection attempts
+- Proper error handling and response formatting
+- Logging behavior
+- Environment-specific behavior (Development vs Production)
+
+Run middleware unit tests with:
+```bash
+dotnet test --filter "FullyQualifiedName~MiddlewareTests"
+```
+
 ### Integration Tests
-8 comprehensive integration tests have been added:
+8 comprehensive integration tests for health endpoints:
 - Basic health endpoint returns OK
 - Readiness endpoint returns appropriate status
 - Liveness endpoint always returns OK
@@ -346,10 +362,69 @@ curl http://localhost:5000/api/v1/status | jq '.'
    - Production errors return generic messages
    - Correlation IDs allow debugging without exposing internals
 
-3. **Rate Limiting (Recommended)**
+3. **Log Injection Protection**
+   - Request paths are sanitized before logging to prevent injection attacks
+   - Query parameters are removed from logged paths (e.g., `?password=secret`)
+   - Control characters (newlines, tabs) are stripped to prevent log forgery
+   - Path length limited to 200 characters to prevent log overflow
+   - All user-provided data is sanitized before being written to logs
+
+4. **Rate Limiting (Recommended)**
    - Consider adding rate limiting to health endpoints
    - Prevents abuse of health check endpoints
    - Protects against DoS via health checks
+
+## Testing
+
+### Unit Tests
+20 unit tests for middleware have been added:
+- GlobalExceptionHandlerMiddleware: 10 tests
+- RequestResponseLoggingMiddleware: 10 tests
+
+These tests verify:
+- Path sanitization with injection attempts
+- Proper error handling and response formatting
+- Logging behavior
+- Environment-specific behavior (Development vs Production)
+
+Run middleware unit tests with:
+```bash
+dotnet test --filter "FullyQualifiedName~MiddlewareTests"
+```
+
+### Integration Tests
+8 comprehensive integration tests for health endpoints:
+- Basic health endpoint returns OK
+- Readiness endpoint returns appropriate status
+- Liveness endpoint always returns OK
+- Status endpoint returns complete API status
+- Status endpoint includes all component health
+- Status endpoint returns consistent format
+- Health endpoints accessible without authentication
+- Status endpoint includes uptime metric
+
+Run tests with:
+```bash
+dotnet test --filter "FullyQualifiedName~HealthCheckIntegrationTests"
+```
+
+### Manual Testing
+```bash
+# Start the API
+dotnet run --project BiatecTokensApi/BiatecTokensApi.csproj
+
+# Test basic health
+curl http://localhost:5000/health
+
+# Test readiness
+curl http://localhost:5000/health/ready
+
+# Test liveness
+curl http://localhost:5000/health/live
+
+# Test detailed status
+curl http://localhost:5000/api/v1/status | jq '.'
+```
 
 ## Troubleshooting
 
