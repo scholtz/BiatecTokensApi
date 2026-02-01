@@ -631,5 +631,338 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region CSV Export Tests
+
+        [Test]
+        public async Task ExportWhitelistCsv_ValidRequest_ShouldReturnCsvFile()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var entries = new List<WhitelistEntry>
+            {
+                new WhitelistEntry
+                {
+                    Id = "entry1",
+                    AssetId = assetId,
+                    Address = "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                    Status = WhitelistStatus.Active,
+                    CreatedBy = TestUserAddress,
+                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Reason = "Test reason",
+                    KycVerified = true,
+                    Network = "voimain-v1.0"
+                }
+            };
+
+            var response = new WhitelistListResponse
+            {
+                Success = true,
+                Entries = entries,
+                TotalCount = 1
+            };
+
+            _whitelistServiceMock.Setup(s => s.ListEntriesAsync(It.IsAny<ListWhitelistRequest>()))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.ExportWhitelistCsv(assetId);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<FileContentResult>());
+            var fileResult = result as FileContentResult;
+            Assert.That(fileResult?.ContentType, Is.EqualTo("text/csv"));
+            Assert.That(fileResult?.FileDownloadName, Does.StartWith($"whitelist-{assetId}-"));
+            Assert.That(fileResult?.FileDownloadName, Does.EndWith(".csv"));
+
+            // Verify CSV content
+            var csvContent = System.Text.Encoding.UTF8.GetString(fileResult!.FileContents);
+            Assert.That(csvContent, Does.Contain("Id,AssetId,Address,Status"));
+            Assert.That(csvContent, Does.Contain("entry1"));
+            Assert.That(csvContent, Does.Contain("VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA"));
+        }
+
+        [Test]
+        public async Task ExportWhitelistCsv_EmptyWhitelist_ShouldReturnCsvWithHeaderOnly()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var response = new WhitelistListResponse
+            {
+                Success = true,
+                Entries = new List<WhitelistEntry>(),
+                TotalCount = 0
+            };
+
+            _whitelistServiceMock.Setup(s => s.ListEntriesAsync(It.IsAny<ListWhitelistRequest>()))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.ExportWhitelistCsv(assetId);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<FileContentResult>());
+            var fileResult = result as FileContentResult;
+            var csvContent = System.Text.Encoding.UTF8.GetString(fileResult!.FileContents);
+            
+            // Should have header row
+            Assert.That(csvContent, Does.Contain("Id,AssetId,Address,Status"));
+            
+            // Should only have one line (header)
+            var lines = csvContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            Assert.That(lines.Length, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ExportWhitelistCsv_ServiceFailure_ShouldReturnInternalServerError()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var response = new WhitelistListResponse
+            {
+                Success = false,
+                ErrorMessage = "Database error"
+            };
+
+            _whitelistServiceMock.Setup(s => s.ListEntriesAsync(It.IsAny<ListWhitelistRequest>()))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.ExportWhitelistCsv(assetId);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult?.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        }
+
+        #endregion
+
+        #region CSV Import Tests
+
+        [Test]
+        public async Task ImportWhitelistCsv_ValidCsv_ShouldReturnSuccess()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var csvContent = "Address,Status,Reason\n" +
+                           "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA,Active,KYC Verified\n" +
+                           "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ,Active,Accredited";
+
+            var csvBytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+            var file = new FormFile(new MemoryStream(csvBytes), 0, csvBytes.Length, "file", "test.csv")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+
+            var bulkResponse = new BulkWhitelistResponse
+            {
+                Success = true,
+                SuccessCount = 2,
+                FailedCount = 0
+            };
+
+            _whitelistServiceMock.Setup(s => s.BulkAddEntriesAsync(It.IsAny<BulkAddWhitelistRequest>(), It.IsAny<string>()))
+                .ReturnsAsync(bulkResponse);
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var response = okResult?.Value as BulkWhitelistResponse;
+            Assert.That(response?.Success, Is.True);
+            Assert.That(response?.SuccessCount, Is.EqualTo(2));
+            Assert.That(response?.FailedCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_NoFile_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var assetId = 12345UL;
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, null!);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var badResult = result as BadRequestObjectResult;
+            var response = badResult?.Value as BulkWhitelistResponse;
+            Assert.That(response?.ErrorMessage, Does.Contain("No file uploaded"));
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_EmptyFile_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var file = new FormFile(new MemoryStream(), 0, 0, "file", "test.csv")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_FileTooLarge_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var largeBytes = new byte[2 * 1024 * 1024]; // 2 MB
+            var file = new FormFile(new MemoryStream(largeBytes), 0, largeBytes.Length, "file", "test.csv")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var badResult = result as BadRequestObjectResult;
+            var response = badResult?.Value as BulkWhitelistResponse;
+            Assert.That(response?.ErrorMessage, Does.Contain("exceeds maximum"));
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_WrongFileExtension_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var content = "some content";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "test.txt")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/plain"
+            };
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var badResult = result as BadRequestObjectResult;
+            var response = badResult?.Value as BulkWhitelistResponse;
+            Assert.That(response?.ErrorMessage, Does.Contain(".csv extension"));
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_NoAddressColumn_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var csvContent = "Name,Value\nTest,123";
+            var csvBytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+            var file = new FormFile(new MemoryStream(csvBytes), 0, csvBytes.Length, "file", "test.csv")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var badResult = result as BadRequestObjectResult;
+            var response = badResult?.Value as BulkWhitelistResponse;
+            Assert.That(response?.ErrorMessage, Does.Contain("'Address' column"));
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_NoValidAddresses_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var csvContent = "Address\n\n\n"; // Empty addresses
+            var csvBytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+            var file = new FormFile(new MemoryStream(csvBytes), 0, csvBytes.Length, "file", "test.csv")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            var badResult = result as BadRequestObjectResult;
+            var response = badResult?.Value as BulkWhitelistResponse;
+            Assert.That(response?.ErrorMessage, Does.Contain("No valid addresses"));
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_NoUserInContext_ShouldReturnUnauthorized()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var csvContent = "Address\nVCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA";
+            var csvBytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+            var file = new FormFile(new MemoryStream(csvBytes), 0, csvBytes.Length, "file", "test.csv")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+
+            // Set up controller with no user context
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
+            };
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<UnauthorizedObjectResult>());
+        }
+
+        [Test]
+        public async Task ImportWhitelistCsv_WithOptionalFields_ShouldParseCorrectly()
+        {
+            // Arrange
+            var assetId = 12345UL;
+            var csvContent = "Address,Status,Reason,KycVerified,Network\n" +
+                           "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA,Active,KYC Verified,true,voimain-v1.0";
+
+            var csvBytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
+            var file = new FormFile(new MemoryStream(csvBytes), 0, csvBytes.Length, "file", "test.csv")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/csv"
+            };
+
+            BulkAddWhitelistRequest? capturedRequest = null;
+            _whitelistServiceMock.Setup(s => s.BulkAddEntriesAsync(It.IsAny<BulkAddWhitelistRequest>(), It.IsAny<string>()))
+                .Callback<BulkAddWhitelistRequest, string>((r, u) => capturedRequest = r)
+                .ReturnsAsync(new BulkWhitelistResponse { Success = true, SuccessCount = 1 });
+
+            // Act
+            var result = await _controller.ImportWhitelistCsv(assetId, file);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            Assert.That(capturedRequest, Is.Not.Null);
+            Assert.That(capturedRequest!.AssetId, Is.EqualTo(assetId));
+            Assert.That(capturedRequest.Addresses, Has.Count.EqualTo(1));
+            Assert.That(capturedRequest.Status, Is.EqualTo(WhitelistStatus.Active));
+            Assert.That(capturedRequest.Reason, Is.EqualTo("KYC Verified"));
+            Assert.That(capturedRequest.KycVerified, Is.True);
+            Assert.That(capturedRequest.Network, Is.EqualTo("voimain-v1.0"));
+        }
+
+        #endregion
     }
 }

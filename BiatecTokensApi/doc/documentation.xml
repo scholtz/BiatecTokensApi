@@ -2116,6 +2116,84 @@
             <param name="value">The value to escape</param>
             <returns>The escaped value</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ExportWhitelistCsv(System.UInt64,System.Nullable{BiatecTokensApi.Models.Whitelist.WhitelistStatus})">
+            <summary>
+            Exports whitelist entries for a specific token as CSV
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <param name="status">Optional status filter</param>
+            <returns>CSV file with whitelist entries</returns>
+            <remarks>
+            Exports up to 10,000 whitelist entries in CSV format for the specified token.
+            
+            **CSV Format:**
+            - UTF-8 encoding with proper CSV escaping
+            - Header row included
+            - Columns: Id, AssetId, Address, Status, CreatedBy, CreatedAt, UpdatedAt, UpdatedBy, Reason, ExpirationDate, KycVerified, KycVerificationDate, KycProvider, Network, Role
+            
+            **Use Cases:**
+            - Backup whitelist data for disaster recovery
+            - Export for offline review or external processing
+            - Create templates for bulk import
+            
+            **Max Records**: 10,000 per export
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ImportWhitelistCsv(System.UInt64,Microsoft.AspNetCore.Http.IFormFile)">
+            <summary>
+            Imports whitelist entries from a CSV file
+            </summary>
+            <param name="assetId">The asset ID (token ID) for which to import entries</param>
+            <param name="file">The CSV file to import</param>
+            <returns>The result of the bulk import operation</returns>
+            <remarks>
+            Imports whitelist entries from a CSV file for the specified token.
+            
+            **CSV Format Requirements:**
+            - UTF-8 encoding
+            - Header row required with column: Address (required), Status (optional), Reason (optional), KycVerified (optional), Network (optional)
+            - Minimal format: just "Address" column with one address per line
+            - Maximum 1000 addresses per file
+            - File size limit: 1 MB
+            
+            **Supported Columns:**
+            - **Address** (required): Algorand address to whitelist
+            - **Status** (optional): Active, Inactive, or Revoked (defaults to Active)
+            - **Reason** (optional): Reason for whitelisting
+            - **KycVerified** (optional): true or false (defaults to false)
+            - **KycProvider** (optional): Name of KYC provider
+            - **Network** (optional): voimain-v1.0, aramidmain-v1.0, etc.
+            - **ExpirationDate** (optional): ISO 8601 date format
+            
+            **Example CSV:**
+            ```
+            Address,Status,Reason,KycVerified,Network
+            VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA,Active,Accredited Investor,true,voimain-v1.0
+            AAAA...AAA,Active,KYC Verified,true,aramidmain-v1.0
+            ```
+            
+            **Validation:**
+            - All addresses are validated for correct Algorand format
+            - Network-specific rules are enforced (VOI/Aramid requirements)
+            - Invalid rows are skipped and reported in the response
+            
+            **Response:**
+            - Returns count of successful and failed imports
+            - Lists failed addresses with reasons
+            
+            This operation emits a metering event for billing analytics.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.ParseCsvLine(System.String)">
+            <summary>
+            Helper method to parse a CSV line handling quoted values
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.WhitelistController.CsvRowMetadata">
+            <summary>
+            Helper class to store CSV row metadata
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.WhitelistRulesController">
             <summary>
             Provides endpoints for managing RWA token whitelisting rules (MICA-compliant)
