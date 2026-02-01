@@ -1,5 +1,6 @@
 using AlgorandAuthenticationV2;
 using BiatecTokensApi.Configuration;
+using BiatecTokensApi.Middleware;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
@@ -35,7 +36,12 @@ namespace BiatecTokensApi
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddHealthChecks();
+            
+            // Register health checks with detailed component monitoring
+            builder.Services.AddHealthChecks()
+                .AddCheck<BiatecTokensApi.HealthChecks.IPFSHealthCheck>("ipfs", tags: new[] { "ipfs", "external" })
+                .AddCheck<BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck>("algorand", tags: new[] { "algorand", "blockchain", "external" })
+                .AddCheck<BiatecTokensApi.HealthChecks.EVMChainHealthCheck>("evm", tags: new[] { "evm", "blockchain", "external" });
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
@@ -141,6 +147,12 @@ namespace BiatecTokensApi
 
             var app = builder.Build();
 
+            // Add global exception handler middleware (should be first)
+            app.UseGlobalExceptionHandler();
+            
+            // Add request/response logging middleware for debugging
+            app.UseRequestResponseLogging();
+
             app.UseSwagger();
             app.UseSwaggerUI();
             app.UseCors("cors");
@@ -150,7 +162,19 @@ namespace BiatecTokensApi
             app.UseAuthorization();
 
             app.MapControllers();
+            
+            // Map health check endpoints
+            // Basic health check for simple monitoring
             app.MapHealthChecks("/health");
+            
+            // Readiness probe - checks if app is ready to receive traffic
+            app.MapHealthChecks("/health/ready");
+            
+            // Liveness probe - checks if app is running
+            app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = _ => false // Don't run any checks, just verify app is responsive
+            });
 
             _ = app.Services.GetService<IARC3TokenService>() ?? throw new Exception("ARC3 Token Service is not registered");
             _ = app.Services.GetService<IARC200TokenService>() ?? throw new Exception("ARC200 Token Service is not registered");

@@ -1551,6 +1551,39 @@
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.StatusController">
+            <summary>
+            Provides health check and status endpoints for monitoring API health and dependencies
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.StatusController.#ctor(Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.StatusController},Microsoft.Extensions.Hosting.IHostEnvironment)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.StatusController"/> class.
+            </summary>
+            <param name="healthCheckService">Health check service</param>
+            <param name="logger">Logger instance</param>
+            <param name="env">Host environment</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.StatusController.GetStatus">
+            <summary>
+            Gets detailed API status including component health
+            </summary>
+            <returns>Comprehensive API status information</returns>
+            <remarks>
+            This endpoint provides detailed information about:
+            - Overall API health status
+            - Version and build information
+            - Uptime
+            - Individual component health (IPFS, Algorand networks, EVM chains)
+            - Environment information
+            
+            **Use Cases:**
+            - Monitoring dashboards
+            - Health checks for orchestration systems
+            - Troubleshooting connectivity issues
+            - Verifying service configuration
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.TokenController">
             <summary>
             Provides endpoints for creating and managing various types of tokens, including ERC-20, ARC3 fungible tokens,
@@ -3019,6 +3052,230 @@
         <member name="M:BiatecTokensApi.Generated.Arc200Proxy.CreateApplication(Algorand.Algod.Model.Account,System.Nullable{System.UInt64},System.String,System.UInt64,System.Collections.Generic.List{Algorand.Algod.Model.BoxRef},System.Collections.Generic.List{Algorand.Algod.Model.Transactions.Transaction},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{System.UInt64},System.Collections.Generic.List{Algorand.Address},AVM.ClientGenerator.Core.OnCompleteType)">
             <summary>
             Constructor Bare Action
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck">
+            <summary>
+            Health check for Algorand network connectivity
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck.#ctor(Microsoft.Extensions.Options.IOptions{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck"/> class.
+            </summary>
+            <param name="authOptions">Algorand authentication options</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck.CheckHealthAsync(Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext,System.Threading.CancellationToken)">
+            <summary>
+            Checks the health of configured Algorand networks
+            </summary>
+            <param name="context">Health check context</param>
+            <param name="cancellationToken">Cancellation token</param>
+            <returns>Health check result</returns>
+        </member>
+        <member name="T:BiatecTokensApi.HealthChecks.EVMChainHealthCheck">
+            <summary>
+            Health check for EVM blockchain RPC connectivity
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.EVMChainHealthCheck.#ctor(Microsoft.Extensions.Options.IOptions{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.HealthChecks.EVMChainHealthCheck})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.HealthChecks.EVMChainHealthCheck"/> class.
+            </summary>
+            <param name="evmChains">EVM chains configuration</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.EVMChainHealthCheck.CheckHealthAsync(Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext,System.Threading.CancellationToken)">
+            <summary>
+            Checks the health of configured EVM chains
+            </summary>
+            <param name="context">Health check context</param>
+            <param name="cancellationToken">Cancellation token</param>
+            <returns>Health check result</returns>
+        </member>
+        <member name="T:BiatecTokensApi.HealthChecks.IPFSHealthCheck">
+            <summary>
+            Health check for IPFS API availability
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.IPFSHealthCheck.#ctor(Microsoft.Extensions.Options.IOptions{BiatecTokensApi.Configuration.IPFSConfig},System.Net.Http.HttpClient,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.HealthChecks.IPFSHealthCheck})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.HealthChecks.IPFSHealthCheck"/> class.
+            </summary>
+            <param name="config">IPFS configuration</param>
+            <param name="httpClient">HTTP client for health checks</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.IPFSHealthCheck.CheckHealthAsync(Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext,System.Threading.CancellationToken)">
+            <summary>
+            Checks the health of the IPFS API
+            </summary>
+            <param name="context">Health check context</param>
+            <param name="cancellationToken">Cancellation token</param>
+            <returns>Health check result</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware">
+            <summary>
+            Global exception handling middleware that catches unhandled exceptions and returns standardized error responses
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware},Microsoft.Extensions.Hosting.IHostEnvironment)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware"/> class.
+            </summary>
+            <param name="next">The next middleware in the pipeline</param>
+            <param name="logger">Logger instance</param>
+            <param name="env">Host environment</param>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>
+            Invokes the middleware
+            </summary>
+            <param name="context">HTTP context</param>
+            <returns>Task representing the async operation</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddlewareExtensions">
+            <summary>
+            Extension methods for registering the global exception handler middleware
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddlewareExtensions.UseGlobalExceptionHandler(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>
+            Adds the global exception handler middleware to the application pipeline
+            </summary>
+            <param name="app">The application builder</param>
+            <returns>The application builder for method chaining</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware">
+            <summary>
+            Middleware for logging HTTP requests and responses for debugging and monitoring
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware"/> class.
+            </summary>
+            <param name="next">The next middleware in the pipeline</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>
+            Invokes the middleware
+            </summary>
+            <param name="context">HTTP context</param>
+            <returns>Task representing the async operation</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Middleware.RequestResponseLoggingMiddlewareExtensions">
+            <summary>
+            Extension methods for registering the request/response logging middleware
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.RequestResponseLoggingMiddlewareExtensions.UseRequestResponseLogging(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>
+            Adds the request/response logging middleware to the application pipeline
+            </summary>
+            <param name="app">The application builder</param>
+            <returns>The application builder for method chaining</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ApiErrorResponse">
+            <summary>
+            Standardized error response structure for API errors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.Success">
+            <summary>
+            Indicates if the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.ErrorCode">
+            <summary>
+            Error code for programmatic error handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.ErrorMessage">
+            <summary>
+            Human-readable error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.Details">
+            <summary>
+            Additional details about the error (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.Timestamp">
+            <summary>
+            Timestamp when the error occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.Path">
+            <summary>
+            Request path that caused the error
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracing requests across services
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ApiStatusResponse">
+            <summary>
+            Response model for the API status endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiStatusResponse.Status">
+            <summary>
+            Overall API status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiStatusResponse.Version">
+            <summary>
+            API version
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiStatusResponse.BuildTime">
+            <summary>
+            API build timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiStatusResponse.Timestamp">
+            <summary>
+            Current server timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiStatusResponse.Uptime">
+            <summary>
+            Application uptime
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiStatusResponse.Environment">
+            <summary>
+            Environment name (Development, Production, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiStatusResponse.Components">
+            <summary>
+            Status of individual components
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComponentStatus">
+            <summary>
+            Status information for an individual component
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComponentStatus.Status">
+            <summary>
+            Component status: Healthy, Degraded, or Unhealthy
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComponentStatus.Message">
+            <summary>
+            Status description or error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComponentStatus.Details">
+            <summary>
+            Additional component details
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.AppConfiguration">
