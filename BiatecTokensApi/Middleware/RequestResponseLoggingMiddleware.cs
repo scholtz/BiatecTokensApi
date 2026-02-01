@@ -10,13 +10,6 @@ namespace BiatecTokensApi.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
-        private readonly HashSet<string> _sensitiveHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Authorization",
-            "Cookie",
-            "Set-Cookie",
-            "X-API-Key"
-        };
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RequestResponseLoggingMiddleware"/> class.
