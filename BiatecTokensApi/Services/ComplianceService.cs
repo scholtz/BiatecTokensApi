@@ -4132,10 +4132,17 @@ namespace BiatecTokensApi.Services
                 }
 
                 // Emit AML status change event if verification status changed and provider info exists
-                // Note: The ComplianceMetadata model currently uses VerificationStatus for both KYC and AML.
-                // This event is emitted when verification status changes and a provider is specified,
-                // as AML verification is typically performed by the same provider as KYC verification.
-                // If dedicated AML fields are added to the model in the future, this logic should be updated.
+                // 
+                // IMPORTANT: Both KYC and AML events are intentionally emitted when VerificationStatus changes.
+                // This is by design because:
+                // 1. Enterprise clients may have separate systems monitoring KYC vs AML compliance
+                // 2. Different teams may subscribe to different event types for workflow routing
+                // 3. The ComplianceMetadata model uses VerificationStatus for both KYC and AML verification
+                //    since they are typically performed together by the same provider
+                // 4. Clients can filter webhook subscriptions to receive only the events they need
+                //
+                // Future enhancement: If the model is extended with dedicated AML-specific fields,
+                // this logic should be updated to emit AML events only when those fields change.
                 if ((oldMetadata == null || oldMetadata.VerificationStatus != newMetadata.VerificationStatus) &&
                     !string.IsNullOrEmpty(newMetadata.KycProvider))
                 {

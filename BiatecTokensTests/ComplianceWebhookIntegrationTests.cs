@@ -8,6 +8,19 @@ using Moq;
 
 namespace BiatecTokensTests
 {
+    /// <summary>
+    /// Integration tests for compliance webhook emission from ComplianceService.
+    /// 
+    /// Note on test delays: These tests use Task.Delay to wait for async webhook processing.
+    /// Webhooks are emitted asynchronously via fire-and-forget Task.Run in WebhookService.EmitEventAsync,
+    /// and delivery occurs in background threads. The delays (100-400ms) allow sufficient time for:
+    /// - Webhook event emission
+    /// - Delivery attempt to webhook repository
+    /// - Storage of delivery results
+    /// 
+    /// This is a standard pattern for integration tests with async background operations.
+    /// Production code does not have these delays and processes webhooks immediately.
+    /// </summary>
     [TestFixture]
     public class ComplianceWebhookIntegrationTests
     {
