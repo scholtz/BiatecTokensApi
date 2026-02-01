@@ -1075,6 +1075,166 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Verifies allowlist status for a sender/recipient pair for regulated transfers
+        /// </summary>
+        /// <param name="request">The allowlist verification request</param>
+        /// <returns>Verification response with statuses (approved/pending/expired/denied) and audit metadata</returns>
+        /// <remarks>
+        /// This endpoint verifies the allowlist status for both sender and recipient addresses to support
+        /// MICA-compliant regulated transfers for RWA tokens. The response includes:
+        /// 
+        /// - **Participant Statuses**: Detailed status for both sender and recipient (Approved/Pending/Expired/Denied)
+        /// - **Transfer Status**: Overall determination if transfer is allowed or blocked
+        /// - **MICA Compliance Disclosures**: Regulatory requirements based on network
+        /// - **Audit Metadata**: Complete audit trail with verification ID, timestamp, and performer
+        /// 
+        /// **Status Definitions**:
+        /// - **Approved**: Address is actively whitelisted and can participate in transfers
+        /// - **Pending**: Address approval is pending (e.g., awaiting KYC completion)
+        /// - **Expired**: Address approval has expired and requires renewal
+        /// - **Denied**: Address is not whitelisted or has been revoked
+        /// 
+        /// **MICA Networks**: VOI (voimain-v1.0) and Aramid (aramidmain-v1.0) require MICA compliance
+        /// 
+        /// **Caching**: Responses are cacheable for short windows (60 seconds) as indicated by Cache-Control header
+        /// 
+        /// **Example Request**:
+        /// ```json
+        /// {
+        ///   "assetId": 12345,
+        ///   "senderAddress": "SENDER_ALGORAND_ADDRESS",
+        ///   "recipientAddress": "RECIPIENT_ALGORAND_ADDRESS",
+        ///   "network": "voimain-v1.0"
+        /// }
+        /// ```
+        /// 
+        /// **Example Response (Approved)**:
+        /// ```json
+        /// {
+        ///   "success": true,
+        ///   "assetId": 12345,
+        ///   "senderStatus": {
+        ///     "address": "SENDER_ADDRESS",
+        ///     "status": "Approved",
+        ///     "isWhitelisted": true,
+        ///     "approvedDate": "2026-01-15T10:00:00Z",
+        ///     "kycVerified": true,
+        ///     "kycProvider": "KYC Provider Inc"
+        ///   },
+        ///   "recipientStatus": {
+        ///     "address": "RECIPIENT_ADDRESS",
+        ///     "status": "Approved",
+        ///     "isWhitelisted": true,
+        ///     "approvedDate": "2026-01-20T14:30:00Z",
+        ///     "kycVerified": true
+        ///   },
+        ///   "transferStatus": "Allowed",
+        ///   "micaDisclosure": {
+        ///     "requiresMicaCompliance": true,
+        ///     "network": "voimain-v1.0",
+        ///     "applicableRegulations": [
+        ///       "MiCA Article 41 - Safeguarding of crypto-assets",
+        ///       "MiCA Article 76 - Obligations of issuers",
+        ///       "MiCA Article 88 - Whitelist and KYC requirements"
+        ///     ],
+        ///     "complianceCheckDate": "2026-02-01T15:20:00Z"
+        ///   },
+        ///   "auditMetadata": {
+        ///     "verificationId": "uuid-here",
+        ///     "performedBy": "ADMIN_ADDRESS",
+        ///     "verifiedAt": "2026-02-01T15:20:00Z",
+        ///     "source": "API"
+        ///   },
+        ///   "cacheDurationSeconds": 60
+        /// }
+        /// ```
+        /// 
+        /// **Example Response (Blocked)**:
+        /// ```json
+        /// {
+        ///   "success": true,
+        ///   "assetId": 12345,
+        ///   "senderStatus": {
+        ///     "address": "SENDER_ADDRESS",
+        ///     "status": "Expired",
+        ///     "isWhitelisted": true,
+        ///     "expirationDate": "2026-01-01T00:00:00Z",
+        ///     "statusNotes": "Whitelist entry has expired"
+        ///   },
+        ///   "recipientStatus": {
+        ///     "address": "RECIPIENT_ADDRESS",
+        ///     "status": "Denied",
+        ///     "isWhitelisted": false,
+        ///     "statusNotes": "Address is not whitelisted"
+        ///   },
+        ///   "transferStatus": "BlockedBoth"
+        /// }
+        /// ```
+        /// </remarks>
+        [HttpPost("verify-allowlist-status")]
+        [ProducesResponseType(typeof(VerifyAllowlistStatusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> VerifyAllowlistStatus([FromBody] VerifyAllowlistStatusRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var performedBy = GetUserAddress();
+                
+                if (string.IsNullOrEmpty(performedBy))
+                {
+                    _logger.LogWarning("Failed to get user address from authentication context for allowlist verification");
+                    return Unauthorized(new VerifyAllowlistStatusResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User address not found in authentication context",
+                        AssetId = request.AssetId
+                    });
+                }
+
+                var result = await _whitelistService.VerifyAllowlistStatusAsync(request, performedBy);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Verified allowlist status for asset {AssetId} from {Sender} to {Recipient} by {PerformedBy}: {TransferStatus}",
+                        request.AssetId, request.SenderAddress, request.RecipientAddress, performedBy,
+                        result.TransferStatus);
+                    
+                    // Add cache control header for short-term caching
+                    Response.Headers.Append("Cache-Control", $"public, max-age={result.CacheDurationSeconds}");
+                    
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError(
+                        "Failed to verify allowlist status for asset {AssetId} from {Sender} to {Recipient}: {Error}",
+                        request.AssetId, request.SenderAddress, request.RecipientAddress, result.ErrorMessage);
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, 
+                    "Exception verifying allowlist status for asset {AssetId} from {Sender} to {Recipient}",
+                    request.AssetId, request.SenderAddress, request.RecipientAddress);
+                return StatusCode(StatusCodes.Status500InternalServerError, new VerifyAllowlistStatusResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while verifying allowlist status. Please try again or contact support.",
+                    AssetId = request.AssetId
+                });
+            }
+        }
+
+        /// <summary>
         /// Gets the authenticated user's Algorand address from the claims
         /// </summary>
         /// <returns>The user's Algorand address or empty string if not found</returns>

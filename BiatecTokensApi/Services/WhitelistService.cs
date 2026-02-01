@@ -1217,5 +1217,295 @@ namespace BiatecTokensApi.Services
 
             return summary;
         }
+
+        /// <summary>
+        /// Verifies allowlist status for a sender/recipient pair for regulated transfers
+        /// </summary>
+        /// <param name="request">The allowlist verification request</param>
+        /// <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
+        /// <returns>The verification response with statuses and compliance disclosures</returns>
+        public async Task<VerifyAllowlistStatusResponse> VerifyAllowlistStatusAsync(VerifyAllowlistStatusRequest request, string performedBy)
+        {
+            try
+            {
+                // Validate addresses
+                if (!IsValidAlgorandAddress(request.SenderAddress))
+                {
+                    return new VerifyAllowlistStatusResponse
+                    {
+                        Success = false,
+                        ErrorMessage = $"Invalid sender address format: {request.SenderAddress}",
+                        AssetId = request.AssetId
+                    };
+                }
+
+                if (!IsValidAlgorandAddress(request.RecipientAddress))
+                {
+                    return new VerifyAllowlistStatusResponse
+                    {
+                        Success = false,
+                        ErrorMessage = $"Invalid recipient address format: {request.RecipientAddress}",
+                        AssetId = request.AssetId
+                    };
+                }
+
+                // Get whitelist entries
+                var senderEntry = await _repository.GetEntryAsync(request.AssetId, request.SenderAddress);
+                var recipientEntry = await _repository.GetEntryAsync(request.AssetId, request.RecipientAddress);
+
+                // Determine sender status
+                var senderStatus = DetermineAllowlistStatus(senderEntry, request.SenderAddress);
+
+                // Determine recipient status
+                var recipientStatus = DetermineAllowlistStatus(recipientEntry, request.RecipientAddress);
+
+                // Determine overall transfer status
+                var transferStatus = DetermineTransferStatus(senderStatus, recipientStatus);
+
+                // Create MICA compliance disclosure
+                var micaDisclosure = CreateMicaDisclosure(request.Network);
+
+                // Create audit metadata
+                var auditMetadata = new AllowlistAuditMetadata
+                {
+                    VerificationId = Guid.NewGuid().ToString(),
+                    PerformedBy = performedBy,
+                    VerifiedAt = DateTime.UtcNow,
+                    Source = "API"
+                };
+
+                // Log verification audit entry
+                await LogVerificationAudit(request, performedBy, senderStatus, recipientStatus, transferStatus);
+
+                return new VerifyAllowlistStatusResponse
+                {
+                    Success = true,
+                    AssetId = request.AssetId,
+                    SenderStatus = senderStatus,
+                    RecipientStatus = recipientStatus,
+                    TransferStatus = transferStatus,
+                    MicaDisclosure = micaDisclosure,
+                    AuditMetadata = auditMetadata,
+                    CacheDurationSeconds = 60 // Short cache window for compliance data
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying allowlist status for asset {AssetId} from {Sender} to {Recipient}",
+                    request.AssetId, request.SenderAddress, request.RecipientAddress);
+                return new VerifyAllowlistStatusResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while verifying allowlist status",
+                    AssetId = request.AssetId
+                };
+            }
+        }
+
+        /// <summary>
+        /// Determines the allowlist status for a participant based on their whitelist entry
+        /// </summary>
+        private AllowlistParticipantStatus DetermineAllowlistStatus(WhitelistEntry? entry, string address)
+        {
+            if (entry == null)
+            {
+                // Not whitelisted
+                return new AllowlistParticipantStatus
+                {
+                    Address = address,
+                    Status = AllowlistStatus.Denied,
+                    IsWhitelisted = false,
+                    StatusNotes = "Address is not whitelisted"
+                };
+            }
+
+            // Check if expired
+            if (entry.ExpirationDate.HasValue && entry.ExpirationDate.Value < DateTime.UtcNow)
+            {
+                return new AllowlistParticipantStatus
+                {
+                    Address = address,
+                    Status = AllowlistStatus.Expired,
+                    IsWhitelisted = true,
+                    ApprovedDate = entry.CreatedAt,
+                    ExpirationDate = entry.ExpirationDate,
+                    KycVerified = entry.KycVerified,
+                    KycProvider = entry.KycProvider,
+                    StatusNotes = "Whitelist entry has expired"
+                };
+            }
+
+            // Check whitelist status
+            switch (entry.Status)
+            {
+                case WhitelistStatus.Active:
+                    return new AllowlistParticipantStatus
+                    {
+                        Address = address,
+                        Status = AllowlistStatus.Approved,
+                        IsWhitelisted = true,
+                        ApprovedDate = entry.CreatedAt,
+                        ExpirationDate = entry.ExpirationDate,
+                        KycVerified = entry.KycVerified,
+                        KycProvider = entry.KycProvider,
+                        StatusNotes = "Address is approved and active"
+                    };
+
+                case WhitelistStatus.Inactive:
+                    return new AllowlistParticipantStatus
+                    {
+                        Address = address,
+                        Status = AllowlistStatus.Pending,
+                        IsWhitelisted = true,
+                        ApprovedDate = entry.CreatedAt,
+                        ExpirationDate = entry.ExpirationDate,
+                        KycVerified = entry.KycVerified,
+                        KycProvider = entry.KycProvider,
+                        StatusNotes = "Whitelist entry is pending or inactive"
+                    };
+
+                case WhitelistStatus.Revoked:
+                    return new AllowlistParticipantStatus
+                    {
+                        Address = address,
+                        Status = AllowlistStatus.Denied,
+                        IsWhitelisted = false,
+                        ApprovedDate = entry.CreatedAt,
+                        KycVerified = entry.KycVerified,
+                        KycProvider = entry.KycProvider,
+                        StatusNotes = "Whitelist entry has been revoked"
+                    };
+
+                default:
+                    return new AllowlistParticipantStatus
+                    {
+                        Address = address,
+                        Status = AllowlistStatus.Denied,
+                        IsWhitelisted = false,
+                        StatusNotes = "Unknown whitelist status"
+                    };
+            }
+        }
+
+        /// <summary>
+        /// Determines the overall transfer status based on sender and recipient statuses
+        /// </summary>
+        private AllowlistTransferStatus DetermineTransferStatus(
+            AllowlistParticipantStatus senderStatus,
+            AllowlistParticipantStatus recipientStatus)
+        {
+            bool senderApproved = senderStatus.Status == AllowlistStatus.Approved;
+            bool recipientApproved = recipientStatus.Status == AllowlistStatus.Approved;
+
+            if (senderApproved && recipientApproved)
+            {
+                return AllowlistTransferStatus.Allowed;
+            }
+            else if (!senderApproved && !recipientApproved)
+            {
+                return AllowlistTransferStatus.BlockedBoth;
+            }
+            else if (!senderApproved)
+            {
+                return AllowlistTransferStatus.BlockedSender;
+            }
+            else
+            {
+                return AllowlistTransferStatus.BlockedRecipient;
+            }
+        }
+
+        /// <summary>
+        /// Creates MICA compliance disclosure based on network
+        /// </summary>
+        private MicaComplianceDisclosure CreateMicaDisclosure(string? network)
+        {
+            var disclosure = new MicaComplianceDisclosure
+            {
+                Network = network ?? "unknown",
+                ComplianceCheckDate = DateTime.UtcNow
+            };
+
+            // Check if network requires MICA compliance (VOI and Aramid)
+            if (!string.IsNullOrEmpty(network))
+            {
+                var networkLower = network.ToLowerInvariant();
+                disclosure.RequiresMicaCompliance = networkLower.Contains("voimain") || networkLower.Contains("aramidmain");
+
+                if (disclosure.RequiresMicaCompliance)
+                {
+                    disclosure.ApplicableRegulations = new List<string>
+                    {
+                        "MiCA Article 41 - Safeguarding of crypto-assets and client funds",
+                        "MiCA Article 76 - Obligations of issuers of asset-referenced tokens",
+                        "MiCA Article 88 - Whitelist and KYC requirements for RWA tokens"
+                    };
+                    disclosure.ComplianceNotes = $"Network {network} requires MICA compliance. Ensure all participants complete KYC verification and maintain active whitelist status.";
+                }
+                else
+                {
+                    disclosure.ComplianceNotes = $"Network {network} supports optional compliance features. MICA compliance can be achieved through metadata and whitelisting configuration.";
+                }
+            }
+            else
+            {
+                disclosure.ComplianceNotes = "Network not specified. Unable to determine MICA compliance requirements.";
+            }
+
+            return disclosure;
+        }
+
+        /// <summary>
+        /// Logs verification audit entry
+        /// </summary>
+        private async Task LogVerificationAudit(
+            VerifyAllowlistStatusRequest request,
+            string performedBy,
+            AllowlistParticipantStatus senderStatus,
+            AllowlistParticipantStatus recipientStatus,
+            AllowlistTransferStatus transferStatus)
+        {
+            try
+            {
+                var auditEntry = new WhitelistAuditLogEntry
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    AssetId = request.AssetId,
+                    Address = request.SenderAddress,
+                    ToAddress = request.RecipientAddress,
+                    ActionType = WhitelistActionType.TransferValidation,
+                    PerformedBy = performedBy,
+                    PerformedAt = DateTime.UtcNow,
+                    Network = request.Network,
+                    TransferAllowed = transferStatus == AllowlistTransferStatus.Allowed,
+                    DenialReason = transferStatus != AllowlistTransferStatus.Allowed
+                        ? $"Transfer blocked: {GetTransferStatusDescription(transferStatus)}"
+                        : null,
+                    Notes = $"Sender status: {senderStatus.Status}, Recipient status: {recipientStatus.Status}"
+                };
+
+                await _repository.AddAuditLogEntryAsync(auditEntry);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to log verification audit entry for asset {AssetId}", request.AssetId);
+                // Don't fail the verification if audit logging fails
+            }
+        }
+
+        /// <summary>
+        /// Gets a human-readable description of the transfer status
+        /// </summary>
+        private string GetTransferStatusDescription(AllowlistTransferStatus status)
+        {
+            return status switch
+            {
+                AllowlistTransferStatus.Allowed => "Transfer is allowed",
+                AllowlistTransferStatus.BlockedSender => "Sender is not approved",
+                AllowlistTransferStatus.BlockedRecipient => "Recipient is not approved",
+                AllowlistTransferStatus.BlockedBoth => "Both sender and recipient are not approved",
+                _ => "Unknown status"
+            };
+        }
     }
 }
