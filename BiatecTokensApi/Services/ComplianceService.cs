@@ -25,6 +25,11 @@ namespace BiatecTokensApi.Services
         /// </summary>
         private const string SystemActor = "System";
 
+        // Webhook event data constants
+        private const string NoStatusValue = "None";
+        private const string UnknownValue = "Unknown";
+        private const string NotSetValue = "Not set";
+
         // Dashboard aggregation limits to prevent performance issues
         private const int MaxAggregationAssets = 10000;
         private const int MaxWhitelistEntriesPerAsset = 1000;
@@ -4079,11 +4084,11 @@ namespace BiatecTokensApi.Services
                         Actor = actor,
                         Data = new Dictionary<string, object>
                         {
-                            ["oldStatus"] = oldMetadata?.VerificationStatus.ToString() ?? "None",
+                            ["oldStatus"] = oldMetadata?.VerificationStatus.ToString() ?? NoStatusValue,
                             ["newStatus"] = newMetadata.VerificationStatus.ToString(),
-                            ["kycProvider"] = newMetadata.KycProvider ?? "Unknown",
-                            ["verificationDate"] = newMetadata.KycVerificationDate?.ToString("O") ?? "Not set",
-                            ["issuerName"] = newMetadata.IssuerName ?? "Unknown"
+                            ["kycProvider"] = newMetadata.KycProvider ?? UnknownValue,
+                            ["verificationDate"] = newMetadata.KycVerificationDate?.ToString("O") ?? NotSetValue,
+                            ["issuerName"] = newMetadata.IssuerName ?? UnknownValue
                         }
                     };
 
@@ -4092,7 +4097,7 @@ namespace BiatecTokensApi.Services
                     _logger.LogInformation(
                         "Emitted KYC status change webhook event for asset {AssetId}: {OldStatus} -> {NewStatus}",
                         newMetadata.AssetId,
-                        oldMetadata?.VerificationStatus.ToString() ?? "None",
+                        oldMetadata?.VerificationStatus.ToString() ?? NoStatusValue,
                         newMetadata.VerificationStatus.ToString());
                 }
 
@@ -4107,12 +4112,12 @@ namespace BiatecTokensApi.Services
                         Actor = actor,
                         Data = new Dictionary<string, object>
                         {
-                            ["oldStatus"] = oldMetadata?.ComplianceStatus.ToString() ?? "None",
+                            ["oldStatus"] = oldMetadata?.ComplianceStatus.ToString() ?? NoStatusValue,
                             ["newStatus"] = newMetadata.ComplianceStatus.ToString(),
-                            ["jurisdiction"] = newMetadata.Jurisdiction ?? "Unknown",
-                            ["regulatoryFramework"] = newMetadata.RegulatoryFramework ?? "Unknown",
-                            ["lastReview"] = newMetadata.LastComplianceReview?.ToString("O") ?? "Not set",
-                            ["nextReview"] = newMetadata.NextComplianceReview?.ToString("O") ?? "Not set",
+                            ["jurisdiction"] = newMetadata.Jurisdiction ?? UnknownValue,
+                            ["regulatoryFramework"] = newMetadata.RegulatoryFramework ?? UnknownValue,
+                            ["lastReview"] = newMetadata.LastComplianceReview?.ToString("O") ?? NotSetValue,
+                            ["nextReview"] = newMetadata.NextComplianceReview?.ToString("O") ?? NotSetValue,
                             ["requiresAccreditedInvestors"] = newMetadata.RequiresAccreditedInvestors
                         }
                     };
@@ -4122,12 +4127,15 @@ namespace BiatecTokensApi.Services
                     _logger.LogInformation(
                         "Emitted compliance badge update webhook event for asset {AssetId}: {OldStatus} -> {NewStatus}",
                         newMetadata.AssetId,
-                        oldMetadata?.ComplianceStatus.ToString() ?? "None",
+                        oldMetadata?.ComplianceStatus.ToString() ?? NoStatusValue,
                         newMetadata.ComplianceStatus.ToString());
                 }
 
-                // Emit AML status change event if any AML-related fields changed
-                // (For now, we'll emit this if verification status changed and includes AML provider info)
+                // Emit AML status change event if verification status changed and provider info exists
+                // Note: The ComplianceMetadata model currently uses VerificationStatus for both KYC and AML.
+                // This event is emitted when verification status changes and a provider is specified,
+                // as AML verification is typically performed by the same provider as KYC verification.
+                // If dedicated AML fields are added to the model in the future, this logic should be updated.
                 if ((oldMetadata == null || oldMetadata.VerificationStatus != newMetadata.VerificationStatus) &&
                     !string.IsNullOrEmpty(newMetadata.KycProvider))
                 {
@@ -4141,9 +4149,9 @@ namespace BiatecTokensApi.Services
                         {
                             ["verificationStatus"] = newMetadata.VerificationStatus.ToString(),
                             ["provider"] = newMetadata.KycProvider,
-                            ["verificationDate"] = newMetadata.KycVerificationDate?.ToString("O") ?? "Not set",
-                            ["issuerName"] = newMetadata.IssuerName ?? "Unknown",
-                            ["jurisdiction"] = newMetadata.Jurisdiction ?? "Unknown"
+                            ["verificationDate"] = newMetadata.KycVerificationDate?.ToString("O") ?? NotSetValue,
+                            ["issuerName"] = newMetadata.IssuerName ?? UnknownValue,
+                            ["jurisdiction"] = newMetadata.Jurisdiction ?? UnknownValue
                         }
                     };
 
