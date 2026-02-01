@@ -137,8 +137,18 @@ namespace BiatecTokensApi.Middleware
                 return input;
             }
 
-            // Replace any control characters or newlines that could be used for log injection
-            return Regex.Replace(input, @"[\r\n\t\x00-\x1F\x7F]", "");
+            // Remove any control characters (including newlines) that could be used for log injection
+            var builder = new StringBuilder(input.Length);
+            foreach (var ch in input)
+            {
+                // Keep only non-control characters (ASCII 0x20–0x7E and all non-ASCII)
+                if (ch >= 0x20 && ch != 0x7F)
+                {
+                    builder.Append(ch);
+                }
+            }
+
+            return builder.ToString();
         }
     }
 
