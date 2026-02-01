@@ -96,11 +96,17 @@ namespace BiatecTokensApi.Middleware
         {
             if (string.IsNullOrEmpty(input))
             {
-                return input;
+                // Ensure we never return null to the logger
+                return string.Empty;
             }
 
-            // Replace any control characters or newlines that could be used for log injection
-            return Regex.Replace(input, @"[\r\n\t\x00-\x1F\x7F]", "");
+            // Remove any control characters or newlines that could be used for log injection
+            var sanitized = Regex.Replace(input, @"[\r\n\t\x00-\x1F\x7F]", string.Empty);
+
+            // Normalize remaining whitespace to a single space and trim
+            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+
+            return sanitized;
         }
 
         private async Task HandleExceptionAsync(HttpContext context, Exception exception)
