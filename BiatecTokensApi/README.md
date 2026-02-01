@@ -516,16 +516,23 @@ For detailed documentation, see [COMPLIANCE_INDICATORS_API.md](../COMPLIANCE_IND
 
 ### Whitelist Management
 
-- `GET /api/v1/whitelist/{assetId}` - List whitelisted addresses
-- `POST /api/v1/whitelist` - Add address to whitelist (with KYC fields)
+#### CRUD Operations
+- `GET /api/v1/whitelist/{assetId}` - List whitelisted addresses with pagination
+- `POST /api/v1/whitelist` - Add single address to whitelist (with KYC fields)
 - `DELETE /api/v1/whitelist` - Remove address from whitelist
-- `POST /api/v1/whitelist/bulk` - Bulk add addresses
+- `POST /api/v1/whitelist/bulk` - Bulk add addresses (up to 1000)
 - `POST /api/v1/whitelist/validate-transfer` - Validate if transfer is allowed
-- `GET /api/v1/whitelist/{assetId}/audit-log` - Get compliance audit trail
-- `GET /api/v1/whitelist/audit-log` - Get audit logs across all assets
+
+#### CSV Import/Export
+- `GET /api/v1/whitelist/{assetId}/export/csv` - Export whitelist entries as CSV (up to 10,000 entries)
+- `POST /api/v1/whitelist/{assetId}/import/csv` - Import whitelist entries from CSV file (max 1 MB, 1000 addresses)
+
+#### Audit Trail & Compliance
+- `GET /api/v1/whitelist/{assetId}/audit-log` - Get compliance audit trail for specific token
+- `GET /api/v1/whitelist/audit-log` - Get audit logs across all assets with filtering
 - `GET /api/v1/whitelist/audit-log/export/csv` - Export audit log as CSV
 - `GET /api/v1/whitelist/audit-log/export/json` - Export audit log as JSON
-- `GET /api/v1/whitelist/audit-log/retention-policy` - Get MICA compliance policy
+- `GET /api/v1/whitelist/audit-log/retention-policy` - Get MICA compliance policy (7-year retention)
 
 **Documentation:**
 - [Enforcement Examples & Integration Guide](../WHITELIST_ENFORCEMENT_EXAMPLES.md) - Complete examples for applying whitelist enforcement to token operations
