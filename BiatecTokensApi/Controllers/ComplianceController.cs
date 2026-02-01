@@ -1,3 +1,4 @@
+using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Services.Interface;
@@ -2400,6 +2401,330 @@ namespace BiatecTokensApi.Controllers
             {
                 _logger.LogError(ex, "Exception getting retention status");
                 return StatusCode(StatusCodes.Status500InternalServerError, new RetentionStatusResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        // ==================== Phase 3: Analytics & Intelligence ====================
+
+        /// <summary>
+        /// Gets regulatory reporting analytics for compliance submissions
+        /// </summary>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+        /// <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+        /// <param name="fromDate">Start date for reporting period (ISO 8601 format)</param>
+        /// <param name="toDate">End date for reporting period (ISO 8601 format)</param>
+        /// <param name="includeAssetDetails">Include detailed asset-level data (default: false)</param>
+        /// <returns>Aggregated regulatory compliance metrics</returns>
+        /// <remarks>
+        /// This endpoint generates comprehensive compliance analytics for regulatory submissions.
+        /// 
+        /// **Use Cases:**
+        /// - MICA compliance reporting
+        /// - Regulatory audit submissions
+        /// - Enterprise compliance dashboards
+        /// - Quarterly/annual compliance reports
+        /// - Risk assessment and monitoring
+        /// 
+        /// **Metrics Provided:**
+        /// - Total assets in reporting scope
+        /// - Assets with complete compliance metadata
+        /// - MICA-compliant assets count
+        /// - Whitelist enforcement statistics
+        /// - Compliance event counts (whitelist, blacklist, transfer validations)
+        /// - Transfers denied due to compliance rules
+        /// - Network and jurisdiction distribution
+        /// - Optional: Per-asset detailed metrics
+        /// 
+        /// **Filters:**
+        /// All filters are optional. Date range is required for accurate reporting.
+        /// 
+        /// **Authorization:**
+        /// This endpoint is recommended for compliance officers and administrators only.
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpGet("analytics/regulatory-reporting")]
+        [ProducesResponseType(typeof(RegulatoryReportingAnalyticsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetRegulatoryReportingAnalytics(
+            [FromQuery] string? network = null,
+            [FromQuery] string? tokenStandard = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] bool includeAssetDetails = false)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation(
+                    "Regulatory reporting analytics requested by {UserAddress}: Network={Network}, FromDate={FromDate}, ToDate={ToDate}",
+                    userAddress, network, fromDate, toDate);
+
+                // Validate date range
+                if (!fromDate.HasValue || !toDate.HasValue)
+                {
+                    return BadRequest(new RegulatoryReportingAnalyticsResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Both fromDate and toDate are required for regulatory reporting"
+                    });
+                }
+
+                if (fromDate.Value > toDate.Value)
+                {
+                    return BadRequest(new RegulatoryReportingAnalyticsResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "fromDate must be before or equal to toDate"
+                    });
+                }
+
+                var request = new GetRegulatoryReportingAnalyticsRequest
+                {
+                    Network = network,
+                    TokenStandard = tokenStandard,
+                    FromDate = fromDate.Value,
+                    ToDate = toDate.Value,
+                    IncludeAssetDetails = includeAssetDetails
+                };
+
+                var result = await _complianceService.GetRegulatoryReportingAnalyticsAsync(request, userAddress);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Generated regulatory reporting analytics for {UserAddress}: {TotalAssets} assets, {TotalEvents} events",
+                        userAddress, result.ComplianceSummary.TotalAssets, result.ComplianceSummary.TotalComplianceEvents);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to generate regulatory reporting analytics: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating regulatory reporting analytics");
+                return StatusCode(StatusCodes.Status500InternalServerError, new RegulatoryReportingAnalyticsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets audit summary aggregates with time-series analytics
+        /// </summary>
+        /// <param name="assetId">Optional filter by asset ID</param>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+        /// <param name="fromDate">Start date for analysis period (ISO 8601 format)</param>
+        /// <param name="toDate">End date for analysis period (ISO 8601 format)</param>
+        /// <param name="period">Aggregation period (Daily, Weekly, Monthly) - default: Daily</param>
+        /// <returns>Time-series audit event aggregations</returns>
+        /// <remarks>
+        /// This endpoint analyzes compliance audit events over time with configurable aggregation periods.
+        /// 
+        /// **Use Cases:**
+        /// - Audit activity trend analysis
+        /// - Compliance event monitoring
+        /// - Peak period identification
+        /// - Success rate tracking
+        /// - Category distribution analysis
+        /// 
+        /// **Aggregations Provided:**
+        /// - Time-series data points (daily, weekly, or monthly)
+        /// - Total events per period
+        /// - Success/failure counts per period
+        /// - Events breakdown by category per period
+        /// - Unique assets and users per period
+        /// - Summary statistics (totals, averages, peak periods)
+        /// - Overall success rate
+        /// 
+        /// **Filters:**
+        /// All filters are optional except date range. Combine filters for precise analysis.
+        /// 
+        /// **Authorization:**
+        /// Requires ARC-0014 authentication. Recommended for compliance and audit teams.
+        /// </remarks>
+        [HttpGet("analytics/audit-summary")]
+        [ProducesResponseType(typeof(AuditSummaryAggregatesResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetAuditSummaryAggregates(
+            [FromQuery] ulong? assetId = null,
+            [FromQuery] string? network = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] AggregationPeriod period = AggregationPeriod.Daily)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation(
+                    "Audit summary aggregates requested by {UserAddress}: AssetId={AssetId}, Network={Network}, Period={Period}",
+                    userAddress, assetId, network, period);
+
+                // Validate date range
+                if (!fromDate.HasValue || !toDate.HasValue)
+                {
+                    return BadRequest(new AuditSummaryAggregatesResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Both fromDate and toDate are required for audit summary aggregates"
+                    });
+                }
+
+                if (fromDate.Value > toDate.Value)
+                {
+                    return BadRequest(new AuditSummaryAggregatesResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "fromDate must be before or equal to toDate"
+                    });
+                }
+
+                var request = new GetAuditSummaryAggregatesRequest
+                {
+                    AssetId = assetId,
+                    Network = network,
+                    FromDate = fromDate.Value,
+                    ToDate = toDate.Value,
+                    Period = period
+                };
+
+                var result = await _complianceService.GetAuditSummaryAggregatesAsync(request, userAddress);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Generated audit summary aggregates for {UserAddress}: {TotalEvents} events in {Periods} periods",
+                        userAddress, result.Summary.TotalEvents, result.TimeSeries.Count);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to generate audit summary aggregates: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating audit summary aggregates");
+                return StatusCode(StatusCodes.Status500InternalServerError, new AuditSummaryAggregatesResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets compliance trends analytics for historical compliance tracking
+        /// </summary>
+        /// <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+        /// <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+        /// <param name="fromDate">Start date for trend analysis (ISO 8601 format)</param>
+        /// <param name="toDate">End date for trend analysis (ISO 8601 format)</param>
+        /// <param name="period">Aggregation period (Daily, Weekly, Monthly) - default: Weekly</param>
+        /// <returns>Compliance status trends and MICA readiness progression</returns>
+        /// <remarks>
+        /// This endpoint analyzes historical compliance status changes and MICA readiness trends.
+        /// 
+        /// **Use Cases:**
+        /// - Compliance posture monitoring
+        /// - MICA readiness tracking
+        /// - Whitelist adoption analysis
+        /// - Trend direction identification
+        /// - Long-term compliance planning
+        /// 
+        /// **Trends Provided:**
+        /// - Compliance status trends (compliant/non-compliant/under review over time)
+        /// - MICA readiness trends (fully/nearly/in-progress compliant over time)
+        /// - Whitelist adoption trends (assets with whitelist and address counts over time)
+        /// - Compliance rate progression
+        /// - Average MICA compliance percentage progression
+        /// - Overall trend direction (Improving, Stable, Declining)
+        /// 
+        /// **Filters:**
+        /// All filters are optional except date range. Use network or token standard for targeted analysis.
+        /// 
+        /// **Authorization:**
+        /// Requires ARC-0014 authentication. Recommended for compliance officers and executives.
+        /// </remarks>
+        [HttpGet("analytics/compliance-trends")]
+        [ProducesResponseType(typeof(ComplianceTrendsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetComplianceTrends(
+            [FromQuery] string? network = null,
+            [FromQuery] string? tokenStandard = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] AggregationPeriod period = AggregationPeriod.Weekly)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation(
+                    "Compliance trends requested by {UserAddress}: Network={Network}, TokenStandard={TokenStandard}, Period={Period}",
+                    userAddress, network, tokenStandard, period);
+
+                // Validate date range
+                if (!fromDate.HasValue || !toDate.HasValue)
+                {
+                    return BadRequest(new ComplianceTrendsResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Both fromDate and toDate are required for compliance trends"
+                    });
+                }
+
+                if (fromDate.Value > toDate.Value)
+                {
+                    return BadRequest(new ComplianceTrendsResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "fromDate must be before or equal to toDate"
+                    });
+                }
+
+                var request = new GetComplianceTrendsRequest
+                {
+                    Network = network,
+                    TokenStandard = tokenStandard,
+                    FromDate = fromDate.Value,
+                    ToDate = toDate.Value,
+                    Period = period
+                };
+
+                var result = await _complianceService.GetComplianceTrendsAsync(request, userAddress);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation(
+                        "Generated compliance trends for {UserAddress}: {Periods} periods, trend={Direction}",
+                        userAddress, result.StatusTrends.Count, result.TrendDirection);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to generate compliance trends: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating compliance trends");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceTrendsResponse
                 {
                     Success = false,
                     ErrorMessage = $"Internal error: {ex.Message}"
