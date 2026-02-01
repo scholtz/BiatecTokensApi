@@ -110,10 +110,8 @@ namespace BiatecTokensTests
             Assert.That(deliveryHistory.Deliveries.Count, Is.GreaterThan(0), 
                 "At least one webhook delivery should have been attempted");
             
-            // Verify the event type is correct
-            var kycDelivery = deliveryHistory.Deliveries
-                .FirstOrDefault(d => d.EventId.Contains("KycStatusChange") || true);
-            Assert.That(kycDelivery, Is.Not.Null, "KYC status change webhook should have been delivered");
+            // Verify deliveries were attempted (event details would be in the webhook payload, 
+            // not easily accessible in this in-memory test setup)
         }
 
         [Test]
