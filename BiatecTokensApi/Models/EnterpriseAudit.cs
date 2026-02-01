@@ -120,7 +120,7 @@ namespace BiatecTokensApi.Models
         /// </summary>
         /// <remarks>
         /// Provides cryptographic proof of event data integrity for MICA compliance.
-        /// Hash is computed from key event fields (AssetId, Network, Category, ActionType, PerformedBy, PerformedAt, Success).
+        /// Hash is computed from key event fields: Id, AssetId, Network, Category, ActionType, PerformedBy, PerformedAt, Success, AffectedAddress, Amount.
         /// </remarks>
         public string PayloadHash { get; set; } = string.Empty;
     }
