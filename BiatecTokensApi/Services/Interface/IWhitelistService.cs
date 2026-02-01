@@ -65,5 +65,13 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="request">The enforcement report request with filters and pagination</param>
         /// <returns>The enforcement report response with entries and summary statistics</returns>
         Task<WhitelistEnforcementReportResponse> GetEnforcementReportAsync(GetWhitelistEnforcementReportRequest request);
+
+        /// <summary>
+        /// Verifies allowlist status for a sender/recipient pair for regulated transfers
+        /// </summary>
+        /// <param name="request">The allowlist verification request</param>
+        /// <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
+        /// <returns>The verification response with statuses and compliance disclosures</returns>
+        Task<VerifyAllowlistStatusResponse> VerifyAllowlistStatusAsync(VerifyAllowlistStatusRequest request, string performedBy);
     }
 }

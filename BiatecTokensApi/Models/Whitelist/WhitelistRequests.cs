@@ -194,4 +194,33 @@ namespace BiatecTokensApi.Models.Whitelist
         /// </summary>
         public ulong? Amount { get; set; }
     }
+
+    /// <summary>
+    /// Request to verify allowlist status for a sender/recipient pair
+    /// </summary>
+    public class VerifyAllowlistStatusRequest
+    {
+        /// <summary>
+        /// The asset ID (token ID) for which to verify allowlist status
+        /// </summary>
+        [Required]
+        public ulong AssetId { get; set; }
+
+        /// <summary>
+        /// The sender's Algorand address
+        /// </summary>
+        [Required]
+        public string SenderAddress { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The recipient's Algorand address
+        /// </summary>
+        [Required]
+        public string RecipientAddress { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0, etc.)
+        /// </summary>
+        public string? Network { get; set; }
+    }
 }

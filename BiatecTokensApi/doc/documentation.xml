@@ -2103,6 +2103,105 @@
             - Validation result (allowed/denied with reason)
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.WhitelistController.VerifyAllowlistStatus(BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest)">
+            <summary>
+            Verifies allowlist status for a sender/recipient pair for regulated transfers
+            </summary>
+            <param name="request">The allowlist verification request</param>
+            <returns>Verification response with statuses (approved/pending/expired/denied) and audit metadata</returns>
+            <remarks>
+            This endpoint verifies the allowlist status for both sender and recipient addresses to support
+            MICA-compliant regulated transfers for RWA tokens. The response includes:
+            
+            - **Participant Statuses**: Detailed status for both sender and recipient (Approved/Pending/Expired/Denied)
+            - **Transfer Status**: Overall determination if transfer is allowed or blocked
+            - **MICA Compliance Disclosures**: Regulatory requirements based on network
+            - **Audit Metadata**: Complete audit trail with verification ID, timestamp, and performer
+            
+            **Status Definitions**:
+            - **Approved**: Address is actively whitelisted and can participate in transfers
+            - **Pending**: Address approval is pending (e.g., awaiting KYC completion)
+            - **Expired**: Address approval has expired and requires renewal
+            - **Denied**: Address is not whitelisted or has been revoked
+            
+            **MICA Networks**: VOI (voimain-v1.0) and Aramid (aramidmain-v1.0) require MICA compliance
+            
+            **Caching**: Responses are cacheable for short windows (60 seconds) as indicated by Cache-Control header
+            
+            **Example Request**:
+            ```json
+            {
+              "assetId": 12345,
+              "senderAddress": "SENDER_ALGORAND_ADDRESS",
+              "recipientAddress": "RECIPIENT_ALGORAND_ADDRESS",
+              "network": "voimain-v1.0"
+            }
+            ```
+            
+            **Example Response (Approved)**:
+            ```json
+            {
+              "success": true,
+              "assetId": 12345,
+              "senderStatus": {
+                "address": "SENDER_ADDRESS",
+                "status": "Approved",
+                "isWhitelisted": true,
+                "approvedDate": "2026-01-15T10:00:00Z",
+                "kycVerified": true,
+                "kycProvider": "KYC Provider Inc"
+              },
+              "recipientStatus": {
+                "address": "RECIPIENT_ADDRESS",
+                "status": "Approved",
+                "isWhitelisted": true,
+                "approvedDate": "2026-01-20T14:30:00Z",
+                "kycVerified": true
+              },
+              "transferStatus": "Allowed",
+              "micaDisclosure": {
+                "requiresMicaCompliance": true,
+                "network": "voimain-v1.0",
+                "applicableRegulations": [
+                  "MiCA Article 41 - Safeguarding of crypto-assets",
+                  "MiCA Article 76 - Obligations of issuers",
+                  "MiCA Article 88 - Whitelist and KYC requirements"
+                ],
+                "complianceCheckDate": "2026-02-01T15:20:00Z"
+              },
+              "auditMetadata": {
+                "verificationId": "uuid-here",
+                "performedBy": "ADMIN_ADDRESS",
+                "verifiedAt": "2026-02-01T15:20:00Z",
+                "source": "API"
+              },
+              "cacheDurationSeconds": 60
+            }
+            ```
+            
+            **Example Response (Blocked)**:
+            ```json
+            {
+              "success": true,
+              "assetId": 12345,
+              "senderStatus": {
+                "address": "SENDER_ADDRESS",
+                "status": "Expired",
+                "isWhitelisted": true,
+                "expirationDate": "2026-01-01T00:00:00Z",
+                "statusNotes": "Whitelist entry has expired"
+              },
+              "recipientStatus": {
+                "address": "RECIPIENT_ADDRESS",
+                "status": "Denied",
+                "isWhitelisted": false,
+                "statusNotes": "Address is not whitelisted"
+              },
+              "transferStatus": "BlockedBoth"
+            }
+            ```
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.WhitelistController.GetUserAddress">
             <summary>
             Gets the authenticated user's Algorand address from the claims
@@ -9742,6 +9841,31 @@
             Optional amount to transfer (for future use in amount-based restrictions)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest">
+            <summary>
+            Request to verify allowlist status for a sender/recipient pair
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest.AssetId">
+            <summary>
+            The asset ID (token ID) for which to verify allowlist status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest.SenderAddress">
+            <summary>
+            The sender's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest.RecipientAddress">
+            <summary>
+            The recipient's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest.Network">
+            <summary>
+            Network on which the token is deployed (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, testnet-v1.0, etc.)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistResponse">
             <summary>
             Response for whitelist operations
@@ -9875,6 +9999,201 @@
         <member name="P:BiatecTokensApi.Models.Whitelist.TransferParticipantStatus.Status">
             <summary>
             Current whitelist status
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse">
+            <summary>
+            Response for allowlist status verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse.AssetId">
+            <summary>
+            The asset ID (token ID) being verified
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse.SenderStatus">
+            <summary>
+            Allowlist status for the sender
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse.RecipientStatus">
+            <summary>
+            Allowlist status for the recipient
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse.TransferStatus">
+            <summary>
+            Overall transfer allowance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse.MicaDisclosure">
+            <summary>
+            MICA compliance disclosures for the verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse.AuditMetadata">
+            <summary>
+            Audit metadata for the verification request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse.CacheDurationSeconds">
+            <summary>
+            Cache duration in seconds for this response
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus">
+            <summary>
+            Allowlist status information for a transfer participant (sender or recipient)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.Address">
+            <summary>
+            The Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.Status">
+            <summary>
+            Allowlist status (Approved/Pending/Expired/Denied)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.IsWhitelisted">
+            <summary>
+            Whether the address is whitelisted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.ApprovedDate">
+            <summary>
+            Date when the allowlist entry was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.ExpirationDate">
+            <summary>
+            Date when the allowlist entry expires (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.KycVerified">
+            <summary>
+            Whether KYC verification has been completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.KycProvider">
+            <summary>
+            Name of the KYC provider
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus.StatusNotes">
+            <summary>
+            Additional status notes or denial reasons
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.AllowlistStatus">
+            <summary>
+            Allowlist status enumeration for regulated transfers
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistStatus.Approved">
+            <summary>
+            Address is approved and can participate in transfers
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistStatus.Pending">
+            <summary>
+            Address approval is pending (e.g., awaiting KYC completion)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistStatus.Expired">
+            <summary>
+            Address approval has expired
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistStatus.Denied">
+            <summary>
+            Address has been denied or revoked
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.AllowlistTransferStatus">
+            <summary>
+            Overall transfer status based on allowlist verification
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistTransferStatus.Allowed">
+            <summary>
+            Transfer is allowed - both parties are approved
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistTransferStatus.BlockedSender">
+            <summary>
+            Transfer is blocked due to sender not being approved
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistTransferStatus.BlockedRecipient">
+            <summary>
+            Transfer is blocked due to recipient not being approved
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Whitelist.AllowlistTransferStatus.BlockedBoth">
+            <summary>
+            Transfer is blocked due to both parties not being approved
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure">
+            <summary>
+            MICA compliance disclosure information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure.RequiresMicaCompliance">
+            <summary>
+            Whether this network requires MICA compliance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure.Network">
+            <summary>
+            Network identifier (e.g., voimain-v1.0, aramidmain-v1.0)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure.ApplicableRegulations">
+            <summary>
+            MICA regulation articles applicable to this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure.ComplianceCheckDate">
+            <summary>
+            Compliance check performed timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure.ComplianceNotes">
+            <summary>
+            Additional compliance notes
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata">
+            <summary>
+            Audit metadata for allowlist verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata.VerificationId">
+            <summary>
+            Unique identifier for this verification request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata.PerformedBy">
+            <summary>
+            Address of the user who performed the verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata.VerifiedAt">
+            <summary>
+            Timestamp when the verification was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata.Source">
+            <summary>
+            Source of the verification request (API, UI, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata.RequestIpAddress">
+            <summary>
+            IP address of the requester (if available)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Whitelist.WhitelistRule">
@@ -12854,6 +13173,14 @@
             <param name="request">The enforcement report request with filters and pagination</param>
             <returns>The enforcement report response with entries and summary statistics</returns>
         </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWhitelistService.VerifyAllowlistStatusAsync(BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest,System.String)">
+            <summary>
+            Verifies allowlist status for a sender/recipient pair for regulated transfers
+            </summary>
+            <param name="request">The allowlist verification request</param>
+            <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
+            <returns>The verification response with statuses and compliance disclosures</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.SubscriptionMeteringService">
             <summary>
             Service for emitting subscription metering events for billing and analytics
@@ -13097,6 +13424,39 @@
         <member name="M:BiatecTokensApi.Services.WhitelistService.CalculateEnforcementSummary(System.Collections.Generic.List{BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry})">
             <summary>
             Calculates summary statistics for enforcement events
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.VerifyAllowlistStatusAsync(BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest,System.String)">
+            <summary>
+            Verifies allowlist status for a sender/recipient pair for regulated transfers
+            </summary>
+            <param name="request">The allowlist verification request</param>
+            <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
+            <returns>The verification response with statuses and compliance disclosures</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.DetermineAllowlistStatus(BiatecTokensApi.Models.Whitelist.WhitelistEntry,System.String)">
+            <summary>
+            Determines the allowlist status for a participant based on their whitelist entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.DetermineTransferStatus(BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus,BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus)">
+            <summary>
+            Determines the overall transfer status based on sender and recipient statuses
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.CreateMicaDisclosure(System.String)">
+            <summary>
+            Creates MICA compliance disclosure based on network
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.LogVerificationAudit(BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest,System.String,BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus,BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus,BiatecTokensApi.Models.Whitelist.AllowlistTransferStatus)">
+            <summary>
+            Logs verification audit entry
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WhitelistService.GetTransferStatusDescription(BiatecTokensApi.Models.Whitelist.AllowlistTransferStatus)">
+            <summary>
+            Gets a human-readable description of the transfer status
             </summary>
         </member>
     </members>
