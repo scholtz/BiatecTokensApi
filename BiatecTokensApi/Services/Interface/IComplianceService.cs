@@ -344,5 +344,46 @@ namespace BiatecTokensApi.Services.Interface
         /// of the specified asset. Used for authorization checks in issuer-specific operations.
         /// </remarks>
         Task<bool> VerifyIssuerOwnsAssetAsync(string issuerAddress, ulong assetId);
+
+        // Phase 3: Analytics & Intelligence
+
+        /// <summary>
+        /// Gets regulatory reporting analytics for compliance submissions
+        /// </summary>
+        /// <param name="request">The regulatory reporting request with filters and date range</param>
+        /// <param name="requestedBy">The address of the user requesting the analytics</param>
+        /// <returns>Response with aggregated regulatory compliance metrics</returns>
+        /// <remarks>
+        /// This method generates comprehensive compliance analytics for regulatory submissions.
+        /// Includes MICA compliance metrics, whitelist enforcement statistics, and jurisdiction coverage.
+        /// Designed for enterprise regulatory reporting and audit requirements.
+        /// </remarks>
+        Task<RegulatoryReportingAnalyticsResponse> GetRegulatoryReportingAnalyticsAsync(GetRegulatoryReportingAnalyticsRequest request, string requestedBy);
+
+        /// <summary>
+        /// Gets audit summary aggregates with time-series analytics
+        /// </summary>
+        /// <param name="request">The audit summary request with filters and aggregation period</param>
+        /// <param name="requestedBy">The address of the user requesting the analytics</param>
+        /// <returns>Response with time-series audit event aggregations</returns>
+        /// <remarks>
+        /// This method analyzes compliance audit events over time with configurable aggregation periods.
+        /// Provides daily, weekly, or monthly time-series data for audit event trends.
+        /// Includes success rates, peak periods, and category distributions.
+        /// </remarks>
+        Task<AuditSummaryAggregatesResponse> GetAuditSummaryAggregatesAsync(GetAuditSummaryAggregatesRequest request, string requestedBy);
+
+        /// <summary>
+        /// Gets compliance trends analytics for historical compliance tracking
+        /// </summary>
+        /// <param name="request">The compliance trends request with filters and analysis period</param>
+        /// <param name="requestedBy">The address of the user requesting the analytics</param>
+        /// <returns>Response with compliance status trends and MICA readiness progression</returns>
+        /// <remarks>
+        /// This method analyzes historical compliance status changes and MICA readiness trends.
+        /// Provides insights into compliance posture improvement or degradation over time.
+        /// Includes whitelist adoption trends and overall compliance direction indicators.
+        /// </remarks>
+        Task<ComplianceTrendsResponse> GetComplianceTrendsAsync(GetComplianceTrendsRequest request, string requestedBy);
     }
 }

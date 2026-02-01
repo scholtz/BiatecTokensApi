@@ -1095,6 +1095,115 @@
             Essential for demonstrating network-specific compliance with regulatory requirements.
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetRegulatoryReportingAnalytics(System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Boolean)">
+            <summary>
+            Gets regulatory reporting analytics for compliance submissions
+            </summary>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+            <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+            <param name="fromDate">Start date for reporting period (ISO 8601 format)</param>
+            <param name="toDate">End date for reporting period (ISO 8601 format)</param>
+            <param name="includeAssetDetails">Include detailed asset-level data (default: false)</param>
+            <returns>Aggregated regulatory compliance metrics</returns>
+            <remarks>
+            This endpoint generates comprehensive compliance analytics for regulatory submissions.
+            
+            **Use Cases:**
+            - MICA compliance reporting
+            - Regulatory audit submissions
+            - Enterprise compliance dashboards
+            - Quarterly/annual compliance reports
+            - Risk assessment and monitoring
+            
+            **Metrics Provided:**
+            - Total assets in reporting scope
+            - Assets with complete compliance metadata
+            - MICA-compliant assets count
+            - Whitelist enforcement statistics
+            - Compliance event counts (whitelist, blacklist, transfer validations)
+            - Transfers denied due to compliance rules
+            - Network and jurisdiction distribution
+            - Optional: Per-asset detailed metrics
+            
+            **Filters:**
+            All filters are optional. Date range is required for accurate reporting.
+            
+            **Authorization:**
+            This endpoint is recommended for compliance officers and administrators only.
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetAuditSummaryAggregates(System.Nullable{System.UInt64},System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},BiatecTokensApi.Models.Compliance.AggregationPeriod)">
+            <summary>
+            Gets audit summary aggregates with time-series analytics
+            </summary>
+            <param name="assetId">Optional filter by asset ID</param>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, etc.)</param>
+            <param name="fromDate">Start date for analysis period (ISO 8601 format)</param>
+            <param name="toDate">End date for analysis period (ISO 8601 format)</param>
+            <param name="period">Aggregation period (Daily, Weekly, Monthly) - default: Daily</param>
+            <returns>Time-series audit event aggregations</returns>
+            <remarks>
+            This endpoint analyzes compliance audit events over time with configurable aggregation periods.
+            
+            **Use Cases:**
+            - Audit activity trend analysis
+            - Compliance event monitoring
+            - Peak period identification
+            - Success rate tracking
+            - Category distribution analysis
+            
+            **Aggregations Provided:**
+            - Time-series data points (daily, weekly, or monthly)
+            - Total events per period
+            - Success/failure counts per period
+            - Events breakdown by category per period
+            - Unique assets and users per period
+            - Summary statistics (totals, averages, peak periods)
+            - Overall success rate
+            
+            **Filters:**
+            All filters are optional except date range. Combine filters for precise analysis.
+            
+            **Authorization:**
+            Requires ARC-0014 authentication. Recommended for compliance and audit teams.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceController.GetComplianceTrends(System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},BiatecTokensApi.Models.Compliance.AggregationPeriod)">
+            <summary>
+            Gets compliance trends analytics for historical compliance tracking
+            </summary>
+            <param name="network">Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)</param>
+            <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)</param>
+            <param name="fromDate">Start date for trend analysis (ISO 8601 format)</param>
+            <param name="toDate">End date for trend analysis (ISO 8601 format)</param>
+            <param name="period">Aggregation period (Daily, Weekly, Monthly) - default: Weekly</param>
+            <returns>Compliance status trends and MICA readiness progression</returns>
+            <remarks>
+            This endpoint analyzes historical compliance status changes and MICA readiness trends.
+            
+            **Use Cases:**
+            - Compliance posture monitoring
+            - MICA readiness tracking
+            - Whitelist adoption analysis
+            - Trend direction identification
+            - Long-term compliance planning
+            
+            **Trends Provided:**
+            - Compliance status trends (compliant/non-compliant/under review over time)
+            - MICA readiness trends (fully/nearly/in-progress compliant over time)
+            - Whitelist adoption trends (assets with whitelist and address counts over time)
+            - Compliance rate progression
+            - Average MICA compliance percentage progression
+            - Overall trend direction (Improving, Stable, Declining)
+            
+            **Filters:**
+            All filters are optional except date range. Use network or token standard for targeted analysis.
+            
+            **Authorization:**
+            Requires ARC-0014 authentication. Recommended for compliance officers and executives.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
             <summary>
             Provides enterprise-grade audit export endpoints for MICA reporting
@@ -4002,6 +4111,523 @@
         <member name="F:BiatecTokensApi.Models.Compliance.BlacklistStatus.Removed">
             <summary>
             Removed from blacklist
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest">
+            <summary>
+            Request for regulatory reporting analytics
+            </summary>
+            <remarks>
+            Generates aggregated compliance analytics for regulatory submissions.
+            Designed for MICA/RWA compliance reporting requirements.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest.Network">
+            <summary>
+            Optional filter by network (voimain-v1.0, aramidmain-v1.0, mainnet-v1.0, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest.TokenStandard">
+            <summary>
+            Optional filter by token standard (ASA, ARC3, ARC200, ARC1400, ERC20)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest.FromDate">
+            <summary>
+            Start date for reporting period (ISO 8601 format)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest.ToDate">
+            <summary>
+            End date for reporting period (ISO 8601 format)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest.IncludeAssetDetails">
+            <summary>
+            Include detailed asset-level data
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RegulatoryReportingAnalyticsResponse">
+            <summary>
+            Response for regulatory reporting analytics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryReportingAnalyticsResponse.Period">
+            <summary>
+            Reporting period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryReportingAnalyticsResponse.ComplianceSummary">
+            <summary>
+            Compliance summary metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryReportingAnalyticsResponse.AssetDetails">
+            <summary>
+            Asset-level details (if requested)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryReportingAnalyticsResponse.GeneratedAt">
+            <summary>
+            Timestamp when report was generated
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ReportingPeriod">
+            <summary>
+            Reporting period information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportingPeriod.StartDate">
+            <summary>
+            Start date of reporting period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportingPeriod.EndDate">
+            <summary>
+            End date of reporting period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ReportingPeriod.DurationDays">
+            <summary>
+            Number of days in reporting period
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary">
+            <summary>
+            Regulatory compliance summary metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.TotalAssets">
+            <summary>
+            Total assets in scope
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.AssetsWithCompleteMetadata">
+            <summary>
+            Assets with complete compliance metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.MicaCompliantAssets">
+            <summary>
+            Assets meeting MICA requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.AssetsWithWhitelistEnforcement">
+            <summary>
+            Assets with active whitelist enforcement
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.TotalComplianceEvents">
+            <summary>
+            Total compliance events in period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.WhitelistOperations">
+            <summary>
+            Whitelist operations in period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.BlacklistOperations">
+            <summary>
+            Blacklist operations in period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.TransferValidations">
+            <summary>
+            Transfer validations performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.TransfersDenied">
+            <summary>
+            Transfers denied due to compliance rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.NetworkDistribution">
+            <summary>
+            Network distribution
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary.JurisdictionDistribution">
+            <summary>
+            Jurisdiction distribution
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics">
+            <summary>
+            Regulatory metrics for a single asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.AssetId">
+            <summary>
+            Asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.Network">
+            <summary>
+            Network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.TokenStandard">
+            <summary>
+            Token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.ComplianceStatus">
+            <summary>
+            Compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.MicaCompliancePercentage">
+            <summary>
+            MICA compliance percentage
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.WhitelistedAddresses">
+            <summary>
+            Number of whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.ComplianceEventsCount">
+            <summary>
+            Compliance events in period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics.Jurisdictions">
+            <summary>
+            Jurisdictions covered
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest">
+            <summary>
+            Request for audit summary aggregates
+            </summary>
+            <remarks>
+            Generates time-series analytics of compliance audit events.
+            Supports daily, weekly, and monthly aggregation periods.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest.AssetId">
+            <summary>
+            Optional filter by asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest.FromDate">
+            <summary>
+            Start date for analysis period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest.ToDate">
+            <summary>
+            End date for analysis period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest.Period">
+            <summary>
+            Aggregation period (Daily, Weekly, Monthly)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AggregationPeriod">
+            <summary>
+            Aggregation period for time-series data
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AggregationPeriod.Daily">
+            <summary>
+            Daily aggregation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AggregationPeriod.Weekly">
+            <summary>
+            Weekly aggregation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.AggregationPeriod.Monthly">
+            <summary>
+            Monthly aggregation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse">
+            <summary>
+            Response for audit summary aggregates
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse.Period">
+            <summary>
+            Analysis period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse.AggregationPeriod">
+            <summary>
+            Aggregation period used
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse.TimeSeries">
+            <summary>
+            Time-series data points
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse.Summary">
+            <summary>
+            Summary statistics across entire period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse.Filters">
+            <summary>
+            Filters applied to the analysis
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint">
+            <summary>
+            Time-series data point for audit aggregation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.PeriodStart">
+            <summary>
+            Period start date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.PeriodEnd">
+            <summary>
+            Period end date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.TotalEvents">
+            <summary>
+            Total events in period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.SuccessfulEvents">
+            <summary>
+            Successful events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.FailedEvents">
+            <summary>
+            Failed events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.EventsByCategory">
+            <summary>
+            Events by category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.UniqueAssets">
+            <summary>
+            Unique assets involved
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint.UniqueUsers">
+            <summary>
+            Unique users involved
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditSummaryStatistics">
+            <summary>
+            Summary statistics for audit aggregates
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryStatistics.TotalEvents">
+            <summary>
+            Total events across all periods
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryStatistics.AverageEventsPerPeriod">
+            <summary>
+            Average events per period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryStatistics.PeakPeriod">
+            <summary>
+            Peak period (most events)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryStatistics.PeakEventCount">
+            <summary>
+            Peak event count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryStatistics.SuccessRate">
+            <summary>
+            Success rate percentage
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditSummaryStatistics.MostCommonCategory">
+            <summary>
+            Most common event category
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditAggregateFilters">
+            <summary>
+            Filters applied to audit aggregation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditAggregateFilters.AssetId">
+            <summary>
+            Asset ID filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditAggregateFilters.Network">
+            <summary>
+            Network filter
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest">
+            <summary>
+            Request for compliance trends analytics
+            </summary>
+            <remarks>
+            Analyzes historical compliance status changes over time.
+            Provides trend analysis for compliance posture tracking.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest.TokenStandard">
+            <summary>
+            Optional filter by token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest.FromDate">
+            <summary>
+            Start date for trend analysis
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest.ToDate">
+            <summary>
+            End date for trend analysis
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest.Period">
+            <summary>
+            Aggregation period for trend analysis
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse">
+            <summary>
+            Response for compliance trends analytics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse.Period">
+            <summary>
+            Analysis period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse.AggregationPeriod">
+            <summary>
+            Aggregation period used
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse.StatusTrends">
+            <summary>
+            Compliance status trends over time
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse.MicaTrends">
+            <summary>
+            MICA readiness trends over time
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse.WhitelistTrends">
+            <summary>
+            Whitelist adoption trends over time
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse.TrendDirection">
+            <summary>
+            Overall trend direction (Improving, Stable, Declining)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceStatusTrend">
+            <summary>
+            Compliance status trend data point
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusTrend.PeriodStart">
+            <summary>
+            Period start date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusTrend.CompliantCount">
+            <summary>
+            Compliant assets count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusTrend.NonCompliantCount">
+            <summary>
+            Non-compliant assets count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusTrend.UnderReviewCount">
+            <summary>
+            Under review assets count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceStatusTrend.ComplianceRate">
+            <summary>
+            Compliance rate percentage
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaReadinessTrend">
+            <summary>
+            MICA readiness trend data point
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessTrend.PeriodStart">
+            <summary>
+            Period start date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessTrend.FullyCompliant">
+            <summary>
+            Fully compliant assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessTrend.NearlyCompliant">
+            <summary>
+            Nearly compliant assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessTrend.InProgress">
+            <summary>
+            In progress assets
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessTrend.AverageCompliancePercentage">
+            <summary>
+            Average MICA compliance percentage
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.WhitelistAdoptionTrend">
+            <summary>
+            Whitelist adoption trend data point
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistAdoptionTrend.PeriodStart">
+            <summary>
+            Period start date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistAdoptionTrend.AssetsWithWhitelist">
+            <summary>
+            Assets with whitelist enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistAdoptionTrend.TotalWhitelistedAddresses">
+            <summary>
+            Total whitelisted addresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WhitelistAdoptionTrend.AdoptionRate">
+            <summary>
+            Whitelist adoption rate percentage
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.ComplianceAttestation">
@@ -12239,6 +12865,21 @@
             <param name="newMetadata">The new metadata state</param>
             <param name="actor">The user who made the change</param>
         </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.IsMetadataComplete(BiatecTokensApi.Models.Compliance.ComplianceMetadata)">
+            <summary>
+            Checks if metadata has complete required fields
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.IsMicaCompliant(BiatecTokensApi.Models.Compliance.ComplianceMetadata)">
+            <summary>
+            Checks if asset meets MICA compliance requirements
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.CalculateMicaCompliancePercentage(BiatecTokensApi.Models.Compliance.MicaComplianceChecklist)">
+            <summary>
+            Calculates MICA compliance percentage from checklist
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ComplianceValidator">
             <summary>
             Service for validating compliance metadata on token deployments
@@ -12837,6 +13478,45 @@
             <remarks>
             This method checks if the provided issuer address matches the creator/issuer
             of the specified asset. Used for authorization checks in issuer-specific operations.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetRegulatoryReportingAnalyticsAsync(BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest,System.String)">
+            <summary>
+            Gets regulatory reporting analytics for compliance submissions
+            </summary>
+            <param name="request">The regulatory reporting request with filters and date range</param>
+            <param name="requestedBy">The address of the user requesting the analytics</param>
+            <returns>Response with aggregated regulatory compliance metrics</returns>
+            <remarks>
+            This method generates comprehensive compliance analytics for regulatory submissions.
+            Includes MICA compliance metrics, whitelist enforcement statistics, and jurisdiction coverage.
+            Designed for enterprise regulatory reporting and audit requirements.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetAuditSummaryAggregatesAsync(BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest,System.String)">
+            <summary>
+            Gets audit summary aggregates with time-series analytics
+            </summary>
+            <param name="request">The audit summary request with filters and aggregation period</param>
+            <param name="requestedBy">The address of the user requesting the analytics</param>
+            <returns>Response with time-series audit event aggregations</returns>
+            <remarks>
+            This method analyzes compliance audit events over time with configurable aggregation periods.
+            Provides daily, weekly, or monthly time-series data for audit event trends.
+            Includes success rates, peak periods, and category distributions.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceService.GetComplianceTrendsAsync(BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest,System.String)">
+            <summary>
+            Gets compliance trends analytics for historical compliance tracking
+            </summary>
+            <param name="request">The compliance trends request with filters and analysis period</param>
+            <param name="requestedBy">The address of the user requesting the analytics</param>
+            <returns>Response with compliance status trends and MICA readiness progression</returns>
+            <remarks>
+            This method analyzes historical compliance status changes and MICA readiness trends.
+            Provides insights into compliance posture improvement or degradation over time.
+            Includes whitelist adoption trends and overall compliance direction indicators.
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">

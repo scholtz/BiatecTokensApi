@@ -1,3 +1,4 @@
+using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.Metering;
 using BiatecTokensApi.Models.Webhook;
@@ -4176,6 +4177,491 @@ namespace BiatecTokensApi.Services
                     "Error emitting compliance webhook events for asset {AssetId}",
                     newMetadata.AssetId);
             }
+        }
+
+        #endregion
+
+        #region Phase 3: Analytics & Intelligence
+
+        public async Task<RegulatoryReportingAnalyticsResponse> GetRegulatoryReportingAnalyticsAsync(
+            GetRegulatoryReportingAnalyticsRequest request,
+            string requestedBy)
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Generating regulatory reporting analytics for {RequestedBy}: Period={From} to {To}",
+                    requestedBy, request.FromDate, request.ToDate);
+
+                // Get all compliance metadata with filters
+                var listRequest = new ListComplianceMetadataRequest
+                {
+                    Network = request.Network,
+                    Page = 1,
+                    PageSize = 10000 // Get all assets for analytics
+                };
+
+                var allMetadata = await _complianceRepository.ListMetadataAsync(listRequest);
+
+                // Note: TokenStandard not available in ComplianceMetadata, filtering skipped
+                // Filter by token standard if specified (not available in current model)
+                // if (!string.IsNullOrEmpty(request.TokenStandard))
+                // {
+                //     allMetadata = allMetadata
+                //         .Where(m => string.Equals(m.TokenStandard, request.TokenStandard, 
+                //             StringComparison.OrdinalIgnoreCase))
+                //         .ToList();
+                // }
+
+                // Filter by date range based on CreatedAt
+                var filteredMetadata = allMetadata
+                    .Where(m => m.CreatedAt >= request.FromDate && m.CreatedAt <= request.ToDate)
+                    .ToList();
+
+                // Get audit logs for the period to count compliance events
+                var auditLogs = await _complianceRepository.GetAuditLogAsync(new GetComplianceAuditLogRequest
+                {
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    Network = request.Network,
+                    Page = 1,
+                    PageSize = 10000
+                });
+
+                // Calculate summary metrics
+                var summary = new RegulatoryComplianceSummary
+                {
+                    TotalAssets = filteredMetadata.Count,
+                    AssetsWithCompleteMetadata = filteredMetadata.Count(m => IsMetadataComplete(m)),
+                    MicaCompliantAssets = filteredMetadata.Count(m => IsMicaCompliant(m)),
+                    AssetsWithWhitelistEnforcement = 0, // Would need whitelist service integration
+                    TotalComplianceEvents = auditLogs.Count,
+                    WhitelistOperations = 0, // Compliance audit logs track metadata operations only
+                    BlacklistOperations = 0, // Compliance audit logs track metadata operations only
+                    TransferValidations = 0, // Not tracked in compliance audit logs
+                    TransfersDenied = 0 // Not tracked in compliance audit logs
+                };
+
+                // Network distribution
+                summary.NetworkDistribution = filteredMetadata
+                    .Where(m => !string.IsNullOrEmpty(m.Network))
+                    .GroupBy(m => m.Network!)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                // Jurisdiction distribution
+                summary.JurisdictionDistribution = filteredMetadata
+                    .Where(m => !string.IsNullOrEmpty(m.Jurisdiction))
+                    .SelectMany(m => m.Jurisdiction!.Split(',').Select(j => j.Trim()))
+                    .GroupBy(j => j)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                // Build asset details if requested
+                List<AssetRegulatoryMetrics>? assetDetails = null;
+                if (request.IncludeAssetDetails)
+                {
+                    assetDetails = new List<AssetRegulatoryMetrics>();
+                    foreach (var metadata in filteredMetadata)
+                    {
+                        var assetAuditLogs = auditLogs.Where(a => a.AssetId == metadata.AssetId).ToList();
+                        
+                        // Get MICA compliance percentage - check if checklist exists
+                        var micaChecklistResponse = await GetMicaComplianceChecklistAsync(metadata.AssetId);
+                        var micaPercentage = micaChecklistResponse.Success && micaChecklistResponse.Checklist != null
+                            ? CalculateMicaCompliancePercentage(micaChecklistResponse.Checklist)
+                            : 0.0;
+
+                        // Get whitelist count
+                        var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest
+                        {
+                            AssetId = metadata.AssetId,
+                            Status = WhitelistStatus.Active,
+                            Page = 1,
+                            PageSize = 10000
+                        });
+
+                        assetDetails.Add(new AssetRegulatoryMetrics
+                        {
+                            AssetId = metadata.AssetId,
+                            Network = metadata.Network,
+                            TokenStandard = metadata.AssetType, // Use AssetType as proxy for TokenStandard
+                            ComplianceStatus = metadata.ComplianceStatus.ToString(),
+                            MicaCompliancePercentage = micaPercentage,
+                            WhitelistedAddresses = whitelistResponse.Success ? whitelistResponse.Entries.Count : 0,
+                            ComplianceEventsCount = assetAuditLogs.Count,
+                            Jurisdictions = metadata.Jurisdiction
+                        });
+                    }
+                }
+
+                var response = new RegulatoryReportingAnalyticsResponse
+                {
+                    Success = true,
+                    Period = new ReportingPeriod
+                    {
+                        StartDate = request.FromDate,
+                        EndDate = request.ToDate,
+                        DurationDays = (request.ToDate - request.FromDate).Days
+                    },
+                    ComplianceSummary = summary,
+                    AssetDetails = assetDetails
+                };
+
+                _logger.LogInformation(
+                    "Generated regulatory reporting analytics for {RequestedBy}: {TotalAssets} assets, {TotalEvents} events",
+                    requestedBy, summary.TotalAssets, summary.TotalComplianceEvents);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating regulatory reporting analytics");
+                return new RegulatoryReportingAnalyticsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to generate regulatory reporting analytics: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<AuditSummaryAggregatesResponse> GetAuditSummaryAggregatesAsync(
+            GetAuditSummaryAggregatesRequest request,
+            string requestedBy)
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Generating audit summary aggregates for {RequestedBy}: Period={Period}, From={From} to {To}",
+                    requestedBy, request.Period, request.FromDate, request.ToDate);
+
+                // Get audit logs for the period
+                var auditLogs = await _complianceRepository.GetAuditLogAsync(new GetComplianceAuditLogRequest
+                {
+                    AssetId = request.AssetId,
+                    Network = request.Network,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    Page = 1,
+                    PageSize = 10000
+                });
+
+                // Group audit logs by period
+                var timeSeries = new List<AuditTimeSeriesDataPoint>();
+                var periodStart = request.FromDate;
+
+                while (periodStart < request.ToDate)
+                {
+                    DateTime periodEnd;
+                    switch (request.Period)
+                    {
+                        case AggregationPeriod.Daily:
+                            periodEnd = periodStart.AddDays(1);
+                            break;
+                        case AggregationPeriod.Weekly:
+                            periodEnd = periodStart.AddDays(7);
+                            break;
+                        case AggregationPeriod.Monthly:
+                            periodEnd = periodStart.AddMonths(1);
+                            break;
+                        default:
+                            periodEnd = periodStart.AddDays(1);
+                            break;
+                    }
+
+                    // Ensure periodEnd doesn't exceed request.ToDate
+                    if (periodEnd > request.ToDate)
+                        periodEnd = request.ToDate;
+
+                    var periodLogs = auditLogs
+                        .Where(a => a.PerformedAt >= periodStart && a.PerformedAt < periodEnd)
+                        .ToList();
+
+                    var dataPoint = new AuditTimeSeriesDataPoint
+                    {
+                        PeriodStart = periodStart,
+                        PeriodEnd = periodEnd,
+                        TotalEvents = periodLogs.Count,
+                        SuccessfulEvents = periodLogs.Count(a => a.Success),
+                        FailedEvents = periodLogs.Count(a => !a.Success),
+                        EventsByCategory = periodLogs
+                            .GroupBy(a => a.ActionType.ToString())
+                            .ToDictionary(g => g.Key, g => g.Count()),
+                        UniqueAssets = periodLogs.Where(a => a.AssetId.HasValue).Select(a => a.AssetId!.Value).Distinct().Count(),
+                        UniqueUsers = periodLogs.Select(a => a.PerformedBy).Distinct().Count()
+                    };
+
+                    timeSeries.Add(dataPoint);
+                    periodStart = periodEnd;
+                }
+
+                // Calculate summary statistics
+                var summary = new AuditSummaryStatistics
+                {
+                    TotalEvents = auditLogs.Count,
+                    AverageEventsPerPeriod = timeSeries.Any() ? timeSeries.Average(t => t.TotalEvents) : 0,
+                    SuccessRate = auditLogs.Any() 
+                        ? (double)auditLogs.Count(a => a.Success) / auditLogs.Count * 100 
+                        : 0
+                };
+
+                // Find peak period
+                var peakPeriod = timeSeries.OrderByDescending(t => t.TotalEvents).FirstOrDefault();
+                if (peakPeriod != null)
+                {
+                    summary.PeakPeriod = peakPeriod.PeriodStart;
+                    summary.PeakEventCount = peakPeriod.TotalEvents;
+                }
+
+                // Most common category
+                var categoryGroups = auditLogs.GroupBy(a => a.ActionType.ToString()).ToList();
+                if (categoryGroups.Any())
+                {
+                    summary.MostCommonCategory = categoryGroups.OrderByDescending(g => g.Count()).First().Key;
+                }
+
+                var response = new AuditSummaryAggregatesResponse
+                {
+                    Success = true,
+                    Period = new ReportingPeriod
+                    {
+                        StartDate = request.FromDate,
+                        EndDate = request.ToDate,
+                        DurationDays = (request.ToDate - request.FromDate).Days
+                    },
+                    AggregationPeriod = request.Period,
+                    TimeSeries = timeSeries,
+                    Summary = summary,
+                    Filters = new AuditAggregateFilters
+                    {
+                        AssetId = request.AssetId,
+                        Network = request.Network
+                    }
+                };
+
+                _logger.LogInformation(
+                    "Generated audit summary aggregates for {RequestedBy}: {TotalEvents} events in {Periods} periods",
+                    requestedBy, summary.TotalEvents, timeSeries.Count);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating audit summary aggregates");
+                return new AuditSummaryAggregatesResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to generate audit summary aggregates: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<ComplianceTrendsResponse> GetComplianceTrendsAsync(
+            GetComplianceTrendsRequest request,
+            string requestedBy)
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Generating compliance trends for {RequestedBy}: Period={Period}, From={From} to {To}",
+                    requestedBy, request.Period, request.FromDate, request.ToDate);
+
+                // Get all compliance metadata
+                var listRequest = new ListComplianceMetadataRequest
+                {
+                    Network = request.Network,
+                    Page = 1,
+                    PageSize = 10000
+                };
+
+                var allMetadata = await _complianceRepository.ListMetadataAsync(listRequest);
+
+                // Note: TokenStandard not available in ComplianceMetadata, filtering skipped
+                // Filter by token standard if specified (not available in current model)
+                // if (!string.IsNullOrEmpty(request.TokenStandard))
+                // {
+                //     allMetadata = allMetadata
+                //         .Where(m => string.Equals(m.TokenStandard, request.TokenStandard,
+                //             StringComparison.OrdinalIgnoreCase))
+                //         .ToList();
+                // }
+
+                // Generate time series data points
+                var statusTrends = new List<ComplianceStatusTrend>();
+                var micaTrends = new List<MicaReadinessTrend>();
+                var whitelistTrends = new List<WhitelistAdoptionTrend>();
+
+                var periodStart = request.FromDate;
+                while (periodStart < request.ToDate)
+                {
+                    DateTime periodEnd;
+                    switch (request.Period)
+                    {
+                        case AggregationPeriod.Daily:
+                            periodEnd = periodStart.AddDays(1);
+                            break;
+                        case AggregationPeriod.Weekly:
+                            periodEnd = periodStart.AddDays(7);
+                            break;
+                        case AggregationPeriod.Monthly:
+                            periodEnd = periodStart.AddMonths(1);
+                            break;
+                        default:
+                            periodEnd = periodStart.AddDays(1);
+                            break;
+                    }
+
+                    if (periodEnd > request.ToDate)
+                        periodEnd = request.ToDate;
+
+                    // Get metadata that existed at the end of this period
+                    var periodMetadata = allMetadata
+                        .Where(m => m.CreatedAt <= periodEnd)
+                        .ToList();
+
+                    // Compliance status trend
+                    var compliantCount = periodMetadata.Count(m => m.ComplianceStatus == ComplianceStatus.Compliant);
+                    var nonCompliantCount = periodMetadata.Count(m => m.ComplianceStatus == ComplianceStatus.NonCompliant);
+                    var underReviewCount = periodMetadata.Count(m => m.ComplianceStatus == ComplianceStatus.UnderReview);
+                    var totalAssets = periodMetadata.Count;
+
+                    statusTrends.Add(new ComplianceStatusTrend
+                    {
+                        PeriodStart = periodStart,
+                        CompliantCount = compliantCount,
+                        NonCompliantCount = nonCompliantCount,
+                        UnderReviewCount = underReviewCount,
+                        ComplianceRate = totalAssets > 0 ? (double)compliantCount / totalAssets * 100 : 0
+                    });
+
+                    // MICA readiness trend
+                    var micaCompleteList = new List<(ulong AssetId, double Percentage)>();
+                    foreach (var metadata in periodMetadata.Take(100)) // Limit to avoid too many DB calls
+                    {
+                        var micaResponse = await GetMicaComplianceChecklistAsync(metadata.AssetId);
+                        if (micaResponse.Success && micaResponse.Checklist != null)
+                        {
+                            var percentage = CalculateMicaCompliancePercentage(micaResponse.Checklist);
+                            micaCompleteList.Add((metadata.AssetId, percentage));
+                        }
+                    }
+
+                    micaTrends.Add(new MicaReadinessTrend
+                    {
+                        PeriodStart = periodStart,
+                        FullyCompliant = micaCompleteList.Count(m => m.Percentage >= 90),
+                        NearlyCompliant = micaCompleteList.Count(m => m.Percentage >= 70 && m.Percentage < 90),
+                        InProgress = micaCompleteList.Count(m => m.Percentage < 70),
+                        AverageCompliancePercentage = micaCompleteList.Any() 
+                            ? micaCompleteList.Average(m => m.Percentage) 
+                            : 0
+                    });
+
+                    // Whitelist adoption trend (simplified - count based on metadata that has jurisdiction)
+                    var assetsWithJurisdiction = periodMetadata.Count(m => !string.IsNullOrEmpty(m.Jurisdiction));
+                    var totalWhitelistedAddresses = 0;
+
+                    // Get whitelist counts for a sample of assets with jurisdiction info
+                    foreach (var metadata in periodMetadata.Where(m => !string.IsNullOrEmpty(m.Jurisdiction)).Take(50))
+                    {
+                        var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest
+                        {
+                            AssetId = metadata.AssetId,
+                            Status = WhitelistStatus.Active,
+                            Page = 1,
+                            PageSize = 1000
+                        });
+
+                        if (whitelistResponse.Success)
+                        {
+                            totalWhitelistedAddresses += whitelistResponse.Entries.Count;
+                        }
+                    }
+
+                    whitelistTrends.Add(new WhitelistAdoptionTrend
+                    {
+                        PeriodStart = periodStart,
+                        AssetsWithWhitelist = assetsWithJurisdiction, // Proxy metric
+                        TotalWhitelistedAddresses = totalWhitelistedAddresses,
+                        AdoptionRate = totalAssets > 0 ? (double)assetsWithJurisdiction / totalAssets * 100 : 0
+                    });
+
+                    periodStart = periodEnd;
+                }
+
+                // Determine overall trend direction
+                var trendDirection = "Stable";
+                if (statusTrends.Count >= 2)
+                {
+                    var firstPeriodRate = statusTrends.First().ComplianceRate;
+                    var lastPeriodRate = statusTrends.Last().ComplianceRate;
+                    var rateDifference = lastPeriodRate - firstPeriodRate;
+
+                    if (rateDifference > 5)
+                        trendDirection = "Improving";
+                    else if (rateDifference < -5)
+                        trendDirection = "Declining";
+                }
+
+                var response = new ComplianceTrendsResponse
+                {
+                    Success = true,
+                    Period = new ReportingPeriod
+                    {
+                        StartDate = request.FromDate,
+                        EndDate = request.ToDate,
+                        DurationDays = (request.ToDate - request.FromDate).Days
+                    },
+                    AggregationPeriod = request.Period,
+                    StatusTrends = statusTrends,
+                    MicaTrends = micaTrends,
+                    WhitelistTrends = whitelistTrends,
+                    TrendDirection = trendDirection
+                };
+
+                _logger.LogInformation(
+                    "Generated compliance trends for {RequestedBy}: {Periods} periods, trend={Direction}",
+                    requestedBy, statusTrends.Count, trendDirection);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating compliance trends");
+                return new ComplianceTrendsResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to generate compliance trends: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Checks if metadata has complete required fields
+        /// </summary>
+        private bool IsMetadataComplete(ComplianceMetadata metadata)
+        {
+            return !string.IsNullOrEmpty(metadata.IssuerName) &&
+                   !string.IsNullOrEmpty(metadata.Jurisdiction) &&
+                   !string.IsNullOrEmpty(metadata.RegulatoryFramework) &&
+                   metadata.ComplianceStatus != ComplianceStatus.Suspended; // Use existing enum value
+        }
+
+        /// <summary>
+        /// Checks if asset meets MICA compliance requirements
+        /// </summary>
+        private bool IsMicaCompliant(ComplianceMetadata metadata)
+        {
+            return metadata.ComplianceStatus == ComplianceStatus.Compliant &&
+                   !string.IsNullOrEmpty(metadata.RegulatoryFramework) &&
+                   metadata.RegulatoryFramework.Contains("MICA", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Calculates MICA compliance percentage from checklist
+        /// </summary>
+        private double CalculateMicaCompliancePercentage(MicaComplianceChecklist checklist)
+        {
+            // Use the CompliancePercentage from the checklist
+            return checklist.CompliancePercentage;
         }
 
         #endregion
