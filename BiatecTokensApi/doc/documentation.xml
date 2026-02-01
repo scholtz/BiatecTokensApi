@@ -12869,6 +12869,10 @@
             <summary>
             Checks if metadata has complete required fields
             </summary>
+            <remarks>
+            Complete metadata requires issuer name, jurisdiction, regulatory framework,
+            and compliance status (excluding suspended assets which are considered incomplete)
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.IsMicaCompliant(BiatecTokensApi.Models.Compliance.ComplianceMetadata)">
             <summary>

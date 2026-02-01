@@ -4534,7 +4534,8 @@ namespace BiatecTokensApi.Services
 
                     // MICA readiness trend
                     var micaCompleteList = new List<(ulong AssetId, double Percentage)>();
-                    foreach (var metadata in periodMetadata.Take(100)) // Limit to avoid too many DB calls
+                    // Limit to 100 assets to avoid excessive service calls and performance degradation
+                    foreach (var metadata in periodMetadata.Take(100))
                     {
                         var micaResponse = await GetMicaComplianceChecklistAsync(metadata.AssetId);
                         if (micaResponse.Success && micaResponse.Checklist != null)
@@ -4560,6 +4561,7 @@ namespace BiatecTokensApi.Services
                     var totalWhitelistedAddresses = 0;
 
                     // Get whitelist counts for a sample of assets with jurisdiction info
+                    // Limit to 50 assets to balance data accuracy with API performance
                     foreach (var metadata in periodMetadata.Where(m => !string.IsNullOrEmpty(m.Jurisdiction)).Take(50))
                     {
                         var whitelistResponse = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest
@@ -4637,12 +4639,16 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Checks if metadata has complete required fields
         /// </summary>
+        /// <remarks>
+        /// Complete metadata requires issuer name, jurisdiction, regulatory framework,
+        /// and compliance status (excluding suspended assets which are considered incomplete)
+        /// </remarks>
         private bool IsMetadataComplete(ComplianceMetadata metadata)
         {
             return !string.IsNullOrEmpty(metadata.IssuerName) &&
                    !string.IsNullOrEmpty(metadata.Jurisdiction) &&
                    !string.IsNullOrEmpty(metadata.RegulatoryFramework) &&
-                   metadata.ComplianceStatus != ComplianceStatus.Suspended; // Use existing enum value
+                   metadata.ComplianceStatus != ComplianceStatus.Suspended;
         }
 
         /// <summary>
