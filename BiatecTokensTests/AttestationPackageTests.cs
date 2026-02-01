@@ -38,7 +38,7 @@ namespace BiatecTokensTests
             _meteringServiceMock = new Mock<ISubscriptionMeteringService>();
             _controllerMeteringServiceMock = new Mock<ISubscriptionMeteringService>();
             var whitelistServiceMock = new Mock<IWhitelistService>();
-            _service = new ComplianceService(_repositoryMock.Object, whitelistServiceMock.Object, _serviceLoggerMock.Object, _meteringServiceMock.Object);
+            _service = new ComplianceService(_repositoryMock.Object, whitelistServiceMock.Object, _serviceLoggerMock.Object, _meteringServiceMock.Object, Mock.Of<IWebhookService>());
             
             _serviceMock = new Mock<IComplianceService>();
             _controller = new ComplianceController(_serviceMock.Object, _controllerLoggerMock.Object, _controllerMeteringServiceMock.Object);

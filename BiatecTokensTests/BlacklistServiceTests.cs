@@ -32,7 +32,8 @@ namespace BiatecTokensTests
                 _mockRepository.Object,
                 _mockWhitelistService.Object,
                 _mockLogger.Object,
-                _mockMeteringService.Object);
+                _mockMeteringService.Object,
+                Mock.Of<IWebhookService>());
         }
 
         [Test]

@@ -1720,6 +1720,9 @@
             - WhitelistRemove: Triggered when an address is removed from the whitelist
             - TransferDeny: Triggered when a transfer is denied by whitelist rules
             - AuditExportCreated: Triggered when an audit export is created
+            - KycStatusChange: Triggered when KYC verification status changes
+            - AmlStatusChange: Triggered when AML verification status changes
+            - ComplianceBadgeUpdate: Triggered when compliance status or badge is updated
             
             All webhook payloads include:
             - Event ID and type
@@ -8930,6 +8933,21 @@
             Audit export created
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.KycStatusChange">
+            <summary>
+            KYC verification status changed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.AmlStatusChange">
+            <summary>
+            AML verification status changed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.ComplianceBadgeUpdate">
+            <summary>
+            Compliance badge or status updated
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Webhook.WebhookEvent">
             <summary>
             Webhook event payload
@@ -11998,7 +12016,7 @@
             Constant for system-generated audit entries when no user context is available
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IWhitelistService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService)">
+        <member name="M:BiatecTokensApi.Services.ComplianceService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IWhitelistService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceService},BiatecTokensApi.Services.Interface.ISubscriptionMeteringService,BiatecTokensApi.Services.Interface.IWebhookService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ComplianceService"/> class.
             </summary>
@@ -12006,6 +12024,7 @@
             <param name="whitelistService">The whitelist service</param>
             <param name="logger">The logger instance</param>
             <param name="meteringService">The subscription metering service</param>
+            <param name="webhookService">The webhook service for event emission</param>
         </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.UpsertMetadataAsync(BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest,System.String)">
             <inheritdoc/>
@@ -12211,6 +12230,14 @@
         </member>
         <member name="M:BiatecTokensApi.Services.ComplianceService.VerifyIssuerOwnsAssetAsync(System.String,System.UInt64)">
             <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceService.EmitComplianceWebhookEventsAsync(BiatecTokensApi.Models.Compliance.ComplianceMetadata,BiatecTokensApi.Models.Compliance.ComplianceMetadata,System.String)">
+            <summary>
+            Emits webhook events for compliance metadata changes
+            </summary>
+            <param name="oldMetadata">The previous metadata state (null if creating new)</param>
+            <param name="newMetadata">The new metadata state</param>
+            <param name="actor">The user who made the change</param>
         </member>
         <member name="T:BiatecTokensApi.Services.ComplianceValidator">
             <summary>
