@@ -964,5 +964,506 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region VerifyAllowlistStatus Tests
+
+        [Test]
+        public async Task VerifyAllowlistStatus_BothApproved_ShouldReturnAllowed()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456",
+                Network = "voimain-v1.0"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true,
+                    KycVerified = true
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true,
+                    KycVerified = true
+                },
+                TransferStatus = AllowlistTransferStatus.Allowed,
+                MicaDisclosure = new MicaComplianceDisclosure
+                {
+                    RequiresMicaCompliance = true,
+                    Network = "voimain-v1.0"
+                },
+                AuditMetadata = new AllowlistAuditMetadata
+                {
+                    PerformedBy = TestUserAddress
+                },
+                CacheDurationSeconds = 60
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var verifyResponse = okResult?.Value as VerifyAllowlistStatusResponse;
+            Assert.That(verifyResponse?.Success, Is.True);
+            Assert.That(verifyResponse?.TransferStatus, Is.EqualTo(AllowlistTransferStatus.Allowed));
+            Assert.That(verifyResponse?.SenderStatus?.Status, Is.EqualTo(AllowlistStatus.Approved));
+            Assert.That(verifyResponse?.RecipientStatus?.Status, Is.EqualTo(AllowlistStatus.Approved));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_SenderExpired_ShouldReturnBlockedSender()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456",
+                Network = "aramidmain-v1.0"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Expired,
+                    IsWhitelisted = true,
+                    ExpirationDate = DateTime.UtcNow.AddDays(-1),
+                    StatusNotes = "Whitelist entry has expired"
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                TransferStatus = AllowlistTransferStatus.BlockedSender
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var verifyResponse = okResult?.Value as VerifyAllowlistStatusResponse;
+            Assert.That(verifyResponse?.TransferStatus, Is.EqualTo(AllowlistTransferStatus.BlockedSender));
+            Assert.That(verifyResponse?.SenderStatus?.Status, Is.EqualTo(AllowlistStatus.Expired));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_RecipientDenied_ShouldReturnBlockedRecipient()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Denied,
+                    IsWhitelisted = false,
+                    StatusNotes = "Address is not whitelisted"
+                },
+                TransferStatus = AllowlistTransferStatus.BlockedRecipient
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var verifyResponse = okResult?.Value as VerifyAllowlistStatusResponse;
+            Assert.That(verifyResponse?.TransferStatus, Is.EqualTo(AllowlistTransferStatus.BlockedRecipient));
+            Assert.That(verifyResponse?.RecipientStatus?.Status, Is.EqualTo(AllowlistStatus.Denied));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_BothDenied_ShouldReturnBlockedBoth()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Denied,
+                    IsWhitelisted = false
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Denied,
+                    IsWhitelisted = false
+                },
+                TransferStatus = AllowlistTransferStatus.BlockedBoth
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var verifyResponse = okResult?.Value as VerifyAllowlistStatusResponse;
+            Assert.That(verifyResponse?.TransferStatus, Is.EqualTo(AllowlistTransferStatus.BlockedBoth));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_SenderPending_ShouldReturnBlockedSender()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Pending,
+                    IsWhitelisted = true,
+                    StatusNotes = "Whitelist entry is pending or inactive"
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                TransferStatus = AllowlistTransferStatus.BlockedSender
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var verifyResponse = okResult?.Value as VerifyAllowlistStatusResponse;
+            Assert.That(verifyResponse?.TransferStatus, Is.EqualTo(AllowlistTransferStatus.BlockedSender));
+            Assert.That(verifyResponse?.SenderStatus?.Status, Is.EqualTo(AllowlistStatus.Pending));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_MicaNetwork_ShouldIncludeMicaDisclosure()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456",
+                Network = "voimain-v1.0"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                TransferStatus = AllowlistTransferStatus.Allowed,
+                MicaDisclosure = new MicaComplianceDisclosure
+                {
+                    RequiresMicaCompliance = true,
+                    Network = "voimain-v1.0",
+                    ApplicableRegulations = new List<string>
+                    {
+                        "MiCA Article 41 - Safeguarding of crypto-assets and client funds",
+                        "MiCA Article 76 - Obligations of issuers of asset-referenced tokens",
+                        "MiCA Article 88 - Whitelist and KYC requirements for RWA tokens"
+                    },
+                    ComplianceNotes = "Network voimain-v1.0 requires MICA compliance. Ensure all participants complete KYC verification and maintain active whitelist status."
+                }
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var verifyResponse = okResult?.Value as VerifyAllowlistStatusResponse;
+            Assert.That(verifyResponse?.MicaDisclosure, Is.Not.Null);
+            Assert.That(verifyResponse?.MicaDisclosure?.RequiresMicaCompliance, Is.True);
+            Assert.That(verifyResponse?.MicaDisclosure?.ApplicableRegulations, Has.Count.EqualTo(3));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_WithAuditMetadata_ShouldIncludeAuditInfo()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            var verificationId = Guid.NewGuid().ToString();
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                TransferStatus = AllowlistTransferStatus.Allowed,
+                AuditMetadata = new AllowlistAuditMetadata
+                {
+                    VerificationId = verificationId,
+                    PerformedBy = TestUserAddress,
+                    VerifiedAt = DateTime.UtcNow,
+                    Source = "API"
+                }
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var verifyResponse = okResult?.Value as VerifyAllowlistStatusResponse;
+            Assert.That(verifyResponse?.AuditMetadata, Is.Not.Null);
+            Assert.That(verifyResponse?.AuditMetadata?.PerformedBy, Is.EqualTo(TestUserAddress));
+            Assert.That(verifyResponse?.AuditMetadata?.Source, Is.EqualTo("API"));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_ShouldSetCacheControlHeader()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = true,
+                AssetId = request.AssetId,
+                SenderStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.SenderAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                RecipientStatus = new AllowlistParticipantStatus
+                {
+                    Address = request.RecipientAddress,
+                    Status = AllowlistStatus.Approved,
+                    IsWhitelisted = true
+                },
+                TransferStatus = AllowlistTransferStatus.Allowed,
+                CacheDurationSeconds = 60
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            Assert.That(_controller.Response.Headers.ContainsKey("Cache-Control"), Is.True);
+            Assert.That(_controller.Response.Headers["Cache-Control"].ToString(), Is.EqualTo("public, max-age=60"));
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_InvalidModelState_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "INVALID",
+                RecipientAddress = "INVALID"
+            };
+            _controller.ModelState.AddModelError("SenderAddress", "Invalid address");
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_NoUserContext_ShouldReturnUnauthorized()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            // Set up controller with no user context
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
+            };
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<UnauthorizedObjectResult>());
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_ServiceFailure_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            var response = new VerifyAllowlistStatusResponse
+            {
+                Success = false,
+                ErrorMessage = "Invalid sender address format",
+                AssetId = request.AssetId
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+        }
+
+        [Test]
+        public async Task VerifyAllowlistStatus_ServiceException_ShouldReturnInternalServerError()
+        {
+            // Arrange
+            var request = new VerifyAllowlistStatusRequest
+            {
+                AssetId = 12345,
+                SenderAddress = "SENDER1234567890123456789012345678901234567890123456789",
+                RecipientAddress = "RECIPIENT1234567890123456789012345678901234567890123456"
+            };
+
+            _whitelistServiceMock.Setup(s => s.VerifyAllowlistStatusAsync(
+                It.IsAny<VerifyAllowlistStatusRequest>(), TestUserAddress))
+                .ThrowsAsync(new Exception("Database error"));
+
+            // Act
+            var result = await _controller.VerifyAllowlistStatus(request);
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult?.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        }
+
+        #endregion
     }
 }
