@@ -299,29 +299,36 @@ namespace BiatecTokensApi.Services
                     _ => WebhookEventType.TokenDeploymentStarted
                 };
 
-                // Create webhook payload
-                var payload = new
+                // Create webhook event
+                var webhookEvent = new WebhookEvent
                 {
-                    deploymentId = deployment.DeploymentId,
-                    status = status.ToString(),
-                    tokenType = deployment.TokenType,
-                    network = deployment.Network,
-                    tokenName = deployment.TokenName,
-                    tokenSymbol = deployment.TokenSymbol,
-                    assetIdentifier = deployment.AssetIdentifier,
-                    transactionHash = deployment.TransactionHash,
-                    deployedBy = deployment.DeployedBy,
-                    createdAt = deployment.CreatedAt,
-                    updatedAt = deployment.UpdatedAt,
-                    errorMessage = deployment.ErrorMessage,
-                    correlationId = deployment.CorrelationId
+                    EventType = eventType,
+                    Actor = deployment.DeployedBy,
+                    Network = deployment.Network,
+                    Data = new Dictionary<string, object>
+                    {
+                        { "deploymentId", deployment.DeploymentId },
+                        { "status", status.ToString() },
+                        { "tokenType", deployment.TokenType },
+                        { "tokenName", deployment.TokenName ?? string.Empty },
+                        { "tokenSymbol", deployment.TokenSymbol ?? string.Empty },
+                        { "assetIdentifier", deployment.AssetIdentifier ?? string.Empty },
+                        { "transactionHash", deployment.TransactionHash ?? string.Empty },
+                        { "createdAt", deployment.CreatedAt.ToString("o") },
+                        { "updatedAt", deployment.UpdatedAt.ToString("o") },
+                        { "errorMessage", deployment.ErrorMessage ?? string.Empty },
+                        { "correlationId", deployment.CorrelationId ?? string.Empty }
+                    }
                 };
 
-                await _webhookService.TriggerWebhookAsync(
-                    eventType,
-                    payload,
-                    deployment.Network,
-                    deployment.AssetIdentifier);
+                // Try to parse asset ID if present
+                if (!string.IsNullOrEmpty(deployment.AssetIdentifier) && 
+                    ulong.TryParse(deployment.AssetIdentifier, out var assetId))
+                {
+                    webhookEvent.AssetId = assetId;
+                }
+
+                await _webhookService.EmitEventAsync(webhookEvent);
 
                 _logger.LogDebug("Webhook triggered: EventType={EventType}, DeploymentId={DeploymentId}",
                     eventType, deployment.DeploymentId);
