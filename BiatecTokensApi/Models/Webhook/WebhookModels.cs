@@ -103,7 +103,27 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// Compliance badge or status updated
         /// </summary>
-        ComplianceBadgeUpdate
+        ComplianceBadgeUpdate,
+
+        /// <summary>
+        /// Token deployment started or queued
+        /// </summary>
+        TokenDeploymentStarted,
+
+        /// <summary>
+        /// Token deployment transaction is confirming on blockchain
+        /// </summary>
+        TokenDeploymentConfirming,
+
+        /// <summary>
+        /// Token deployment completed successfully
+        /// </summary>
+        TokenDeploymentCompleted,
+
+        /// <summary>
+        /// Token deployment failed
+        /// </summary>
+        TokenDeploymentFailed
     }
 
     /// <summary>

@@ -121,6 +121,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository, BiatecTokensApi.Repositories.EnterpriseAuditRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IWebhookRepository, BiatecTokensApi.Repositories.WebhookRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ISubscriptionRepository, BiatecTokensApi.Repositories.SubscriptionRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository, BiatecTokensApi.Repositories.DeploymentStatusRepository>();
 
             // Register metering service
             builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
@@ -143,6 +144,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IEnterpriseAuditService, EnterpriseAuditService>();
             builder.Services.AddSingleton<IWebhookService, WebhookService>();
             builder.Services.AddSingleton<IStripeService, StripeService>();
+            builder.Services.AddSingleton<IDeploymentStatusService, DeploymentStatusService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
