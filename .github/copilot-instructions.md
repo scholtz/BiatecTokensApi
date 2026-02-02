@@ -151,7 +151,14 @@ public async Task<TokenCreationResponse> CreateERC20MintableAsync(CreateERC20Min
 - Use environment variables for production deployments
 - Validate all input parameters before processing
 - Use proper error handling to avoid leaking sensitive information
-- Sanitize all user-provided inputs before logging to prevent log forging attacks
+- **ALWAYS sanitize all user-provided inputs before logging to prevent log forging attacks and CodeQL security warnings**
+- Create utility methods for input sanitization and use them consistently across the codebase
+
+### Logging Security
+- **ALWAYS** sanitize user-provided inputs before logging using `LoggingHelper.SanitizeLogInput()`
+- Never log raw user input directly, even in structured logging
+- Use the `LoggingHelper` utility class for consistent sanitization across the codebase
+- Control characters and excessively long inputs are automatically filtered
 
 ### Secrets Management
 ```bash

@@ -1,4 +1,5 @@
 using BiatecTokensApi.Filters;
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -75,16 +76,16 @@ namespace BiatecTokensApi.Controllers
 
                 if (deployment == null)
                 {
-                    _logger.LogWarning("Deployment not found: DeploymentId={DeploymentId}", deploymentId);
+                    _logger.LogWarning("Deployment not found: DeploymentId={DeploymentId}", LoggingHelper.SanitizeLogInput(deploymentId));
                     return NotFound(new DeploymentStatusResponse
                     {
                         Success = false,
-                        ErrorMessage = $"Deployment with ID '{deploymentId}' not found"
+                        ErrorMessage = $"Deployment with ID '{LoggingHelper.SanitizeLogInput(deploymentId)}' not found"
                     });
                 }
 
                 _logger.LogInformation("Retrieved deployment status: DeploymentId={DeploymentId}, Status={Status}",
-                    deploymentId, deployment.CurrentStatus);
+                    LoggingHelper.SanitizeLogInput(deploymentId), deployment.CurrentStatus);
 
                 return Ok(new DeploymentStatusResponse
                 {
@@ -94,7 +95,7 @@ namespace BiatecTokensApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving deployment status: DeploymentId={DeploymentId}", deploymentId);
+                _logger.LogError(ex, "Error retrieving deployment status: DeploymentId={DeploymentId}", LoggingHelper.SanitizeLogInput(deploymentId));
                 return StatusCode(StatusCodes.Status500InternalServerError, new DeploymentStatusResponse
                 {
                     Success = false,
@@ -206,24 +207,24 @@ namespace BiatecTokensApi.Controllers
                 var deployment = await _deploymentStatusService.GetDeploymentAsync(deploymentId);
                 if (deployment == null)
                 {
-                    _logger.LogWarning("Deployment not found for history: DeploymentId={DeploymentId}", deploymentId);
+                    _logger.LogWarning("Deployment not found for history: DeploymentId={DeploymentId}", LoggingHelper.SanitizeLogInput(deploymentId));
                     return NotFound(new
                     {
                         success = false,
-                        errorMessage = $"Deployment with ID '{deploymentId}' not found"
+                        errorMessage = $"Deployment with ID '{LoggingHelper.SanitizeLogInput(deploymentId)}' not found"
                     });
                 }
 
                 var history = await _deploymentStatusService.GetStatusHistoryAsync(deploymentId);
 
                 _logger.LogInformation("Retrieved deployment history: DeploymentId={DeploymentId}, EntryCount={Count}",
-                    deploymentId, history.Count);
+                    LoggingHelper.SanitizeLogInput(deploymentId), history.Count);
 
                 return Ok(history);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving deployment history: DeploymentId={DeploymentId}", deploymentId);
+                _logger.LogError(ex, "Error retrieving deployment history: DeploymentId={DeploymentId}", LoggingHelper.SanitizeLogInput(deploymentId));
                 return StatusCode(StatusCodes.Status500InternalServerError, new
                 {
                     success = false,

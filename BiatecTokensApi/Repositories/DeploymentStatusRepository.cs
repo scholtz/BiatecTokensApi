@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Repositories.Interface;
 using System.Collections.Concurrent;
@@ -42,12 +43,12 @@ namespace BiatecTokensApi.Repositories
 
             if (!_deployments.TryAdd(deployment.DeploymentId, deployment))
             {
-                _logger.LogWarning("Deployment with ID {DeploymentId} already exists", deployment.DeploymentId);
-                throw new InvalidOperationException($"Deployment with ID {deployment.DeploymentId} already exists");
+                _logger.LogWarning("Deployment with ID {DeploymentId} already exists", LoggingHelper.SanitizeLogInput(deployment.DeploymentId));
+                throw new InvalidOperationException($"Deployment with ID {LoggingHelper.SanitizeLogInput(deployment.DeploymentId)} already exists");
             }
 
             _logger.LogInformation("Created deployment: DeploymentId={DeploymentId}, TokenType={TokenType}, Network={Network}, DeployedBy={DeployedBy}",
-                deployment.DeploymentId, deployment.TokenType, deployment.Network, deployment.DeployedBy);
+                LoggingHelper.SanitizeLogInput(deployment.DeploymentId), deployment.TokenType, deployment.Network, LoggingHelper.SanitizeLogInput(deployment.DeployedBy));
 
             return Task.CompletedTask;
         }
@@ -98,11 +99,11 @@ namespace BiatecTokensApi.Repositories
             if (deployment != null)
             {
                 _logger.LogDebug("Retrieved deployment: DeploymentId={DeploymentId}, Status={Status}",
-                    deploymentId, deployment.CurrentStatus);
+                    LoggingHelper.SanitizeLogInput(deploymentId), deployment.CurrentStatus);
             }
             else
             {
-                _logger.LogDebug("Deployment not found: DeploymentId={DeploymentId}", deploymentId);
+                _logger.LogDebug("Deployment not found: DeploymentId={DeploymentId}", LoggingHelper.SanitizeLogInput(deploymentId));
             }
 
             return Task.FromResult(deployment);
@@ -114,7 +115,7 @@ namespace BiatecTokensApi.Repositories
         public Task<List<TokenDeployment>> GetDeploymentsAsync(ListDeploymentsRequest request)
         {
             _logger.LogInformation("Retrieving deployments: DeployedBy={DeployedBy}, Network={Network}, TokenType={TokenType}, Status={Status}",
-                request.DeployedBy, request.Network, request.TokenType, request.Status);
+                LoggingHelper.SanitizeLogInput(request.DeployedBy), LoggingHelper.SanitizeLogInput(request.Network), LoggingHelper.SanitizeLogInput(request.TokenType), request.Status);
 
             var query = _deployments.Values.AsEnumerable();
 
@@ -234,12 +235,12 @@ namespace BiatecTokensApi.Repositories
 
             if (!_deployments.TryGetValue(deploymentId, out var deployment))
             {
-                _logger.LogWarning("Deployment with ID {DeploymentId} not found", deploymentId);
+                _logger.LogWarning("Deployment with ID {DeploymentId} not found", LoggingHelper.SanitizeLogInput(deploymentId));
                 return Task.FromResult(new List<DeploymentStatusEntry>());
             }
 
             var history = deployment.StatusHistory.OrderBy(e => e.Timestamp).ToList();
-            _logger.LogDebug("Retrieved {Count} status entries for deployment {DeploymentId}", history.Count, deploymentId);
+            _logger.LogDebug("Retrieved {Count} status entries for deployment {DeploymentId}", history.Count, LoggingHelper.SanitizeLogInput(deploymentId));
 
             return Task.FromResult(history);
         }

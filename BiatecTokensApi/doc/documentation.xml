@@ -3505,6 +3505,25 @@
             <param name="details">Optional additional details</param>
             <returns>Response object with error information</returns>
         </member>
+        <member name="T:BiatecTokensApi.Helpers.LoggingHelper">
+            <summary>
+            Helper class for secure logging operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.LoggingHelper.SanitizeLogInput(System.String)">
+            <summary>
+            Sanitizes user-provided input for safe logging to prevent log injection attacks
+            </summary>
+            <param name="input">The string to sanitize</param>
+            <returns>Sanitized string safe for logging</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.LoggingHelper.SanitizeLogInputs(System.String[])">
+            <summary>
+            Sanitizes multiple string inputs for logging
+            </summary>
+            <param name="inputs">Array of strings to sanitize</param>
+            <returns>Array of sanitized strings</returns>
+        </member>
         <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware">
             <summary>
             Global exception handling middleware that catches unhandled exceptions and returns standardized error responses
