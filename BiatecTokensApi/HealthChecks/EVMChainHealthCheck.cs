@@ -46,6 +46,7 @@ namespace BiatecTokensApi.HealthChecks
 
             foreach (var chain in _evmChains.Chains)
             {
+                var chainStartTime = DateTime.UtcNow;
                 try
                 {
                     if (string.IsNullOrEmpty(chain.RpcUrl))
@@ -73,6 +74,7 @@ namespace BiatecTokensApi.HealthChecks
                         "application/json");
 
                     var response = await httpClient.PostAsync(chain.RpcUrl, content, linkedCts.Token);
+                    var responseTime = (DateTime.UtcNow - chainStartTime).TotalMilliseconds;
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -86,7 +88,8 @@ namespace BiatecTokensApi.HealthChecks
                             {
                                 status = "healthy",
                                 rpcUrl = chain.RpcUrl,
-                                chainId = chain.ChainId
+                                chainId = chain.ChainId,
+                                responseTimeMs = Math.Round(responseTime, 2)
                             };
                         }
                         else
@@ -97,7 +100,8 @@ namespace BiatecTokensApi.HealthChecks
                                 status = "degraded",
                                 rpcUrl = chain.RpcUrl,
                                 chainId = chain.ChainId,
-                                reason = "Invalid JSON-RPC response"
+                                reason = "Invalid JSON-RPC response",
+                                responseTimeMs = Math.Round(responseTime, 2)
                             };
                         }
                     }
@@ -109,30 +113,36 @@ namespace BiatecTokensApi.HealthChecks
                             status = "degraded",
                             rpcUrl = chain.RpcUrl,
                             chainId = chain.ChainId,
-                            statusCode = (int)response.StatusCode
+                            statusCode = (int)response.StatusCode,
+                            responseTimeMs = Math.Round(responseTime, 2)
                         };
                     }
                 }
                 catch (OperationCanceledException)
                 {
+                    var responseTime = (DateTime.UtcNow - chainStartTime).TotalMilliseconds;
                     unhealthyChains.Add($"Chain {chain.ChainId} (timeout)");
                     chainDetails[$"chain_{chain.ChainId}"] = new
                     {
                         status = "timeout",
                         rpcUrl = chain.RpcUrl ?? "not configured",
-                        chainId = chain.ChainId
+                        chainId = chain.ChainId,
+                        responseTimeMs = Math.Round(responseTime, 2)
                     };
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Health check failed for EVM chain {ChainId}", chain.ChainId);
+                    var responseTime = (DateTime.UtcNow - chainStartTime).TotalMilliseconds;
+                    _logger.LogWarning(ex, "Health check failed for EVM chain {ChainId} after {ResponseTime}ms", 
+                        chain.ChainId, responseTime);
                     unhealthyChains.Add($"Chain {chain.ChainId} (error)");
                     chainDetails[$"chain_{chain.ChainId}"] = new
                     {
                         status = "error",
                         rpcUrl = chain.RpcUrl ?? "not configured",
                         chainId = chain.ChainId,
-                        error = ex.Message
+                        error = ex.Message,
+                        responseTimeMs = Math.Round(responseTime, 2)
                     };
                 }
             }

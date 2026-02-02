@@ -39,6 +39,7 @@ namespace BiatecTokensApi.HealthChecks
             HealthCheckContext context,
             CancellationToken cancellationToken = default)
         {
+            var startTime = DateTime.UtcNow;
             try
             {
                 // Try to reach the IPFS API endpoint with a short timeout
@@ -46,6 +47,7 @@ namespace BiatecTokensApi.HealthChecks
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
                 var response = await _httpClient.GetAsync(_config.ApiUrl, linkedCts.Token);
+                var responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
 
                 if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
@@ -53,7 +55,8 @@ namespace BiatecTokensApi.HealthChecks
                     return HealthCheckResult.Healthy("IPFS API is reachable", new Dictionary<string, object>
                     {
                         { "apiUrl", _config.ApiUrl },
-                        { "statusCode", (int)response.StatusCode }
+                        { "statusCode", (int)response.StatusCode },
+                        { "responseTimeMs", Math.Round(responseTime, 2) }
                     });
                 }
 
@@ -61,24 +64,29 @@ namespace BiatecTokensApi.HealthChecks
                 return HealthCheckResult.Degraded($"IPFS API returned status code {response.StatusCode}", null, new Dictionary<string, object>
                 {
                     { "apiUrl", _config.ApiUrl },
-                    { "statusCode", (int)response.StatusCode }
+                    { "statusCode", (int)response.StatusCode },
+                    { "responseTimeMs", Math.Round(responseTime, 2) }
                 });
             }
             catch (OperationCanceledException)
             {
-                _logger.LogWarning("IPFS health check timed out");
+                var responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                _logger.LogWarning("IPFS health check timed out after {ResponseTime}ms", responseTime);
                 return HealthCheckResult.Degraded("IPFS API health check timed out", null, new Dictionary<string, object>
                 {
-                    { "apiUrl", _config.ApiUrl }
+                    { "apiUrl", _config.ApiUrl },
+                    { "responseTimeMs", Math.Round(responseTime, 2) }
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "IPFS health check failed");
+                var responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                _logger.LogError(ex, "IPFS health check failed after {ResponseTime}ms", responseTime);
                 return HealthCheckResult.Unhealthy("IPFS API is not reachable", ex, new Dictionary<string, object>
                 {
                     { "apiUrl", _config.ApiUrl },
-                    { "error", ex.Message }
+                    { "error", ex.Message },
+                    { "responseTimeMs", Math.Round(responseTime, 2) }
                 });
             }
         }

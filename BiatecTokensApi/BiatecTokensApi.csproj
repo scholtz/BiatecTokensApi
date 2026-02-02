@@ -12,6 +12,7 @@
 		<PackageReference Include="Algorand4" Version="4.4.1.2026010317" />
 		<PackageReference Include="AlgorandARC76Account" Version="1.1.0" />
 		<PackageReference Include="AlgorandAuthentication" Version="2.1.1" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.11.0" />
 		<PackageReference Include="Microsoft.OpenApi" Version="2.3.0" />
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
 		<PackageReference Include="Nethereum.Web3" Version="5.8.0" />
