@@ -15,6 +15,7 @@ A comprehensive API for deploying and managing various types of tokens on differ
 - **Network-Specific Validation**: Enforce compliance rules for VOI and Aramid networks
 - **Authentication**: Secure API access using ARC-0014 Algorand authentication
 - **Multi-Network Support**: Support for various Algorand networks and EVM chains
+- **Subscription Management**: Stripe-powered subscription tiers (Free, Basic, Premium, Enterprise) with self-service billing
 - **Health Monitoring**: Comprehensive health checks for all external dependencies (IPFS, Algorand, EVM chains)
 - **Enhanced Error Handling**: Global exception handling with standardized error responses and correlation IDs
 - **Request Tracing**: Request/response logging for debugging and monitoring
@@ -128,6 +129,51 @@ Realm: ***BiatecTokens#ARC14***
 ```
 Authorization: SigTx <your-arc14-signed-transaction>
 ```
+
+## Subscription Management
+
+The API supports tiered subscriptions powered by Stripe for monetization and feature gating. See [STRIPE_SUBSCRIPTION_IMPLEMENTATION.md](../STRIPE_SUBSCRIPTION_IMPLEMENTATION.md) for full documentation.
+
+### Subscription Tiers
+
+| Tier | Price | Whitelist Addresses | Audit Logs | Bulk Operations |
+|------|-------|---------------------|------------|-----------------|
+| **Free** | $0/month | 10 per asset | ❌ | ❌ |
+| **Basic** | $9/month | 100 per asset | ✅ | ❌ |
+| **Premium** | $9/month | 1,000 per asset | ✅ | ✅ |
+| **Enterprise** | $99/month | Unlimited | ✅ | ✅ |
+
+### Subscription Endpoints
+
+#### Create Checkout Session
+```http
+POST /api/v1/subscription/checkout
+Authorization: SigTx <your-arc14-signed-transaction>
+Content-Type: application/json
+
+{
+  "tier": "Basic"
+}
+```
+
+#### Get Subscription Status
+```http
+GET /api/v1/subscription/status
+Authorization: SigTx <your-arc14-signed-transaction>
+```
+
+#### Access Billing Portal
+```http
+POST /api/v1/subscription/billing-portal
+Authorization: SigTx <your-arc14-signed-transaction>
+Content-Type: application/json
+
+{
+  "returnUrl": "https://your-domain.com/dashboard"
+}
+```
+
+For complete subscription documentation, including webhook setup and configuration, see [SUBSCRIPTION_IMPLEMENTATION_VERIFICATION.md](../SUBSCRIPTION_IMPLEMENTATION_VERIFICATION.md).
 
 ## API Endpoints
 
