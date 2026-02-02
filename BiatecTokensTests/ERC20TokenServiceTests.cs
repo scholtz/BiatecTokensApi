@@ -3,6 +3,7 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ERC20.Request;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
+using BiatecTokensApi.Services.Interface;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -550,7 +551,18 @@ namespace BiatecTokensTests
 
         private ERC20TokenService CreateService()
         {
-            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object);
+            var deploymentStatusServiceMock = new Mock<IDeploymentStatusService>();
+            deploymentStatusServiceMock.Setup(x => x.CreateDeploymentAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(Guid.NewGuid().ToString());
+            deploymentStatusServiceMock.Setup(x => x.UpdateDeploymentStatusAsync(
+                It.IsAny<string>(), It.IsAny<DeploymentStatus>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<ulong?>(), It.IsAny<string>(),
+                It.IsAny<Dictionary<string, object>>()))
+                .ReturnsAsync(true);
+            
+            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object);
         }
 
         #endregion
