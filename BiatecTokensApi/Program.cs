@@ -88,7 +88,28 @@ namespace BiatecTokensApi
             builder.Services.Configure<BiatecTokensApi.Configuration.StripeConfig>(
                 builder.Configuration.GetSection("StripeConfig"));
 
-            // Register HTTP client for API calls
+            // Register HTTP client for API calls with resilience policies
+            builder.Services.AddHttpClient("default")
+                .AddStandardResilienceHandler(options =>
+                {
+                    // Configure retry policy
+                    options.Retry.MaxRetryAttempts = 3;
+                    options.Retry.Delay = TimeSpan.FromMilliseconds(500);
+                    options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+                    options.Retry.UseJitter = true;
+                    
+                    // Configure circuit breaker
+                    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60);
+                    options.CircuitBreaker.FailureRatio = 0.5;
+                    options.CircuitBreaker.MinimumThroughput = 10;
+                    options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(15);
+                    
+                    // Configure timeout
+                    options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+                    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(20);
+                });
+            
+            // Also register the default HttpClient for backward compatibility
             builder.Services.AddHttpClient();
 
             // Register repositories

@@ -46,6 +46,7 @@ namespace BiatecTokensApi.HealthChecks
 
             foreach (var network in _authOptions.AllowedNetworks)
             {
+                var networkStartTime = DateTime.UtcNow;
                 try
                 {
                     if (string.IsNullOrEmpty(network.Value?.Server))
@@ -67,6 +68,7 @@ namespace BiatecTokensApi.HealthChecks
 
                     // Try to get node status
                     var response = await httpClient.GetAsync($"{network.Value.Server.TrimEnd('/')}/v2/status", linkedCts.Token);
+                    var responseTime = (DateTime.UtcNow - networkStartTime).TotalMilliseconds;
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -74,7 +76,8 @@ namespace BiatecTokensApi.HealthChecks
                         networkDetails[$"network_{network.Key.Substring(0, 8)}"] = new
                         {
                             status = "healthy",
-                            server = network.Value.Server
+                            server = network.Value.Server,
+                            responseTimeMs = Math.Round(responseTime, 2)
                         };
                     }
                     else
@@ -84,28 +87,34 @@ namespace BiatecTokensApi.HealthChecks
                         {
                             status = "degraded",
                             server = network.Value.Server,
-                            statusCode = (int)response.StatusCode
+                            statusCode = (int)response.StatusCode,
+                            responseTimeMs = Math.Round(responseTime, 2)
                         };
                     }
                 }
                 catch (OperationCanceledException)
                 {
+                    var responseTime = (DateTime.UtcNow - networkStartTime).TotalMilliseconds;
                     unhealthyNetworks.Add($"{network.Key.Substring(0, 8)}... (timeout)");
                     networkDetails[$"network_{network.Key.Substring(0, 8)}"] = new
                     {
                         status = "timeout",
-                        server = network.Value?.Server ?? "not configured"
+                        server = network.Value?.Server ?? "not configured",
+                        responseTimeMs = Math.Round(responseTime, 2)
                     };
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Health check failed for Algorand network {NetworkId}", network.Key.Substring(0, 8));
+                    var responseTime = (DateTime.UtcNow - networkStartTime).TotalMilliseconds;
+                    _logger.LogWarning(ex, "Health check failed for Algorand network {NetworkId} after {ResponseTime}ms", 
+                        network.Key.Substring(0, 8), responseTime);
                     unhealthyNetworks.Add($"{network.Key.Substring(0, 8)}... (error)");
                     networkDetails[$"network_{network.Key.Substring(0, 8)}"] = new
                     {
                         status = "error",
                         server = network.Value?.Server ?? "not configured",
-                        error = ex.Message
+                        error = ex.Message,
+                        responseTimeMs = Math.Round(responseTime, 2)
                     };
                 }
             }
