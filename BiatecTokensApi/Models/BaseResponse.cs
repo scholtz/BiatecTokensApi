@@ -11,6 +11,15 @@
         public bool Success { get; set; }
 
         /// <summary>
+        /// Unique identifier for tracking the deployment progress
+        /// </summary>
+        /// <remarks>
+        /// Use this ID with the /api/v1/token/deployments/{deploymentId} endpoint
+        /// to track deployment status in real-time.
+        /// </remarks>
+        public string? DeploymentId { get; set; }
+
+        /// <summary>
         /// Error message if deployment failed
         /// </summary>
         public string? ErrorMessage { get; set; }

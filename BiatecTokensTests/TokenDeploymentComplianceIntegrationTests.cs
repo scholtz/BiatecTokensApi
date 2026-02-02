@@ -6,6 +6,7 @@ using BiatecTokensApi.Models.ASA.Request;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
+using BiatecTokensApi.Services.Interface;
 using BiatecTokensApi.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -56,13 +57,25 @@ namespace BiatecTokensTests
             var mockAppConfig = new Mock<IOptionsMonitor<AppConfiguration>>();
             var mockLogger = new Mock<ILogger<ERC20TokenService>>();
             var mockTokenIssuanceRepo = new Mock<ITokenIssuanceRepository>();
+            
+            var deploymentStatusServiceMock = new Mock<IDeploymentStatusService>();
+            deploymentStatusServiceMock.Setup(x => x.CreateDeploymentAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(Guid.NewGuid().ToString());
+            deploymentStatusServiceMock.Setup(x => x.UpdateDeploymentStatusAsync(
+                It.IsAny<string>(), It.IsAny<DeploymentStatus>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<ulong?>(), It.IsAny<string>(),
+                It.IsAny<Dictionary<string, object>>()))
+                .ReturnsAsync(true);
 
             var service = new ERC20TokenService(
                 mockConfig.Object, 
                 mockAppConfig.Object, 
                 mockLogger.Object, 
                 mockTokenIssuanceRepo.Object,
-                _complianceRepository);
+                _complianceRepository,
+                deploymentStatusServiceMock.Object);
 
             // Act & Assert
             var ex = Assert.Throws<ArgumentException>(() => 
@@ -103,13 +116,25 @@ namespace BiatecTokensTests
             var mockAppConfig = new Mock<IOptionsMonitor<AppConfiguration>>();
             var mockLogger = new Mock<ILogger<ERC20TokenService>>();
             var mockTokenIssuanceRepo = new Mock<ITokenIssuanceRepository>();
+            
+            var deploymentStatusServiceMock = new Mock<IDeploymentStatusService>();
+            deploymentStatusServiceMock.Setup(x => x.CreateDeploymentAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(Guid.NewGuid().ToString());
+            deploymentStatusServiceMock.Setup(x => x.UpdateDeploymentStatusAsync(
+                It.IsAny<string>(), It.IsAny<DeploymentStatus>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<ulong?>(), It.IsAny<string>(),
+                It.IsAny<Dictionary<string, object>>()))
+                .ReturnsAsync(true);
 
             var service = new ERC20TokenService(
                 mockConfig.Object, 
                 mockAppConfig.Object, 
                 mockLogger.Object, 
                 mockTokenIssuanceRepo.Object,
-                _complianceRepository);
+                _complianceRepository,
+                deploymentStatusServiceMock.Object);
 
             // Act & Assert - should not throw
             Assert.DoesNotThrow(() => service.ValidateRequest(request, TokenType.ERC20_Mintable));
@@ -135,13 +160,25 @@ namespace BiatecTokensTests
             var mockAppConfig = new Mock<IOptionsMonitor<AppConfiguration>>();
             var mockLogger = new Mock<ILogger<ERC20TokenService>>();
             var mockTokenIssuanceRepo = new Mock<ITokenIssuanceRepository>();
+            
+            var deploymentStatusServiceMock = new Mock<IDeploymentStatusService>();
+            deploymentStatusServiceMock.Setup(x => x.CreateDeploymentAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(Guid.NewGuid().ToString());
+            deploymentStatusServiceMock.Setup(x => x.UpdateDeploymentStatusAsync(
+                It.IsAny<string>(), It.IsAny<DeploymentStatus>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<ulong?>(), It.IsAny<string>(),
+                It.IsAny<Dictionary<string, object>>()))
+                .ReturnsAsync(true);
 
             var service = new ERC20TokenService(
                 mockConfig.Object, 
                 mockAppConfig.Object, 
                 mockLogger.Object, 
                 mockTokenIssuanceRepo.Object,
-                _complianceRepository);
+                _complianceRepository,
+                deploymentStatusServiceMock.Object);
 
             // Act & Assert - should not throw
             Assert.DoesNotThrow(() => service.ValidateRequest(request, TokenType.ERC20_Mintable));

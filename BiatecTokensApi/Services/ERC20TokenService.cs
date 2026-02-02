@@ -36,6 +36,7 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<ERC20TokenService> _logger;
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
         private readonly IComplianceRepository _complianceRepository;
+        private readonly IDeploymentStatusService _deploymentStatusService;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -55,13 +56,15 @@ namespace BiatecTokensApi.Services
         /// <param name="logger">The logger used to log information and errors for this service.</param>
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         /// <param name="complianceRepository">The compliance metadata repository</param>
+        /// <param name="deploymentStatusService">The deployment status tracking service</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ERC20TokenService(
             IOptionsMonitor<EVMChains> config,
             IOptionsMonitor<AppConfiguration> appConfig,
             ILogger<ERC20TokenService> logger,
             ITokenIssuanceRepository tokenIssuanceRepository,
-            IComplianceRepository complianceRepository
+            IComplianceRepository complianceRepository,
+            IDeploymentStatusService deploymentStatusService
             )
         {
             _config = config;
@@ -69,6 +72,7 @@ namespace BiatecTokensApi.Services
             _logger = logger;
             _tokenIssuanceRepository = tokenIssuanceRepository;
             _complianceRepository = complianceRepository;
+            _deploymentStatusService = deploymentStatusService;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -194,17 +198,26 @@ namespace BiatecTokensApi.Services
         public async Task<ERC20TokenDeploymentResponse> DeployERC20TokenAsync(ERC20TokenDeploymentRequest request, TokenType tokenType)
         {
             ERC20TokenDeploymentResponse? response = null;
+            string? deploymentId = null;
 
             try
             {
                 ValidateRequest(request, tokenType);
 
                 var acc = ARC76.GetEVMAccount(_appConfig.CurrentValue.Account, Convert.ToInt32(request.ChainId));
-
                 var chainConfig = GetBlockchainConfig(Convert.ToInt32(request.ChainId));
-
-                // Create an account with the provided private key
                 var account = new Account(acc, request.ChainId);
+
+                // Create deployment tracking record
+                deploymentId = await _deploymentStatusService.CreateDeploymentAsync(
+                    tokenType.ToString(),
+                    GetNetworkName(chainConfig.ChainId),
+                    account.Address,
+                    request.Name,
+                    request.Symbol);
+
+                _logger.LogInformation("Created deployment tracking: DeploymentId={DeploymentId}, TokenType={TokenType}",
+                    deploymentId, tokenType);
 
                 // Connect to the blockchain
                 var web3 = new Web3(account, chainConfig.RpcUrl);
@@ -220,6 +233,12 @@ namespace BiatecTokensApi.Services
 
                 _logger.LogInformation("Deploying BiatecToken {Name} ({Symbol}) with supply {Supply} and {Decimals} decimals to receiver {Receiver}",
                     request.Name, request.Symbol, request.InitialSupply, request.Decimals, initialSupplyReceiver);
+
+                // Update status to Submitted
+                await _deploymentStatusService.UpdateDeploymentStatusAsync(
+                    deploymentId,
+                    DeploymentStatus.Submitted,
+                    "Deployment transaction submitted to blockchain");
 
                 // Deploy the BiatecToken contract with updated constructor parameters
                 // BiatecToken constructor: (string name, string symbol, uint8 decimals_, uint256 initialSupply, address initialSupplyReceiver)
@@ -243,11 +262,22 @@ namespace BiatecTokensApi.Services
                 // Check if deployment was successful
                 if (receipt?.Status?.Value == 1 && !string.IsNullOrEmpty(receipt.ContractAddress))
                 {
+                    // Update status to Confirmed
+                    await _deploymentStatusService.UpdateDeploymentStatusAsync(
+                        deploymentId,
+                        DeploymentStatus.Confirmed,
+                        "Deployment transaction confirmed on blockchain",
+                        transactionHash: receipt.TransactionHash);
+
+                    // Update asset identifier
+                    await _deploymentStatusService.UpdateAssetIdentifierAsync(deploymentId, receipt.ContractAddress);
+
                     response = new ERC20TokenDeploymentResponse()
                     {
                         ContractAddress = receipt.ContractAddress,
                         Success = true,
                         TransactionHash = receipt.TransactionHash,
+                        DeploymentId = deploymentId
                     };
 
                     _logger.LogInformation("BiatecToken {Symbol} deployed successfully at address {Address} with transaction {TxHash}",
@@ -263,6 +293,12 @@ namespace BiatecTokensApi.Services
                     // Log token issuance audit entry
                     await LogTokenIssuanceAudit(request, tokenType, receipt.ContractAddress, receipt.TransactionHash, 
                         account.Address, true, null, GetNetworkName(chainConfig.ChainId));
+
+                    // Update status to Completed
+                    await _deploymentStatusService.UpdateDeploymentStatusAsync(
+                        deploymentId,
+                        DeploymentStatus.Completed,
+                        "Deployment completed successfully with all post-deployment operations finished");
                 }
                 else
                 {
@@ -271,13 +307,20 @@ namespace BiatecTokensApi.Services
                         Success = false,
                         TransactionHash = receipt?.TransactionHash ?? string.Empty,
                         ContractAddress = string.Empty,
-                        ErrorMessage = "Contract deployment failed - transaction reverted or no contract address received"
+                        ErrorMessage = "Contract deployment failed - transaction reverted or no contract address received",
+                        DeploymentId = deploymentId
                     };
                     _logger.LogError("BiatecToken deployment failed: {Error}", response.ErrorMessage);
 
                     // Log failed token issuance audit entry
                     await LogTokenIssuanceAudit(request, tokenType, null, receipt?.TransactionHash, 
                         account.Address, false, response.ErrorMessage, GetNetworkName(chainConfig.ChainId));
+
+                    // Mark deployment as failed
+                    await _deploymentStatusService.MarkDeploymentFailedAsync(
+                        deploymentId,
+                        response.ErrorMessage,
+                        isRetryable: false);
                 }
             }
             catch (Exception ex)
@@ -287,9 +330,19 @@ namespace BiatecTokensApi.Services
                     Success = false,
                     TransactionHash = string.Empty,
                     ContractAddress = string.Empty,
-                    ErrorMessage = ex.Message
+                    ErrorMessage = ex.Message,
+                    DeploymentId = deploymentId
                 };
                 _logger.LogError(ex, "Error deploying BiatecToken: {Message}", ex.Message);
+
+                // Mark deployment as failed if we have a deployment ID
+                if (!string.IsNullOrEmpty(deploymentId))
+                {
+                    await _deploymentStatusService.MarkDeploymentFailedAsync(
+                        deploymentId,
+                        ex.Message,
+                        isRetryable: true);
+                }
 
                 // Log failed token issuance audit entry
                 try

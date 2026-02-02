@@ -1249,6 +1249,87 @@
             Requires ARC-0014 authentication. Recommended for compliance officers and executives.
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.DeploymentStatusController">
+            <summary>
+            Provides endpoints for querying and tracking token deployment status
+            </summary>
+            <remarks>
+            This controller enables real-time monitoring of token deployments with complete
+            status history and audit trail. Supports filtering and pagination for deployment queries.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.#ctor(BiatecTokensApi.Services.Interface.IDeploymentStatusService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.DeploymentStatusController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.DeploymentStatusController"/> class.
+            </summary>
+            <param name="deploymentStatusService">The deployment status service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.GetDeploymentStatus(System.String)">
+            <summary>
+            Gets the current status and history of a specific deployment
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>Deployment status information including complete history</returns>
+            <remarks>
+            Returns comprehensive deployment information including:
+            - Current deployment status
+            - Complete status transition history
+            - Token metadata (name, symbol, type)
+            - Network and deployer information
+            - Transaction hash and asset identifier
+            - Error messages if deployment failed
+            
+            **Use Cases:**
+            - Real-time deployment progress monitoring
+            - Debugging deployment failures
+            - Compliance audit trail verification
+            - Integration with frontend progress UI
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.ListDeployments(BiatecTokensApi.Models.ListDeploymentsRequest)">
+            <summary>
+            Lists deployments with filtering and pagination
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>Paginated list of deployments</returns>
+            <remarks>
+            Returns a paginated list of deployments with optional filtering by:
+            - Deployer address
+            - Network
+            - Token type
+            - Current status
+            - Date range
+            
+            **Use Cases:**
+            - Dashboard deployment history
+            - Monitoring active deployments
+            - Compliance reporting
+            - User-specific deployment tracking
+            
+            **Pagination:**
+            - Default page size: 50
+            - Maximum page size: 100
+            - Pages are 1-indexed
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.GetDeploymentHistory(System.String)">
+            <summary>
+            Gets the complete status history for a deployment
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>Chronologically ordered list of status transitions</returns>
+            <remarks>
+            Returns an append-only audit trail of all status transitions for a deployment.
+            Each entry includes timestamp, status, message, and relevant metadata.
+            
+            **Use Cases:**
+            - Compliance audit trail
+            - Deployment timeline visualization
+            - Debugging deployment issues
+            - Performance analysis (time between status transitions)
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
             <summary>
             Provides enterprise-grade audit export endpoints for MICA reporting
@@ -3424,6 +3505,25 @@
             <param name="details">Optional additional details</param>
             <returns>Response object with error information</returns>
         </member>
+        <member name="T:BiatecTokensApi.Helpers.LoggingHelper">
+            <summary>
+            Helper class for secure logging operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.LoggingHelper.SanitizeLogInput(System.String)">
+            <summary>
+            Sanitizes user-provided input for safe logging to prevent log injection attacks
+            </summary>
+            <param name="input">The string to sanitize</param>
+            <returns>Sanitized string safe for logging</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.LoggingHelper.SanitizeLogInputs(System.String[])">
+            <summary>
+            Sanitizes multiple string inputs for logging
+            </summary>
+            <param name="inputs">Array of strings to sanitize</param>
+            <returns>Array of sanitized strings</returns>
+        </member>
         <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware">
             <summary>
             Global exception handling middleware that catches unhandled exceptions and returns standardized error responses
@@ -4194,6 +4294,15 @@
             <summary>
             Status of the deployment
             </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.BaseResponse.DeploymentId">
+            <summary>
+            Unique identifier for tracking the deployment progress
+            </summary>
+            <remarks>
+            Use this ID with the /api/v1/token/deployments/{deploymentId} endpoint
+            to track deployment status in real-time.
+            </remarks>
         </member>
         <member name="P:BiatecTokensApi.Models.BaseResponse.ErrorMessage">
             <summary>
@@ -8889,6 +8998,293 @@
             Whether this report was metered for billing
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentStatus">
+            <summary>
+            Represents the status of a token deployment operation
+            </summary>
+            <remarks>
+            This enum defines the complete lifecycle of a token deployment from initial request
+            through to completion or failure. Each status transition is tracked in the audit trail.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Queued">
+            <summary>
+            Deployment request has been received and queued for processing
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Submitted">
+            <summary>
+            Deployment transaction has been submitted to the blockchain network
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Pending">
+            <summary>
+            Transaction is pending confirmation on the blockchain
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Confirmed">
+            <summary>
+            Transaction has been confirmed by the blockchain (included in a block)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Completed">
+            <summary>
+            Deployment completed successfully with all post-deployment operations finished
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Failed">
+            <summary>
+            Deployment failed at any stage of the process
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentStatusEntry">
+            <summary>
+            Represents a deployment status entry tracking a single status transition
+            </summary>
+            <remarks>
+            Each status change during token deployment creates a new entry, forming an
+            append-only audit trail of the deployment lifecycle.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.Id">
+            <summary>
+            Unique identifier for this status entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.DeploymentId">
+            <summary>
+            Unique identifier for the deployment operation
+            </summary>
+            <remarks>
+            This ID is generated when the deployment is initiated and is used to track
+            all status transitions for a single deployment operation.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.Status">
+            <summary>
+            Current status of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.Timestamp">
+            <summary>
+            Timestamp when this status was recorded (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.Message">
+            <summary>
+            Optional message providing additional context about this status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.TransactionHash">
+            <summary>
+            Transaction hash if the deployment has been submitted to the blockchain
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.ConfirmedRound">
+            <summary>
+            Block number or round when the transaction was confirmed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.ErrorMessage">
+            <summary>
+            Error message if the deployment failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.Metadata">
+            <summary>
+            Additional metadata about this status entry
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenDeployment">
+            <summary>
+            Represents the complete deployment information including all status transitions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.DeploymentId">
+            <summary>
+            Unique identifier for the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.CurrentStatus">
+            <summary>
+            Current status of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.TokenType">
+            <summary>
+            Token type being deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.Network">
+            <summary>
+            Network where the token is being deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.DeployedBy">
+            <summary>
+            Address of the user who initiated the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.TokenName">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.TokenSymbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.AssetIdentifier">
+            <summary>
+            Asset ID (for Algorand tokens) or contract address (for EVM tokens)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.TransactionHash">
+            <summary>
+            Transaction hash of the deployment transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.CreatedAt">
+            <summary>
+            Timestamp when the deployment was initiated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.UpdatedAt">
+            <summary>
+            Timestamp when the deployment was last updated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.StatusHistory">
+            <summary>
+            Complete history of status transitions for this deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.ErrorMessage">
+            <summary>
+            Error message if the deployment failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeployment.CorrelationId">
+            <summary>
+            Correlation ID for tracking related events
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.GetDeploymentStatusRequest">
+            <summary>
+            Request to query deployment status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentStatusRequest.DeploymentId">
+            <summary>
+            Deployment ID to query
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentStatusResponse">
+            <summary>
+            Response containing deployment status information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusResponse.Deployment">
+            <summary>
+            The deployment information if found
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ListDeploymentsRequest">
+            <summary>
+            Request to list deployments with filtering
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.DeployedBy">
+            <summary>
+            Optional filter by deployed by address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.TokenType">
+            <summary>
+            Optional filter by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.Status">
+            <summary>
+            Optional filter by current status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ListDeploymentsResponse">
+            <summary>
+            Response containing a list of deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.Deployments">
+            <summary>
+            List of deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.TotalCount">
+            <summary>
+            Total count of deployments matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.EnterpriseAuditLogEntry">
             <summary>
             Unified enterprise audit log entry for MICA reporting
@@ -10556,6 +10952,26 @@
         <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.ComplianceBadgeUpdate">
             <summary>
             Compliance badge or status updated
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.TokenDeploymentStarted">
+            <summary>
+            Token deployment started or queued
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.TokenDeploymentConfirming">
+            <summary>
+            Token deployment transaction is confirming on blockchain
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.TokenDeploymentCompleted">
+            <summary>
+            Token deployment completed successfully
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Webhook.WebhookEventType.TokenDeploymentFailed">
+            <summary>
+            Token deployment failed
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Webhook.WebhookEvent">
@@ -12416,6 +12832,56 @@
         <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.CheckBlacklistAsync(System.String,System.Nullable{System.UInt64},System.String)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.DeploymentStatusRepository">
+            <summary>
+            Repository implementation for deployment status tracking
+            </summary>
+            <remarks>
+            Provides thread-safe, in-memory storage for deployment status tracking.
+            Supports real-time status updates and comprehensive audit trail queries.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.DeploymentStatusRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.DeploymentStatusRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.CreateDeploymentAsync(BiatecTokensApi.Models.TokenDeployment)">
+            <summary>
+            Creates a new deployment record
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.UpdateDeploymentAsync(BiatecTokensApi.Models.TokenDeployment)">
+            <summary>
+            Updates an existing deployment record
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.GetDeploymentByIdAsync(System.String)">
+            <summary>
+            Gets a deployment by its ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.GetDeploymentsAsync(BiatecTokensApi.Models.ListDeploymentsRequest)">
+            <summary>
+            Gets deployments with filtering and pagination
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.GetDeploymentsCountAsync(BiatecTokensApi.Models.ListDeploymentsRequest)">
+            <summary>
+            Gets the total count of deployments matching the filter
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.AddStatusEntryAsync(System.String,BiatecTokensApi.Models.DeploymentStatusEntry)">
+            <summary>
+            Adds a status entry to a deployment's history
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.DeploymentStatusRepository.GetStatusHistoryAsync(System.String)">
+            <summary>
+            Gets all status entries for a deployment ordered chronologically
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.EnterpriseAuditRepository">
             <summary>
             Repository implementation for enterprise audit log operations
@@ -12738,6 +13204,65 @@
             <param name="assetId">Optional asset ID for asset-specific check</param>
             <param name="network">Optional network filter</param>
             <returns>List of active blacklist entries for the address</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository">
+            <summary>
+            Repository interface for deployment status tracking operations
+            </summary>
+            <remarks>
+            Provides thread-safe operations for tracking token deployment status throughout
+            the deployment lifecycle. Supports real-time status updates and audit trail queries.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository.CreateDeploymentAsync(BiatecTokensApi.Models.TokenDeployment)">
+            <summary>
+            Creates a new deployment record
+            </summary>
+            <param name="deployment">The deployment to create</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository.UpdateDeploymentAsync(BiatecTokensApi.Models.TokenDeployment)">
+            <summary>
+            Updates an existing deployment record
+            </summary>
+            <param name="deployment">The deployment to update</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository.GetDeploymentByIdAsync(System.String)">
+            <summary>
+            Gets a deployment by its ID
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>The deployment if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository.GetDeploymentsAsync(BiatecTokensApi.Models.ListDeploymentsRequest)">
+            <summary>
+            Gets deployments with filtering and pagination
+            </summary>
+            <param name="request">The filter request</param>
+            <returns>List of deployments matching the filter</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository.GetDeploymentsCountAsync(BiatecTokensApi.Models.ListDeploymentsRequest)">
+            <summary>
+            Gets the total count of deployments matching the filter
+            </summary>
+            <param name="request">The filter request</param>
+            <returns>Total count of matching deployments</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository.AddStatusEntryAsync(System.String,BiatecTokensApi.Models.DeploymentStatusEntry)">
+            <summary>
+            Adds a status entry to a deployment's history
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="statusEntry">The status entry to add</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository.GetStatusHistoryAsync(System.String)">
+            <summary>
+            Gets all status entries for a deployment ordered chronologically
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>List of status entries</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository">
             <summary>
@@ -13991,6 +14516,76 @@
             <param name="metadata">The compliance metadata</param>
             <returns>True if the token should be treated as RWA, false for utility tokens</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.DeploymentStatusService">
+            <summary>
+            Service for managing deployment status tracking and state transitions
+            </summary>
+            <remarks>
+            Implements business logic for deployment status tracking including:
+            - State machine validation for status transitions
+            - Idempotency guards to prevent duplicate status updates
+            - Webhook notifications for status changes
+            - Retry logic for transient failures
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Services.DeploymentStatusService.ValidTransitions">
+            <summary>
+            Valid status transitions in the deployment state machine
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.#ctor(BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository,BiatecTokensApi.Services.Interface.IWebhookService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.DeploymentStatusService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.DeploymentStatusService"/> class.
+            </summary>
+            <param name="repository">The deployment status repository</param>
+            <param name="webhookService">The webhook service for notifications</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.CreateDeploymentAsync(System.String,System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            Creates a new deployment tracking record
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.UpdateDeploymentStatusAsync(System.String,BiatecTokensApi.Models.DeploymentStatus,System.String,System.String,System.Nullable{System.UInt64},System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Updates the status of a deployment with validation and state machine logic
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.GetDeploymentAsync(System.String)">
+            <summary>
+            Gets a deployment by its ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.GetDeploymentsAsync(BiatecTokensApi.Models.ListDeploymentsRequest)">
+            <summary>
+            Gets deployments with filtering and pagination
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.GetStatusHistoryAsync(System.String)">
+            <summary>
+            Gets the complete status history for a deployment
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.IsValidStatusTransition(BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Validates if a status transition is allowed
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.UpdateAssetIdentifierAsync(System.String,System.String)">
+            <summary>
+            Updates the asset identifier for a deployment after successful deployment
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.MarkDeploymentFailedAsync(System.String,System.String,System.Boolean)">
+            <summary>
+            Marks a deployment as failed with retry capability check
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.SendDeploymentWebhookAsync(BiatecTokensApi.Models.TokenDeployment,BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Sends a webhook notification for a deployment status change
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.EnterpriseAuditService">
             <summary>
             Service implementation for enterprise audit log operations
@@ -14048,7 +14643,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository)">
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IDeploymentStatusService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ERC20TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -14062,6 +14657,7 @@
             <param name="logger">The logger used to log information and errors for this service.</param>
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
             <param name="complianceRepository">The compliance metadata repository</param>
+            <param name="deploymentStatusService">The deployment status tracking service</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ERC20TokenService.ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -14594,6 +15190,86 @@
             Provides insights into compliance posture improvement or degradation over time.
             Includes whitelist adoption trends and overall compliance direction indicators.
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IDeploymentStatusService">
+            <summary>
+            Service interface for managing deployment status tracking and state transitions
+            </summary>
+            <remarks>
+            Provides business logic for deployment status tracking including state machine
+            validation, idempotency guards, and webhook notifications.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.CreateDeploymentAsync(System.String,System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            Creates a new deployment tracking record
+            </summary>
+            <param name="tokenType">The type of token being deployed</param>
+            <param name="network">The network where the token is being deployed</param>
+            <param name="deployedBy">The address of the user deploying the token</param>
+            <param name="tokenName">The name of the token</param>
+            <param name="tokenSymbol">The symbol of the token</param>
+            <param name="correlationId">Optional correlation ID for tracking related events</param>
+            <returns>The deployment ID</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.UpdateDeploymentStatusAsync(System.String,BiatecTokensApi.Models.DeploymentStatus,System.String,System.String,System.Nullable{System.UInt64},System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Updates the status of a deployment with validation and state machine logic
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="newStatus">The new status to transition to</param>
+            <param name="message">Optional message providing context</param>
+            <param name="transactionHash">Optional transaction hash</param>
+            <param name="confirmedRound">Optional confirmed block/round number</param>
+            <param name="errorMessage">Optional error message for failed status</param>
+            <param name="metadata">Optional additional metadata</param>
+            <returns>True if the status was updated successfully, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.GetDeploymentAsync(System.String)">
+            <summary>
+            Gets a deployment by its ID
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>The deployment if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.GetDeploymentsAsync(BiatecTokensApi.Models.ListDeploymentsRequest)">
+            <summary>
+            Gets deployments with filtering and pagination
+            </summary>
+            <param name="request">The filter request</param>
+            <returns>Response containing filtered deployments</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.GetStatusHistoryAsync(System.String)">
+            <summary>
+            Gets the complete status history for a deployment
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>List of status entries ordered chronologically</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.IsValidStatusTransition(BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Validates if a status transition is allowed
+            </summary>
+            <param name="currentStatus">The current status</param>
+            <param name="newStatus">The desired new status</param>
+            <returns>True if the transition is valid, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.UpdateAssetIdentifierAsync(System.String,System.String)">
+            <summary>
+            Updates the asset identifier for a deployment after successful deployment
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="assetIdentifier">The asset ID or contract address</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.MarkDeploymentFailedAsync(System.String,System.String,System.Boolean)">
+            <summary>
+            Marks a deployment as failed with retry capability check
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="errorMessage">The error message</param>
+            <param name="isRetryable">Whether the failure is retryable</param>
+            <returns>Task representing the asynchronous operation</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">
             <summary>
