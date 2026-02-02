@@ -1818,7 +1818,7 @@
             pausing, and metadata validation. Each endpoint validates the input request, interacts with the corresponding
             token service, and returns appropriate responses based on the operation's success or failure.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3TokenService,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Services.Interface.IARC200TokenService,BiatecTokensApi.Services.Interface.IARC1400TokenService,BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3TokenService,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Services.Interface.IARC200TokenService,BiatecTokensApi.Services.Interface.IARC1400TokenService,BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController},Microsoft.Extensions.Hosting.IHostEnvironment)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.TokenController"/> class.
             </summary>
@@ -1829,6 +1829,7 @@
             <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
             <param name="complianceService">The service used to interact with compliance metadata</param>
             <param name="logger">The logger instance used to log diagnostic and operational information.</param>
+            <param name="env">The host environment for determining runtime environment.</param>
         </member>
         <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20MintableTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest)">
             <summary>
@@ -2056,6 +2057,14 @@
             - Return HTTP 403 Forbidden if the address is not whitelisted
             - Log audit entries for blocked operations
             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.HandleTokenOperationException(System.Exception,System.String)">
+            <summary>
+            Handles exceptions from token operations and returns appropriate error responses
+            </summary>
+            <param name="ex">The exception that occurred</param>
+            <param name="operation">The operation that failed</param>
+            <returns>Appropriate IActionResult based on exception type</returns>
         </member>
         <member name="T:BiatecTokensApi.Controllers.WebhookController">
             <summary>
@@ -3339,6 +3348,82 @@
             <param name="cancellationToken">Cancellation token</param>
             <returns>Health check result</returns>
         </member>
+        <member name="T:BiatecTokensApi.Helpers.ErrorResponseBuilder">
+            <summary>
+            Helper class for building consistent error responses across the API
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.ValidationError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a standardized error response for validation failures
+            </summary>
+            <param name="errorMessage">Human-readable error message</param>
+            <param name="details">Optional additional details</param>
+            <returns>BadRequest result with standardized error response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.BlockchainConnectionError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a standardized error response for blockchain connection failures
+            </summary>
+            <param name="network">Network that failed to connect</param>
+            <param name="details">Optional additional details</param>
+            <returns>BadGateway result with standardized error response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.TransactionError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a standardized error response for transaction failures
+            </summary>
+            <param name="errorMessage">Human-readable error message</param>
+            <param name="details">Optional additional details</param>
+            <returns>UnprocessableEntity result with standardized error response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.IPFSServiceError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a standardized error response for IPFS service failures
+            </summary>
+            <param name="errorMessage">Human-readable error message</param>
+            <param name="details">Optional additional details</param>
+            <returns>BadGateway result with standardized error response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.TimeoutError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a standardized error response for timeout errors
+            </summary>
+            <param name="operation">Operation that timed out</param>
+            <param name="details">Optional additional details</param>
+            <returns>RequestTimeout result with standardized error response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.InternalServerError(System.String,System.Boolean,System.Exception)">
+            <summary>
+            Creates a standardized error response for internal server errors
+            </summary>
+            <param name="errorMessage">Human-readable error message</param>
+            <param name="isDevelopment">Whether running in development mode</param>
+            <param name="exception">Optional exception for development details</param>
+            <returns>InternalServerError result with standardized error response</returns>
+            <remarks>
+            Stack traces are only included in Development environment. 
+            Production environments will never expose stack trace details.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.ExternalServiceError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a standardized error response for external service failures
+            </summary>
+            <param name="serviceName">Name of the external service</param>
+            <param name="details">Optional additional details</param>
+            <returns>BadGateway result with standardized error response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.CreateErrorResponse``1(System.String,System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a deployment response with error details
+            </summary>
+            <typeparam name="T">Type of response (must inherit from BaseResponse)</typeparam>
+            <param name="errorCode">Error code</param>
+            <param name="errorMessage">Human-readable error message</param>
+            <param name="details">Optional additional details</param>
+            <returns>Response object with error information</returns>
+        </member>
         <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware">
             <summary>
             Global exception handling middleware that catches unhandled exceptions and returns standardized error responses
@@ -4105,14 +4190,29 @@
             Base response model for token deployment operations
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.BaseResponse.Success">
+            <summary>
+            Status of the deployment
+            </summary>
+        </member>
         <member name="P:BiatecTokensApi.Models.BaseResponse.ErrorMessage">
             <summary>
             Error message if deployment failed
             </summary>
         </member>
-        <member name="P:BiatecTokensApi.Models.BaseResponse.Success">
+        <member name="P:BiatecTokensApi.Models.BaseResponse.ErrorCode">
             <summary>
-            Status of the deployment
+            Error code for programmatic error handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.BaseResponse.ErrorDetails">
+            <summary>
+            Additional error details (optional, for debugging)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.BaseResponse.Timestamp">
+            <summary>
+            Timestamp of when the response was created (set at instantiation)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Billing.LimitCheckRequest">
@@ -9195,6 +9295,136 @@
         <member name="P:BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse.ContractAddress">
             <summary>
             Address of the deployed token contract
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ErrorCodes">
+            <summary>
+            Standardized error codes for API operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_REQUEST">
+            <summary>
+            Invalid request parameters
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.MISSING_REQUIRED_FIELD">
+            <summary>
+            Required field is missing
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_NETWORK">
+            <summary>
+            Invalid network specified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_TOKEN_PARAMETERS">
+            <summary>
+            Invalid token parameters
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.UNAUTHORIZED">
+            <summary>
+            Authentication required
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.FORBIDDEN">
+            <summary>
+            Insufficient permissions
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_AUTH_TOKEN">
+            <summary>
+            Invalid or expired authentication token
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.NOT_FOUND">
+            <summary>
+            Requested resource not found
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.ALREADY_EXISTS">
+            <summary>
+            Resource already exists
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.CONFLICT">
+            <summary>
+            Resource conflict
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.BLOCKCHAIN_CONNECTION_ERROR">
+            <summary>
+            Blockchain network connection failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.IPFS_SERVICE_ERROR">
+            <summary>
+            IPFS service unavailable
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.EXTERNAL_SERVICE_ERROR">
+            <summary>
+            External API call failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.TIMEOUT">
+            <summary>
+            Request timeout
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.CIRCUIT_BREAKER_OPEN">
+            <summary>
+            Circuit breaker open - service temporarily unavailable
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INSUFFICIENT_FUNDS">
+            <summary>
+            Insufficient funds for transaction
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.TRANSACTION_FAILED">
+            <summary>
+            Transaction failed on blockchain
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.CONTRACT_EXECUTION_FAILED">
+            <summary>
+            Smart contract execution failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.GAS_ESTIMATION_FAILED">
+            <summary>
+            Gas estimation failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.TRANSACTION_REJECTED">
+            <summary>
+            Transaction rejected by network
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INTERNAL_SERVER_ERROR">
+            <summary>
+            Internal server error
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.CONFIGURATION_ERROR">
+            <summary>
+            Configuration error
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.UNEXPECTED_ERROR">
+            <summary>
+            Unexpected error occurred
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.RATE_LIMIT_EXCEEDED">
+            <summary>
+            Rate limit exceeded
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.SUBSCRIPTION_LIMIT_REACHED">
+            <summary>
+            Subscription limit reached
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">

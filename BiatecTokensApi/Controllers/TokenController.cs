@@ -1,4 +1,5 @@
 using BiatecTokensApi.Filters;
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ARC1400.Request;
 using BiatecTokensApi.Models.ARC200.Request;
@@ -36,6 +37,7 @@ namespace BiatecTokensApi.Controllers
         private readonly IARC1400TokenService _arc1400TokenService;
         private readonly IComplianceService _complianceService;
         private readonly ILogger<TokenController> _logger;
+        private readonly IHostEnvironment _env;
         /// <summary>
         /// Initializes a new instance of the <see cref="TokenController"/> class.
         /// </summary>
@@ -46,6 +48,7 @@ namespace BiatecTokensApi.Controllers
         /// <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
         /// <param name="complianceService">The service used to interact with compliance metadata</param>
         /// <param name="logger">The logger instance used to log diagnostic and operational information.</param>
+        /// <param name="env">The host environment for determining runtime environment.</param>
         public TokenController(
             IERC20TokenService erc20TokenService,
             IARC3TokenService arc3TokenService,
@@ -53,7 +56,8 @@ namespace BiatecTokensApi.Controllers
             IARC200TokenService arc200TokenService,
             IARC1400TokenService arc1400TokenService,
             IComplianceService complianceService,
-            ILogger<TokenController> logger)
+            ILogger<TokenController> logger,
+            IHostEnvironment env)
         {
             _erc20TokenService = erc20TokenService;
             _arc3TokenService = arc3TokenService;
@@ -62,6 +66,7 @@ namespace BiatecTokensApi.Controllers
             _arc1400TokenService = arc1400TokenService;
             _complianceService = complianceService;
             _logger = logger;
+            _env = env;
         }
 
         /// <summary>
@@ -100,13 +105,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("BiatecToken deployment failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deploying BiatecToken");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ERC20 mintable token deployment");
             }
         }
 
@@ -145,13 +156,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("BiatecToken deployment failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deploying BiatecToken");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ERC20 preminted token deployment");
             }
         }
         /// <summary>
@@ -171,7 +188,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ASATokenDeploymentResponse>> CreateASAToken([FromBody] ASAFungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateASAToken([FromBody] ASAFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -184,20 +201,26 @@ namespace BiatecTokensApi.Controllers
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
+                    _logger.LogInformation("ASA FT token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
                         result.AssetId, result.TransactionId, request.Network);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ASA FT token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ASA fungible token creation");
             }
         }
         /// <summary>
@@ -216,7 +239,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ASATokenDeploymentResponse>> CreateASANFT([FromBody] ASANonFungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateASANFT([FromBody] ASANonFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -236,13 +259,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ASA token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ASA token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ASA NFT creation");
             }
         }
 
@@ -263,7 +292,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ASATokenDeploymentResponse>> CreateASAFNFT([FromBody] ASAFractionalNonFungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateASAFNFT([FromBody] ASAFractionalNonFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -283,13 +312,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ASA token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ASA token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ASA fractional NFT creation");
             }
         }
         /// <summary>
@@ -307,7 +342,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ARC3TokenDeploymentResponse>> CreateARC3FungibleToken([FromBody] ARC3FungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateARC3FungibleToken([FromBody] ARC3FungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -327,13 +362,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ARC3 fungible token creation");
             }
         }
         /// <summary>
@@ -354,7 +395,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ARC3TokenDeploymentResponse>> CreateARC3NFT([FromBody] ARC3NonFungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateARC3NFT([FromBody] ARC3NonFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -374,13 +415,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ARC3 NFT creation");
             }
         }
         /// <summary>
@@ -400,7 +447,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ARC3TokenDeploymentResponse>> CreateARC3FractionalNFT([FromBody] ARC3FractionalNonFungibleTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateARC3FractionalNFT([FromBody] ARC3FractionalNonFungibleTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -420,13 +467,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ARC3 fractional NFT creation");
             }
         }
         /// <summary>
@@ -445,7 +498,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ARC200TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ARC200TokenDeploymentResponse>> ARC200MintableTokenDeploymentRequest([FromBody] ARC200MintableTokenDeploymentRequest request)
+        public async Task<IActionResult> ARC200MintableTokenDeploymentRequest([FromBody] ARC200MintableTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -465,13 +518,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ARC200 mintable token creation");
             }
         }
         /// <summary>
@@ -490,7 +549,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ARC200TokenDeploymentResponse>> CreateARC200Preminted([FromBody] ARC200PremintedTokenDeploymentRequest request)
+        public async Task<IActionResult> CreateARC200Preminted([FromBody] ARC200PremintedTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -510,13 +569,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ARC200 preminted token creation");
             }
         }
         /// <summary>
@@ -535,7 +600,7 @@ namespace BiatecTokensApi.Controllers
         [ProducesResponseType(typeof(ARC200TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ARC200TokenDeploymentResponse>> ARC1400MintableTokenDeploymentRequest([FromBody] ARC1400MintableTokenDeploymentRequest request)
+        public async Task<IActionResult> ARC1400MintableTokenDeploymentRequest([FromBody] ARC1400MintableTokenDeploymentRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -555,13 +620,19 @@ namespace BiatecTokensApi.Controllers
                 else
                 {
                     _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating ARC3 token");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+                return HandleTokenOperationException(ex, "ARC1400 mintable token creation");
             }
         }
 
@@ -600,17 +671,19 @@ namespace BiatecTokensApi.Controllers
                 {
                     _logger.LogError("Failed to retrieve compliance indicators for asset {AssetId}: {Error}", 
                         assetId, result.ErrorMessage);
+                    
+                    // Return the service response with proper error code if not set
+                    if (string.IsNullOrEmpty(result.ErrorCode))
+                    {
+                        result.ErrorCode = ErrorCodes.TRANSACTION_FAILED;
+                    }
+                    
                     return StatusCode(StatusCodes.Status500InternalServerError, result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving compliance indicators for asset {AssetId}", assetId);
-                return StatusCode(StatusCodes.Status500InternalServerError, new TokenComplianceIndicatorsResponse
-                {
-                    Success = false,
-                    ErrorMessage = $"Internal error: {ex.Message}"
-                });
+                return HandleTokenOperationException(ex, "compliance indicators retrieval");
             }
         }
 
@@ -735,6 +808,36 @@ namespace BiatecTokensApi.Controllers
                 Success = true,
                 ErrorMessage = null
             });
+        }
+
+        /// <summary>
+        /// Handles exceptions from token operations and returns appropriate error responses
+        /// </summary>
+        /// <param name="ex">The exception that occurred</param>
+        /// <param name="operation">The operation that failed</param>
+        /// <returns>Appropriate IActionResult based on exception type</returns>
+        private IActionResult HandleTokenOperationException(Exception ex, string operation)
+        {
+            // Log the exception with full details
+            _logger.LogError(ex, "Error during {Operation}", operation);
+
+            // Categorize exception and return appropriate response
+            return ex switch
+            {
+                TimeoutException => ErrorResponseBuilder.TimeoutError(operation),
+                HttpRequestException httpEx => ErrorResponseBuilder.ExternalServiceError("blockchain network", 
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", httpEx.Message }, { "operation", operation } } : null),
+                ArgumentException or ArgumentNullException => ErrorResponseBuilder.ValidationError(
+                    ex.Message,
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "parameterName", (ex as ArgumentException)?.ParamName ?? "unknown" } } : null),
+                InvalidOperationException => ErrorResponseBuilder.TransactionError(
+                    ex.Message,
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", ex.Message }, { "operation", operation } } : null),
+                _ => ErrorResponseBuilder.InternalServerError(
+                    $"An unexpected error occurred during {operation}",
+                    _env.IsDevelopment(),
+                    ex)
+            };
         }
     }
 }

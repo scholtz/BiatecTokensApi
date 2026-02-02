@@ -4,6 +4,7 @@ using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 using Moq;
 
 namespace BiatecTokensTests
@@ -32,6 +33,7 @@ namespace BiatecTokensTests
             _arc1400TokenServiceMock = new Mock<IARC1400TokenService>();
             _complianceServiceMock = new Mock<IComplianceService>();
             _loggerMock = new Mock<ILogger<TokenController>>();
+            var envMock = new Mock<IHostEnvironment>();
 
             _controller = new TokenController(
                 _erc20TokenServiceMock.Object,
@@ -40,7 +42,8 @@ namespace BiatecTokensTests
                 _arc200TokenServiceMock.Object,
                 _arc1400TokenServiceMock.Object,
                 _complianceServiceMock.Object,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                envMock.Object);
         }
 
         [Test]
@@ -133,9 +136,11 @@ namespace BiatecTokensTests
             var objectResult = result as ObjectResult;
             Assert.That(objectResult!.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
             
-            var actualResponse = objectResult.Value as TokenComplianceIndicatorsResponse;
+            // With HandleTokenOperationException, the response is now ApiErrorResponse
+            var actualResponse = objectResult.Value as BiatecTokensApi.Models.ApiErrorResponse;
+            Assert.That(actualResponse, Is.Not.Null);
             Assert.That(actualResponse!.Success, Is.False);
-            Assert.That(actualResponse.ErrorMessage, Does.Contain("Internal error"));
+            Assert.That(actualResponse.ErrorMessage, Does.Contain("unexpected error"));
         }
 
         [Test]
@@ -240,12 +245,12 @@ namespace BiatecTokensTests
             // Act
             await _controller.GetComplianceIndicators(TestAssetId);
 
-            // Assert
+            // Assert - Verify the new error logging format from HandleTokenOperationException
             _loggerMock.Verify(
                 l => l.Log(
                     LogLevel.Error,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains($"Error retrieving compliance indicators for asset {TestAssetId}")),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Error during compliance indicators retrieval")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);

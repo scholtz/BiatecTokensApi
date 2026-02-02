@@ -1,277 +1,269 @@
-# Backend API Integration and Health Monitoring
+# Health Monitoring Guide
 
 ## Overview
 
-This document describes the stabilization improvements made to the BiatecTokensApi backend, including comprehensive health monitoring, enhanced error handling, and improved API reliability.
+The BiatecTokensApi provides comprehensive health monitoring endpoints to check the status of the API and its dependencies. These endpoints are designed for monitoring systems, orchestration platforms, and troubleshooting.
 
-## Features Implemented
+## Health Check Endpoints
 
-### 1. Comprehensive Health Checks
+### 1. Basic Health Check
 
-The API now includes detailed health checks for all external dependencies:
+**Endpoint:** `GET /health`
 
-#### IPFS Health Check
-- Monitors connectivity to the IPFS API endpoint
-- Returns health status: Healthy, Degraded, or Unhealthy
-- Includes API URL and status code in response details
-- **NEW:** Tracks response time in milliseconds for performance monitoring
+**Purpose:** Simple health check to verify the API is running
 
-#### Algorand Network Health Check
-- Monitors all configured Algorand networks (mainnet, testnet, etc.)
-- Checks each network's `/v2/status` endpoint
-- Reports individual network status and overall health
-- Provides network-specific details including server URLs
-- **NEW:** Tracks response time per network for latency monitoring
+**Response:**
+- **200 OK**: API is healthy
+- **503 Service Unavailable**: API is unhealthy
 
-#### EVM Chain Health Check
-- Monitors all configured EVM blockchain RPC endpoints
-- Uses JSON-RPC `eth_blockNumber` call to verify connectivity
-- Reports per-chain status and overall health
-- Includes RPC URL and chain ID in response details
-- **NEW:** Tracks response time per chain for performance analysis
+**Use Cases:**
+- Load balancer health checks
+- Simple uptime monitoring
+- Kubernetes liveness probes
 
-### 2. Health Check Endpoints
+**Example:**
+```bash
+curl http://localhost:7000/health
+```
 
-#### `/health` - Basic Health Check
-Simple endpoint returning overall API health status. Returns:
-- `Healthy` - All components are operational
-- `Degraded` - Some components have issues but API is operational
-- `Unhealthy` - Critical components are down
-
-**Example Response:**
+**Response:**
 ```
 Healthy
 ```
 
-#### `/health/ready` - Readiness Probe
-Kubernetes-compatible readiness probe that checks if the API is ready to receive traffic. This endpoint runs all health checks and returns:
-- `200 OK` - API is ready to serve requests
-- `503 Service Unavailable` - API is not ready (dependencies unavailable)
+---
 
-**Use Case:** Configure as readiness probe in Kubernetes/Docker deployments
+### 2. Readiness Check
 
-#### `/health/live` - Liveness Probe
-Kubernetes-compatible liveness probe that verifies the API process is running. This endpoint does NOT run health checks and always returns:
-- `200 OK` - API process is alive
+**Endpoint:** `GET /health/ready`
 
-**Use Case:** Configure as liveness probe in Kubernetes/Docker deployments to detect and restart crashed containers
+**Purpose:** Checks if the API is ready to receive traffic (all dependencies available)
 
-#### `/api/v1/status` - Detailed Status Information
-Comprehensive status endpoint providing detailed information about the API and all its components.
+**Response:**
+- **200 OK**: API is ready to serve requests
+- **503 Service Unavailable**: API is not ready (dependencies unavailable)
 
-**Example Response:**
+**Checks Performed:**
+- IPFS service connectivity
+- Algorand network connectivity
+- EVM blockchain connectivity
+
+**Use Cases:**
+- Kubernetes readiness probes
+- Rolling deployment checks
+- Traffic routing decisions
+
+**Example:**
+```bash
+curl http://localhost:7000/health/ready
+```
+
+---
+
+### 3. Liveness Check
+
+**Endpoint:** `GET /health/live`
+
+**Purpose:** Verifies the API process is alive and responsive
+
+**Response:**
+- **200 OK**: API process is running
+
+**Note:** This endpoint does NOT check dependencies - it only verifies the application is running.
+
+**Use Cases:**
+- Kubernetes liveness probes
+- Process monitoring
+- Container restart decisions
+
+**Example:**
+```bash
+curl http://localhost:7000/health/live
+```
+
+---
+
+### 4. Detailed Status Endpoint
+
+**Endpoint:** `GET /api/v1/status`
+
+**Purpose:** Comprehensive status information with component-level health details
+
+**Authentication:** Not required
+
+**Response Format:**
 ```json
 {
   "status": "Healthy",
-  "version": "1.0.0.0",
-  "buildTime": "1.0.0+5c30a93",
-  "timestamp": "2026-02-02T03:30:00Z",
-  "uptime": "2:15:30",
+  "version": "1.0.0",
+  "buildTime": "2026-02-02T09:00:00Z",
+  "timestamp": "2026-02-02T09:30:00Z",
+  "uptime": "01:30:00",
   "environment": "Production",
   "components": {
     "ipfs": {
       "status": "Healthy",
-      "message": "IPFS API is reachable",
+      "message": "IPFS API is accessible",
       "details": {
-        "apiUrl": "https://ipfs-api.biatec.io",
-        "statusCode": 200,
-        "responseTimeMs": 145.23
+        "responseTimeMs": 45,
+        "endpoint": "https://ipfs-api.biatec.io"
       }
     },
     "algorand": {
       "status": "Healthy",
-      "message": "All 2 Algorand networks are healthy",
+      "message": "Algorand network is accessible",
       "details": {
-        "totalNetworks": 2,
-        "healthyNetworks": 2,
-        "unhealthyNetworks": 0,
-        "network_wGHE2Pwd": {
-          "status": "healthy",
-          "server": "https://mainnet-api.4160.nodely.dev",
-          "responseTimeMs": 89.45
-        },
-        "network_SGO1GKSz": {
-          "status": "healthy",
-          "server": "https://testnet-api.4160.nodely.dev",
-          "responseTimeMs": 102.67
-        }
+        "network": "mainnet",
+        "responseTimeMs": 120,
+        "lastBlockTime": "2026-02-02T09:29:55Z"
       }
     },
     "evm": {
       "status": "Healthy",
-      "message": "All 1 EVM chains are healthy",
+      "message": "EVM chain is accessible",
       "details": {
-        "totalChains": 1,
-        "healthyChains": 1,
-        "unhealthyChains": 0,
-        "chain_8453": {
-          "status": "healthy",
-          "rpcUrl": "https://mainnet.base.org",
-          "chainId": 8453,
-          "responseTimeMs": 234.12
-        }
+        "chainId": 8453,
+        "chainName": "Base",
+        "responseTimeMs": 89,
+        "latestBlock": 12345678
       }
     }
   }
 }
 ```
 
-**Response Codes:**
-- `200 OK` - All components are healthy or degraded
-- `503 Service Unavailable` - One or more critical components are unhealthy
+**HTTP Status Codes:**
+- **200 OK**: All components healthy or degraded
+- **503 Service Unavailable**: One or more critical components unhealthy
 
 **Use Cases:**
 - Monitoring dashboards
-- Alerting systems
 - Troubleshooting connectivity issues
-- Verifying service configuration
-
-### 3. Enhanced Error Handling
-
-#### Global Exception Handler Middleware
-Catches all unhandled exceptions and returns standardized error responses with:
-- Error code for programmatic handling
-- Human-readable error message
-- Timestamp and correlation ID
-- Request path
-- Additional details (in development mode only)
-
-**Example Error Response:**
-```json
-{
-  "success": false,
-  "errorCode": "TIMEOUT",
-  "errorMessage": "The request timed out. Please try again later",
-  "timestamp": "2026-02-01T20:30:00Z",
-  "path": "/api/v1/token/create",
-  "correlationId": "0HNJ1Q2DMT6T5:00000001"
-}
-```
-
-**Error Codes:**
-- `BAD_REQUEST` - Invalid request parameters (400)
-- `UNAUTHORIZED` - Authentication required (401)
-- `INVALID_OPERATION` - Operation not valid in current state (409)
-- `TIMEOUT` - Request timed out (408)
-- `EXTERNAL_SERVICE_ERROR` - External service communication failed (502)
-- `INTERNAL_SERVER_ERROR` - Unexpected error (500)
-
-**Security Features:**
-- Stack traces and detailed error information only shown in Development environment
-- Sensitive data never included in error responses
-- Consistent error format across all endpoints
-
-#### Request/Response Logging Middleware
-Automatically logs all HTTP requests and responses with:
-- HTTP method and path
-- Status code
-- Duration in milliseconds
-- Correlation ID for request tracing
-
-**Example Log Output:**
-```
-HTTP Request POST /api/v1/token/create started. CorrelationId: 0HNJ1Q2DMT6T5:00000001
-HTTP Response POST /api/v1/token/create completed with status 200 in 245ms. CorrelationId: 0HNJ1Q2DMT6T5:00000001
-```
-
-**Benefits:**
-- Easy debugging of API issues
 - Performance monitoring
-- Request tracing across logs
-- Audit trail of API usage
+- Detailed health reporting
 
-### 4. HTTP Resilience Patterns
-
-The API now includes comprehensive resilience patterns for all HTTP client calls to external services:
-
-#### Retry Policy
-- **Max Retry Attempts:** 3
-- **Base Delay:** 500ms
-- **Backoff Type:** Exponential with jitter
-- **Behavior:** Automatically retries transient failures (5xx errors, timeouts, network errors)
-
-**Example Timeline:**
-```
-Attempt 1: Immediate (fails)
-Attempt 2: ~500ms delay (fails)
-Attempt 3: ~1000ms delay (fails)
-Attempt 4: ~2000ms delay (final attempt)
+**Example:**
+```bash
+curl http://localhost:7000/api/v1/status | jq
 ```
 
-#### Circuit Breaker Pattern
-- **Failure Ratio Threshold:** 50%
-- **Minimum Throughput:** 10 requests
-- **Sampling Duration:** 60 seconds
-- **Break Duration:** 15 seconds
+---
 
-**Behavior:**
-1. Monitors success/failure rate over 60-second window
-2. Opens circuit when 50% of requests fail (after at least 10 requests)
-3. While open, immediately fails requests without calling external service
-4. After 15 seconds, allows one test request through
-5. If successful, circuit closes; if fails, stays open for another 15 seconds
+## Component Health Status
 
-**Benefits:**
-- Prevents cascading failures
-- Allows failing services time to recover
-- Fast-fails during outages instead of wasting resources
+Each component can have one of three statuses:
 
-#### Timeout Configuration
-- **Total Request Timeout:** 60 seconds (for all retries combined)
-- **Attempt Timeout:** 20 seconds (per individual attempt)
+### 1. Healthy
+- Component is fully operational
+- All checks passed
+- Response times within acceptable range
 
-**Behavior:**
-- Each retry attempt times out after 20 seconds
-- Total operation (including all retries) times out after 60 seconds
-- Prevents hanging requests from consuming resources
+### 2. Degraded
+- Component is operational but with issues
+- Some checks failed but not critical
+- Response times higher than normal
 
-### 5. API Stability Improvements
+### 3. Unhealthy
+- Component is not operational
+- Critical checks failed
+- Cannot serve requests
 
-#### Timeout Configuration
-- Health checks use 5-second timeouts to prevent hanging
-- External API calls have configurable timeouts
-- Prevents cascading failures from slow dependencies
+## Health Check Components
 
-#### Graceful Degradation
-- API continues operating even when some dependencies are unavailable
-- Health status accurately reflects component states
-- Non-critical failures don't bring down the entire API
+### IPFS Service (`ipfs`)
 
-#### Correlation IDs
-- Each request gets a unique correlation ID
-- IDs are included in logs and error responses
-- Makes it easy to trace requests across microservices
+**What it checks:**
+- IPFS API accessibility
+- Response time
+- Service availability
 
-## Configuration
+**Why it matters:**
+- Required for ARC3 token metadata storage
+- NFT image and metadata hosting
+- Token documentation storage
 
-### Health Check Configuration
-Health checks are automatically configured based on your `appsettings.json`:
+**Troubleshooting:**
+If IPFS is unhealthy:
+1. Check IPFS service status
+2. Verify IPFS configuration in `appsettings.json`
+3. Check network connectivity to IPFS endpoint
+4. Review IPFS service logs
 
-```json
-{
-  "IPFSConfig": {
-    "ApiUrl": "https://ipfs-api.biatec.io",
-    "TimeoutSeconds": 30
-  },
-  "AlgorandAuthentication": {
-    "AllowedNetworks": {
-      "mainnet-genesis-hash": {
-        "Server": "https://mainnet-api.4160.nodely.dev"
-      }
-    }
-  },
-  "EVMChains": [
-    {
-      "RpcUrl": "https://mainnet.base.org",
-      "ChainId": 8453
-    }
-  ]
-}
+---
+
+### Algorand Network (`algorand`)
+
+**What it checks:**
+- Algorand node connectivity
+- Network responsiveness
+- Last block time
+- API availability
+
+**Why it matters:**
+- Required for ASA, ARC3, ARC200, ARC1400 token deployments
+- Transaction submission and confirmation
+- Account operations
+
+**Networks Supported:**
+- Mainnet (`wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=`)
+- Testnet
+- Betanet
+- Voimain
+- Aramidmain
+
+**Troubleshooting:**
+If Algorand is unhealthy:
+1. Check Algorand node status
+2. Verify network configuration
+3. Test node endpoint directly
+4. Check for network congestion
+
+---
+
+### EVM Chain (`evm`)
+
+**What it checks:**
+- EVM RPC endpoint connectivity
+- Chain ID verification
+- Latest block retrieval
+- Response time
+
+**Why it matters:**
+- Required for ERC20 token deployments
+- Smart contract interactions
+- Transaction submission on Base blockchain
+
+**Supported Chains:**
+- Base (Chain ID: 8453)
+- Other EVM-compatible chains as configured
+
+**Troubleshooting:**
+If EVM is unhealthy:
+1. Check RPC endpoint status
+2. Verify chain configuration
+3. Test RPC endpoint with curl
+4. Check for rate limiting
+
+---
+
+## Monitoring Integration
+
+### Prometheus
+
+Health check endpoints can be scraped by Prometheus using the following configuration:
+
+```yaml
+scrape_configs:
+  - job_name: 'biatec-tokens-api'
+    metrics_path: '/health'
+    static_configs:
+      - targets: ['localhost:7000']
 ```
 
-### Kubernetes Integration
+### Kubernetes
 
-#### Deployment Example
+Example Kubernetes deployment with health checks:
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -289,260 +281,118 @@ spec:
           httpGet:
             path: /health/live
             port: 7000
-          initialDelaySeconds: 10
-          periodSeconds: 30
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /health/ready
             port: 7000
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
 ```
 
-### Docker Compose Integration
+### Docker Health Check
 
-```yaml
-version: '3.8'
-services:
-  api:
-    image: biatec-tokens-api:latest
-    ports:
-      - "7000:7000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+Docker container health check configuration:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:7000/health || exit 1
 ```
 
-## Monitoring and Alerting
+---
 
-### Recommended Monitoring Setup
+## Alerting Recommendations
 
-1. **Uptime Monitoring**
-   - Monitor `/health/live` endpoint every 30 seconds
-   - Alert if endpoint is unreachable for 2+ consecutive checks
+### Critical Alerts (Immediate Response)
 
-2. **Dependency Health**
-   - Monitor `/api/v1/status` endpoint every 60 seconds
-   - Alert if any component status is "Unhealthy"
-   - Warning if any component status is "Degraded" for > 5 minutes
+1. **API Down**: `/health` returns 503
+   - Alert threshold: 2 consecutive failures
+   - Action: Check API logs, restart if needed
 
-3. **Response Time**
-   - Track response time of `/api/v1/status` endpoint
-   - Alert if p95 response time > 1 second
-   - **NEW:** Monitor individual component response times
-   - Alert if IPFS `responseTimeMs` > 500ms
-   - Alert if Algorand network `responseTimeMs` > 1000ms
-   - Alert if EVM chain `responseTimeMs` > 2000ms
+2. **All Components Unhealthy**: `/api/v1/status` shows all components unhealthy
+   - Alert threshold: 1 failure
+   - Action: Emergency response, check infrastructure
 
-4. **Error Rates**
-   - Monitor logs for error-level messages
-   - Alert if error rate > 1% of requests
+### Warning Alerts (Investigate Soon)
 
-### Example Prometheus Metrics (Future Enhancement)
-```
-# HELP api_health_status Current health status (0=Unhealthy, 1=Degraded, 2=Healthy)
-# TYPE api_health_status gauge
-api_health_status{component="ipfs"} 2
-api_health_status{component="algorand"} 2
-api_health_status{component="evm"} 2
+1. **Component Degraded**: One component shows degraded status
+   - Alert threshold: 5 consecutive minutes
+   - Action: Investigate component, monitor trend
 
-# HELP api_request_duration_seconds Request duration in seconds
-# TYPE api_request_duration_seconds histogram
-api_request_duration_seconds_bucket{method="GET",path="/api/v1/status",le="0.1"} 95
-```
+2. **High Response Time**: Component response time > 5 seconds
+   - Alert threshold: 3 consecutive checks
+   - Action: Check network, optimize if needed
 
-## Testing
+3. **Single Component Unhealthy**: One component unhealthy but others healthy
+   - Alert threshold: 2 consecutive failures
+   - Action: Troubleshoot specific component
 
-### Unit Tests
-20 unit tests for middleware have been added:
-- GlobalExceptionHandlerMiddleware: 10 tests
-- RequestResponseLoggingMiddleware: 10 tests
+---
 
-These tests verify:
-- Path sanitization with injection attempts
-- Proper error handling and response formatting
-- Logging behavior
-- Environment-specific behavior (Development vs Production)
+## Uptime Tracking
 
-Run middleware unit tests with:
-```bash
-dotnet test --filter "FullyQualifiedName~MiddlewareTests"
+The `/api/v1/status` endpoint includes an `uptime` field showing how long the API has been running since the last restart.
+
+**Example:**
+```json
+{
+  "uptime": "5.12:34:56"  // 5 days, 12 hours, 34 minutes, 56 seconds
+}
 ```
 
-### Integration Tests
-8 comprehensive integration tests for health endpoints:
-- Basic health endpoint returns OK
-- Readiness endpoint returns appropriate status
-- Liveness endpoint always returns OK
-- Status endpoint returns complete API status
-- Status endpoint includes all component health
-- Status endpoint returns consistent format
-- Health endpoints accessible without authentication
-- Status endpoint includes uptime metric
+**Use Cases:**
+- Track service restarts
+- Calculate availability SLA
+- Identify stability issues
 
-Run tests with:
-```bash
-dotnet test --filter "FullyQualifiedName~HealthCheckIntegrationTests"
-```
+---
 
-### Manual Testing
-```bash
-# Start the API
-dotnet run --project BiatecTokensApi/BiatecTokensApi.csproj
+## Best Practices
 
-# Test basic health
-curl http://localhost:5000/health
+### 1. Regular Health Monitoring
 
-# Test readiness
-curl http://localhost:5000/health/ready
+- Monitor health endpoints every 30-60 seconds
+- Track trends over time
+- Set up alerts for anomalies
 
-# Test liveness
-curl http://localhost:5000/health/live
+### 2. Component-Level Monitoring
 
-# Test detailed status
-curl http://localhost:5000/api/v1/status | jq '.'
-```
+- Monitor each component separately
+- Track component-specific metrics
+- Establish baseline performance
 
-## Security Considerations
+### 3. Graceful Degradation
 
-1. **No Authentication Required**
-   - Health endpoints are public and don't require authentication
-   - This is intentional for monitoring systems to check health
-   - No sensitive data is exposed in health responses
+- API can operate with some components degraded
+- Prioritize critical components
+- Implement fallback strategies
 
-2. **Error Information**
-   - Detailed stack traces only shown in Development environment
-   - Production errors return generic messages
-   - Correlation IDs allow debugging without exposing internals
+### 4. Correlation with Logs
 
-3. **Log Injection Protection**
-   - Request paths are sanitized before logging to prevent injection attacks
-   - Query parameters are removed from logged paths (e.g., `?password=secret`)
-   - Control characters (newlines, tabs) are stripped to prevent log forgery
-   - Path length limited to 200 characters to prevent log overflow
-   - All user-provided data is sanitized before being written to logs
+- Cross-reference health check failures with logs
+- Use timestamps to correlate events
+- Track patterns in failures
 
-4. **Rate Limiting (Recommended)**
-   - Consider adding rate limiting to health endpoints
-   - Prevents abuse of health check endpoints
-   - Protects against DoS via health checks
+### 5. Documentation Updates
 
-## Testing
+- Keep health check documentation current
+- Document new components
+- Update troubleshooting guides
 
-### Unit Tests
-20 unit tests for middleware have been added:
-- GlobalExceptionHandlerMiddleware: 10 tests
-- RequestResponseLoggingMiddleware: 10 tests
+---
 
-These tests verify:
-- Path sanitization with injection attempts
-- Proper error handling and response formatting
-- Logging behavior
-- Environment-specific behavior (Development vs Production)
+## Support
 
-Run middleware unit tests with:
-```bash
-dotnet test --filter "FullyQualifiedName~MiddlewareTests"
-```
+For health monitoring issues:
 
-### Integration Tests
-8 comprehensive integration tests for health endpoints:
-- Basic health endpoint returns OK
-- Readiness endpoint returns appropriate status
-- Liveness endpoint always returns OK
-- Status endpoint returns complete API status
-- Status endpoint includes all component health
-- Status endpoint returns consistent format
-- Health endpoints accessible without authentication
-- Status endpoint includes uptime metric
+1. **Check Documentation**: Review this guide and ERROR_HANDLING.md
+2. **Review Logs**: Check application logs for detailed error information
+3. **Test Components**: Use manual testing commands to isolate issues
+4. **Contact Support**: Provide health check output and logs
 
-Run tests with:
-```bash
-dotnet test --filter "FullyQualifiedName~HealthCheckIntegrationTests"
-```
-
-### Manual Testing
-```bash
-# Start the API
-dotnet run --project BiatecTokensApi/BiatecTokensApi.csproj
-
-# Test basic health
-curl http://localhost:5000/health
-
-# Test readiness
-curl http://localhost:5000/health/ready
-
-# Test liveness
-curl http://localhost:5000/health/live
-
-# Test detailed status
-curl http://localhost:5000/api/v1/status | jq '.'
-```
-
-## Troubleshooting
-
-### Component Shows as Degraded
-1. Check the component details in `/api/v1/status` response
-2. Verify network connectivity to the external service
-3. Check service configuration in `appsettings.json`
-4. Review logs for specific error messages
-
-### High Response Times
-1. Check health of external dependencies
-2. Review request logs for slow endpoints
-3. Consider increasing timeout values
-4. Check network latency to external services
-
-### 503 Service Unavailable
-1. Check `/api/v1/status` for component health details
-2. Verify all critical dependencies are reachable
-3. Review health check configuration
-4. Check if services are running and accessible
-
-## Future Enhancements
-
-1. **Metrics Endpoint**
-   - Add Prometheus metrics endpoint (`/metrics`)
-   - Expose performance and health metrics
-   - Enable advanced monitoring with Grafana
-
-2. **Custom Health Checks**
-   - Add database health check (when database is added)
-   - Add cache health check (Redis/Memcached)
-   - Add message queue health check
-
-3. **Health Check Dashboard**
-   - Web UI for viewing health status
-   - Historical health data
-   - Real-time component monitoring
-
-4. **Advanced Alerting**
-   - Integration with PagerDuty/OpsGenie
-   - Intelligent alert grouping
-   - Auto-remediation triggers
-
-## API Reliability Best Practices
-
-This implementation follows industry best practices:
-
-1. ✅ **Separation of Concerns** - Health checks separate from business logic
-2. ✅ **Graceful Degradation** - API continues when non-critical components fail
-3. ✅ **Explicit Error Handling** - All errors have clear codes and messages
-4. ✅ **Request Tracing** - Correlation IDs for debugging
-5. ✅ **Kubernetes Compatibility** - Proper liveness and readiness probes
-6. ✅ **Observable** - Comprehensive logging and status information
-7. ✅ **Secure** - No sensitive data in error responses
-8. ✅ **Tested** - Comprehensive integration tests
-
-## Conclusion
-
-These enhancements significantly improve the reliability and observability of the BiatecTokensApi. The comprehensive health monitoring enables:
-- Early detection of issues
-- Better troubleshooting capabilities
-- Improved uptime through proper Kubernetes integration
-- Enhanced developer experience with clear error messages
-
-For questions or issues, please refer to the main project README or open an issue on GitHub.
+Support Email: support@biatec.io
