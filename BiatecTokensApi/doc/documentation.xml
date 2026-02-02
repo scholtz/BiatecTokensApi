@@ -3401,6 +3401,10 @@
             <param name="isDevelopment">Whether running in development mode</param>
             <param name="exception">Optional exception for development details</param>
             <returns>InternalServerError result with standardized error response</returns>
+            <remarks>
+            Stack traces are only included in Development environment. 
+            Production environments will never expose stack trace details.
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.ExternalServiceError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
             <summary>
@@ -4208,7 +4212,7 @@
         </member>
         <member name="P:BiatecTokensApi.Models.BaseResponse.Timestamp">
             <summary>
-            Timestamp of the response
+            Timestamp of when the response was created (set at instantiation)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Billing.LimitCheckRequest">

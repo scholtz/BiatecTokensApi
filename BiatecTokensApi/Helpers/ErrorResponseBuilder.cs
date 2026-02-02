@@ -114,6 +114,10 @@ namespace BiatecTokensApi.Helpers
         /// <param name="isDevelopment">Whether running in development mode</param>
         /// <param name="exception">Optional exception for development details</param>
         /// <returns>InternalServerError result with standardized error response</returns>
+        /// <remarks>
+        /// Stack traces are only included in Development environment. 
+        /// Production environments will never expose stack trace details.
+        /// </remarks>
         public static IActionResult InternalServerError(string errorMessage, bool isDevelopment = false, Exception? exception = null)
         {
             var response = new ApiErrorResponse
@@ -124,7 +128,8 @@ namespace BiatecTokensApi.Helpers
                 Timestamp = DateTime.UtcNow
             };
 
-            // Only include exception details in development
+            // Only include exception details in development environment
+            // SECURITY: Never expose stack traces in production
             if (isDevelopment && exception != null)
             {
                 response.Details = new Dictionary<string, object>

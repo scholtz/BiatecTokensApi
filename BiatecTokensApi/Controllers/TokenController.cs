@@ -825,14 +825,14 @@ namespace BiatecTokensApi.Controllers
             return ex switch
             {
                 TimeoutException => ErrorResponseBuilder.TimeoutError(operation),
-                HttpRequestException => ErrorResponseBuilder.ExternalServiceError("blockchain network", 
-                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", ex.Message } } : null),
+                HttpRequestException httpEx => ErrorResponseBuilder.ExternalServiceError("blockchain network", 
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", httpEx.Message }, { "operation", operation } } : null),
                 ArgumentException or ArgumentNullException => ErrorResponseBuilder.ValidationError(
                     ex.Message,
                     _env.IsDevelopment() ? new Dictionary<string, object> { { "parameterName", (ex as ArgumentException)?.ParamName ?? "unknown" } } : null),
                 InvalidOperationException => ErrorResponseBuilder.TransactionError(
                     ex.Message,
-                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", ex.Message } } : null),
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", ex.Message }, { "operation", operation } } : null),
                 _ => ErrorResponseBuilder.InternalServerError(
                     $"An unexpected error occurred during {operation}",
                     _env.IsDevelopment(),

@@ -26,7 +26,7 @@
         public Dictionary<string, object>? ErrorDetails { get; set; }
 
         /// <summary>
-        /// Timestamp of the response
+        /// Timestamp of when the response was created (set at instantiation)
         /// </summary>
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
