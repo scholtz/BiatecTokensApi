@@ -14,18 +14,21 @@ The API now includes detailed health checks for all external dependencies:
 - Monitors connectivity to the IPFS API endpoint
 - Returns health status: Healthy, Degraded, or Unhealthy
 - Includes API URL and status code in response details
+- **NEW:** Tracks response time in milliseconds for performance monitoring
 
 #### Algorand Network Health Check
 - Monitors all configured Algorand networks (mainnet, testnet, etc.)
 - Checks each network's `/v2/status` endpoint
 - Reports individual network status and overall health
 - Provides network-specific details including server URLs
+- **NEW:** Tracks response time per network for latency monitoring
 
 #### EVM Chain Health Check
 - Monitors all configured EVM blockchain RPC endpoints
 - Uses JSON-RPC `eth_blockNumber` call to verify connectivity
 - Reports per-chain status and overall health
 - Includes RPC URL and chain ID in response details
+- **NEW:** Tracks response time per chain for performance analysis
 
 ### 2. Health Check Endpoints
 
@@ -62,7 +65,7 @@ Comprehensive status endpoint providing detailed information about the API and a
   "status": "Healthy",
   "version": "1.0.0.0",
   "buildTime": "1.0.0+5c30a93",
-  "timestamp": "2026-02-01T20:29:37Z",
+  "timestamp": "2026-02-02T03:30:00Z",
   "uptime": "2:15:30",
   "environment": "Production",
   "components": {
@@ -71,7 +74,8 @@ Comprehensive status endpoint providing detailed information about the API and a
       "message": "IPFS API is reachable",
       "details": {
         "apiUrl": "https://ipfs-api.biatec.io",
-        "statusCode": 200
+        "statusCode": 200,
+        "responseTimeMs": 145.23
       }
     },
     "algorand": {
@@ -83,11 +87,13 @@ Comprehensive status endpoint providing detailed information about the API and a
         "unhealthyNetworks": 0,
         "network_wGHE2Pwd": {
           "status": "healthy",
-          "server": "https://mainnet-api.4160.nodely.dev"
+          "server": "https://mainnet-api.4160.nodely.dev",
+          "responseTimeMs": 89.45
         },
         "network_SGO1GKSz": {
           "status": "healthy",
-          "server": "https://testnet-api.4160.nodely.dev"
+          "server": "https://testnet-api.4160.nodely.dev",
+          "responseTimeMs": 102.67
         }
       }
     },
@@ -101,7 +107,8 @@ Comprehensive status endpoint providing detailed information about the API and a
         "chain_8453": {
           "status": "healthy",
           "rpcUrl": "https://mainnet.base.org",
-          "chainId": 8453
+          "chainId": 8453,
+          "responseTimeMs": 234.12
         }
       }
     }
@@ -173,7 +180,52 @@ HTTP Response POST /api/v1/token/create completed with status 200 in 245ms. Corr
 - Request tracing across logs
 - Audit trail of API usage
 
-### 4. API Stability Improvements
+### 4. HTTP Resilience Patterns
+
+The API now includes comprehensive resilience patterns for all HTTP client calls to external services:
+
+#### Retry Policy
+- **Max Retry Attempts:** 3
+- **Base Delay:** 500ms
+- **Backoff Type:** Exponential with jitter
+- **Behavior:** Automatically retries transient failures (5xx errors, timeouts, network errors)
+
+**Example Timeline:**
+```
+Attempt 1: Immediate (fails)
+Attempt 2: ~500ms delay (fails)
+Attempt 3: ~1000ms delay (fails)
+Attempt 4: ~2000ms delay (final attempt)
+```
+
+#### Circuit Breaker Pattern
+- **Failure Ratio Threshold:** 50%
+- **Minimum Throughput:** 10 requests
+- **Sampling Duration:** 60 seconds
+- **Break Duration:** 15 seconds
+
+**Behavior:**
+1. Monitors success/failure rate over 60-second window
+2. Opens circuit when 50% of requests fail (after at least 10 requests)
+3. While open, immediately fails requests without calling external service
+4. After 15 seconds, allows one test request through
+5. If successful, circuit closes; if fails, stays open for another 15 seconds
+
+**Benefits:**
+- Prevents cascading failures
+- Allows failing services time to recover
+- Fast-fails during outages instead of wasting resources
+
+#### Timeout Configuration
+- **Total Request Timeout:** 60 seconds (for all retries combined)
+- **Attempt Timeout:** 20 seconds (per individual attempt)
+
+**Behavior:**
+- Each retry attempt times out after 20 seconds
+- Total operation (including all retries) times out after 60 seconds
+- Prevents hanging requests from consuming resources
+
+### 5. API Stability Improvements
 
 #### Timeout Configuration
 - Health checks use 5-second timeouts to prevent hanging
@@ -280,6 +332,10 @@ services:
 3. **Response Time**
    - Track response time of `/api/v1/status` endpoint
    - Alert if p95 response time > 1 second
+   - **NEW:** Monitor individual component response times
+   - Alert if IPFS `responseTimeMs` > 500ms
+   - Alert if Algorand network `responseTimeMs` > 1000ms
+   - Alert if EVM chain `responseTimeMs` > 2000ms
 
 4. **Error Rates**
    - Monitor logs for error-level messages
@@ -458,15 +514,15 @@ curl http://localhost:5000/api/v1/status | jq '.'
    - Add cache health check (Redis/Memcached)
    - Add message queue health check
 
-3. **Circuit Breaker Pattern**
-   - Implement circuit breakers for external services
-   - Automatically stop calling failing services
-   - Improve resilience and response times
-
-4. **Health Check Dashboard**
+3. **Health Check Dashboard**
    - Web UI for viewing health status
    - Historical health data
    - Real-time component monitoring
+
+4. **Advanced Alerting**
+   - Integration with PagerDuty/OpsGenie
+   - Intelligent alert grouping
+   - Auto-remediation triggers
 
 ## API Reliability Best Practices
 
