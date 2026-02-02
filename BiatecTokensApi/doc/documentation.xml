@@ -1818,7 +1818,7 @@
             pausing, and metadata validation. Each endpoint validates the input request, interacts with the corresponding
             token service, and returns appropriate responses based on the operation's success or failure.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3TokenService,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Services.Interface.IARC200TokenService,BiatecTokensApi.Services.Interface.IARC1400TokenService,BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController})">
+        <member name="M:BiatecTokensApi.Controllers.TokenController.#ctor(BiatecTokensApi.Services.Interface.IERC20TokenService,BiatecTokensApi.Services.Interface.IARC3TokenService,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Services.Interface.IARC200TokenService,BiatecTokensApi.Services.Interface.IARC1400TokenService,BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenController},Microsoft.Extensions.Hosting.IHostEnvironment)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.TokenController"/> class.
             </summary>
@@ -1829,6 +1829,7 @@
             <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
             <param name="complianceService">The service used to interact with compliance metadata</param>
             <param name="logger">The logger instance used to log diagnostic and operational information.</param>
+            <param name="env">The host environment for determining runtime environment.</param>
         </member>
         <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20MintableTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest)">
             <summary>
@@ -2056,6 +2057,14 @@
             - Return HTTP 403 Forbidden if the address is not whitelisted
             - Log audit entries for blocked operations
             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.HandleTokenOperationException(System.Exception,System.String)">
+            <summary>
+            Handles exceptions from token operations and returns appropriate error responses
+            </summary>
+            <param name="ex">The exception that occurred</param>
+            <param name="operation">The operation that failed</param>
+            <returns>Appropriate IActionResult based on exception type</returns>
         </member>
         <member name="T:BiatecTokensApi.Controllers.WebhookController">
             <summary>

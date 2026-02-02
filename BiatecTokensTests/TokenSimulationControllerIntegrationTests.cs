@@ -5,6 +5,7 @@ using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
 using System.Security.Claims;
@@ -30,6 +31,7 @@ namespace BiatecTokensTests
         {
             _whitelistServiceMock = new Mock<IWhitelistService>();
             _loggerMock = new Mock<ILogger<TokenController>>();
+            var envMock = new Mock<IHostEnvironment>();
 
             // Create controller with all required dependencies
             _controller = new TokenController(
@@ -39,7 +41,8 @@ namespace BiatecTokensTests
                 Mock.Of<BiatecTokensApi.Services.Interface.IARC200TokenService>(),
                 Mock.Of<BiatecTokensApi.Services.Interface.IARC1400TokenService>(),
                 Mock.Of<BiatecTokensApi.Services.Interface.IComplianceService>(),
-                _loggerMock.Object
+                _loggerMock.Object,
+                envMock.Object
             );
 
             // Set up authentication context
