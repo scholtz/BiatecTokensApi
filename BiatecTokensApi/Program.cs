@@ -85,6 +85,9 @@ namespace BiatecTokensApi
             builder.Services.Configure<AlgorandAuthenticationOptionsV2>(
                 builder.Configuration.GetSection("AlgorandAuthentication"));
 
+            builder.Services.Configure<BiatecTokensApi.Configuration.StripeConfig>(
+                builder.Configuration.GetSection("StripeConfig"));
+
             // Register HTTP client for API calls
             builder.Services.AddHttpClient();
 
@@ -96,6 +99,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository, BiatecTokensApi.Repositories.TokenIssuanceRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IEnterpriseAuditRepository, BiatecTokensApi.Repositories.EnterpriseAuditRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IWebhookRepository, BiatecTokensApi.Repositories.WebhookRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ISubscriptionRepository, BiatecTokensApi.Repositories.SubscriptionRepository>();
 
             // Register metering service
             builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
@@ -117,6 +121,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IComplianceService, ComplianceService>();
             builder.Services.AddSingleton<IEnterpriseAuditService, EnterpriseAuditService>();
             builder.Services.AddSingleton<IWebhookService, WebhookService>();
+            builder.Services.AddSingleton<IStripeService, StripeService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");

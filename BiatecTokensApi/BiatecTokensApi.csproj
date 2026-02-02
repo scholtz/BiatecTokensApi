@@ -15,6 +15,7 @@
 		<PackageReference Include="Microsoft.OpenApi" Version="2.3.0" />
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
 		<PackageReference Include="Nethereum.Web3" Version="5.8.0" />
+		<PackageReference Include="Stripe.net" Version="50.3.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="10.1.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="10.0.1" />

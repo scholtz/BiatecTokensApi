@@ -81,6 +81,51 @@
             Whether to validate content hashes when retrieving data
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Configuration.StripeConfig">
+            <summary>
+            Configuration for Stripe API integration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.SecretKey">
+            <summary>
+            Stripe secret API key
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.PublishableKey">
+            <summary>
+            Stripe publishable API key
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.WebhookSecret">
+            <summary>
+            Webhook secret for validating webhook events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.BasicPriceId">
+            <summary>
+            Stripe price ID for Basic tier subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.ProPriceId">
+            <summary>
+            Stripe price ID for Pro tier subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.EnterprisePriceId">
+            <summary>
+            Stripe price ID for Enterprise tier subscription
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.CheckoutSuccessUrl">
+            <summary>
+            Success URL for checkout redirect
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.StripeConfig.CheckoutCancelUrl">
+            <summary>
+            Cancel URL for checkout redirect
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.BillingController">
             <summary>
             Provides endpoints for subscription usage metering and plan limit management
@@ -1582,6 +1627,185 @@
             - Health checks for orchestration systems
             - Troubleshooting connectivity issues
             - Verifying service configuration
+            </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.SubscriptionController">
+            <summary>
+            Provides endpoints for managing Stripe subscriptions
+            </summary>
+            <remarks>
+            This controller implements the subscription system for the RWA tokenization platform.
+            It manages subscription lifecycle including checkout, billing portal access, status queries,
+            and webhook processing for Stripe events. All user-facing endpoints require ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SubscriptionController.#ctor(BiatecTokensApi.Services.Interface.IStripeService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.SubscriptionController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.SubscriptionController"/> class.
+            </summary>
+            <param name="stripeService">The Stripe service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SubscriptionController.CreateCheckoutSession(BiatecTokensApi.Models.Subscription.CreateCheckoutSessionRequest)">
+            <summary>
+            Creates a Stripe checkout session for subscription purchase
+            </summary>
+            <param name="request">Checkout session request with desired tier</param>
+            <returns>Checkout session with URL to redirect user</returns>
+            <remarks>
+            This endpoint creates a Stripe checkout session for the authenticated user to purchase
+            a subscription. The user will be redirected to the Stripe checkout page to complete payment.
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used as the customer identifier.
+            
+            **Supported Tiers:**
+            - Basic: Entry-level subscription with basic features
+            - Premium (Pro): Advanced features for larger deployments
+            - Enterprise: Full feature set with unlimited capacity
+            
+            **Checkout Flow:**
+            1. API creates or retrieves Stripe customer for the user
+            2. API creates checkout session with selected subscription tier
+            3. User is redirected to Stripe checkout page (CheckoutUrl in response)
+            4. User completes payment on Stripe
+            5. User is redirected to success URL
+            6. Webhook updates subscription state in backend
+            
+            **Error Handling:**
+            - Returns error if tier is Free (cannot purchase Free tier)
+            - Returns error if price ID not configured for requested tier
+            - Returns error if Stripe API fails
+            
+            **Use Cases:**
+            - Initial subscription purchase
+            - Upgrade from Free to paid tier
+            - Tier change handled via billing portal (not checkout)
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SubscriptionController.CreateBillingPortalSession(BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionRequest)">
+            <summary>
+            Creates a Stripe billing portal session for subscription management
+            </summary>
+            <param name="request">Billing portal request with optional return URL</param>
+            <returns>Billing portal session with URL to redirect user</returns>
+            <remarks>
+            This endpoint creates a Stripe billing portal session where users can manage their subscription,
+            including viewing invoices, updating payment methods, upgrading/downgrading tiers, and canceling.
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used to look up their Stripe customer.
+            
+            **Portal Capabilities:**
+            - View subscription details and billing history
+            - Update payment methods
+            - Upgrade or downgrade subscription tier
+            - Cancel subscription (effective at period end)
+            - Download invoices
+            
+            **Prerequisites:**
+            User must have an active Stripe customer ID (created during first checkout).
+            Returns error if user has never subscribed.
+            
+            **Return URL:**
+            Optional parameter specifying where to redirect user after they exit the portal.
+            If not provided, uses the configured checkout success URL.
+            
+            **Webhook Integration:**
+            Any changes made in the portal trigger Stripe webhooks that update the backend state.
+            
+            **Use Cases:**
+            - Manage existing subscription
+            - Upgrade/downgrade between tiers
+            - Cancel subscription
+            - Update payment information
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SubscriptionController.GetSubscriptionStatus">
+            <summary>
+            Gets the current subscription status for the authenticated user
+            </summary>
+            <returns>Subscription status details</returns>
+            <remarks>
+            This endpoint returns the current subscription state for the authenticated user,
+            including tier, status, billing period information, and Stripe IDs.
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used to query subscription state.
+            
+            **Response Fields:**
+            - UserAddress: User's Algorand address
+            - StripeCustomerId: Stripe customer ID (null if never subscribed)
+            - StripeSubscriptionId: Active subscription ID (null if no active subscription)
+            - Tier: Current subscription tier (Free, Basic, Premium, Enterprise)
+            - Status: Subscription status (None, Active, PastDue, Canceled, etc.)
+            - SubscriptionStartDate: When subscription started
+            - CurrentPeriodStart/End: Current billing period
+            - CancelAtPeriodEnd: Whether subscription will cancel at period end
+            - LastUpdated: Last state update timestamp
+            
+            **Free Tier:**
+            Users without active subscriptions return Free tier with None status.
+            
+            **Use Cases:**
+            - Display current plan in UI
+            - Check subscription status before restricted operations
+            - Show billing period information
+            - Determine if subscription is expiring
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SubscriptionController.HandleWebhook">
+            <summary>
+            Webhook endpoint for processing Stripe events
+            </summary>
+            <remarks>
+            This endpoint receives and processes webhook events from Stripe to keep subscription state
+            synchronized with Stripe. Events are validated using the webhook secret to ensure authenticity.
+            
+            **No Authentication Required:**
+            This endpoint does NOT require ARC-0014 authentication as it's called by Stripe servers.
+            Security is provided by webhook signature validation.
+            
+            **Signature Validation:**
+            All webhook requests must include a valid Stripe-Signature header.
+            Invalid signatures are rejected to prevent spoofing.
+            
+            **Idempotency:**
+            Each webhook event is processed exactly once using the event ID for deduplication.
+            Duplicate events (retries) are safely ignored.
+            
+            **Supported Events:**
+            - checkout.session.completed: Checkout completed, customer created
+            - customer.subscription.created: New subscription activated
+            - customer.subscription.updated: Subscription tier or status changed
+            - customer.subscription.deleted: Subscription canceled
+            
+            **Event Processing:**
+            1. Validate webhook signature
+            2. Check event idempotency (skip if already processed)
+            3. Update subscription state in backend
+            4. Update tier in tier service for access control
+            5. Log event to audit trail
+            
+            **Audit Logging:**
+            All webhook events are logged with structured logging for:
+            - Compliance reporting
+            - Billing reconciliation
+            - Debugging and troubleshooting
+            - Security monitoring
+            
+            **Configuration:**
+            Configure this webhook URL in Stripe dashboard with these events:
+            - checkout.session.completed
+            - customer.subscription.created
+            - customer.subscription.updated
+            - customer.subscription.deleted
+            
+            **Use Cases:**
+            - Real-time subscription state synchronization
+            - Automatic tier updates when customer changes plan
+            - Cancellation handling
+            - Payment failure notifications
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Controllers.TokenController">
@@ -9313,6 +9537,251 @@
             The amount to transfer (for demonstration purposes)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionState">
+            <summary>
+            Represents the subscription state for a user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.UserAddress">
+            <summary>
+            User's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.StripeCustomerId">
+            <summary>
+            Stripe customer ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.StripeSubscriptionId">
+            <summary>
+            Stripe subscription ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.Tier">
+            <summary>
+            Current subscription tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.Status">
+            <summary>
+            Current subscription status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.SubscriptionStartDate">
+            <summary>
+            Subscription start date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.SubscriptionEndDate">
+            <summary>
+            Subscription end date (for cancellations)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.CurrentPeriodStart">
+            <summary>
+            Current billing period start
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.CurrentPeriodEnd">
+            <summary>
+            Current billing period end
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.CancelAtPeriodEnd">
+            <summary>
+            Whether subscription will cancel at period end
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.LastUpdated">
+            <summary>
+            Last update timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionStatus">
+            <summary>
+            Subscription status values
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.None">
+            <summary>
+            No active subscription
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.Active">
+            <summary>
+            Subscription is active
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.PastDue">
+            <summary>
+            Subscription is past due
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.Unpaid">
+            <summary>
+            Subscription is unpaid
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.Canceled">
+            <summary>
+            Subscription is canceled
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.Incomplete">
+            <summary>
+            Subscription is incomplete
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.IncompleteExpired">
+            <summary>
+            Subscription is incomplete and payment expired
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.Trialing">
+            <summary>
+            Subscription is in trial period
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Subscription.SubscriptionStatus.Paused">
+            <summary>
+            Subscription is paused
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.CreateCheckoutSessionRequest">
+            <summary>
+            Request to create a checkout session
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateCheckoutSessionRequest.Tier">
+            <summary>
+            Subscription tier to purchase
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.CreateCheckoutSessionResponse">
+            <summary>
+            Response with checkout session details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateCheckoutSessionResponse.Success">
+            <summary>
+            Whether the operation was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateCheckoutSessionResponse.SessionId">
+            <summary>
+            Stripe checkout session ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateCheckoutSessionResponse.CheckoutUrl">
+            <summary>
+            Checkout URL for the user to complete payment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateCheckoutSessionResponse.ErrorMessage">
+            <summary>
+            Error message if operation failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionRequest">
+            <summary>
+            Request to create a billing portal session
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionRequest.ReturnUrl">
+            <summary>
+            Return URL after customer leaves the portal
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionResponse">
+            <summary>
+            Response with billing portal session details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionResponse.Success">
+            <summary>
+            Whether the operation was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionResponse.PortalUrl">
+            <summary>
+            Billing portal URL
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionResponse.ErrorMessage">
+            <summary>
+            Error message if operation failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionStatusResponse">
+            <summary>
+            Response with subscription status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionStatusResponse.Success">
+            <summary>
+            Whether the operation was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionStatusResponse.Subscription">
+            <summary>
+            Subscription state details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionStatusResponse.ErrorMessage">
+            <summary>
+            Error message if operation failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent">
+            <summary>
+            Webhook event for audit logging
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.EventId">
+            <summary>
+            Webhook event ID (for idempotency)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.EventType">
+            <summary>
+            Event type (e.g., customer.subscription.created)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.UserAddress">
+            <summary>
+            User address associated with the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.StripeSubscriptionId">
+            <summary>
+            Stripe subscription ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.Tier">
+            <summary>
+            Subscription tier after the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.Status">
+            <summary>
+            Subscription status after the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.ProcessedAt">
+            <summary>
+            Event processing timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.Success">
+            <summary>
+            Whether the event was processed successfully
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent.ErrorMessage">
+            <summary>
+            Error message if processing failed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionTier">
             <summary>
             Represents subscription tier levels for RWA token compliance operations
@@ -12070,6 +12539,58 @@
             <param name="request">The audit log request with filters</param>
             <returns>Summary statistics including event counts and date ranges</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository">
+            <summary>
+            Repository for managing subscription state persistence
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository.GetSubscriptionAsync(System.String)">
+            <summary>
+            Gets subscription state for a user
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <returns>Subscription state or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository.SaveSubscriptionAsync(BiatecTokensApi.Models.Subscription.SubscriptionState)">
+            <summary>
+            Saves or updates subscription state
+            </summary>
+            <param name="subscription">Subscription state to save</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository.GetSubscriptionByCustomerIdAsync(System.String)">
+            <summary>
+            Gets subscription state by Stripe customer ID
+            </summary>
+            <param name="stripeCustomerId">Stripe customer ID</param>
+            <returns>Subscription state or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository.GetSubscriptionBySubscriptionIdAsync(System.String)">
+            <summary>
+            Gets subscription state by Stripe subscription ID
+            </summary>
+            <param name="stripeSubscriptionId">Stripe subscription ID</param>
+            <returns>Subscription state or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository.IsEventProcessedAsync(System.String)">
+            <summary>
+            Checks if a webhook event has been processed (for idempotency)
+            </summary>
+            <param name="eventId">Stripe event ID</param>
+            <returns>True if event has been processed</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository.MarkEventProcessedAsync(BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent)">
+            <summary>
+            Marks a webhook event as processed
+            </summary>
+            <param name="webhookEvent">Webhook event details</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository.GetWebhookEventsAsync(System.String)">
+            <summary>
+            Gets webhook event audit log
+            </summary>
+            <param name="userAddress">Optional user address filter</param>
+            <returns>List of webhook events</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository">
             <summary>
             Repository interface for token issuance audit log operations
@@ -12385,6 +12906,42 @@
             <param name="fromDate">Optional start date filter</param>
             <param name="toDate">Optional end date filter</param>
             <returns>List of audit log entries</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.SubscriptionRepository">
+            <summary>
+            In-memory implementation of subscription repository
+            </summary>
+            <remarks>
+            This implementation uses in-memory storage consistent with other repositories in the system.
+            For production, this can be migrated to persistent storage (database, Redis, etc.) without API changes.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.SubscriptionRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.SubscriptionRepository"/> class.
+            </summary>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.GetSubscriptionAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.SaveSubscriptionAsync(BiatecTokensApi.Models.Subscription.SubscriptionState)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.GetSubscriptionByCustomerIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.GetSubscriptionBySubscriptionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.IsEventProcessedAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.MarkEventProcessedAsync(BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SubscriptionRepository.GetWebhookEventsAsync(System.String)">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Repositories.TokenIssuanceRepository">
             <summary>
@@ -13862,6 +14419,42 @@
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IStripeService">
+            <summary>
+            Service for managing Stripe subscriptions
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStripeService.CreateCheckoutSessionAsync(System.String,BiatecTokensApi.Models.Subscription.SubscriptionTier)">
+            <summary>
+            Creates a Stripe checkout session for a subscription
+            </summary>
+            <param name="userAddress">User's Algorand address</param>
+            <param name="tier">Subscription tier to purchase</param>
+            <returns>Checkout session details</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStripeService.CreateBillingPortalSessionAsync(System.String,System.String)">
+            <summary>
+            Creates a Stripe billing portal session
+            </summary>
+            <param name="userAddress">User's Algorand address</param>
+            <param name="returnUrl">Return URL after portal session</param>
+            <returns>Billing portal session details</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStripeService.GetSubscriptionStatusAsync(System.String)">
+            <summary>
+            Gets subscription status for a user
+            </summary>
+            <param name="userAddress">User's Algorand address</param>
+            <returns>Subscription status</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStripeService.ProcessWebhookEventAsync(System.String,System.String)">
+            <summary>
+            Processes a Stripe webhook event
+            </summary>
+            <param name="json">Webhook event JSON payload</param>
+            <param name="signature">Stripe signature header</param>
+            <returns>Processing result</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.ISubscriptionMeteringService">
             <summary>
             Service for emitting subscription metering events for billing and analytics
@@ -14176,6 +14769,32 @@
             <param name="request">The allowlist verification request</param>
             <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
             <returns>The verification response with statuses and compliance disclosures</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.StripeService">
+            <summary>
+            Service for managing Stripe subscription lifecycle
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StripeService.#ctor(Microsoft.Extensions.Options.IOptions{BiatecTokensApi.Configuration.StripeConfig},BiatecTokensApi.Repositories.Interface.ISubscriptionRepository,BiatecTokensApi.Services.Interface.ISubscriptionTierService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.StripeService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.StripeService"/> class.
+            </summary>
+            <param name="config">Stripe configuration</param>
+            <param name="subscriptionRepository">Subscription repository</param>
+            <param name="tierService">Subscription tier service</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StripeService.CreateCheckoutSessionAsync(System.String,BiatecTokensApi.Models.Subscription.SubscriptionTier)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StripeService.CreateBillingPortalSessionAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StripeService.GetSubscriptionStatusAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StripeService.ProcessWebhookEventAsync(System.String,System.String)">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.SubscriptionMeteringService">
             <summary>
