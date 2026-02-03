@@ -17,6 +17,17 @@ namespace BiatecTokensApi.Controllers
         private readonly IOptions<AlgorandAuthenticationOptionsV2> _algorandOptions;
         private readonly ILogger<NetworkController> _logger;
 
+        // Well-known genesis hashes for Algorand networks
+        private const string ALGORAND_MAINNET_GENESIS_HASH = "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=";
+        private const string ALGORAND_TESTNET_GENESIS_HASH = "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=";
+
+        // Well-known chain IDs for EVM networks
+        private const int BASE_MAINNET_CHAIN_ID = 8453;
+        private const int BASE_SEPOLIA_CHAIN_ID = 84532;
+        private const int ETHEREUM_MAINNET_CHAIN_ID = 1;
+        private const int ETHEREUM_GOERLI_CHAIN_ID = 5;
+        private const int ETHEREUM_SEPOLIA_CHAIN_ID = 11155111;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="NetworkController"/> class.
         /// </summary>
@@ -83,9 +94,9 @@ namespace BiatecTokensApi.Controllers
                         var config = network.Value;
 
                         // Determine network type from genesis hash or server URL
-                        var isMainnet = genesisHash == "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=" || 
+                        var isMainnet = genesisHash == ALGORAND_MAINNET_GENESIS_HASH || 
                                        config.Server?.Contains("mainnet", StringComparison.OrdinalIgnoreCase) == true;
-                        var isTestnet = genesisHash == "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=" ||
+                        var isTestnet = genesisHash == ALGORAND_TESTNET_GENESIS_HASH ||
                                        config.Server?.Contains("testnet", StringComparison.OrdinalIgnoreCase) == true;
                         var isBetanet = config.Server?.Contains("betanet", StringComparison.OrdinalIgnoreCase) == true;
                         var isVoiMain = config.Server?.Contains("voimain", StringComparison.OrdinalIgnoreCase) == true ||
@@ -121,8 +132,11 @@ namespace BiatecTokensApi.Controllers
                         else
                         {
                             // Unknown network, use genesis hash as identifier
-                            networkId = $"algorand-{genesisHash.Substring(0, 8)}";
-                            displayName = $"Algorand Network ({genesisHash.Substring(0, 8)})";
+                            var hashPrefix = genesisHash != null && genesisHash.Length >= 8 
+                                ? genesisHash.Substring(0, 8) 
+                                : "unknown";
+                            networkId = $"algorand-{hashPrefix}";
+                            displayName = $"Algorand Network ({hashPrefix})";
                         }
 
                         var networkMetadata = new NetworkMetadata
@@ -155,35 +169,40 @@ namespace BiatecTokensApi.Controllers
                 {
                     foreach (var chain in _evmChainsOptions.Value.Chains)
                     {
-                        if (chain.RpcUrl == null) continue;
+                        if (chain.RpcUrl == null)
+                        {
+                            _logger.LogWarning("Skipping EVM chain with ChainId {ChainId} due to null RpcUrl", chain.ChainId);
+                            continue;
+                        }
 
                         // Determine if this is a mainnet based on chain ID
-                        // Base mainnet: 8453, Ethereum mainnet: 1, etc.
-                        var isMainnet = chain.ChainId == 8453 || chain.ChainId == 1;
-                        var isTestnet = chain.ChainId == 84532 || chain.ChainId == 5 || chain.ChainId == 11155111;
+                        var isMainnet = chain.ChainId == BASE_MAINNET_CHAIN_ID || chain.ChainId == ETHEREUM_MAINNET_CHAIN_ID;
+                        var isTestnet = chain.ChainId == BASE_SEPOLIA_CHAIN_ID || 
+                                       chain.ChainId == ETHEREUM_GOERLI_CHAIN_ID || 
+                                       chain.ChainId == ETHEREUM_SEPOLIA_CHAIN_ID;
 
                         string networkId, displayName;
-                        if (chain.ChainId == 8453)
+                        if (chain.ChainId == BASE_MAINNET_CHAIN_ID)
                         {
                             networkId = "base-mainnet";
                             displayName = "Base Mainnet";
                         }
-                        else if (chain.ChainId == 84532)
+                        else if (chain.ChainId == BASE_SEPOLIA_CHAIN_ID)
                         {
                             networkId = "base-sepolia";
                             displayName = "Base Sepolia Testnet";
                         }
-                        else if (chain.ChainId == 1)
+                        else if (chain.ChainId == ETHEREUM_MAINNET_CHAIN_ID)
                         {
                             networkId = "ethereum-mainnet";
                             displayName = "Ethereum Mainnet";
                         }
-                        else if (chain.ChainId == 5)
+                        else if (chain.ChainId == ETHEREUM_GOERLI_CHAIN_ID)
                         {
                             networkId = "ethereum-goerli";
                             displayName = "Ethereum Goerli Testnet";
                         }
-                        else if (chain.ChainId == 11155111)
+                        else if (chain.ChainId == ETHEREUM_SEPOLIA_CHAIN_ID)
                         {
                             networkId = "ethereum-sepolia";
                             displayName = "Ethereum Sepolia Testnet";
