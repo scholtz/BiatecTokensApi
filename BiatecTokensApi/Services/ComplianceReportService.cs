@@ -50,7 +50,7 @@ namespace BiatecTokensApi.Services
                 var sanitizedNetwork = request.Network != null ? LoggingHelper.SanitizeLogInput(request.Network) : null;
 
                 _logger.LogInformation("Creating compliance report: Type={ReportType}, IssuerId={IssuerId}, AssetId={AssetId}, Network={Network}",
-                    request.ReportType, sanitizedIssuerId, request.AssetId, sanitizedNetwork);
+                    LoggingHelper.SanitizeLogInput(request.ReportType.ToString()), sanitizedIssuerId, LoggingHelper.SanitizeLogInput(request.AssetId?.ToString()), sanitizedNetwork);
 
                 // Create initial report record
                 var report = new ComplianceReport

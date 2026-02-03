@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Repositories.Interface;
 using System.Collections.Concurrent;
@@ -66,16 +67,16 @@ namespace BiatecTokensApi.Repositories
                 if (report.IssuerId == issuerId)
                 {
                     _logger.LogDebug("Retrieved compliance report: ReportId={ReportId}, IssuerId={IssuerId}",
-                        reportId, issuerId);
+                        LoggingHelper.SanitizeLogInput(reportId), LoggingHelper.SanitizeLogInput(issuerId));
                     return Task.FromResult<ComplianceReport?>(report);
                 }
 
                 _logger.LogWarning("Access denied: IssuerId={IssuerId} attempted to access report owned by {OwnerId}",
-                    issuerId, report.IssuerId);
+                    LoggingHelper.SanitizeLogInput(issuerId), LoggingHelper.SanitizeLogInput(report.IssuerId));
                 return Task.FromResult<ComplianceReport?>(null);
             }
 
-            _logger.LogDebug("Report not found: ReportId={ReportId}", reportId);
+            _logger.LogDebug("Report not found: ReportId={ReportId}", LoggingHelper.SanitizeLogInput(reportId));
             return Task.FromResult<ComplianceReport?>(null);
         }
 

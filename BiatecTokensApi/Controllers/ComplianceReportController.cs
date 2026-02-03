@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -266,25 +267,25 @@ namespace BiatecTokensApi.Controllers
             {
                 var userAddress = GetUserAddress();
                 _logger.LogInformation("Getting compliance report {ReportId} for user {UserAddress}",
-                    reportId, userAddress);
+                    LoggingHelper.SanitizeLogInput(reportId), LoggingHelper.SanitizeLogInput(userAddress));
 
                 var result = await _reportService.GetReportAsync(reportId, userAddress);
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("Retrieved compliance report {ReportId}", reportId);
+                    _logger.LogInformation("Retrieved compliance report {ReportId}", LoggingHelper.SanitizeLogInput(reportId));
                     return Ok(result);
                 }
                 else
                 {
                     _logger.LogWarning("Report not found or access denied: {ReportId}, User: {UserAddress}",
-                        reportId, userAddress);
+                        LoggingHelper.SanitizeLogInput(reportId), LoggingHelper.SanitizeLogInput(userAddress));
                     return NotFound(result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception getting compliance report {ReportId}", reportId);
+                _logger.LogError(ex, "Exception getting compliance report {ReportId}", LoggingHelper.SanitizeLogInput(reportId));
                 return StatusCode(StatusCodes.Status500InternalServerError, new GetComplianceReportResponse
                 {
                     Success = false,
@@ -354,7 +355,7 @@ namespace BiatecTokensApi.Controllers
             {
                 var userAddress = GetUserAddress();
                 _logger.LogInformation("Downloading compliance report {ReportId} for user {UserAddress} in format {Format}",
-                    reportId, userAddress, format);
+                    LoggingHelper.SanitizeLogInput(reportId), LoggingHelper.SanitizeLogInput(userAddress), LoggingHelper.SanitizeLogInput(format));
 
                 var content = await _reportService.DownloadReportAsync(reportId, userAddress, format);
 
@@ -365,23 +366,23 @@ namespace BiatecTokensApi.Controllers
                 var fileName = $"compliance-report-{reportId}.{format.ToLowerInvariant()}";
 
                 _logger.LogInformation("Report downloaded successfully: {ReportId}, Format: {Format}",
-                    reportId, format);
+                    LoggingHelper.SanitizeLogInput(reportId), LoggingHelper.SanitizeLogInput(format));
 
                 return File(System.Text.Encoding.UTF8.GetBytes(content), contentType, fileName);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Cannot download report {ReportId}: {Message}", reportId, ex.Message);
+                _logger.LogWarning(ex, "Cannot download report {ReportId}: {Message}", LoggingHelper.SanitizeLogInput(reportId), ex.Message);
                 return BadRequest(new { success = false, errorMessage = ex.Message });
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "Invalid format for report {ReportId}: {Message}", reportId, ex.Message);
+                _logger.LogWarning(ex, "Invalid format for report {ReportId}: {Message}", LoggingHelper.SanitizeLogInput(reportId), ex.Message);
                 return BadRequest(new { success = false, errorMessage = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception downloading compliance report {ReportId}", reportId);
+                _logger.LogError(ex, "Exception downloading compliance report {ReportId}", LoggingHelper.SanitizeLogInput(reportId));
                 return StatusCode(StatusCodes.Status500InternalServerError, new
                 {
                     success = false,

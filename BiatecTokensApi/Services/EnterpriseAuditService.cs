@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.Webhook;
@@ -44,7 +45,7 @@ namespace BiatecTokensApi.Services
         public async Task<EnterpriseAuditLogResponse> GetAuditLogAsync(GetEnterpriseAuditLogRequest request)
         {
             _logger.LogInformation("Retrieving enterprise audit log: AssetId={AssetId}, Network={Network}, Page={Page}",
-                request.AssetId, request.Network, request.Page);
+                LoggingHelper.SanitizeLogInput(request.AssetId?.ToString()), LoggingHelper.SanitizeLogInput(request.Network), request.Page);
 
             try
             {

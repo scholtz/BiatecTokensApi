@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Repositories.Interface;
 using System.Collections.Concurrent;
@@ -48,7 +49,7 @@ namespace BiatecTokensApi.Repositories
         public Task<List<TokenIssuanceAuditLogEntry>> GetAuditLogAsync(GetTokenIssuanceAuditLogRequest request)
         {
             _logger.LogInformation("Retrieving token issuance audit logs: AssetId={AssetId}, Network={Network}, TokenType={TokenType}",
-                request.AssetId, request.Network, request.TokenType);
+                LoggingHelper.SanitizeLogInput(request.AssetId?.ToString()), LoggingHelper.SanitizeLogInput(request.Network), LoggingHelper.SanitizeLogInput(request.TokenType));
 
             var query = _auditLog.AsEnumerable();
 

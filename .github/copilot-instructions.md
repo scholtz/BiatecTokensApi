@@ -151,14 +151,29 @@ public async Task<TokenCreationResponse> CreateERC20MintableAsync(CreateERC20Min
 - Use environment variables for production deployments
 - Validate all input parameters before processing
 - Use proper error handling to avoid leaking sensitive information
-- **ALWAYS sanitize all user-provided inputs before logging to prevent log forging attacks and CodeQL security warnings**
+- **MANDATORY: ALWAYS sanitize all user-provided inputs before logging to prevent log forging attacks and CodeQL security warnings**
 - Create utility methods for input sanitization and use them consistently across the codebase
 
 ### Logging Security
-- **ALWAYS** sanitize user-provided inputs before logging using `LoggingHelper.SanitizeLogInput()`
-- Never log raw user input directly, even in structured logging
+- **CRITICAL: Never log raw user input directly. Always use `LoggingHelper.SanitizeLogInput()` for any user-provided value in logs**
+- This prevents CodeQL "Log entries created from user input" high severity vulnerabilities
 - Use the `LoggingHelper` utility class for consistent sanitization across the codebase
 - Control characters and excessively long inputs are automatically filtered
+
+**Example of INCORRECT logging (will trigger CodeQL):**
+```csharp
+_logger.LogInformation("User {UserId} requested {Action}", userId, action); // BAD: userId and action are raw user inputs
+```
+
+**Example of CORRECT logging:**
+```csharp
+_logger.LogInformation("User {UserId} requested {Action}", 
+    LoggingHelper.SanitizeLogInput(userId), 
+    LoggingHelper.SanitizeLogInput(action)); // GOOD: sanitized
+```
+
+- For multiple values, use `LoggingHelper.SanitizeLogInputs()` or sanitize individually
+- Apply to all logging levels: LogInformation, LogWarning, LogError, LogDebug
 
 ### Secrets Management
 ```bash
