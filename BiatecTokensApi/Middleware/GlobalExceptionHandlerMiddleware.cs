@@ -132,6 +132,7 @@ namespace BiatecTokensApi.Middleware
                     context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                     response.ErrorCode = "BAD_REQUEST";
                     response.ErrorMessage = "Invalid request parameters";
+                    response.RemediationHint = "Check your request parameters and ensure all required fields are provided with valid values.";
                     if (_env.IsDevelopment())
                     {
                         response.Details = new Dictionary<string, object>
@@ -146,12 +147,14 @@ namespace BiatecTokensApi.Middleware
                     context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                     response.ErrorCode = "UNAUTHORIZED";
                     response.ErrorMessage = "Authentication is required to access this resource";
+                    response.RemediationHint = "Provide a valid ARC-0014 authentication token in the Authorization header.";
                     break;
 
                 case InvalidOperationException:
                     context.Response.StatusCode = (int)HttpStatusCode.Conflict;
                     response.ErrorCode = "INVALID_OPERATION";
                     response.ErrorMessage = "The requested operation is not valid in the current state";
+                    response.RemediationHint = "Verify the current state of the resource and ensure your operation is allowed.";
                     if (_env.IsDevelopment())
                     {
                         response.Details = new Dictionary<string, object>
@@ -165,12 +168,14 @@ namespace BiatecTokensApi.Middleware
                     context.Response.StatusCode = (int)HttpStatusCode.RequestTimeout;
                     response.ErrorCode = "TIMEOUT";
                     response.ErrorMessage = "The request timed out. Please try again later";
+                    response.RemediationHint = "The operation took too long to complete. Wait a moment and retry your request.";
                     break;
 
                 case HttpRequestException httpEx:
                     context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
                     response.ErrorCode = "EXTERNAL_SERVICE_ERROR";
                     response.ErrorMessage = "An error occurred while communicating with an external service";
+                    response.RemediationHint = "An external service is temporarily unavailable. Please retry in a few moments.";
                     if (_env.IsDevelopment())
                     {
                         response.Details = new Dictionary<string, object>
@@ -184,6 +189,7 @@ namespace BiatecTokensApi.Middleware
                     context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                     response.ErrorCode = "INTERNAL_SERVER_ERROR";
                     response.ErrorMessage = "An unexpected error occurred while processing your request";
+                    response.RemediationHint = "An unexpected error occurred. If this persists, please contact support with the correlation ID.";
                     
                     // Only include detailed error information in development
                     if (_env.IsDevelopment())

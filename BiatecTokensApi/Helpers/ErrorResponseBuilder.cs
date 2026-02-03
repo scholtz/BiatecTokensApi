@@ -13,8 +13,9 @@ namespace BiatecTokensApi.Helpers
         /// </summary>
         /// <param name="errorMessage">Human-readable error message</param>
         /// <param name="details">Optional additional details</param>
+        /// <param name="remediationHint">Optional hint to help resolve the error</param>
         /// <returns>BadRequest result with standardized error response</returns>
-        public static IActionResult ValidationError(string errorMessage, Dictionary<string, object>? details = null)
+        public static IActionResult ValidationError(string errorMessage, Dictionary<string, object>? details = null, string? remediationHint = null)
         {
             return new BadRequestObjectResult(new ApiErrorResponse
             {
@@ -22,6 +23,7 @@ namespace BiatecTokensApi.Helpers
                 ErrorCode = ErrorCodes.INVALID_REQUEST,
                 ErrorMessage = errorMessage,
                 Details = details,
+                RemediationHint = remediationHint,
                 Timestamp = DateTime.UtcNow
             });
         }
@@ -40,6 +42,7 @@ namespace BiatecTokensApi.Helpers
                 ErrorCode = ErrorCodes.BLOCKCHAIN_CONNECTION_ERROR,
                 ErrorMessage = $"Failed to connect to {network} blockchain network. Please try again later.",
                 Details = details,
+                RemediationHint = "Check network status and availability. If the problem persists, contact support.",
                 Timestamp = DateTime.UtcNow
             })
             {
@@ -52,8 +55,9 @@ namespace BiatecTokensApi.Helpers
         /// </summary>
         /// <param name="errorMessage">Human-readable error message</param>
         /// <param name="details">Optional additional details</param>
+        /// <param name="remediationHint">Optional hint to help resolve the error</param>
         /// <returns>UnprocessableEntity result with standardized error response</returns>
-        public static IActionResult TransactionError(string errorMessage, Dictionary<string, object>? details = null)
+        public static IActionResult TransactionError(string errorMessage, Dictionary<string, object>? details = null, string? remediationHint = null)
         {
             return new UnprocessableEntityObjectResult(new ApiErrorResponse
             {
@@ -61,6 +65,7 @@ namespace BiatecTokensApi.Helpers
                 ErrorCode = ErrorCodes.TRANSACTION_FAILED,
                 ErrorMessage = errorMessage,
                 Details = details,
+                RemediationHint = remediationHint ?? "Verify your account balance and transaction parameters, then try again.",
                 Timestamp = DateTime.UtcNow
             });
         }
@@ -79,6 +84,7 @@ namespace BiatecTokensApi.Helpers
                 ErrorCode = ErrorCodes.IPFS_SERVICE_ERROR,
                 ErrorMessage = errorMessage,
                 Details = details,
+                RemediationHint = "IPFS service is temporarily unavailable. Please try again in a few moments.",
                 Timestamp = DateTime.UtcNow
             })
             {
@@ -100,6 +106,7 @@ namespace BiatecTokensApi.Helpers
                 ErrorCode = ErrorCodes.TIMEOUT,
                 ErrorMessage = $"The {operation} operation timed out. Please try again.",
                 Details = details,
+                RemediationHint = "The operation took too long to complete. This may be temporary - please retry your request.",
                 Timestamp = DateTime.UtcNow
             })
             {
@@ -160,6 +167,7 @@ namespace BiatecTokensApi.Helpers
                 ErrorCode = ErrorCodes.EXTERNAL_SERVICE_ERROR,
                 ErrorMessage = $"Failed to communicate with {serviceName}. Please try again later.",
                 Details = details,
+                RemediationHint = "The external service is currently unavailable. Please retry in a few moments.",
                 Timestamp = DateTime.UtcNow
             })
             {
@@ -174,8 +182,9 @@ namespace BiatecTokensApi.Helpers
         /// <param name="errorCode">Error code</param>
         /// <param name="errorMessage">Human-readable error message</param>
         /// <param name="details">Optional additional details</param>
+        /// <param name="remediationHint">Optional hint to help resolve the error</param>
         /// <returns>Response object with error information</returns>
-        public static T CreateErrorResponse<T>(string errorCode, string errorMessage, Dictionary<string, object>? details = null) 
+        public static T CreateErrorResponse<T>(string errorCode, string errorMessage, Dictionary<string, object>? details = null, string? remediationHint = null) 
             where T : BaseResponse, new()
         {
             return new T
@@ -184,6 +193,7 @@ namespace BiatecTokensApi.Helpers
                 ErrorCode = errorCode,
                 ErrorMessage = errorMessage,
                 ErrorDetails = details,
+                RemediationHint = remediationHint,
                 Timestamp = DateTime.UtcNow
             };
         }

@@ -39,5 +39,10 @@ namespace BiatecTokensApi.Models
         /// Correlation ID for tracing requests across services
         /// </summary>
         public string? CorrelationId { get; set; }
+
+        /// <summary>
+        /// Optional remediation hint to help users resolve the error
+        /// </summary>
+        public string? RemediationHint { get; set; }
     }
 }

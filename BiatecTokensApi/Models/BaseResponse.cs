@@ -38,5 +38,10 @@
         /// Timestamp of when the response was created (set at instantiation)
         /// </summary>
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Optional remediation hint to help users resolve the error
+        /// </summary>
+        public string? RemediationHint { get; set; }
     }
 }
