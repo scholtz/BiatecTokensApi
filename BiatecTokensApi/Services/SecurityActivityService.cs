@@ -167,8 +167,9 @@ namespace BiatecTokensApi.Services
 
             try
             {
-                // Validate format
-                if (request.Format != "csv" && request.Format != "json")
+                // Validate format - normalize input for security
+                string normalizedFormat = request.Format?.Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(normalizedFormat) || (normalizedFormat != "csv" && normalizedFormat != "json"))
                 {
                     return (new ExportAuditTrailResponse
                     {
