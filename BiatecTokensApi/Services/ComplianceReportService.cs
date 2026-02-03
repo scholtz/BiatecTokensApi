@@ -43,6 +43,15 @@ namespace BiatecTokensApi.Services
         /// <inheritdoc/>
         public async Task<CreateComplianceReportResponse> CreateReportAsync(CreateComplianceReportRequest request, string issuerId)
         {
+            ArgumentNullException.ThrowIfNull(request);
+            ArgumentException.ThrowIfNullOrWhiteSpace(issuerId);
+
+            // Validate report type
+            if (!Enum.IsDefined(typeof(ReportType), request.ReportType))
+            {
+                throw new ArgumentException("Invalid report type", nameof(request.ReportType));
+            }
+
             try
             {
                 // Sanitize inputs for logging
