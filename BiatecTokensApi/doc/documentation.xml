@@ -1249,6 +1249,210 @@
             Requires ARC-0014 authentication. Recommended for compliance officers and executives.
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.ComplianceReportController">
+            <summary>
+            Provides MICA-ready compliance reporting and audit trail export endpoints
+            </summary>
+            <remarks>
+            This controller enables enterprise-grade compliance reporting with support for:
+            - MICA readiness assessments (Articles 17-35)
+            - Audit trail snapshots for regulatory compliance
+            - Compliance badge evidence collection
+            - JSON and CSV export formats with tamper-evident checksums
+            
+            All endpoints require ARC-0014 authentication and enforce issuer-level access control.
+            Reports are scoped to the authenticated user's issued tokens only.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceReportController.#ctor(BiatecTokensApi.Services.Interface.IComplianceReportService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ComplianceReportController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.ComplianceReportController"/> class.
+            </summary>
+            <param name="reportService">The compliance report service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceReportController.CreateReport(BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest)">
+            <summary>
+            Creates a new compliance report
+            </summary>
+            <param name="request">Report creation request specifying type and filters</param>
+            <returns>Report creation response with report ID and status</returns>
+            <remarks>
+            Creates a new compliance report of the specified type with optional filters.
+            
+            **Report Types:**
+            - **MicaReadiness**: Assesses token compliance against MICA Articles 17-35, providing a readiness score and identifying gaps
+            - **AuditTrail**: Generates a chronological snapshot of all audit events for the specified scope
+            - **ComplianceBadge**: Collects evidence items required for compliance certification
+            
+            **Filters:**
+            - `assetId`: Limit report to a specific token
+            - `network`: Limit report to a specific network (voimain-v1.0, aramidmain-v1.0, etc.)
+            - `fromDate` / `toDate`: Limit report to a specific time range
+            
+            **Process:**
+            1. Report is created with status "Processing"
+            2. Report content is generated based on existing audit data
+            3. Report status changes to "Completed" when ready
+            4. SHA-256 checksum is calculated for tamper evidence
+            
+            **Response:**
+            Returns the report ID immediately. Use GET /api/v1/compliance/reports/{reportId} to check status and retrieve results.
+            
+            **Example Request:**
+            ```json
+            {
+              "reportType": "MicaReadiness",
+              "assetId": 12345,
+              "network": "voimain-v1.0"
+            }
+            ```
+            
+            **Access Control:**
+            Reports are scoped to the authenticated issuer. You can only create reports for tokens you have issued.
+            
+            **Performance:**
+            Report generation is synchronous in this MVP implementation. Large datasets (10,000+ events) may take up to 30 seconds.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceReportController.ListReports(System.Nullable{BiatecTokensApi.Models.Compliance.ReportType},System.Nullable{System.UInt64},System.String,System.Nullable{BiatecTokensApi.Models.Compliance.ReportStatus},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Lists compliance reports for the authenticated user
+            </summary>
+            <param name="reportType">Optional filter by report type</param>
+            <param name="assetId">Optional filter by asset ID</param>
+            <param name="network">Optional filter by network</param>
+            <param name="status">Optional filter by report status</param>
+            <param name="fromDate">Optional filter by creation date (from)</param>
+            <param name="toDate">Optional filter by creation date (to)</param>
+            <param name="page">Page number for pagination (default: 1)</param>
+            <param name="pageSize">Page size for pagination (default: 50, max: 100)</param>
+            <returns>Paginated list of compliance reports</returns>
+            <remarks>
+            Returns a paginated list of compliance reports owned by the authenticated user.
+            
+            **Filters:**
+            All filters are optional and can be combined:
+            - `reportType`: Filter by MicaReadiness, AuditTrail, or ComplianceBadge
+            - `assetId`: Show only reports for a specific token
+            - `network`: Show only reports for a specific network
+            - `status`: Filter by Pending, Processing, Completed, or Failed
+            - `fromDate` / `toDate`: Filter by report creation date range
+            
+            **Pagination:**
+            - Default page size: 50
+            - Maximum page size: 100
+            - Results ordered by creation date (most recent first)
+            
+            **Response:**
+            Each report summary includes:
+            - Report ID and type
+            - Status and event count
+            - Creation and completion timestamps
+            - Warning count (for identifying reports with gaps)
+            
+            **Example:**
+            ```
+            GET /api/v1/compliance/reports?reportType=MicaReadiness&amp;status=Completed&amp;page=1
+            ```
+            
+            **Access Control:**
+            Returns only reports created by the authenticated user. Admin access not implemented in MVP.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceReportController.GetReport(System.String)">
+            <summary>
+            Gets detailed information about a specific compliance report
+            </summary>
+            <param name="reportId">The report ID</param>
+            <returns>Full report details including metadata and warnings</returns>
+            <remarks>
+            Retrieves complete information about a compliance report, including:
+            - Report metadata (type, status, timestamps)
+            - Applied filters (asset ID, network, date range)
+            - Schema version for compatibility tracking
+            - Event count and warnings
+            - SHA-256 checksum for tamper evidence
+            - Error message if report generation failed
+            
+            **Status Values:**
+            - **Pending**: Report queued for generation
+            - **Processing**: Report currently being generated
+            - **Completed**: Report ready for download
+            - **Failed**: Report generation failed (check errorMessage)
+            
+            **Warnings:**
+            Reports may include warnings such as:
+            - "Report limited to 10,000 events. Use date filters to narrow the scope."
+            - "No audit events found matching the specified criteria."
+            - "Missing evidence: [requirement name]"
+            
+            **Access Control:**
+            You can only retrieve reports you created. Returns 404 if report doesn't exist or access is denied.
+            
+            **Example:**
+            ```
+            GET /api/v1/compliance/reports/550e8400-e29b-41d4-a716-446655440000
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceReportController.DownloadReport(System.String,System.String)">
+            <summary>
+            Downloads a compliance report in the specified format
+            </summary>
+            <param name="reportId">The report ID</param>
+            <param name="format">Export format: 'json' or 'csv' (default: json)</param>
+            <returns>Report file in the requested format</returns>
+            <remarks>
+            Downloads the full report content as a file in JSON or CSV format.
+            
+            **JSON Format:**
+            - Pretty-printed JSON with complete report structure
+            - Includes metadata, schema version, and checksum
+            - Machine-readable for programmatic processing
+            - Preserves all data types and nested structures
+            
+            **CSV Format:**
+            - UTF-8 encoded with proper escaping
+            - Includes report metadata as comments (# prefix)
+            - Contains checksum in header for integrity verification
+            - Table format varies by report type:
+              - MicaReadiness: Article, Requirement, Status, Evidence, Recommendation
+              - AuditTrail: Timestamp, Category, Action, Performed By, Asset ID, Network, Success, etc.
+              - ComplianceBadge: Evidence Type, Description, Source, Timestamp, Status
+            
+            **Checksum:**
+            Both formats include SHA-256 checksum for tamper evidence:
+            - JSON: In metadata object
+            - CSV: In header comment
+            
+            **Filename Format:**
+            - JSON: `compliance-report-{reportId}.json`
+            - CSV: `compliance-report-{reportId}.csv`
+            
+            **Requirements:**
+            - Report must have status "Completed"
+            - User must own the report (issuer-level access control)
+            
+            **Example:**
+            ```
+            GET /api/v1/compliance/reports/550e8400-e29b-41d4-a716-446655440000/download?format=csv
+            ```
+            
+            **Use Cases:**
+            - Regulatory audit submissions
+            - Internal compliance reviews
+            - Evidence collection for MICA compliance
+            - Integration with compliance management systems
+            - Long-term archival with integrity verification
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceReportController.GetUserAddress">
+            <summary>
+            Gets the user's Algorand address from the authentication context
+            </summary>
+            <returns>The user's Algorand address</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.DeploymentStatusController">
             <summary>
             Provides endpoints for querying and tracking token deployment status
@@ -7208,6 +7412,566 @@
             Overall retention health score (0-100)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ReportType">
+            <summary>
+            Type of compliance report
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ReportType.MicaReadiness">
+            <summary>
+            MICA readiness assessment report (Articles 17-35)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ReportType.AuditTrail">
+            <summary>
+            Chronological audit trail snapshot
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ReportType.ComplianceBadge">
+            <summary>
+            Compliance badge evidence collection
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ReportStatus">
+            <summary>
+            Status of a compliance report
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ReportStatus.Pending">
+            <summary>
+            Report generation is pending
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ReportStatus.Processing">
+            <summary>
+            Report is currently being generated
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ReportStatus.Completed">
+            <summary>
+            Report generation completed successfully
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.ReportStatus.Failed">
+            <summary>
+            Report generation failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceReport">
+            <summary>
+            Compliance report metadata and storage information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.ReportId">
+            <summary>
+            Unique identifier for the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.ReportType">
+            <summary>
+            Type of report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.IssuerId">
+            <summary>
+            Issuer/creator of the report (Algorand address)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.AssetId">
+            <summary>
+            Optional asset ID filter applied to this report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.Network">
+            <summary>
+            Optional network filter applied to this report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.FromDate">
+            <summary>
+            Start date of the reporting period (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.ToDate">
+            <summary>
+            End date of the reporting period (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.Status">
+            <summary>
+            Current status of the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.SchemaVersion">
+            <summary>
+            Report schema version for compatibility tracking
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.CreatedAt">
+            <summary>
+            Report generation timestamp (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.CompletedAt">
+            <summary>
+            Report completion timestamp (UTC), null if not completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.ErrorMessage">
+            <summary>
+            Error message if report generation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.EventCount">
+            <summary>
+            Number of audit events included in the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.Checksum">
+            <summary>
+            SHA-256 checksum of the report content for tamper evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.Warnings">
+            <summary>
+            Structured warnings about missing data or compliance gaps
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReport.ContentJson">
+            <summary>
+            Report content as JSON (stored for completed reports)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest">
+            <summary>
+            Request to create a new compliance report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest.ReportType">
+            <summary>
+            Type of report to generate
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest.AssetId">
+            <summary>
+            Optional filter by asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest.FromDate">
+            <summary>
+            Optional start date for the reporting period
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest.ToDate">
+            <summary>
+            Optional end date for the reporting period
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CreateComplianceReportResponse">
+            <summary>
+            Response after creating a compliance report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportResponse.ReportId">
+            <summary>
+            The generated report ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportResponse.Status">
+            <summary>
+            Current status of the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceReportResponse.CreatedAt">
+            <summary>
+            Report creation timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest">
+            <summary>
+            Request to list compliance reports
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.ReportType">
+            <summary>
+            Optional filter by report type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.AssetId">
+            <summary>
+            Optional filter by asset ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.Status">
+            <summary>
+            Optional filter by status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.FromDate">
+            <summary>
+            Optional filter by creation date (from)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.ToDate">
+            <summary>
+            Optional filter by creation date (to)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse">
+            <summary>
+            Response containing list of compliance reports
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse.Reports">
+            <summary>
+            List of reports
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse.TotalCount">
+            <summary>
+            Total number of reports matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceReportSummary">
+            <summary>
+            Summary information for a compliance report (used in listings)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.ReportId">
+            <summary>
+            Unique identifier for the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.ReportType">
+            <summary>
+            Type of report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.Status">
+            <summary>
+            Current status of the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.AssetId">
+            <summary>
+            Optional asset ID filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.Network">
+            <summary>
+            Optional network filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.EventCount">
+            <summary>
+            Number of events in the report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.CreatedAt">
+            <summary>
+            Report creation timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.CompletedAt">
+            <summary>
+            Report completion timestamp (if completed)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceReportSummary.WarningCount">
+            <summary>
+            Number of warnings in the report
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetComplianceReportResponse">
+            <summary>
+            Response containing full compliance report details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetComplianceReportResponse.Report">
+            <summary>
+            Report metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaReadinessReportContent">
+            <summary>
+            MICA readiness report content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportContent.Metadata">
+            <summary>
+            Report metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportContent.ComplianceChecks">
+            <summary>
+            MICA compliance checks results
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportContent.MissingEvidence">
+            <summary>
+            Missing evidence or data warnings
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportContent.ReadinessScore">
+            <summary>
+            Overall MICA readiness score (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportContent.ReadinessSummary">
+            <summary>
+            Summary of readiness status
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata">
+            <summary>
+            MICA readiness report metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata.ReportId">
+            <summary>
+            Report ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata.SchemaVersion">
+            <summary>
+            Schema version
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata.GeneratedAt">
+            <summary>
+            Generation timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata.AssetId">
+            <summary>
+            Asset ID (if filtered)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata.Network">
+            <summary>
+            Network (if filtered)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata.FromDate">
+            <summary>
+            Report period start
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata.ToDate">
+            <summary>
+            Report period end
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.MicaComplianceCheck">
+            <summary>
+            Individual MICA compliance check result
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceCheck.Article">
+            <summary>
+            MICA article reference (e.g., "Article 17")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceCheck.Requirement">
+            <summary>
+            Description of the requirement
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceCheck.Status">
+            <summary>
+            Check result (Pass, Fail, Partial)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceCheck.Evidence">
+            <summary>
+            Evidence supporting the status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.MicaComplianceCheck.Recommendation">
+            <summary>
+            Recommendations for addressing gaps
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditTrailReportContent">
+            <summary>
+            Audit trail report content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportContent.Metadata">
+            <summary>
+            Report metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportContent.Events">
+            <summary>
+            Audit events in chronological order
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportContent.Summary">
+            <summary>
+            Summary statistics
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata">
+            <summary>
+            Audit trail report metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata.ReportId">
+            <summary>
+            Report ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata.SchemaVersion">
+            <summary>
+            Schema version
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata.GeneratedAt">
+            <summary>
+            Generation timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata.AssetId">
+            <summary>
+            Asset ID (if filtered)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata.Network">
+            <summary>
+            Network (if filtered)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata.FromDate">
+            <summary>
+            Report period start
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata.ToDate">
+            <summary>
+            Report period end
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportContent">
+            <summary>
+            Compliance badge evidence report content
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportContent.Metadata">
+            <summary>
+            Report metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportContent.Evidence">
+            <summary>
+            Evidence items collected
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportContent.BadgeStatus">
+            <summary>
+            Badge eligibility status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportContent.MissingRequirements">
+            <summary>
+            Missing requirements for badge
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata">
+            <summary>
+            Compliance badge report metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata.ReportId">
+            <summary>
+            Report ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata.SchemaVersion">
+            <summary>
+            Schema version
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata.GeneratedAt">
+            <summary>
+            Generation timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata.AssetId">
+            <summary>
+            Asset ID (if filtered)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata.Network">
+            <summary>
+            Network (if filtered)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem">
+            <summary>
+            Individual compliance evidence item
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem.EvidenceType">
+            <summary>
+            Type of evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem.Description">
+            <summary>
+            Evidence description
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem.Source">
+            <summary>
+            Source of the evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem.Timestamp">
+            <summary>
+            Timestamp of the evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem.Status">
+            <summary>
+            Verification status
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest">
             <summary>
             Request to create or update compliance metadata for a token
@@ -12748,6 +13512,36 @@
             <param name="args">The command-line arguments used to configure the application.</param>
             <exception cref="T:System.Exception"></exception>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.ComplianceReportRepository">
+            <summary>
+            In-memory repository implementation for compliance reports
+            </summary>
+            <remarks>
+            Uses thread-safe concurrent collections for MVP implementation.
+            Can be replaced with database-backed implementation without changing the interface.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceReportRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.ComplianceReportRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.ComplianceReportRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceReportRepository.CreateReportAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceReportRepository.UpdateReportAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceReportRepository.GetReportAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceReportRepository.ListReportsAsync(System.String,BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceReportRepository.GetReportCountAsync(System.String,BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.ComplianceRepository">
             <summary>
             In-memory repository for compliance metadata
@@ -13034,6 +13828,49 @@
             </summary>
             <param name="cid">Content Identifier</param>
             <returns>True if unpinning was successful</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IComplianceReportRepository">
+            <summary>
+            Repository interface for compliance report persistence and retrieval
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceReportRepository.CreateReportAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <summary>
+            Creates a new compliance report
+            </summary>
+            <param name="report">The report to create</param>
+            <returns>The created report</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceReportRepository.UpdateReportAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <summary>
+            Updates an existing compliance report
+            </summary>
+            <param name="report">The report to update</param>
+            <returns>The updated report</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceReportRepository.GetReportAsync(System.String,System.String)">
+            <summary>
+            Gets a compliance report by ID for a specific issuer
+            </summary>
+            <param name="reportId">The report ID</param>
+            <param name="issuerId">The issuer ID (for access control)</param>
+            <returns>The report, or null if not found or access denied</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceReportRepository.ListReportsAsync(System.String,BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest)">
+            <summary>
+            Lists compliance reports for a specific issuer with filtering
+            </summary>
+            <param name="issuerId">The issuer ID</param>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>List of reports matching the criteria</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceReportRepository.GetReportCountAsync(System.String,BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest)">
+            <summary>
+            Gets the total count of reports for a specific issuer with filtering
+            </summary>
+            <param name="issuerId">The issuer ID</param>
+            <param name="request">Filter parameters</param>
+            <returns>Total count of matching reports</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IComplianceRepository">
             <summary>
@@ -14229,6 +15066,67 @@
             Internal class for tracking usage data per tenant
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.ComplianceReportService">
+            <summary>
+            Service implementation for compliance report generation and management
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceReportRepository,BiatecTokensApi.Services.Interface.IEnterpriseAuditService,BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceReportService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ComplianceReportService"/> class.
+            </summary>
+            <param name="reportRepository">The compliance report repository</param>
+            <param name="auditService">The enterprise audit service</param>
+            <param name="complianceService">The compliance service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.CreateReportAsync(BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.GetReportAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.ListReportsAsync(BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.DownloadReportAsync(System.String,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.GenerateReportContentAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <summary>
+            Generates report content based on report type
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.GenerateMicaReadinessReportAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <summary>
+            Generates MICA readiness report content
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.GenerateAuditTrailReportAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <summary>
+            Generates audit trail report content
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.GenerateComplianceBadgeReportAsync(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <summary>
+            Generates compliance badge evidence report content
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.ConvertReportToCsv(BiatecTokensApi.Models.Compliance.ComplianceReport)">
+            <summary>
+            Converts report to CSV format
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.CsvEscape(System.String)">
+            <summary>
+            Escapes CSV special characters
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.CalculateChecksum(System.String)">
+            <summary>
+            Calculates SHA-256 checksum of content
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ComplianceService">
             <summary>
             Service for managing compliance metadata with network-specific validation
@@ -14814,6 +15712,44 @@
             <param name="tenantAddress">The tenant's Algorand address</param>
             <param name="operationType">Type of operation performed</param>
             <param name="count">Number of operations performed</param>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IComplianceReportService">
+            <summary>
+            Service interface for compliance report generation and management
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceReportService.CreateReportAsync(BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest,System.String)">
+            <summary>
+            Creates a new compliance report
+            </summary>
+            <param name="request">Report creation request</param>
+            <param name="issuerId">Issuer ID (from authentication)</param>
+            <returns>Report creation response with report ID</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceReportService.GetReportAsync(System.String,System.String)">
+            <summary>
+            Gets a compliance report by ID
+            </summary>
+            <param name="reportId">Report ID</param>
+            <param name="issuerId">Issuer ID (for access control)</param>
+            <returns>Report details response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceReportService.ListReportsAsync(BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest,System.String)">
+            <summary>
+            Lists compliance reports for an issuer
+            </summary>
+            <param name="request">List request with filters</param>
+            <param name="issuerId">Issuer ID</param>
+            <returns>List of reports with pagination</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceReportService.DownloadReportAsync(System.String,System.String,System.String)">
+            <summary>
+            Downloads a compliance report in the specified format
+            </summary>
+            <param name="reportId">Report ID</param>
+            <param name="issuerId">Issuer ID (for access control)</param>
+            <param name="format">Export format (json or csv)</param>
+            <returns>Report content as string</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IComplianceService">
             <summary>
