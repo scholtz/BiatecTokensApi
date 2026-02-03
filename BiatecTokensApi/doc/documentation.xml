@@ -3396,6 +3396,10 @@
             This filter ensures that duplicate requests with the same idempotency key return the same response.
             It stores the response in memory for a configurable duration (default 24 hours).
             
+            **Security:** The filter validates that cached requests match current request parameters.
+            If the same idempotency key is used with different parameters, a warning is logged and
+            the request is rejected to prevent bypassing business logic.
+            
             Usage:
             [IdempotencyKey]
             [HttpPost("create")]
@@ -3416,6 +3420,13 @@
             <summary>
             Executes before the action method runs
             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.IdempotencyKeyAttribute.ComputeRequestHash(System.Collections.Generic.IDictionary{System.String,System.Object})">
+            <summary>
+            Computes a hash of the request parameters for validation
+            </summary>
+            <param name="arguments">Action arguments</param>
+            <returns>Hash string</returns>
         </member>
         <member name="M:BiatecTokensApi.Filters.IdempotencyKeyAttribute.CleanupExpiredEntries">
             <summary>
