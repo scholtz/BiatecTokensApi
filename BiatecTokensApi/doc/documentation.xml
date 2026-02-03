@@ -3638,12 +3638,13 @@
             Helper class for building consistent error responses across the API
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.ValidationError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.ValidationError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.String)">
             <summary>
             Creates a standardized error response for validation failures
             </summary>
             <param name="errorMessage">Human-readable error message</param>
             <param name="details">Optional additional details</param>
+            <param name="remediationHint">Optional hint to help resolve the error</param>
             <returns>BadRequest result with standardized error response</returns>
         </member>
         <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.BlockchainConnectionError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
@@ -3654,12 +3655,13 @@
             <param name="details">Optional additional details</param>
             <returns>BadGateway result with standardized error response</returns>
         </member>
-        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.TransactionError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.TransactionError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.String)">
             <summary>
             Creates a standardized error response for transaction failures
             </summary>
             <param name="errorMessage">Human-readable error message</param>
             <param name="details">Optional additional details</param>
+            <param name="remediationHint">Optional hint to help resolve the error</param>
             <returns>UnprocessableEntity result with standardized error response</returns>
         </member>
         <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.IPFSServiceError(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
@@ -3699,7 +3701,7 @@
             <param name="details">Optional additional details</param>
             <returns>BadGateway result with standardized error response</returns>
         </member>
-        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.CreateErrorResponse``1(System.String,System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.CreateErrorResponse``1(System.String,System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.String)">
             <summary>
             Creates a deployment response with error details
             </summary>
@@ -3707,6 +3709,7 @@
             <param name="errorCode">Error code</param>
             <param name="errorMessage">Human-readable error message</param>
             <param name="details">Optional additional details</param>
+            <param name="remediationHint">Optional hint to help resolve the error</param>
             <returns>Response object with error information</returns>
         </member>
         <member name="T:BiatecTokensApi.Helpers.LoggingHelper">
@@ -3857,6 +3860,11 @@
         <member name="P:BiatecTokensApi.Models.ApiErrorResponse.CorrelationId">
             <summary>
             Correlation ID for tracing requests across services
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.RemediationHint">
+            <summary>
+            Optional remediation hint to help users resolve the error
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ApiStatusResponse">
@@ -4526,6 +4534,11 @@
         <member name="P:BiatecTokensApi.Models.BaseResponse.Timestamp">
             <summary>
             Timestamp of when the response was created (set at instantiation)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.BaseResponse.RemediationHint">
+            <summary>
+            Optional remediation hint to help users resolve the error
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Billing.LimitCheckRequest">
