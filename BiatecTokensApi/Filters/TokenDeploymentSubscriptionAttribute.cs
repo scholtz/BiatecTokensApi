@@ -108,19 +108,16 @@ namespace BiatecTokensApi.Filters
             var executedContext = await next();
 
             // If the action was successful (2xx status code), record the deployment
-            if (executedContext.Result is ObjectResult objectResult)
+            var statusCode = executedContext.HttpContext.Response.StatusCode;
+            if (statusCode >= 200 && statusCode < 300)
             {
-                var statusCode = objectResult.StatusCode ?? 200;
-                if (statusCode >= 200 && statusCode < 300)
-                {
-                    // Record the deployment
-                    await tierService.RecordTokenDeploymentAsync(userAddress);
+                // Record the deployment
+                await tierService.RecordTokenDeploymentAsync(userAddress);
 
-                    var newCount = await tierService.GetTokenDeploymentCountAsync(userAddress);
-                    logger.LogInformation(
-                        "Token deployment recorded for user {UserAddress}. New deployment count: {Count}. CorrelationId: {CorrelationId}",
-                        sanitizedUserAddress, newCount, context.HttpContext.TraceIdentifier);
-                }
+                var newCount = await tierService.GetTokenDeploymentCountAsync(userAddress);
+                logger.LogInformation(
+                    "Token deployment recorded for user {UserAddress}. New deployment count: {Count}. CorrelationId: {CorrelationId}",
+                    sanitizedUserAddress, newCount, context.HttpContext.TraceIdentifier);
             }
         }
     }

@@ -3421,10 +3421,11 @@
             Executes before the action method runs
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Filters.IdempotencyKeyAttribute.ComputeRequestHash(System.Collections.Generic.IDictionary{System.String,System.Object})">
+        <member name="M:BiatecTokensApi.Filters.IdempotencyKeyAttribute.ComputeRequestHash(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,System.Collections.Generic.IDictionary{System.String,System.Object})">
             <summary>
             Computes a hash of the request parameters for validation
             </summary>
+            <param name="context">Action executing context</param>
             <param name="arguments">Action arguments</param>
             <returns>Hash string</returns>
         </member>

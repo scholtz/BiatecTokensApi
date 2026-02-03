@@ -399,6 +399,9 @@ namespace BiatecTokensTests
 
         private ActionExecutedContext CreateSuccessfulActionExecutedContext(ActionExecutingContext executingContext)
         {
+            // Set the response status code on the HttpContext
+            executingContext.HttpContext.Response.StatusCode = StatusCodes.Status200OK;
+            
             return new ActionExecutedContext(
                 executingContext,
                 new List<IFilterMetadata>(),
@@ -413,6 +416,9 @@ namespace BiatecTokensTests
 
         private ActionExecutedContext CreateFailedActionExecutedContext(ActionExecutingContext executingContext)
         {
+            // Set the response status code on the HttpContext
+            executingContext.HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            
             return new ActionExecutedContext(
                 executingContext,
                 new List<IFilterMetadata>(),

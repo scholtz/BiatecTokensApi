@@ -61,7 +61,7 @@ namespace BiatecTokensApi.Filters
             CleanupExpiredEntries();
 
             // Compute hash of request parameters for validation
-            var requestHash = ComputeRequestHash(context.ActionArguments);
+            var requestHash = ComputeRequestHash(context, context.ActionArguments);
 
             // Check if we've seen this key before
             if (_cache.TryGetValue(key, out var record))
@@ -136,9 +136,10 @@ namespace BiatecTokensApi.Filters
         /// <summary>
         /// Computes a hash of the request parameters for validation
         /// </summary>
+        /// <param name="context">Action executing context</param>
         /// <param name="arguments">Action arguments</param>
         /// <returns>Hash string</returns>
-        private static string ComputeRequestHash(IDictionary<string, object?> arguments)
+        private string ComputeRequestHash(ActionExecutingContext context, IDictionary<string, object?> arguments)
         {
             try
             {
@@ -154,9 +155,13 @@ namespace BiatecTokensApi.Filters
                 var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(json));
                 return Convert.ToBase64String(hashBytes);
             }
-            catch
+            catch (Exception ex)
             {
-                // If serialization fails, return empty hash (will not match cached requests)
+                // Log serialization failure and return empty hash
+                var logger = context.HttpContext?.RequestServices?.GetService<ILogger<IdempotencyKeyAttribute>>();
+                logger?.LogWarning(ex, "Failed to compute request hash for idempotency check. Returning empty hash.");
+                
+                // Return empty hash (will not match cached requests, treating as new request)
                 return string.Empty;
             }
         }
