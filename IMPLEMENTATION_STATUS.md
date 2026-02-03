@@ -1,7 +1,9 @@
 # Backend MVP Implementation Status
 
 ## Issue Reference
-**GitHub Issue**: [Backend MVP blocker: Subscription system + auth integration + API reliability for production readiness](#)
+**GitHub Issue**: Backend MVP blocker: Subscription system + auth integration + API reliability for production readiness
+
+This PR implements the requirements from the Backend MVP blocker issue focusing on subscription system integration, authentication, and API reliability improvements.
 
 ## Business Value
 - **Primary Revenue Engine**: Working subscription system enables Year 1 ARR targets
@@ -39,7 +41,7 @@ Passed!  - Failed: 0, Passed: 68, Skipped: 0, Total: 68
 
 #### 2. Authentication System
 - **Status**: PRODUCTION READY
-- **Arc14 Integration**: AlgorandAuthenticationV2 configured
+- **ARC-0014 Integration**: AlgorandAuthenticationV2 configured
 - **Features**:
   - ARC-0014 secure backend communication
   - Token-based authentication for all protected endpoints
@@ -156,7 +158,7 @@ The following items are explicitly out of scope for this implementation:
 - Blockchain protocol changes
 - New token standards
 - Custom billing UI beyond minimal portal endpoint
-- Arc76 email/password authentication (Arc14 secure backend is implemented)
+- ARC-76 email/password authentication (ARC-0014 secure backend is implemented)
 
 ## Test Coverage Summary
 
@@ -202,7 +204,7 @@ The CI pipeline defined in `.github/workflows/test-pr.yml` runs:
 | 1 | Stripe subscription lifecycle works end-to-end | ✅ Complete | 68 tests passing |
 | 2 | Webhooks validated, idempotent, update state | ✅ Complete | Webhook tests + audit logs |
 | 3 | API exposes subscription status/entitlements | ✅ Complete | 4 subscription endpoints |
-| 4 | Arc76/Arc14 authentication support | ✅ Arc14 Complete | AlgorandAuthenticationV2 integrated |
+| 4 | ARC-76/ARC-14 authentication support | ✅ ARC-0014 Complete | AlgorandAuthenticationV2 integrated |
 | 5 | API health endpoint reports backend status | ✅ Complete | 25 health check tests |
 | 6 | Error responses standardized with clear codes | ✅ Complete | Global exception middleware |
 | 7 | Observability with logs/metrics | ✅ Complete | Structured logging throughout |
