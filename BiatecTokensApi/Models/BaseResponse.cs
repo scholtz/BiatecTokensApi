@@ -43,5 +43,14 @@
         /// Optional remediation hint to help users resolve the error
         /// </summary>
         public string? RemediationHint { get; set; }
+
+        /// <summary>
+        /// Correlation ID for tracing requests across services
+        /// </summary>
+        /// <remarks>
+        /// This ID is used to correlate logs and troubleshoot issues across distributed systems.
+        /// Include this ID when contacting support about deployment issues.
+        /// </remarks>
+        public string? CorrelationId { get; set; }
     }
 }

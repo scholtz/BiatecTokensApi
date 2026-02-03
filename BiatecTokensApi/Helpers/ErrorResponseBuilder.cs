@@ -183,8 +183,9 @@ namespace BiatecTokensApi.Helpers
         /// <param name="errorMessage">Human-readable error message</param>
         /// <param name="details">Optional additional details</param>
         /// <param name="remediationHint">Optional hint to help resolve the error</param>
+        /// <param name="correlationId">Optional correlation ID for request tracking</param>
         /// <returns>Response object with error information</returns>
-        public static T CreateErrorResponse<T>(string errorCode, string errorMessage, Dictionary<string, object>? details = null, string? remediationHint = null) 
+        public static T CreateErrorResponse<T>(string errorCode, string errorMessage, Dictionary<string, object>? details = null, string? remediationHint = null, string? correlationId = null) 
             where T : BaseResponse, new()
         {
             return new T
@@ -194,7 +195,8 @@ namespace BiatecTokensApi.Helpers
                 ErrorMessage = errorMessage,
                 ErrorDetails = details,
                 RemediationHint = remediationHint,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                CorrelationId = correlationId
             };
         }
     }

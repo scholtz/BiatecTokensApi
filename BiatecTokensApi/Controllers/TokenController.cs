@@ -102,19 +102,25 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Mintable);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("BiatecToken deployed successfully at address {Address} with transaction {TxHash}",
-                        result.ContractAddress, result.TransactionHash);
+                    _logger.LogInformation("BiatecToken deployed successfully at address {Address} with transaction {TxHash}. CorrelationId: {CorrelationId}",
+                        result.ContractAddress, result.TransactionHash, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("BiatecToken deployment failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("BiatecToken deployment failed: {Error}. CorrelationId: {CorrelationId}", 
+                        result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -159,19 +165,25 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Preminted);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("BiatecToken deployed successfully at address {Address} with transaction {TxHash}",
-                        result.ContractAddress, result.TransactionHash);
+                    _logger.LogInformation("BiatecToken deployed successfully at address {Address} with transaction {TxHash}. CorrelationId: {CorrelationId}",
+                        result.ContractAddress, result.TransactionHash, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("BiatecToken deployment failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("BiatecToken deployment failed: {Error}. CorrelationId: {CorrelationId}", 
+                        result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -212,19 +224,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FT);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ASA FT token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ASA FT token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ASA FT token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ASA FT token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -264,19 +281,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_NFT);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ASA token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ASA token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ASA token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ASA token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -318,19 +340,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FNFT);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ASA token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ASA token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ASA token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ASA token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -369,19 +396,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _arc3TokenService.CreateARC3TokenAsync(request, TokenType.ARC3_FT);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC3 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -423,19 +455,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _arc3TokenService.CreateARC3TokenAsync(request, TokenType.ARC3_NFT);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC3 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -476,19 +513,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _arc3TokenService.CreateARC3TokenAsync(request, TokenType.ARC3_FNFT);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC3 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -528,19 +570,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _arc200TokenService.CreateARC200TokenAsync(request, TokenType.ARC200_Mintable);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC200 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC200 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -580,19 +627,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _arc200TokenService.CreateARC200TokenAsync(request, TokenType.ARC200_Preminted);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC200 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC200 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -632,19 +684,24 @@ namespace BiatecTokensApi.Controllers
                 return BadRequest(ModelState);
             }
 
+            var correlationId = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 var result = await _arc1400TokenService.CreateARC1400TokenAsync(request, TokenType.ARC1400_Mintable);
+                
+                // Add correlation ID to response
+                result.CorrelationId = correlationId;
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}",
-                        result.AssetId, result.TransactionId, request.Network);
+                    _logger.LogInformation("ARC1400 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                        result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}", result.ErrorMessage);
+                    _logger.LogError("ARC1400 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -843,26 +900,53 @@ namespace BiatecTokensApi.Controllers
         /// <returns>Appropriate IActionResult based on exception type</returns>
         private IActionResult HandleTokenOperationException(Exception ex, string operation)
         {
-            // Log the exception with full details
-            _logger.LogError(ex, "Error during {Operation}", operation);
+            // Get correlation ID from current HTTP context
+            var correlationId = HttpContext?.TraceIdentifier;
+            
+            // Sanitize operation for logging
+            var sanitizedOperation = LoggingHelper.SanitizeLogInput(operation);
+            
+            // Log the exception with full details and correlation ID
+            _logger.LogError(ex, "Error during {Operation}. CorrelationId: {CorrelationId}", 
+                sanitizedOperation, correlationId);
 
-            // Categorize exception and return appropriate response
+            // Categorize exception and return appropriate response with correlation ID
             return ex switch
             {
-                TimeoutException => ErrorResponseBuilder.TimeoutError(operation),
-                HttpRequestException httpEx => ErrorResponseBuilder.ExternalServiceError("blockchain network", 
-                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", httpEx.Message }, { "operation", operation } } : null),
-                ArgumentException or ArgumentNullException => ErrorResponseBuilder.ValidationError(
+                TimeoutException => AddCorrelationId(ErrorResponseBuilder.TimeoutError(operation), correlationId),
+                HttpRequestException httpEx => AddCorrelationId(ErrorResponseBuilder.ExternalServiceError("blockchain network", 
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", httpEx.Message }, { "operation", operation } } : null), correlationId),
+                ArgumentException or ArgumentNullException => AddCorrelationId(ErrorResponseBuilder.ValidationError(
                     ex.Message,
-                    _env.IsDevelopment() ? new Dictionary<string, object> { { "parameterName", (ex as ArgumentException)?.ParamName ?? "unknown" } } : null),
-                InvalidOperationException => ErrorResponseBuilder.TransactionError(
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "parameterName", (ex as ArgumentException)?.ParamName ?? "unknown" } } : null), correlationId),
+                InvalidOperationException => AddCorrelationId(ErrorResponseBuilder.TransactionError(
                     ex.Message,
-                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", ex.Message }, { "operation", operation } } : null),
-                _ => ErrorResponseBuilder.InternalServerError(
+                    _env.IsDevelopment() ? new Dictionary<string, object> { { "details", ex.Message }, { "operation", operation } } : null), correlationId),
+                _ => AddCorrelationId(ErrorResponseBuilder.InternalServerError(
                     $"An unexpected error occurred during {operation}",
                     _env.IsDevelopment(),
-                    ex)
+                    ex), correlationId)
             };
+        }
+
+        /// <summary>
+        /// Adds correlation ID to error responses that support it
+        /// </summary>
+        /// <param name="result">The action result to enhance</param>
+        /// <param name="correlationId">The correlation ID to add</param>
+        /// <returns>The enhanced action result</returns>
+        private IActionResult AddCorrelationId(IActionResult result, string? correlationId)
+        {
+            if (string.IsNullOrEmpty(correlationId))
+                return result;
+
+            // Extract the response object and add correlation ID
+            if (result is ObjectResult objectResult && objectResult.Value is ApiErrorResponse errorResponse)
+            {
+                errorResponse.CorrelationId = correlationId;
+            }
+
+            return result;
         }
     }
 }
