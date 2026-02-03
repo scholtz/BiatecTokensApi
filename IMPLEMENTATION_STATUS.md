@@ -135,8 +135,15 @@ BILLING_AUDIT: UsageRecorded | Tenant: {address} | OperationType: {type} | Count
 ### 🔄 In Progress Features
 
 #### 7. Stripe Reconciliation Job
-- **Status**: PLANNED
+- **Status**: PLANNED (Follow-up PR)
 - **Requirement**: Acceptance Criteria #8
+- **MVP Impact**: NOT A BLOCKER - Webhooks handle real-time sync
+- **Justification**: 
+  - Webhook system already provides real-time subscription state synchronization
+  - Idempotent webhook processing ensures data consistency
+  - Reconciliation is a safety net for edge cases, not core functionality
+  - Can be added post-MVP without affecting subscription operations
+  - Manual admin endpoints available for resolving any discrepancies
 - **Scope**:
   - Background job to verify Stripe state against local records
   - Detect mismatches (cancelled subscriptions, tier changes)
