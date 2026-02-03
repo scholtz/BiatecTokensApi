@@ -581,13 +581,13 @@ namespace BiatecTokensApi.Controllers
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                    _logger.LogInformation("ARC200 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
                         result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
+                    _logger.LogError("ARC200 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -638,13 +638,13 @@ namespace BiatecTokensApi.Controllers
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                    _logger.LogInformation("ARC200 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
                         result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
+                    _logger.LogError("ARC200 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
@@ -695,13 +695,13 @@ namespace BiatecTokensApi.Controllers
 
                 if (result.Success)
                 {
-                    _logger.LogInformation("ARC3 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
+                    _logger.LogInformation("ARC1400 token created successfully with asset ID {AssetId} and transaction {TxHash} on {Network}. CorrelationId: {CorrelationId}",
                         result.AssetId, result.TransactionId, request.Network, correlationId);
                     return Ok(result);
                 }
                 else
                 {
-                    _logger.LogError("ARC3 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
+                    _logger.LogError("ARC1400 token creation failed: {Error}. CorrelationId: {CorrelationId}", result.ErrorMessage, correlationId);
                     
                     // Return the service response with proper error code if not set
                     if (string.IsNullOrEmpty(result.ErrorCode))
