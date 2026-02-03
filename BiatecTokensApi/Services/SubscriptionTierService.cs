@@ -21,6 +21,10 @@ namespace BiatecTokensApi.Services
         // Key: user address, Value: subscription tier
         private readonly ConcurrentDictionary<string, SubscriptionTier> _userTiers;
 
+        // In-memory storage for token deployment counts
+        // Key: user address, Value: deployment count
+        private readonly ConcurrentDictionary<string, int> _tokenDeploymentCounts;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="SubscriptionTierService"/> class.
         /// </summary>
@@ -29,6 +33,7 @@ namespace BiatecTokensApi.Services
         {
             _logger = logger;
             _userTiers = new ConcurrentDictionary<string, SubscriptionTier>(StringComparer.OrdinalIgnoreCase);
+            _tokenDeploymentCounts = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         }
 
         /// <inheritdoc/>
@@ -161,6 +166,84 @@ namespace BiatecTokensApi.Services
             _logger.LogInformation(
                 "Set subscription tier for user {UserAddress} to {Tier}",
                 userAddress, tier);
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> CanDeployTokenAsync(string userAddress)
+        {
+            if (string.IsNullOrWhiteSpace(userAddress))
+            {
+                _logger.LogWarning("CanDeployTokenAsync called with null or empty userAddress");
+                return false;
+            }
+
+            var tier = await GetUserTierAsync(userAddress);
+            var limits = SubscriptionTierConfiguration.GetTierLimits(tier);
+
+            if (!limits.TokenDeploymentEnabled)
+            {
+                _logger.LogWarning(
+                    "Token deployment not enabled for user {UserAddress} with tier {Tier}",
+                    userAddress, tier);
+                return false;
+            }
+
+            // Unlimited deployments (-1) always allowed
+            if (limits.MaxTokenDeployments == -1)
+            {
+                _logger.LogDebug(
+                    "Token deployment allowed for user {UserAddress} (unlimited tier {Tier})",
+                    userAddress, tier);
+                return true;
+            }
+
+            var currentCount = await GetTokenDeploymentCountAsync(userAddress);
+            var canDeploy = currentCount < limits.MaxTokenDeployments;
+
+            _logger.LogDebug(
+                "Token deployment check for user {UserAddress}: {CanDeploy} (Tier: {Tier}, Current: {Current}, Max: {Max})",
+                userAddress, canDeploy, tier, currentCount, limits.MaxTokenDeployments);
+
+            return canDeploy;
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> RecordTokenDeploymentAsync(string userAddress)
+        {
+            if (string.IsNullOrWhiteSpace(userAddress))
+            {
+                _logger.LogWarning("RecordTokenDeploymentAsync called with null or empty userAddress");
+                return Task.FromResult(false);
+            }
+
+            var normalizedAddress = userAddress.ToUpperInvariant();
+            _tokenDeploymentCounts.AddOrUpdate(normalizedAddress, 1, (key, oldValue) => oldValue + 1);
+            
+            var newCount = _tokenDeploymentCounts[normalizedAddress];
+            _logger.LogInformation(
+                "Recorded token deployment for user {UserAddress}. New count: {Count}",
+                userAddress, newCount);
+
+            return Task.FromResult(true);
+        }
+
+        /// <inheritdoc/>
+        public Task<int> GetTokenDeploymentCountAsync(string userAddress)
+        {
+            if (string.IsNullOrWhiteSpace(userAddress))
+            {
+                _logger.LogWarning("GetTokenDeploymentCountAsync called with null or empty userAddress");
+                return Task.FromResult(0);
+            }
+
+            var normalizedAddress = userAddress.ToUpperInvariant();
+            var count = _tokenDeploymentCounts.GetOrAdd(normalizedAddress, 0);
+
+            _logger.LogDebug(
+                "Retrieved token deployment count for user {UserAddress}: {Count}",
+                userAddress, count);
+
+            return Task.FromResult(count);
         }
     }
 }

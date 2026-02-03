@@ -58,6 +58,11 @@ namespace BiatecTokensApi.Models.Subscription
         public int MaxAddressesPerAsset { get; set; }
 
         /// <summary>
+        /// Maximum number of token deployments allowed (-1 for unlimited)
+        /// </summary>
+        public int MaxTokenDeployments { get; set; } = -1;
+
+        /// <summary>
         /// Human-readable tier name
         /// </summary>
         public string TierName { get; set; } = string.Empty;
@@ -81,6 +86,11 @@ namespace BiatecTokensApi.Models.Subscription
         /// Whether bulk operations are available in this tier
         /// </summary>
         public bool BulkOperationsEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Whether token deployment is enabled in this tier
+        /// </summary>
+        public bool TokenDeploymentEnabled { get; set; } = true;
     }
 
     /// <summary>
@@ -99,11 +109,13 @@ namespace BiatecTokensApi.Models.Subscription
                 {
                     Tier = SubscriptionTier.Free,
                     MaxAddressesPerAsset = 10,
+                    MaxTokenDeployments = 3, // Free tier: limited token deployments for testing
                     TierName = "Free",
-                    Description = "Free tier with up to 10 whitelisted addresses per asset",
+                    Description = "Free tier with up to 10 whitelisted addresses per asset and 3 token deployments",
                     TransferValidationEnabled = true,
                     AuditLogEnabled = false,
-                    BulkOperationsEnabled = false
+                    BulkOperationsEnabled = false,
+                    TokenDeploymentEnabled = true
                 }
             },
             {
@@ -112,11 +124,13 @@ namespace BiatecTokensApi.Models.Subscription
                 {
                     Tier = SubscriptionTier.Basic,
                     MaxAddressesPerAsset = 100,
+                    MaxTokenDeployments = 10, // Basic tier: moderate token deployments
                     TierName = "Basic",
-                    Description = "Basic tier with up to 100 whitelisted addresses per asset",
+                    Description = "Basic tier with up to 100 whitelisted addresses per asset and 10 token deployments",
                     TransferValidationEnabled = true,
                     AuditLogEnabled = true,
-                    BulkOperationsEnabled = false
+                    BulkOperationsEnabled = false,
+                    TokenDeploymentEnabled = true
                 }
             },
             {
@@ -125,11 +139,13 @@ namespace BiatecTokensApi.Models.Subscription
                 {
                     Tier = SubscriptionTier.Premium,
                     MaxAddressesPerAsset = 1000,
+                    MaxTokenDeployments = 50, // Premium tier: generous token deployments
                     TierName = "Premium",
-                    Description = "Premium tier with up to 1,000 whitelisted addresses per asset",
+                    Description = "Premium tier with up to 1,000 whitelisted addresses per asset and 50 token deployments",
                     TransferValidationEnabled = true,
                     AuditLogEnabled = true,
-                    BulkOperationsEnabled = true
+                    BulkOperationsEnabled = true,
+                    TokenDeploymentEnabled = true
                 }
             },
             {
@@ -138,11 +154,13 @@ namespace BiatecTokensApi.Models.Subscription
                 {
                     Tier = SubscriptionTier.Enterprise,
                     MaxAddressesPerAsset = -1, // Unlimited
+                    MaxTokenDeployments = -1, // Unlimited
                     TierName = "Enterprise",
-                    Description = "Enterprise tier with unlimited whitelisted addresses per asset",
+                    Description = "Enterprise tier with unlimited whitelisted addresses and token deployments",
                     TransferValidationEnabled = true,
                     AuditLogEnabled = true,
-                    BulkOperationsEnabled = true
+                    BulkOperationsEnabled = true,
+                    TokenDeploymentEnabled = true
                 }
             }
         };

@@ -3454,6 +3454,34 @@
             </summary>
             <param name="context">The action executing context</param>
         </member>
+        <member name="T:BiatecTokensApi.Filters.TokenDeploymentSubscriptionAttribute">
+            <summary>
+            Action filter that validates subscription tier entitlements for token deployment operations
+            </summary>
+            <remarks>
+            This filter enforces subscription-based access control by validating that users have
+            appropriate tier permissions and available deployment quota before proceeding with token deployment.
+            When validation fails, it returns a clear error response that prompts users to upgrade their subscription.
+            
+            **Enforcement Policy:**
+            - Free tier: Limited token deployments (3)
+            - Basic tier: Moderate token deployments (10)
+            - Premium tier: Generous token deployments (50)
+            - Enterprise tier: Unlimited token deployments
+            
+            **Usage:**
+            Apply this attribute to token deployment endpoints:
+            [TokenDeploymentSubscription]
+            [HttpPost("create")]
+            public async Task&lt;IActionResult&gt; CreateToken(...) { ... }
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.TokenDeploymentSubscriptionAttribute.OnActionExecutionAsync(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate)">
+            <summary>
+            Called before the action executes to validate subscription tier and deployment quota
+            </summary>
+            <param name="context">The action executing context</param>
+        </member>
         <member name="T:BiatecTokensApi.Filters.WhitelistEnforcementAttribute">
             <summary>
             Action filter attribute that enforces whitelist validation for token operations
@@ -12282,6 +12310,11 @@
             Maximum number of whitelisted addresses per asset (-1 for unlimited)
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.MaxTokenDeployments">
+            <summary>
+            Maximum number of token deployments allowed (-1 for unlimited)
+            </summary>
+        </member>
         <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.TierName">
             <summary>
             Human-readable tier name
@@ -12305,6 +12338,11 @@
         <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.BulkOperationsEnabled">
             <summary>
             Whether bulk operations are available in this tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionTierLimits.TokenDeploymentEnabled">
+            <summary>
+            Whether token deployment is enabled in this tier
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration">
@@ -17575,6 +17613,27 @@
             <param name="currentCount">Current number of whitelisted addresses</param>
             <returns>Remaining capacity (-1 for unlimited)</returns>
         </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.CanDeployTokenAsync(System.String)">
+            <summary>
+            Checks if token deployment is allowed for the user's tier
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <returns>True if token deployment is allowed</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.RecordTokenDeploymentAsync(System.String)">
+            <summary>
+            Records a token deployment for the user
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <returns>True if deployment was recorded successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISubscriptionTierService.GetTokenDeploymentCountAsync(System.String)">
+            <summary>
+            Gets the token deployment count for the user
+            </summary>
+            <param name="userAddress">The user's Algorand address</param>
+            <returns>Number of token deployments</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult">
             <summary>
             Result of subscription tier validation
@@ -17981,6 +18040,15 @@
             In a production environment, this would typically be managed through a separate admin API
             or integrated with a billing/subscription management system.
             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.CanDeployTokenAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.RecordTokenDeploymentAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SubscriptionTierService.GetTokenDeploymentCountAsync(System.String)">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.WebhookService">
             <summary>
