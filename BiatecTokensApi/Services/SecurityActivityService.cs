@@ -179,6 +179,20 @@ namespace BiatecTokensApi.Services
                     }, null);
                 }
 
+                // Check quota first to prevent bypass
+                var quota = GetExportQuota(accountId);
+                if (quota.ExportsUsed >= quota.MaxExportsPerMonth)
+                {
+                    return (new ExportAuditTrailResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.EXPORT_QUOTA_EXCEEDED,
+                        ErrorMessage = "Export quota exceeded for this month",
+                        RemediationHint = "Upgrade your subscription plan to increase export limits.",
+                        Quota = quota
+                    }, null);
+                }
+
                 // Check idempotency
                 if (!string.IsNullOrEmpty(request.IdempotencyKey))
                 {
@@ -220,20 +234,6 @@ namespace BiatecTokensApi.Services
 
                 var events = await _repository.GetActivityEventsAsync(activityRequest);
 
-                // Check quota (basic implementation - can be enhanced with subscription tier checking)
-                var quota = GetExportQuota(accountId);
-                if (quota.ExportsUsed >= quota.MaxExportsPerMonth)
-                {
-                    return (new ExportAuditTrailResponse
-                    {
-                        Success = false,
-                        ErrorCode = ErrorCodes.EXPORT_QUOTA_EXCEEDED,
-                        ErrorMessage = "Export quota exceeded for this month",
-                        RemediationHint = "Upgrade your subscription plan to increase export limits.",
-                        Quota = quota
-                    }, null);
-                }
-
                 // Generate export content
                 string? content = null;
                 if (request.Format == "csv")
@@ -262,22 +262,6 @@ namespace BiatecTokensApi.Services
                 }
 
                 // Log the export event
-                await LogEventAsync(new SecurityActivityEvent
-                {
-                    AccountId = accountId,
-                    EventType = SecurityEventType.AuditExport,
-                    Severity = EventSeverity.Info,
-                    Summary = $"Audit trail exported in {request.Format} format with {events.Count} records",
-                    Success = true,
-                    Metadata = new Dictionary<string, object>
-                    {
-                        { "format", request.Format },
-                        { "recordCount", events.Count },
-                        { "fromDate", request.FromDate?.ToString("o") ?? "N/A" },
-                        { "toDate", request.ToDate?.ToString("o") ?? "N/A" }
-                    }
-                });
-
                 _logger.LogInformation("Exported {Count} audit trail records as {Format}",
                     events.Count, LoggingHelper.SanitizeLogInput(request.Format));
 
@@ -290,7 +274,7 @@ namespace BiatecTokensApi.Services
                 {
                     Success = false,
                     ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
-                    ErrorMessage = $"Error exporting audit trail: {ex.Message}"
+                    ErrorMessage = $"Internal error: {ex.Message}"
                 }, null);
             }
         }
