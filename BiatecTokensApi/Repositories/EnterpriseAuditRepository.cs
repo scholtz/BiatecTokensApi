@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.Compliance;
 using BiatecTokensApi.Models.Whitelist;
@@ -46,7 +47,7 @@ namespace BiatecTokensApi.Repositories
         public async Task<List<EnterpriseAuditLogEntry>> GetAuditLogAsync(GetEnterpriseAuditLogRequest request)
         {
             _logger.LogInformation("Retrieving enterprise audit logs with filters: AssetId={AssetId}, Network={Network}, Category={Category}", 
-                request.AssetId, request.Network, request.Category);
+                LoggingHelper.SanitizeLogInput(request.AssetId?.ToString()), LoggingHelper.SanitizeLogInput(request.Network), LoggingHelper.SanitizeLogInput(request.Category?.ToString()));
 
             var allEntries = new List<EnterpriseAuditLogEntry>();
 
