@@ -61,7 +61,7 @@ namespace BiatecTokensApi.Services
             {
                 // Sanitize inputs for logging
                 var sanitizedIssuerId = LoggingHelper.SanitizeLogInput(issuerId);
-                var sanitizedNetwork = string.IsNullOrEmpty(request.Network) ? LoggingHelper.SanitizeLogInput(request.Network) : null;
+                var sanitizedNetwork = LoggingHelper.SanitizeLogInput(request.Network);
 
                 _logger.LogInformation("Creating compliance report: Type={ReportType}, IssuerId={IssuerId}, AssetId={AssetId}, Network={Network}",
                     LoggingHelper.SanitizeLogInput(request.ReportType.ToString()), sanitizedIssuerId, LoggingHelper.SanitizeLogInput(request.AssetId?.ToString()), sanitizedNetwork);
