@@ -233,6 +233,12 @@ namespace BiatecTokensApi.Services
         /// </summary>
         private async Task GenerateReportContentAsync(ComplianceReport report)
         {
+            // Validate report type again for security
+            if (!Enum.IsDefined(typeof(ReportType), report.ReportType))
+            {
+                throw new ArgumentException($"Unsupported report type: {report.ReportType}");
+            }
+
             try
             {
                 _logger.LogInformation("Generating report content: ReportId={ReportId}, Type={ReportType}",
