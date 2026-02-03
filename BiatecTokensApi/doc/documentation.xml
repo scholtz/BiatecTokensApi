@@ -1881,6 +1881,53 @@
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.NetworkController">
+            <summary>
+            Provides endpoints for querying supported blockchain networks and their configurations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.NetworkController.#ctor(Microsoft.Extensions.Options.IOptions{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptions{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.NetworkController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.NetworkController"/> class.
+            </summary>
+            <param name="evmChainsOptions">EVM chains configuration</param>
+            <param name="algorandOptions">Algorand authentication configuration containing allowed networks</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.NetworkController.GetNetworks">
+            <summary>
+            Gets metadata for all supported blockchain networks
+            </summary>
+            <returns>Network metadata including mainnet prioritization</returns>
+            <remarks>
+            This endpoint provides comprehensive information about supported blockchain networks,
+            prioritizing mainnet networks for production deployments. It includes both Algorand
+            and EVM-compatible chains with their respective configurations.
+            
+            **Network Prioritization:**
+            - Mainnet networks are marked as `isMainnet: true` and `isRecommended: true`
+            - Testnet networks are available but not recommended for production
+            - The `recommendedNetworks` array contains only production-ready mainnets
+            
+            **Use Cases:**
+            - Display available networks in deployment UI
+            - Validate network selection before deployment
+            - Filter networks by mainnet/testnet status
+            - Provide network-specific configuration to wallet integrations
+            
+            **Network Types:**
+            - Algorand networks: Identified by genesis hash
+            - EVM networks: Identified by chain ID
+            
+            **Response Format:**
+            Each network includes:
+            - Network identifier and display name
+            - Blockchain type (algorand/evm)
+            - Mainnet and recommendation flags
+            - Connection endpoints (RPC URL or API server)
+            - Chain-specific identifiers (genesis hash or chain ID)
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.SecurityActivityController">
             <summary>
             Provides security and compliance activity endpoints for audit trails and monitoring
@@ -11190,6 +11237,86 @@
         <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Export">
             <summary>
             Export operation (CSV/JSON compliance data export)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.NetworkMetadata">
+            <summary>
+            Represents metadata for a supported blockchain network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.NetworkId">
+            <summary>
+            Network identifier (e.g., "mainnet", "testnet", "betanet")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.DisplayName">
+            <summary>
+            Human-readable network name (e.g., "Algorand Mainnet", "Base Mainnet")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.BlockchainType">
+            <summary>
+            Blockchain type (e.g., "algorand", "evm")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.IsMainnet">
+            <summary>
+            Whether this is a production-ready mainnet network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.IsRecommended">
+            <summary>
+            Whether this network is recommended for production use
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.EndpointUrl">
+            <summary>
+            RPC endpoint URL (for EVM chains) or API server URL (for Algorand)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.ChainId">
+            <summary>
+            Chain ID (for EVM chains only)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.GenesisHash">
+            <summary>
+            Genesis hash (for Algorand networks only)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadata.Properties">
+            <summary>
+            Additional network-specific properties
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.NetworkMetadataResponse">
+            <summary>
+            Response containing supported network metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadataResponse.Success">
+            <summary>
+            Indicates if the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadataResponse.Networks">
+            <summary>
+            List of supported blockchain networks
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadataResponse.RecommendedNetworks">
+            <summary>
+            Recommended networks for production deployment (mainnets)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadataResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.NetworkMetadataResponse.Timestamp">
+            <summary>
+            Timestamp of the response
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.SecurityActivityEvent">
