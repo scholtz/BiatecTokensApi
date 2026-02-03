@@ -81,6 +81,16 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="request">Token deployment parameters including optional initial supply receiver</param>
         /// <returns>Deployment result with contract address and initial supply receiver</returns>
+        /// <remarks>
+        /// **Idempotency Support:**
+        /// This endpoint supports idempotency via the Idempotency-Key header. Include a unique key in your request:
+        /// ```
+        /// Idempotency-Key: unique-deployment-id-12345
+        /// ```
+        /// If a request with the same key is received within 24 hours, the cached response will be returned.
+        /// This prevents accidental duplicate deployments.
+        /// </remarks>
+        [IdempotencyKey]
         [HttpPost("erc20-mintable/create")]
         [ProducesResponseType(typeof(EVMTokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -125,13 +135,19 @@ namespace BiatecTokensApi.Controllers
         /// Deploys a new ERC20 preminted token based on the provided deployment request.
         /// </summary>
         /// <remarks>This method logs the deployment status and any errors encountered during the
-        /// process.</remarks>
+        /// process.
+        /// 
+        /// **Idempotency Support:**
+        /// This endpoint supports idempotency via the Idempotency-Key header. Include a unique key in your request
+        /// to prevent accidental duplicate deployments.
+        /// </remarks>
         /// <param name="request">The <see cref="ERC20TokenDeploymentRequest"/> containing the parameters for the token deployment. Must be a
         /// valid model; otherwise, a 400 Bad Request response is returned.</param>
         /// <returns>An <see cref="IActionResult"/> representing the result of the token deployment operation. Returns a 200 OK
         /// response with an <see cref="EVMTokenDeploymentResponse"/> if the deployment is successful. Returns a 400 Bad
         /// Request response if the request model is invalid. Returns a 500 Internal Server Error response if an error
         /// occurs during deployment.</returns>
+        [IdempotencyKey]
         [HttpPost("erc20-preminted/create")]
         [ProducesResponseType(typeof(EVMTokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -184,6 +200,7 @@ namespace BiatecTokensApi.Controllers
         /// <see cref="ARC3TokenDeploymentResponse"/> if the token is created successfully. Returns a 400 Bad Request
         /// response if the request model is invalid. Returns a 500 Internal Server Error response if an error occurs
         /// during token creation.</returns>
+        [IdempotencyKey]
         [HttpPost("asa-ft/create")]
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -235,6 +252,7 @@ namespace BiatecTokensApi.Controllers
         /// <see cref="ASATokenDeploymentResponse"/> if the token is created successfully.  Returns a 400 Bad Request
         /// response if the request is invalid.  Returns a 500 Internal Server Error response if an unexpected error
         /// occurs during the operation.</returns>
+        [IdempotencyKey]
         [HttpPost("asa-nft/create")]
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -288,6 +306,7 @@ namespace BiatecTokensApi.Controllers
         /// <see cref="ASATokenDeploymentResponse"/> if the token is created successfully.  Returns a 400 Bad Request
         /// response if the request is invalid.  Returns a 500 Internal Server Error response if an unexpected error
         /// occurs during the operation.</returns>
+        [IdempotencyKey]
         [HttpPost("asa-fnft/create")]
         [ProducesResponseType(typeof(ASATokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -338,6 +357,7 @@ namespace BiatecTokensApi.Controllers
         /// </summary>
         /// <param name="request">ARC3 token creation parameters including metadata</param>
         /// <returns>Creation result with asset ID and transaction details</returns>
+        [IdempotencyKey]
         [HttpPost("arc3-ft/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -391,6 +411,7 @@ namespace BiatecTokensApi.Controllers
         /// created successfully.</description></item> <item><description>A 400 Bad Request response if the request
         /// model is invalid.</description></item> <item><description>A 500 Internal Server Error response if an
         /// unexpected error occurs during token creation.</description></item> </list></returns>
+        [IdempotencyKey]
         [HttpPost("arc3-nft/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -443,6 +464,7 @@ namespace BiatecTokensApi.Controllers
         /// <returns>An <see cref="IActionResult"/> containing the result of the operation: - A 200 OK response with an <see
         /// cref="ARC3TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request response if
         /// the model state is invalid. - A 500 Internal Server Error response if an error occurs during token creation.</returns>
+        [IdempotencyKey]
         [HttpPost("arc3-fnft/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -494,6 +516,7 @@ namespace BiatecTokensApi.Controllers
         /// with an <see cref="ARC200TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request
         /// response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
         /// during the operation.</returns>
+        [IdempotencyKey]
         [HttpPost("arc200-mintable/create")]
         [ProducesResponseType(typeof(ARC200TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -545,6 +568,7 @@ namespace BiatecTokensApi.Controllers
         /// response with an <see cref="ARC3TokenDeploymentResponse"/> if the token is created successfully, a 400 Bad
         /// Request response if the request is invalid, or a 500 Internal Server Error response if an unexpected error
         /// occurs.</returns>
+        [IdempotencyKey]
         [HttpPost("arc200-preminted/create")]
         [ProducesResponseType(typeof(ARC3TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -596,6 +620,7 @@ namespace BiatecTokensApi.Controllers
         /// with an <see cref="ARC200TokenDeploymentResponse"/> if the token is successfully created. - A 400 Bad Request
         /// response if the request is invalid. - A 500 Internal Server Error response if an unexpected error occurs
         /// during the operation.</returns>
+        [IdempotencyKey]
         [HttpPost("arc1400-mintable/create")]
         [ProducesResponseType(typeof(ARC200TokenDeploymentResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

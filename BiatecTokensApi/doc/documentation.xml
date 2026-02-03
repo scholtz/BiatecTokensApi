@@ -2129,13 +2129,27 @@
             </summary>
             <param name="request">Token deployment parameters including optional initial supply receiver</param>
             <returns>Deployment result with contract address and initial supply receiver</returns>
+            <remarks>
+            **Idempotency Support:**
+            This endpoint supports idempotency via the Idempotency-Key header. Include a unique key in your request:
+            ```
+            Idempotency-Key: unique-deployment-id-12345
+            ```
+            If a request with the same key is received within 24 hours, the cached response will be returned.
+            This prevents accidental duplicate deployments.
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Controllers.TokenController.ERC20PremnitedTokenCreate(BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest)">
             <summary>
             Deploys a new ERC20 preminted token based on the provided deployment request.
             </summary>
             <remarks>This method logs the deployment status and any errors encountered during the
-            process.</remarks>
+            process.
+            
+            **Idempotency Support:**
+            This endpoint supports idempotency via the Idempotency-Key header. Include a unique key in your request
+            to prevent accidental duplicate deployments.
+            </remarks>
             <param name="request">The <see cref="T:BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest"/> containing the parameters for the token deployment. Must be a
             valid model; otherwise, a 400 Bad Request response is returned.</param>
             <returns>An <see cref="T:Microsoft.AspNetCore.Mvc.IActionResult"/> representing the result of the token deployment operation. Returns a 200 OK
@@ -3112,6 +3126,45 @@
             Extracts the user address from the authentication claims
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Filters.IdempotencyKeyAttribute">
+            <summary>
+            Attribute that enforces idempotency for API endpoints using the Idempotency-Key header
+            </summary>
+            <remarks>
+            This filter ensures that duplicate requests with the same idempotency key return the same response.
+            It stores the response in memory for a configurable duration (default 24 hours).
+            
+            Usage:
+            [IdempotencyKey]
+            [HttpPost("create")]
+            public async Task&lt;IActionResult&gt; Create([FromBody] Request request) { ... }
+            
+            Clients should include an Idempotency-Key header:
+            Idempotency-Key: unique-request-identifier
+            
+            If the key is missing, the request proceeds normally without idempotency protection.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Filters.IdempotencyKeyAttribute.Expiration">
+            <summary>
+            Cache expiration time for idempotency records
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.IdempotencyKeyAttribute.OnActionExecutionAsync(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate)">
+            <summary>
+            Executes before the action method runs
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.IdempotencyKeyAttribute.CleanupExpiredEntries">
+            <summary>
+            Removes expired entries from the cache
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Filters.IdempotencyKeyAttribute.IdempotencyRecord">
+            <summary>
+            Internal record structure for storing idempotency information
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Filters.WhitelistEnforcementAttribute">
             <summary>
