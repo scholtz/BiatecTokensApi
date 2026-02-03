@@ -43,9 +43,9 @@ Passed!  - Failed: 0, Passed: 68, Skipped: 0, Total: 68
 - **Status**: PRODUCTION READY
 - **ARC-0014 Integration**: AlgorandAuthenticationV2 configured
 - **Features**:
-  - ARC-0014 secure backend communication
+  - ARC-0014 (Algorand Authentication) secure backend communication
   - Token-based authentication for all protected endpoints
-  - Realm: `BiatecTokens#ARC14`
+  - Realm: `BiatecTokens#ARC14` (follows ARC-0014 standard)
   - Signature validation against configured networks
 
 **Implementation**:
@@ -154,11 +154,11 @@ BILLING_AUDIT: UsageRecorded | Tenant: {address} | OperationType: {type} | Count
 ### ❌ Out of Scope
 
 The following items are explicitly out of scope for this implementation:
-- Frontend UI work (API contracts only)
+- ARC-76 email/password login (not implemented - ARC-0014 token-based auth is used instead)
+- Frontend UI work beyond API endpoints
 - Blockchain protocol changes
 - New token standards
 - Custom billing UI beyond minimal portal endpoint
-- ARC-76 email/password authentication (ARC-0014 secure backend is implemented)
 
 ## Test Coverage Summary
 
@@ -204,7 +204,7 @@ The CI pipeline defined in `.github/workflows/test-pr.yml` runs:
 | 1 | Stripe subscription lifecycle works end-to-end | ✅ Complete | 68 tests passing |
 | 2 | Webhooks validated, idempotent, update state | ✅ Complete | Webhook tests + audit logs |
 | 3 | API exposes subscription status/entitlements | ✅ Complete | 4 subscription endpoints |
-| 4 | ARC-76/ARC-14 authentication support | ✅ ARC-0014 Complete | AlgorandAuthenticationV2 integrated |
+| 4 | ARC-0014 authentication for secure backend communication | ✅ Complete | AlgorandAuthenticationV2 integrated |
 | 5 | API health endpoint reports backend status | ✅ Complete | 25 health check tests |
 | 6 | Error responses standardized with clear codes | ✅ Complete | Global exception middleware |
 | 7 | Observability with logs/metrics | ✅ Complete | Structured logging throughout |
