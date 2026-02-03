@@ -2571,6 +2571,14 @@
             <param name="operation">The operation that failed</param>
             <returns>Appropriate IActionResult based on exception type</returns>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenController.AddCorrelationId(Microsoft.AspNetCore.Mvc.IActionResult,System.String)">
+            <summary>
+            Adds correlation ID to error responses that support it
+            </summary>
+            <param name="result">The action result to enhance</param>
+            <param name="correlationId">The correlation ID to add</param>
+            <returns>The enhanced action result</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.WebhookController">
             <summary>
             Provides endpoints for managing compliance webhook subscriptions
@@ -3372,6 +3380,33 @@
             Internal record structure for storing idempotency information
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Filters.SubscriptionTierValidationAttribute">
+            <summary>
+            Action filter that validates subscription tier entitlements for token deployment operations
+            </summary>
+            <remarks>
+            This filter enforces subscription-based access control by validating that users have
+            appropriate tier permissions before proceeding with token deployment operations.
+            When validation fails, it returns a clear error response that can be used to prompt
+            users to upgrade their subscription.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Filters.SubscriptionTierValidationAttribute.MinimumTier">
+            <summary>
+            Gets or sets the minimum tier required for the operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Filters.SubscriptionTierValidationAttribute.RequiresPremium">
+            <summary>
+            Gets or sets whether this is a premium feature
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Filters.SubscriptionTierValidationAttribute.OnActionExecutionAsync(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate)">
+            <summary>
+            Called before the action executes to validate subscription tier
+            </summary>
+            <param name="context">The action executing context</param>
+        </member>
         <member name="T:BiatecTokensApi.Filters.WhitelistEnforcementAttribute">
             <summary>
             Action filter attribute that enforces whitelist validation for token operations
@@ -3960,7 +3995,7 @@
             <param name="details">Optional additional details</param>
             <returns>BadGateway result with standardized error response</returns>
         </member>
-        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.CreateErrorResponse``1(System.String,System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.String)">
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseBuilder.CreateErrorResponse``1(System.String,System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.String,System.String)">
             <summary>
             Creates a deployment response with error details
             </summary>
@@ -3969,6 +4004,7 @@
             <param name="errorMessage">Human-readable error message</param>
             <param name="details">Optional additional details</param>
             <param name="remediationHint">Optional hint to help resolve the error</param>
+            <param name="correlationId">Optional correlation ID for request tracking</param>
             <returns>Response object with error information</returns>
         </member>
         <member name="T:BiatecTokensApi.Helpers.LoggingHelper">
@@ -4799,6 +4835,15 @@
             <summary>
             Optional remediation hint to help users resolve the error
             </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.BaseResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracing requests across services
+            </summary>
+            <remarks>
+            This ID is used to correlate logs and troubleshoot issues across distributed systems.
+            Include this ID when contacting support about deployment issues.
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Models.Billing.LimitCheckRequest">
             <summary>
