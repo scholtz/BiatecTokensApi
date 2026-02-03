@@ -136,5 +136,31 @@ namespace BiatecTokensApi.Models
         /// Subscription limit reached
         /// </summary>
         public const string SUBSCRIPTION_LIMIT_REACHED = "SUBSCRIPTION_LIMIT_REACHED";
+
+        // Security and Audit errors
+        /// <summary>
+        /// Audit export unavailable
+        /// </summary>
+        public const string AUDIT_EXPORT_UNAVAILABLE = "AUDIT_EXPORT_UNAVAILABLE";
+        
+        /// <summary>
+        /// Invalid export format
+        /// </summary>
+        public const string INVALID_EXPORT_FORMAT = "INVALID_EXPORT_FORMAT";
+        
+        /// <summary>
+        /// Export quota exceeded
+        /// </summary>
+        public const string EXPORT_QUOTA_EXCEEDED = "EXPORT_QUOTA_EXCEEDED";
+        
+        /// <summary>
+        /// Recovery not available
+        /// </summary>
+        public const string RECOVERY_NOT_AVAILABLE = "RECOVERY_NOT_AVAILABLE";
+        
+        /// <summary>
+        /// Recovery cooldown active
+        /// </summary>
+        public const string RECOVERY_COOLDOWN_ACTIVE = "RECOVERY_COOLDOWN_ACTIVE";
     }
 }

@@ -1881,6 +1881,212 @@
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.SecurityActivityController">
+            <summary>
+            Provides security and compliance activity endpoints for audit trails and monitoring
+            </summary>
+            <remarks>
+            This controller provides unified security activity tracking, transaction history,
+            audit trail export, and recovery guidance endpoints for enterprise compliance and
+            security monitoring. Supports MICA compliance requirements and subscription-based access.
+            
+            All endpoints require ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SecurityActivityController.#ctor(BiatecTokensApi.Services.Interface.ISecurityActivityService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.SecurityActivityController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.SecurityActivityController"/> class.
+            </summary>
+            <param name="securityActivityService">The security activity service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SecurityActivityController.GetActivity(System.String,System.Nullable{BiatecTokensApi.Models.SecurityEventType},System.Nullable{BiatecTokensApi.Models.EventSeverity},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Nullable{System.Boolean},System.Int32,System.Int32)">
+            <summary>
+            Retrieves security activity events with comprehensive filtering
+            </summary>
+            <param name="accountId">Optional filter by account ID (defaults to authenticated user)</param>
+            <param name="eventType">Optional filter by event type</param>
+            <param name="severity">Optional filter by severity level</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <param name="success">Optional filter by operation result (true/false)</param>
+            <param name="page">Page number for pagination (default: 1)</param>
+            <param name="pageSize">Page size for pagination (default: 50, max: 100)</param>
+            <returns>Paginated list of security activity events</returns>
+            <remarks>
+            This endpoint provides a unified view of all security-related events including authentication,
+            token deployments, subscription changes, and compliance operations.
+            
+            **Use Cases:**
+            - Security monitoring and incident investigation
+            - Compliance reporting and audits
+            - User activity tracking
+            - Troubleshooting deployment failures
+            
+            **Event Types:**
+            - Login, Logout, LoginFailed
+            - TokenDeployment, TokenDeploymentSuccess, TokenDeploymentFailure
+            - SubscriptionChange, ComplianceCheck
+            - WhitelistOperation, BlacklistOperation
+            - AuditExport, Recovery
+            
+            **Response includes:**
+            - Paginated events ordered by most recent first
+            - Each event includes timestamp (ISO 8601), correlation ID, severity, and metadata
+            - Total count and page information
+            
+            **Security:**
+            Requires ARC-0014 authentication. Users can only access their own events unless
+            they have admin privileges (future enhancement).
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SecurityActivityController.GetTransactionHistory(System.String,System.String,System.String,System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Retrieves token deployment transaction history
+            </summary>
+            <param name="accountId">Optional filter by account ID (defaults to authenticated user)</param>
+            <param name="network">Optional filter by network (voimain-v1.0, mainnet-v1.0, etc.)</param>
+            <param name="tokenStandard">Optional filter by token standard (ASA, ARC3, ARC200, ERC20, etc.)</param>
+            <param name="status">Optional filter by deployment status (success, failed, pending)</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <param name="page">Page number for pagination (default: 1)</param>
+            <param name="pageSize">Page size for pagination (default: 50, max: 100)</param>
+            <returns>Paginated list of token deployment transactions</returns>
+            <remarks>
+            This endpoint provides detailed transaction history for token deployments across all networks.
+            
+            **Use Cases:**
+            - Tracking deployment success rates
+            - Debugging failed deployments
+            - Audit trail for compliance
+            - Portfolio management
+            
+            **Supported Networks:**
+            - voimain-v1.0: VOI mainnet
+            - aramidmain-v1.0: Aramid mainnet
+            - mainnet-v1.0: Algorand mainnet
+            - testnet-v1.0: Algorand testnet
+            - base: Base blockchain (EVM)
+            
+            **Supported Token Standards:**
+            - ASA: Algorand Standard Assets
+            - ARC3: Algorand tokens with rich metadata
+            - ARC200: Advanced smart contract tokens
+            - ERC20: Ethereum-compatible tokens
+            
+            **Response includes:**
+            - Transaction ID, Asset ID, network, token standard
+            - Token name and symbol
+            - Deployment status and timestamp
+            - Creator address and confirmed round
+            - Error messages for failed deployments
+            
+            **Security:**
+            Requires ARC-0014 authentication. Users can only access their own transactions.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SecurityActivityController.ExportAuditTrail(System.String,System.String,System.Nullable{BiatecTokensApi.Models.SecurityEventType},System.Nullable{BiatecTokensApi.Models.EventSeverity},System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports audit trail in CSV or JSON format
+            </summary>
+            <param name="format">Export format (csv or json)</param>
+            <param name="accountId">Optional filter by account ID (defaults to authenticated user)</param>
+            <param name="eventType">Optional filter by event type</param>
+            <param name="severity">Optional filter by severity level</param>
+            <param name="fromDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="toDate">Optional end date filter (ISO 8601 format)</param>
+            <returns>Exported file with audit trail data</returns>
+            <remarks>
+            Exports up to 10,000 security activity events in the specified format for compliance reporting.
+            
+            **Supported Formats:**
+            - csv: CSV file with UTF-8 encoding
+            - json: Pretty-printed JSON with metadata
+            
+            **Idempotency:**
+            Include the `Idempotency-Key` header to prevent duplicate exports from retries.
+            Exports are cached for 24 hours by idempotency key.
+            
+            **Quota Management:**
+            Export limits are based on subscription tier:
+            - Free: 10 exports/month
+            - Basic: 50 exports/month
+            - Premium: Unlimited exports
+            
+            **CSV Format:**
+            - UTF-8 encoding with proper CSV escaping
+            - Header row with all field names
+            - One row per security event
+            - Timestamp in ISO 8601 format
+            
+            **JSON Format:**
+            - Pretty-printed with camelCase properties
+            - Includes export metadata (exportedAt, recordCount)
+            - Array of event objects
+            
+            **Response Headers:**
+            - X-Idempotency-Hit: true if returning cached export
+            - Content-Disposition: attachment with filename
+            
+            **Use Cases:**
+            - MICA compliance reporting
+            - Internal audit reviews
+            - Integration with SIEM systems
+            - Long-term archival
+            
+            **Security:**
+            Requires ARC-0014 authentication. Users can only export their own activity data.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SecurityActivityController.GetRecoveryGuidance">
+            <summary>
+            Gets recovery guidance and eligibility status
+            </summary>
+            <returns>Recovery guidance with steps and cooldown information</returns>
+            <remarks>
+            Provides account recovery guidance including eligibility status, cooldown periods, and step-by-step instructions.
+            
+            **Recovery Eligibility States:**
+            - Eligible: Recovery is available
+            - Cooldown: Recovery was recently requested, must wait before retrying
+            - AlreadySent: Recovery email already sent
+            - NotConfigured: Recovery email not set up
+            - AccountLocked: Account is locked, contact support
+            
+            **Recovery Process:**
+            1. Verify identity using registered email
+            2. Confirm recovery request
+            3. Check recovery email (link valid for 24 hours)
+            4. Reset access with new credentials
+            
+            **Cooldown Policy:**
+            - 1 hour cooldown between recovery requests
+            - Maximum 3 recovery attempts per 24 hours
+            - Automatic account lock after repeated failed attempts
+            
+            **Response includes:**
+            - Eligibility status
+            - Last recovery attempt timestamp
+            - Cooldown remaining (seconds)
+            - Step-by-step recovery instructions
+            - Additional guidance notes
+            
+            **Use Cases:**
+            - Account recovery UI guidance
+            - Support ticket automation
+            - Security center dashboard
+            
+            **Security:**
+            Requires ARC-0014 authentication. Users can only access their own recovery information.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.SecurityActivityController.GetUserAddress">
+            <summary>
+            Gets the user's Algorand address from the authentication context
+            </summary>
+            <returns>The user's Algorand address</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.StatusController">
             <summary>
             Provides health check and status endpoints for monitoring API health and dependencies
@@ -10653,6 +10859,31 @@
             Subscription limit reached
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.AUDIT_EXPORT_UNAVAILABLE">
+            <summary>
+            Audit export unavailable
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_EXPORT_FORMAT">
+            <summary>
+            Invalid export format
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.EXPORT_QUOTA_EXCEEDED">
+            <summary>
+            Export quota exceeded
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.RECOVERY_NOT_AVAILABLE">
+            <summary>
+            Recovery not available
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.RECOVERY_COOLDOWN_ACTIVE">
+            <summary>
+            Recovery cooldown active
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
             <summary>
             Represents the response of an Ethereum Virtual Machine (EVM) token deployment operation.
@@ -10914,6 +11145,591 @@
         <member name="F:BiatecTokensApi.Models.Metering.MeteringOperationType.Export">
             <summary>
             Export operation (CSV/JSON compliance data export)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.SecurityActivityEvent">
+            <summary>
+            Unified security activity event for audit trails and activity timelines
+            </summary>
+            <remarks>
+            This model provides a normalized view of security-related events including authentication,
+            token deployments, subscription changes, and compliance checks for enterprise audit requirements.
+            Designed for MICA compliance and enterprise security monitoring.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.EventId">
+            <summary>
+            Unique identifier for the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.AccountId">
+            <summary>
+            Account/user identifier associated with this event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.EventType">
+            <summary>
+            Type of security event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.Severity">
+            <summary>
+            Severity level of the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.Timestamp">
+            <summary>
+            Timestamp when the event occurred (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.Summary">
+            <summary>
+            Human-readable summary of the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.Metadata">
+            <summary>
+            Additional metadata about the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.CorrelationId">
+            <summary>
+            Correlation ID for related events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.SourceIp">
+            <summary>
+            Source IP address of the request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.UserAgent">
+            <summary>
+            User agent string from the request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.Success">
+            <summary>
+            Whether the operation completed successfully
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityEvent.ErrorMessage">
+            <summary>
+            Error message if the operation failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.SecurityEventType">
+            <summary>
+            Type of security event for activity tracking
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.Login">
+            <summary>
+            User login event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.Logout">
+            <summary>
+            User logout event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.LoginFailed">
+            <summary>
+            Failed login attempt
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.PasswordReset">
+            <summary>
+            Password reset requested
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.NetworkSwitch">
+            <summary>
+            Network switch event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.TokenDeployment">
+            <summary>
+            Token deployment initiated
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.TokenDeploymentSuccess">
+            <summary>
+            Token deployment succeeded
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.TokenDeploymentFailure">
+            <summary>
+            Token deployment failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.SubscriptionChange">
+            <summary>
+            Subscription plan changed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.ComplianceCheck">
+            <summary>
+            Compliance check performed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.WhitelistOperation">
+            <summary>
+            Whitelist operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.BlacklistOperation">
+            <summary>
+            Blacklist operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.AuditExport">
+            <summary>
+            Audit export requested
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.Recovery">
+            <summary>
+            Recovery operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.AccountCreated">
+            <summary>
+            Account created
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.AccountSuspended">
+            <summary>
+            Account suspended
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.SecurityEventType.AccountActivated">
+            <summary>
+            Account activated
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.EventSeverity">
+            <summary>
+            Severity level of security events
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.EventSeverity.Info">
+            <summary>
+            Informational event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.EventSeverity.Warning">
+            <summary>
+            Warning event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.EventSeverity.Error">
+            <summary>
+            Error event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.EventSeverity.Critical">
+            <summary>
+            Critical security event
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.GetSecurityActivityRequest">
+            <summary>
+            Request to retrieve security activity events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.AccountId">
+            <summary>
+            Optional filter by account ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.EventType">
+            <summary>
+            Optional filter by event type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.Severity">
+            <summary>
+            Optional filter by severity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.Success">
+            <summary>
+            Optional filter by success status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetSecurityActivityRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.SecurityActivityResponse">
+            <summary>
+            Response containing security activity events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityResponse.Events">
+            <summary>
+            List of security activity events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityResponse.TotalCount">
+            <summary>
+            Total number of events matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.SecurityActivityResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenDeploymentTransaction">
+            <summary>
+            Token deployment transaction for history tracking
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.TransactionId">
+            <summary>
+            Transaction ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.AssetId">
+            <summary>
+            Asset ID (token ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.Network">
+            <summary>
+            Network on which the token was deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.TokenStandard">
+            <summary>
+            Token standard (ASA, ARC3, ARC200, ERC20, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.TokenName">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.TokenSymbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.Status">
+            <summary>
+            Deployment status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.DeployedAt">
+            <summary>
+            Timestamp when deployed (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.CreatorAddress">
+            <summary>
+            Creator/deployer address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.ConfirmedRound">
+            <summary>
+            Confirmed round (for blockchain networks)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenDeploymentTransaction.ErrorMessage">
+            <summary>
+            Error message if deployment failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.GetTransactionHistoryRequest">
+            <summary>
+            Request to retrieve token deployment transaction history
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.AccountId">
+            <summary>
+            Optional filter by account ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.TokenStandard">
+            <summary>
+            Optional filter by token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.Status">
+            <summary>
+            Optional filter by status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetTransactionHistoryRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TransactionHistoryResponse">
+            <summary>
+            Response containing token deployment transaction history
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TransactionHistoryResponse.Transactions">
+            <summary>
+            List of token deployment transactions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TransactionHistoryResponse.TotalCount">
+            <summary>
+            Total number of transactions matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TransactionHistoryResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TransactionHistoryResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TransactionHistoryResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ExportAuditTrailRequest">
+            <summary>
+            Request to export audit trail
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailRequest.Format">
+            <summary>
+            Export format (csv or json)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailRequest.AccountId">
+            <summary>
+            Optional filter by account ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailRequest.EventType">
+            <summary>
+            Optional filter by event type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailRequest.Severity">
+            <summary>
+            Optional filter by severity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailRequest.IdempotencyKey">
+            <summary>
+            Optional idempotency key for preventing duplicate exports
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ExportAuditTrailResponse">
+            <summary>
+            Response for audit trail export request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailResponse.ExportId">
+            <summary>
+            Unique export ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailResponse.Status">
+            <summary>
+            Export status (completed, pending, failed)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailResponse.DownloadUrl">
+            <summary>
+            Download URL for the exported file (if synchronous)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailResponse.RecordCount">
+            <summary>
+            Number of records included in the export
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailResponse.Format">
+            <summary>
+            Export format
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailResponse.IdempotencyHit">
+            <summary>
+            Idempotency hit indicator
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportAuditTrailResponse.Quota">
+            <summary>
+            Plan-based quota information
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ExportQuota">
+            <summary>
+            Export quota information based on subscription tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportQuota.MaxExportsPerMonth">
+            <summary>
+            Maximum exports allowed per month
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportQuota.ExportsUsed">
+            <summary>
+            Number of exports used this month
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportQuota.ExportsRemaining">
+            <summary>
+            Remaining exports for this month
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ExportQuota.MaxRecordsPerExport">
+            <summary>
+            Maximum records per export
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.RecoveryGuidanceResponse">
+            <summary>
+            Recovery guidance response
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryGuidanceResponse.Eligibility">
+            <summary>
+            Recovery eligibility status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryGuidanceResponse.LastRecoveryAttempt">
+            <summary>
+            Timestamp of last recovery attempt
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryGuidanceResponse.CooldownRemaining">
+            <summary>
+            Cooldown period remaining in seconds (0 if no cooldown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryGuidanceResponse.Steps">
+            <summary>
+            Recovery steps
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryGuidanceResponse.Notes">
+            <summary>
+            Additional guidance notes
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.RecoveryEligibility">
+            <summary>
+            Recovery eligibility status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RecoveryEligibility.Eligible">
+            <summary>
+            Recovery is available
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RecoveryEligibility.Cooldown">
+            <summary>
+            Recovery is in cooldown period
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RecoveryEligibility.AlreadySent">
+            <summary>
+            Recovery already sent
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RecoveryEligibility.NotConfigured">
+            <summary>
+            Recovery not configured
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RecoveryEligibility.AccountLocked">
+            <summary>
+            Account locked
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.RecoveryStep">
+            <summary>
+            Recovery step with instructions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryStep.StepNumber">
+            <summary>
+            Step number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryStep.Title">
+            <summary>
+            Step title
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryStep.Instructions">
+            <summary>
+            Detailed instructions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RecoveryStep.Completed">
+            <summary>
+            Whether this step is completed
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.SimulateBurnRequest">
@@ -14197,6 +15013,66 @@
             <param name="request">The audit log request with filters</param>
             <returns>Summary statistics including event counts and date ranges</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository">
+            <summary>
+            Repository interface for security activity and audit operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.LogEventAsync(BiatecTokensApi.Models.SecurityActivityEvent)">
+            <summary>
+            Logs a security activity event
+            </summary>
+            <param name="event">The security event to log</param>
+            <returns>Task representing the async operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.GetActivityEventsAsync(BiatecTokensApi.Models.GetSecurityActivityRequest)">
+            <summary>
+            Gets security activity events with filtering and pagination
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>List of security activity events</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.GetActivityEventsCountAsync(BiatecTokensApi.Models.GetSecurityActivityRequest)">
+            <summary>
+            Gets count of security activity events matching the filter
+            </summary>
+            <param name="request">Filter parameters</param>
+            <returns>Total count of matching events</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.GetTransactionHistoryAsync(BiatecTokensApi.Models.GetTransactionHistoryRequest)">
+            <summary>
+            Gets token deployment transaction history
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>List of token deployment transactions</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.GetTransactionHistoryCountAsync(BiatecTokensApi.Models.GetTransactionHistoryRequest)">
+            <summary>
+            Gets count of token deployment transactions matching the filter
+            </summary>
+            <param name="request">Filter parameters</param>
+            <returns>Total count of matching transactions</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.GetCachedExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest)">
+            <summary>
+            Checks if an export with the given idempotency key exists
+            </summary>
+            <param name="idempotencyKey">The idempotency key</param>
+            <param name="accountId">The account ID</param>
+            <param name="request">The current export request to validate against cached</param>
+            <returns>Cached export response if exists and matches, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.CacheExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest,BiatecTokensApi.Models.ExportAuditTrailResponse,System.Int32)">
+            <summary>
+            Caches an export response with idempotency key
+            </summary>
+            <param name="idempotencyKey">The idempotency key</param>
+            <param name="accountId">The account ID</param>
+            <param name="request">The export request</param>
+            <param name="response">The export response to cache</param>
+            <param name="expirationHours">Cache expiration in hours (default: 24)</param>
+            <returns>Task representing the async operation</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.ISubscriptionRepository">
             <summary>
             Repository for managing subscription state persistence
@@ -14564,6 +15440,67 @@
             <param name="fromDate">Optional start date filter</param>
             <param name="toDate">Optional end date filter</param>
             <returns>List of audit log entries</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.SecurityActivityRepository">
+            <summary>
+            In-memory repository implementation for security activity and audit operations
+            </summary>
+            <remarks>
+            This implementation uses in-memory storage for MVP. For production, this should be
+            replaced with a persistent storage solution (database, cloud storage, etc.).
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.SecurityActivityRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.SecurityActivityRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.LogEventAsync(BiatecTokensApi.Models.SecurityActivityEvent)">
+            <summary>
+            Logs a security activity event
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.GetActivityEventsAsync(BiatecTokensApi.Models.GetSecurityActivityRequest)">
+            <summary>
+            Gets security activity events with filtering and pagination
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.GetActivityEventsCountAsync(BiatecTokensApi.Models.GetSecurityActivityRequest)">
+            <summary>
+            Gets count of security activity events matching the filter
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.GetTransactionHistoryAsync(BiatecTokensApi.Models.GetTransactionHistoryRequest)">
+            <summary>
+            Gets token deployment transaction history
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.GetTransactionHistoryCountAsync(BiatecTokensApi.Models.GetTransactionHistoryRequest)">
+            <summary>
+            Gets count of token deployment transactions matching the filter
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.GetCachedExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest)">
+            <summary>
+            Checks if an export with the given idempotency key exists
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.CacheExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest,BiatecTokensApi.Models.ExportAuditTrailResponse,System.Int32)">
+            <summary>
+            Caches an export response with idempotency key
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.LogTransaction(BiatecTokensApi.Models.TokenDeploymentTransaction)">
+            <summary>
+            Logs a token deployment transaction (for testing/integration)
+            </summary>
+            <param name="transaction">The transaction to log</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.RequestsMatch(BiatecTokensApi.Models.ExportAuditTrailRequest,BiatecTokensApi.Models.ExportAuditTrailRequest)">
+            <summary>
+            Checks if two export requests are equivalent for caching purposes
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Repositories.SubscriptionRepository">
             <summary>
@@ -16327,6 +17264,47 @@
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ISecurityActivityService">
+            <summary>
+            Service interface for security activity and audit operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISecurityActivityService.LogEventAsync(BiatecTokensApi.Models.SecurityActivityEvent)">
+            <summary>
+            Logs a security activity event
+            </summary>
+            <param name="event">The security event to log</param>
+            <returns>Task representing the async operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISecurityActivityService.GetActivityAsync(BiatecTokensApi.Models.GetSecurityActivityRequest)">
+            <summary>
+            Gets security activity events with filtering and pagination
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>Response containing security activity events</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISecurityActivityService.GetTransactionHistoryAsync(BiatecTokensApi.Models.GetTransactionHistoryRequest)">
+            <summary>
+            Gets token deployment transaction history
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>Response containing transaction history</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISecurityActivityService.ExportAuditTrailAsync(BiatecTokensApi.Models.ExportAuditTrailRequest,System.String)">
+            <summary>
+            Exports audit trail in specified format (CSV or JSON)
+            </summary>
+            <param name="request">Export parameters including format and filters</param>
+            <param name="accountId">Account ID requesting the export</param>
+            <returns>Response containing export details and content</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ISecurityActivityService.GetRecoveryGuidanceAsync(System.String)">
+            <summary>
+            Gets recovery guidance for the account
+            </summary>
+            <param name="accountId">Account ID requesting recovery guidance</param>
+            <returns>Response containing recovery guidance and eligibility</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IStripeService">
             <summary>
             Service for managing Stripe subscriptions
@@ -16677,6 +17655,69 @@
             <param name="request">The allowlist verification request</param>
             <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
             <returns>The verification response with statuses and compliance disclosures</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.SecurityActivityService">
+            <summary>
+            Service implementation for security activity and audit operations
+            </summary>
+            <remarks>
+            Provides business logic for security activity tracking, audit trail export,
+            and recovery guidance. Implements idempotency for export operations and
+            subscription-based quota management.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.#ctor(BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository,BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.SecurityActivityService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.SecurityActivityService"/> class.
+            </summary>
+            <param name="repository">The security activity repository</param>
+            <param name="deploymentStatusRepository">The deployment status repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.LogEventAsync(BiatecTokensApi.Models.SecurityActivityEvent)">
+            <summary>
+            Logs a security activity event
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.GetActivityAsync(BiatecTokensApi.Models.GetSecurityActivityRequest)">
+            <summary>
+            Gets security activity events with filtering and pagination
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.GetTransactionHistoryAsync(BiatecTokensApi.Models.GetTransactionHistoryRequest)">
+            <summary>
+            Gets token deployment transaction history
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.ExportAuditTrailAsync(BiatecTokensApi.Models.ExportAuditTrailRequest,System.String)">
+            <summary>
+            Exports audit trail in specified format (CSV or JSON)
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.GetRecoveryGuidanceAsync(System.String)">
+            <summary>
+            Gets recovery guidance for the account
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.GenerateCsv(System.Collections.Generic.List{BiatecTokensApi.Models.SecurityActivityEvent})">
+            <summary>
+            Generates CSV content from security activity events
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.GenerateJson(System.Collections.Generic.List{BiatecTokensApi.Models.SecurityActivityEvent})">
+            <summary>
+            Generates JSON content from security activity events
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.EscapeCsv(System.String)">
+            <summary>
+            Escapes a value for CSV format
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.SecurityActivityService.GetExportQuota(System.String)">
+            <summary>
+            Gets export quota for the account (basic implementation)
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.StripeService">
             <summary>
