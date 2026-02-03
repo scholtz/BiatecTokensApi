@@ -47,16 +47,21 @@ namespace BiatecTokensApi.Services
             ArgumentException.ThrowIfNullOrWhiteSpace(issuerId);
 
             // Validate report type
-            if (!Enum.IsDefined(typeof(ReportType), request.ReportType))
+            switch (request.ReportType)
             {
-                throw new ArgumentException("Invalid report type", nameof(request.ReportType));
+                case ReportType.MicaReadiness:
+                case ReportType.AuditTrail:
+                case ReportType.ComplianceBadge:
+                    break;
+                default:
+                    throw new ArgumentException("Invalid report type", nameof(request.ReportType));
             }
 
             try
             {
                 // Sanitize inputs for logging
                 var sanitizedIssuerId = LoggingHelper.SanitizeLogInput(issuerId);
-                var sanitizedNetwork = request.Network != null ? LoggingHelper.SanitizeLogInput(request.Network) : null;
+                var sanitizedNetwork = string.IsNullOrEmpty(request.Network) ? LoggingHelper.SanitizeLogInput(request.Network) : null;
 
                 _logger.LogInformation("Creating compliance report: Type={ReportType}, IssuerId={IssuerId}, AssetId={AssetId}, Network={Network}",
                     LoggingHelper.SanitizeLogInput(request.ReportType.ToString()), sanitizedIssuerId, LoggingHelper.SanitizeLogInput(request.AssetId?.ToString()), sanitizedNetwork);
