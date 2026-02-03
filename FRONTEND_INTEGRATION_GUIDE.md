@@ -322,7 +322,7 @@ import { v4 as uuidv4 } from 'uuid';
 const idempotencyKey = uuidv4();
 
 // Option 2: Timestamp + random string
-const idempotencyKey = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+const idempotencyKey = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
 // Option 3: Hash of request (for deterministic keys)
 import { createHash } from 'crypto';
