@@ -47,17 +47,19 @@ namespace BiatecTokensApi.Repositories.Interface
         /// </summary>
         /// <param name="idempotencyKey">The idempotency key</param>
         /// <param name="accountId">The account ID</param>
-        /// <returns>Cached export response if exists, null otherwise</returns>
-        Task<ExportAuditTrailResponse?> GetCachedExportAsync(string idempotencyKey, string accountId);
+        /// <param name="request">The current export request to validate against cached</param>
+        /// <returns>Cached export response if exists and matches, null otherwise</returns>
+        Task<ExportAuditTrailResponse?> GetCachedExportAsync(string idempotencyKey, string accountId, ExportAuditTrailRequest request);
 
         /// <summary>
         /// Caches an export response with idempotency key
         /// </summary>
         /// <param name="idempotencyKey">The idempotency key</param>
         /// <param name="accountId">The account ID</param>
+        /// <param name="request">The export request</param>
         /// <param name="response">The export response to cache</param>
         /// <param name="expirationHours">Cache expiration in hours (default: 24)</param>
         /// <returns>Task representing the async operation</returns>
-        Task CacheExportAsync(string idempotencyKey, string accountId, ExportAuditTrailResponse response, int expirationHours = 24);
+        Task CacheExportAsync(string idempotencyKey, string accountId, ExportAuditTrailRequest request, ExportAuditTrailResponse response, int expirationHours = 24);
     }
 }

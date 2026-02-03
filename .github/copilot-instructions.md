@@ -159,6 +159,7 @@ public async Task<TokenCreationResponse> CreateERC20MintableAsync(CreateERC20Min
 - This prevents CodeQL "Log entries created from user input" high severity vulnerabilities
 - Use the `LoggingHelper` utility class for consistent sanitization across the codebase
 - Control characters and excessively long inputs are automatically filtered
+- Apply to all logging levels: LogInformation, LogWarning, LogError, LogDebug
 
 **Example of INCORRECT logging (will trigger CodeQL):**
 ```csharp
@@ -173,7 +174,14 @@ _logger.LogInformation("User {UserId} requested {Action}",
 ```
 
 - For multiple values, use `LoggingHelper.SanitizeLogInputs()` or sanitize individually
-- Apply to all logging levels: LogInformation, LogWarning, LogError, LogDebug
+- Always sanitize before logging, even in debug logs
+
+### Idempotency Handling
+- When implementing idempotency for sensitive operations (like exports), always validate that cached requests match current requests
+- Store the full request parameters in cache, not just the response
+- Check request equivalence before returning cached results
+- Log warnings when idempotency keys are reused with different parameters
+- Prevent bypass of business logic through mismatched cached responses
 
 ### Secrets Management
 ```bash

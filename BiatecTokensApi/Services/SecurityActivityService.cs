@@ -182,13 +182,27 @@ namespace BiatecTokensApi.Services
                 // Check idempotency
                 if (!string.IsNullOrEmpty(request.IdempotencyKey))
                 {
-                    var cachedExport = await _repository.GetCachedExportAsync(request.IdempotencyKey, accountId);
+                    var cachedExport = await _repository.GetCachedExportAsync(request.IdempotencyKey, accountId, request);
                     if (cachedExport != null)
                     {
                         _logger.LogInformation("Returning cached export for idempotency key: {IdempotencyKey}",
                             LoggingHelper.SanitizeLogInput(request.IdempotencyKey));
-                        cachedExport.IdempotencyHit = true;
-                        return (cachedExport, null);
+                        // Create a new response to avoid modifying the cached object
+                        var cachedResponse = new ExportAuditTrailResponse
+                        {
+                            Success = cachedExport.Success,
+                            ErrorCode = cachedExport.ErrorCode,
+                            ErrorMessage = cachedExport.ErrorMessage,
+                            RemediationHint = cachedExport.RemediationHint,
+                            ExportId = cachedExport.ExportId,
+                            Status = cachedExport.Status,
+                            DownloadUrl = cachedExport.DownloadUrl,
+                            RecordCount = cachedExport.RecordCount,
+                            Format = cachedExport.Format,
+                            IdempotencyHit = true,
+                            Quota = cachedExport.Quota
+                        };
+                        return (cachedResponse, null);
                     }
                 }
 
@@ -244,7 +258,7 @@ namespace BiatecTokensApi.Services
                 // Cache the export if idempotency key is provided
                 if (!string.IsNullOrEmpty(request.IdempotencyKey))
                 {
-                    await _repository.CacheExportAsync(request.IdempotencyKey, accountId, response);
+                    await _repository.CacheExportAsync(request.IdempotencyKey, accountId, request, response);
                 }
 
                 // Log the export event
@@ -265,7 +279,7 @@ namespace BiatecTokensApi.Services
                 });
 
                 _logger.LogInformation("Exported {Count} audit trail records as {Format}",
-                    events.Count, request.Format);
+                    events.Count, LoggingHelper.SanitizeLogInput(request.Format));
 
                 return (response, content);
             }

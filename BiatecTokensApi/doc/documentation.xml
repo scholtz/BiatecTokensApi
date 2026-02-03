@@ -15053,20 +15053,22 @@
             <param name="request">Filter parameters</param>
             <returns>Total count of matching transactions</returns>
         </member>
-        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.GetCachedExportAsync(System.String,System.String)">
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.GetCachedExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest)">
             <summary>
             Checks if an export with the given idempotency key exists
             </summary>
             <param name="idempotencyKey">The idempotency key</param>
             <param name="accountId">The account ID</param>
-            <returns>Cached export response if exists, null otherwise</returns>
+            <param name="request">The current export request to validate against cached</param>
+            <returns>Cached export response if exists and matches, null otherwise</returns>
         </member>
-        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.CacheExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailResponse,System.Int32)">
+        <member name="M:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository.CacheExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest,BiatecTokensApi.Models.ExportAuditTrailResponse,System.Int32)">
             <summary>
             Caches an export response with idempotency key
             </summary>
             <param name="idempotencyKey">The idempotency key</param>
             <param name="accountId">The account ID</param>
+            <param name="request">The export request</param>
             <param name="response">The export response to cache</param>
             <param name="expirationHours">Cache expiration in hours (default: 24)</param>
             <returns>Task representing the async operation</returns>
@@ -15479,12 +15481,12 @@
             Gets count of token deployment transactions matching the filter
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.GetCachedExportAsync(System.String,System.String)">
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.GetCachedExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest)">
             <summary>
             Checks if an export with the given idempotency key exists
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.CacheExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailResponse,System.Int32)">
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.CacheExportAsync(System.String,System.String,BiatecTokensApi.Models.ExportAuditTrailRequest,BiatecTokensApi.Models.ExportAuditTrailResponse,System.Int32)">
             <summary>
             Caches an export response with idempotency key
             </summary>
@@ -15494,6 +15496,11 @@
             Logs a token deployment transaction (for testing/integration)
             </summary>
             <param name="transaction">The transaction to log</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.SecurityActivityRepository.RequestsMatch(BiatecTokensApi.Models.ExportAuditTrailRequest,BiatecTokensApi.Models.ExportAuditTrailRequest)">
+            <summary>
+            Checks if two export requests are equivalent for caching purposes
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Repositories.SubscriptionRepository">
             <summary>

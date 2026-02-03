@@ -16,7 +16,7 @@ namespace BiatecTokensApi.Repositories
     {
         private readonly ConcurrentBag<SecurityActivityEvent> _activityEvents = new();
         private readonly ConcurrentBag<TokenDeploymentTransaction> _transactions = new();
-        private readonly ConcurrentDictionary<string, (ExportAuditTrailResponse Response, DateTime Expiration)> _exportCache = new();
+        private readonly ConcurrentDictionary<string, (ExportAuditTrailRequest Request, ExportAuditTrailResponse Response, DateTime Expiration)> _exportCache = new();
         private readonly ILogger<SecurityActivityRepository> _logger;
 
         /// <summary>
@@ -221,7 +221,7 @@ namespace BiatecTokensApi.Repositories
         /// <summary>
         /// Checks if an export with the given idempotency key exists
         /// </summary>
-        public Task<ExportAuditTrailResponse?> GetCachedExportAsync(string idempotencyKey, string accountId)
+        public Task<ExportAuditTrailResponse?> GetCachedExportAsync(string idempotencyKey, string accountId, ExportAuditTrailRequest request)
         {
             var cacheKey = $"{accountId}:{idempotencyKey}";
             
@@ -230,9 +230,18 @@ namespace BiatecTokensApi.Repositories
                 // Check if cache is expired
                 if (cached.Expiration > DateTime.UtcNow)
                 {
-                    _logger.LogInformation("Cache hit for export with idempotency key: {IdempotencyKey}", 
-                        LoggingHelper.SanitizeLogInput(idempotencyKey));
-                    return Task.FromResult<ExportAuditTrailResponse?>(cached.Response);
+                    // Validate that the request matches the cached request
+                    if (RequestsMatch(request, cached.Request))
+                    {
+                        _logger.LogInformation("Cache hit for export with idempotency key: {IdempotencyKey}", 
+                            LoggingHelper.SanitizeLogInput(idempotencyKey));
+                        return Task.FromResult<ExportAuditTrailResponse?>(cached.Response);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Idempotency key {IdempotencyKey} used with different request parameters, ignoring cache", 
+                            LoggingHelper.SanitizeLogInput(idempotencyKey));
+                    }
                 }
                 else
                 {
@@ -247,12 +256,12 @@ namespace BiatecTokensApi.Repositories
         /// <summary>
         /// Caches an export response with idempotency key
         /// </summary>
-        public Task CacheExportAsync(string idempotencyKey, string accountId, ExportAuditTrailResponse response, int expirationHours = 24)
+        public Task CacheExportAsync(string idempotencyKey, string accountId, ExportAuditTrailRequest request, ExportAuditTrailResponse response, int expirationHours = 24)
         {
             var cacheKey = $"{accountId}:{idempotencyKey}";
             var expiration = DateTime.UtcNow.AddHours(expirationHours);
             
-            _exportCache.AddOrUpdate(cacheKey, (response, expiration), (key, old) => (response, expiration));
+            _exportCache.AddOrUpdate(cacheKey, (request, response, expiration), (key, old) => (request, response, expiration));
             
             _logger.LogInformation("Cached export with idempotency key: {IdempotencyKey}, expires at: {Expiration}", 
                 LoggingHelper.SanitizeLogInput(idempotencyKey), expiration);
@@ -270,6 +279,19 @@ namespace BiatecTokensApi.Repositories
             _logger.LogInformation("Token deployment transaction logged: {TransactionId} for network {Network}", 
                 LoggingHelper.SanitizeLogInput(transaction.TransactionId),
                 LoggingHelper.SanitizeLogInput(transaction.Network));
+        }
+
+        /// <summary>
+        /// Checks if two export requests are equivalent for caching purposes
+        /// </summary>
+        private bool RequestsMatch(ExportAuditTrailRequest a, ExportAuditTrailRequest b)
+        {
+            return a.Format == b.Format &&
+                   a.AccountId == b.AccountId &&
+                   a.EventType == b.EventType &&
+                   a.Severity == b.Severity &&
+                   a.FromDate == b.FromDate &&
+                   a.ToDate == b.ToDate;
         }
     }
 }
