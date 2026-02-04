@@ -110,5 +110,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="reason">Reason for cancellation</param>
         /// <returns>True if cancelled successfully, false otherwise</returns>
         Task<bool> CancelDeploymentAsync(string deploymentId, string reason);
+
+        /// <summary>
+        /// Calculates deployment metrics for a given time period
+        /// </summary>
+        /// <param name="request">Metrics request with filters</param>
+        /// <returns>Calculated metrics</returns>
+        Task<DeploymentMetrics> GetDeploymentMetricsAsync(GetDeploymentMetricsRequest request);
     }
 }

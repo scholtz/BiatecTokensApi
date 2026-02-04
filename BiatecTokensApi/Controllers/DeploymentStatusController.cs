@@ -471,5 +471,66 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Gets deployment metrics for monitoring and analytics
+        /// </summary>
+        /// <param name="request">Metrics request with filters</param>
+        /// <returns>Deployment metrics</returns>
+        /// <remarks>
+        /// Returns comprehensive deployment metrics including:
+        /// - Success/failure rates
+        /// - Duration statistics (average, median, P95)
+        /// - Failure breakdown by category
+        /// - Deployment counts by network and token type
+        /// - Average duration by status transition
+        /// - Retry statistics
+        /// 
+        /// **Use Cases:**
+        /// - Monitoring dashboard creation
+        /// - SLA tracking and reporting
+        /// - Performance optimization
+        /// - Capacity planning
+        /// - Customer success metrics
+        /// 
+        /// **Time Period:**
+        /// - Default: Last 24 hours
+        /// - Custom: Specify fromDate and toDate
+        /// - Maximum recommended period: 30 days (for performance)
+        /// 
+        /// **Filtering:**
+        /// - By network (e.g., "voimain-v1.0", "base-mainnet")
+        /// - By token type (e.g., "ERC20_Mintable", "ARC200_Mintable")
+        /// - By deployer address
+        /// </remarks>
+        [HttpGet("metrics")]
+        [ProducesResponseType(typeof(DeploymentMetricsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetDeploymentMetrics([FromQuery] GetDeploymentMetricsRequest request)
+        {
+            try
+            {
+                var metrics = await _deploymentStatusService.GetDeploymentMetricsAsync(request);
+
+                _logger.LogInformation("Calculated deployment metrics: Period={FromDate} to {ToDate}, Total={Total}, Success={Success}, Failed={Failed}",
+                    metrics.PeriodStart, metrics.PeriodEnd, metrics.TotalDeployments, 
+                    metrics.SuccessfulDeployments, metrics.FailedDeployments);
+
+                return Ok(new DeploymentMetricsResponse
+                {
+                    Success = true,
+                    Metrics = metrics
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating deployment metrics");
+                return StatusCode(StatusCodes.Status500InternalServerError, new DeploymentMetricsResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while calculating deployment metrics"
+                });
+            }
+        }
     }
 }

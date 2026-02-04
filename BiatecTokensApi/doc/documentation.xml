@@ -1610,6 +1610,39 @@
             - Use multiple requests for larger datasets
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.GetDeploymentMetrics(BiatecTokensApi.Models.GetDeploymentMetricsRequest)">
+            <summary>
+            Gets deployment metrics for monitoring and analytics
+            </summary>
+            <param name="request">Metrics request with filters</param>
+            <returns>Deployment metrics</returns>
+            <remarks>
+            Returns comprehensive deployment metrics including:
+            - Success/failure rates
+            - Duration statistics (average, median, P95)
+            - Failure breakdown by category
+            - Deployment counts by network and token type
+            - Average duration by status transition
+            - Retry statistics
+            
+            **Use Cases:**
+            - Monitoring dashboard creation
+            - SLA tracking and reporting
+            - Performance optimization
+            - Capacity planning
+            - Customer success metrics
+            
+            **Time Period:**
+            - Default: Last 24 hours
+            - Custom: Specify fromDate and toDate
+            - Maximum recommended period: 30 days (for performance)
+            
+            **Filtering:**
+            - By network (e.g., "voimain-v1.0", "base-mainnet")
+            - By token type (e.g., "ERC20_Mintable", "ARC200_Mintable")
+            - By deployer address
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
             <summary>
             Provides enterprise-grade audit export endpoints for MICA reporting
@@ -10672,6 +10705,165 @@
             Creates an internal error
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentMetrics">
+            <summary>
+            Deployment metrics for monitoring and analytics
+            </summary>
+            <remarks>
+            Provides comprehensive metrics about deployment performance, success rates,
+            and operational health. Useful for monitoring dashboards and SLA tracking.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.TotalDeployments">
+            <summary>
+            Total number of deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.SuccessfulDeployments">
+            <summary>
+            Number of successful deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FailedDeployments">
+            <summary>
+            Number of failed deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.PendingDeployments">
+            <summary>
+            Number of pending deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.CancelledDeployments">
+            <summary>
+            Number of cancelled deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.SuccessRate">
+            <summary>
+            Success rate as a percentage (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FailureRate">
+            <summary>
+            Failure rate as a percentage (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.AverageDurationMs">
+            <summary>
+            Average deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.MedianDurationMs">
+            <summary>
+            Median deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.P95DurationMs">
+            <summary>
+            95th percentile deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FastestDurationMs">
+            <summary>
+            Fastest deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.SlowestDurationMs">
+            <summary>
+            Slowest deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FailuresByCategory">
+            <summary>
+            Failure breakdown by error category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.DeploymentsByNetwork">
+            <summary>
+            Deployment counts by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.DeploymentsByTokenType">
+            <summary>
+            Deployment counts by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.AverageDurationByTransition">
+            <summary>
+            Average duration by status transition (e.g., "Submitted->Confirmed")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.RetriedDeployments">
+            <summary>
+            Number of retried deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.PeriodStart">
+            <summary>
+            Start of the time period for these metrics (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.PeriodEnd">
+            <summary>
+            End of the time period for these metrics (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.CalculatedAt">
+            <summary>
+            Timestamp when these metrics were calculated (UTC)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.GetDeploymentMetricsRequest">
+            <summary>
+            Request to get deployment metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.FromDate">
+            <summary>
+            Optional start date for metrics calculation (default: 24 hours ago)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.ToDate">
+            <summary>
+            Optional end date for metrics calculation (default: now)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.TokenType">
+            <summary>
+            Optional filter by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.DeployedBy">
+            <summary>
+            Optional filter by deployer address
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentMetricsResponse">
+            <summary>
+            Response containing deployment metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetricsResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetricsResponse.Metrics">
+            <summary>
+            The calculated metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetricsResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.DeploymentStatus">
             <summary>
             Represents the status of a token deployment operation
@@ -17857,6 +18049,13 @@
             <param name="reason">Reason for cancellation</param>
             <returns>True if cancelled successfully, false otherwise</returns>
         </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.GetDeploymentMetricsAsync(BiatecTokensApi.Models.GetDeploymentMetricsRequest)">
+            <summary>
+            Calculates deployment metrics for a given time period
+            </summary>
+            <param name="request">Metrics request with filters</param>
+            <returns>Calculated metrics</returns>
+        </member>
         <member name="M:BiatecTokensApi.Services.DeploymentStatusService.SendDeploymentWebhookAsync(BiatecTokensApi.Models.TokenDeployment,BiatecTokensApi.Models.DeploymentStatus)">
             <summary>
             Sends a webhook notification for a deployment status change
@@ -18627,6 +18826,13 @@
             <param name="deploymentId">The deployment ID</param>
             <param name="reason">Reason for cancellation</param>
             <returns>True if cancelled successfully, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.GetDeploymentMetricsAsync(BiatecTokensApi.Models.GetDeploymentMetricsRequest)">
+            <summary>
+            Calculates deployment metrics for a given time period
+            </summary>
+            <param name="request">Metrics request with filters</param>
+            <returns>Calculated metrics</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">
             <summary>

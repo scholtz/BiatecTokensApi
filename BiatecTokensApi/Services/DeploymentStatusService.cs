@@ -359,6 +359,182 @@ namespace BiatecTokensApi.Services
         }
 
         /// <summary>
+        /// Calculates deployment metrics for a given time period
+        /// </summary>
+        /// <param name="request">Metrics request with filters</param>
+        /// <returns>Calculated metrics</returns>
+        public async Task<DeploymentMetrics> GetDeploymentMetricsAsync(GetDeploymentMetricsRequest request)
+        {
+            // Set default date range if not provided (last 24 hours)
+            var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-1);
+            var toDate = request.ToDate ?? DateTime.UtcNow;
+
+            // Get all deployments in the period
+            var listRequest = new ListDeploymentsRequest
+            {
+                Network = request.Network,
+                TokenType = request.TokenType,
+                DeployedBy = request.DeployedBy,
+                FromDate = fromDate,
+                ToDate = toDate,
+                Page = 1,
+                PageSize = 10000 // Get all for metrics
+            };
+
+            var deployments = await _repository.GetDeploymentsAsync(listRequest);
+
+            // Calculate status counts
+            var successful = deployments.Count(d => d.CurrentStatus == DeploymentStatus.Completed);
+            var failed = deployments.Count(d => d.CurrentStatus == DeploymentStatus.Failed);
+            var pending = deployments.Count(d => d.CurrentStatus != DeploymentStatus.Completed &&
+                                                  d.CurrentStatus != DeploymentStatus.Failed &&
+                                                  d.CurrentStatus != DeploymentStatus.Cancelled);
+            var cancelled = deployments.Count(d => d.CurrentStatus == DeploymentStatus.Cancelled);
+            var total = deployments.Count;
+
+            // Calculate rates
+            var successRate = total > 0 ? (double)successful / total * 100 : 0;
+            var failureRate = total > 0 ? (double)failed / total * 100 : 0;
+
+            // Calculate durations for completed deployments
+            var completedDeployments = deployments
+                .Where(d => d.CurrentStatus == DeploymentStatus.Completed)
+                .ToList();
+
+            var durations = new List<long>();
+            var transitionDurations = new Dictionary<string, List<long>>();
+
+            foreach (var deployment in completedDeployments)
+            {
+                var history = await _repository.GetStatusHistoryAsync(deployment.DeploymentId);
+                if (history.Count >= 2)
+                {
+                    var first = history.OrderBy(e => e.Timestamp).First();
+                    var last = history.OrderBy(e => e.Timestamp).Last();
+                    var duration = (long)(last.Timestamp - first.Timestamp).TotalMilliseconds;
+                    durations.Add(duration);
+
+                    // Calculate transition durations
+                    for (int i = 1; i < history.Count; i++)
+                    {
+                        var prev = history[i - 1];
+                        var curr = history[i];
+                        var transitionKey = $"{prev.Status}->{curr.Status}";
+                        var transitionDuration = (long)(curr.Timestamp - prev.Timestamp).TotalMilliseconds;
+
+                        if (!transitionDurations.ContainsKey(transitionKey))
+                        {
+                            transitionDurations[transitionKey] = new List<long>();
+                        }
+                        transitionDurations[transitionKey].Add(transitionDuration);
+                    }
+                }
+            }
+
+            // Calculate duration statistics
+            var avgDuration = durations.Any() ? (long)durations.Average() : 0;
+            var medianDuration = CalculateMedian(durations);
+            var p95Duration = CalculatePercentile(durations, 95);
+            var fastestDuration = durations.Any() ? durations.Min() : 0;
+            var slowestDuration = durations.Any() ? durations.Max() : 0;
+
+            // Calculate average duration by transition
+            var avgDurationByTransition = transitionDurations
+                .ToDictionary(kvp => kvp.Key, kvp => (long)kvp.Value.Average());
+
+            // Failure breakdown by category
+            var failuresByCategory = new Dictionary<string, int>();
+            var failedDeploymentsList = deployments.Where(d => d.CurrentStatus == DeploymentStatus.Failed).ToList();
+            
+            foreach (var deployment in failedDeploymentsList)
+            {
+                var history = await _repository.GetStatusHistoryAsync(deployment.DeploymentId);
+                var failedEntry = history.FirstOrDefault(e => e.Status == DeploymentStatus.Failed);
+                
+                if (failedEntry?.Metadata?.ContainsKey("errorCategory") == true)
+                {
+                    var category = failedEntry.Metadata["errorCategory"].ToString() ?? "Unknown";
+                    if (!failuresByCategory.ContainsKey(category))
+                    {
+                        failuresByCategory[category] = 0;
+                    }
+                    failuresByCategory[category]++;
+                }
+            }
+
+            // Count retries (deployments that went from Failed to Queued)
+            var retriedCount = 0;
+            foreach (var deployment in deployments)
+            {
+                var history = await _repository.GetStatusHistoryAsync(deployment.DeploymentId);
+                var hasRetry = history.Any(e => e.Status == DeploymentStatus.Queued && 
+                                                history.Any(h => h.Status == DeploymentStatus.Failed && h.Timestamp < e.Timestamp));
+                if (hasRetry) retriedCount++;
+            }
+
+            // Deployments by network
+            var byNetwork = deployments
+                .GroupBy(d => d.Network)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            // Deployments by token type
+            var byTokenType = deployments
+                .GroupBy(d => d.TokenType)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            return new DeploymentMetrics
+            {
+                TotalDeployments = total,
+                SuccessfulDeployments = successful,
+                FailedDeployments = failed,
+                PendingDeployments = pending,
+                CancelledDeployments = cancelled,
+                SuccessRate = successRate,
+                FailureRate = failureRate,
+                AverageDurationMs = avgDuration,
+                MedianDurationMs = medianDuration,
+                P95DurationMs = p95Duration,
+                FastestDurationMs = fastestDuration,
+                SlowestDurationMs = slowestDuration,
+                FailuresByCategory = failuresByCategory,
+                DeploymentsByNetwork = byNetwork,
+                DeploymentsByTokenType = byTokenType,
+                AverageDurationByTransition = avgDurationByTransition,
+                RetriedDeployments = retriedCount,
+                PeriodStart = fromDate,
+                PeriodEnd = toDate
+            };
+        }
+
+        private long CalculateMedian(List<long> values)
+        {
+            if (!values.Any()) return 0;
+
+            var sorted = values.OrderBy(v => v).ToList();
+            int count = sorted.Count;
+
+            if (count % 2 == 0)
+            {
+                return (sorted[count / 2 - 1] + sorted[count / 2]) / 2;
+            }
+            else
+            {
+                return sorted[count / 2];
+            }
+        }
+
+        private long CalculatePercentile(List<long> values, int percentile)
+        {
+            if (!values.Any()) return 0;
+
+            var sorted = values.OrderBy(v => v).ToList();
+            int index = (int)Math.Ceiling(percentile / 100.0 * sorted.Count) - 1;
+            index = Math.Max(0, Math.Min(index, sorted.Count - 1));
+
+            return sorted[index];
+        }
+
+        /// <summary>
         /// Sends a webhook notification for a deployment status change
         /// </summary>
         private async Task SendDeploymentWebhookAsync(TokenDeployment deployment, DeploymentStatus status)
