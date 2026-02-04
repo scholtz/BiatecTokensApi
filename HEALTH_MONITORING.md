@@ -396,3 +396,66 @@ For health monitoring issues:
 4. **Contact Support**: Provide health check output and logs
 
 Support Email: support@biatec.io
+
+---
+
+### Stripe Payment Service (`stripe`)
+
+**What it checks:**
+- Stripe API connectivity
+- API key authentication
+- Stripe service availability
+- Response time
+
+**Why it matters:**
+- Required for subscription payments
+- Billing and subscription management
+- Revenue generation
+- Customer payment processing
+
+**Health Status Indicators:**
+- **Healthy**: API is reachable, authenticated, and responsive
+- **Degraded**: API key not configured, is a test/placeholder value, or experiencing issues
+- **Unhealthy**: API key configured with real credentials but service is unreachable or authentication failed
+
+**Response Data:**
+```json
+{
+  "configured": true,
+  "authenticated": true,
+  "mode": "test",
+  "responseTimeMs": 105
+}
+```
+
+**Troubleshooting:**
+If Stripe is unhealthy:
+1. Verify Stripe API key is configured in `appsettings.json` or environment variables
+2. Check that the API key is valid and not expired
+3. Verify Stripe service status at https://status.stripe.com
+4. Check network connectivity to Stripe API
+5. Review Stripe configuration settings
+6. Ensure you're using the correct API key for the environment (test vs. live)
+
+**Configuration:**
+```json
+{
+  "StripeConfig": {
+    "SecretKey": "sk_test_...",
+    "PublishableKey": "pk_test_...",
+    "WebhookSecret": "whsec_...",
+    "BasicPriceId": "price_...",
+    "ProPriceId": "price_...",
+    "EnterprisePriceId": "price_..."
+  }
+}
+```
+
+**Important Notes:**
+- Health check uses a lightweight API call (Balance.Get) to minimize impact
+- Test mode and live mode keys have different prefixes (sk_test_ vs sk_live_)
+- Webhook secret is separate from API keys
+- Price IDs must match the configured Stripe products
+
+---
+

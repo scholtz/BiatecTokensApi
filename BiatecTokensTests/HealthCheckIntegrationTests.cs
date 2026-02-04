@@ -218,5 +218,28 @@ namespace BiatecTokensTests
             Assert.That(status2!.Uptime, Is.GreaterThanOrEqualTo(status1.Uptime), 
                 "Second uptime should be greater than or equal to first");
         }
+
+        [Test]
+        public async Task StatusEndpoint_IncludesStripeHealthCheck()
+        {
+            // Act
+            var response = await _client.GetAsync("/api/v1/status");
+            var statusResponse = await response.Content.ReadFromJsonAsync<ApiStatusResponse>();
+
+            // Assert
+            Assert.That(statusResponse, Is.Not.Null, "Response should not be null");
+            Assert.That(statusResponse!.Components, Is.Not.Null, "Components should not be null");
+            
+            // Should include Stripe health check
+            Assert.That(statusResponse.Components.Keys, Does.Contain("stripe"), 
+                "Should include Stripe health check for payment system monitoring");
+
+            // Stripe component should have status (Healthy, Degraded, or Unhealthy)
+            var stripeComponent = statusResponse.Components["stripe"];
+            Assert.That(stripeComponent.Status, Is.Not.Null.And.Not.Empty,
+                "Stripe component should have a status");
+            Assert.That(new[] { "Healthy", "Degraded", "Unhealthy" }, Does.Contain(stripeComponent.Status),
+                "Stripe status should be one of the valid health states");
+        }
     }
 }
