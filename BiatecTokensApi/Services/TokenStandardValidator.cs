@@ -56,7 +56,7 @@ namespace BiatecTokensApi.Services
                         Code = ErrorCodes.INVALID_TOKEN_STANDARD,
                         Field = "standard",
                         Message = $"Token standard '{standard}' is not supported",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     });
                     return result;
                 }
@@ -90,8 +90,8 @@ namespace BiatecTokensApi.Services
 
                 // Apply custom validation rules
                 var ruleErrors = await ValidateCustomRulesAsync(profile, metadataDict);
-                result.Errors.AddRange(ruleErrors.Where(e => e.Severity == ValidationSeverity.Error));
-                result.Warnings.AddRange(ruleErrors.Where(e => e.Severity == ValidationSeverity.Warning));
+                result.Errors.AddRange(ruleErrors.Where(e => e.Severity == TokenValidationSeverity.Error));
+                result.Warnings.AddRange(ruleErrors.Where(e => e.Severity == TokenValidationSeverity.Warning));
 
                 // Set overall validity
                 result.IsValid = result.Errors.Count == 0;
@@ -118,7 +118,7 @@ namespace BiatecTokensApi.Services
                     Code = ErrorCodes.UNEXPECTED_ERROR,
                     Field = "metadata",
                     Message = "An unexpected error occurred during validation",
-                    Severity = ValidationSeverity.Error
+                    Severity = TokenValidationSeverity.Error
                 });
             }
 
@@ -173,7 +173,7 @@ namespace BiatecTokensApi.Services
                         Code = ErrorCodes.REQUIRED_METADATA_FIELD_MISSING,
                         Field = field.Name,
                         Message = $"Required field '{field.Name}' is missing",
-                        Severity = ValidationSeverity.Error,
+                        Severity = TokenValidationSeverity.Error,
                         Details = field.Description
                     });
                 }
@@ -225,7 +225,7 @@ namespace BiatecTokensApi.Services
                     Code = ErrorCodes.METADATA_FIELD_TYPE_MISMATCH,
                     Field = field.Name,
                     Message = $"Field '{field.Name}' expects type '{field.DataType}' but got '{actualType}'",
-                    Severity = ValidationSeverity.Error
+                    Severity = TokenValidationSeverity.Error
                 });
                 return errors; // Skip further validation if type is wrong
             }
@@ -240,7 +240,7 @@ namespace BiatecTokensApi.Services
                         Code = ErrorCodes.METADATA_FIELD_VALIDATION_FAILED,
                         Field = field.Name,
                         Message = $"Field '{field.Name}' exceeds maximum length of {field.MaxLength.Value}",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     });
                 }
 
@@ -255,7 +255,7 @@ namespace BiatecTokensApi.Services
                                 Code = ErrorCodes.METADATA_FIELD_VALIDATION_FAILED,
                                 Field = field.Name,
                                 Message = $"Field '{field.Name}' does not match required pattern",
-                                Severity = ValidationSeverity.Error,
+                                Severity = TokenValidationSeverity.Error,
                                 Details = $"Expected pattern: {field.ValidationPattern}"
                             });
                         }
@@ -281,7 +281,7 @@ namespace BiatecTokensApi.Services
                         Code = ErrorCodes.METADATA_FIELD_VALIDATION_FAILED,
                         Field = field.Name,
                         Message = $"Field '{field.Name}' is below minimum value of {field.MinValue.Value}",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     });
                 }
 
@@ -292,7 +292,7 @@ namespace BiatecTokensApi.Services
                         Code = ErrorCodes.METADATA_FIELD_VALIDATION_FAILED,
                         Field = field.Name,
                         Message = $"Field '{field.Name}' exceeds maximum value of {field.MaxValue.Value}",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     });
                 }
             }

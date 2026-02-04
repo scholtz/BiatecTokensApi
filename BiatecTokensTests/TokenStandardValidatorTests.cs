@@ -391,13 +391,13 @@ namespace BiatecTokensTests
                     {
                         Id = "arc3-image-mimetype",
                         ErrorCode = "ARC3_INVALID_IMAGE_MIMETYPE",
-                        Severity = ValidationSeverity.Warning
+                        Severity = TokenValidationSeverity.Warning
                     },
                     new ValidationRule
                     {
                         Id = "arc3-background-color",
                         ErrorCode = "ARC3_INVALID_BACKGROUND_COLOR",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 }
             };
@@ -434,7 +434,7 @@ namespace BiatecTokensTests
                     {
                         Id = "arc19-name-length",
                         ErrorCode = "ARC19_NAME_TOO_LONG",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 }
             };
@@ -458,7 +458,7 @@ namespace BiatecTokensTests
                     {
                         Id = "arc69-standard-field",
                         ErrorCode = "ARC69_INVALID_STANDARD_FIELD",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 }
             };
@@ -502,13 +502,13 @@ namespace BiatecTokensTests
                     {
                         Id = "erc20-symbol-length",
                         ErrorCode = "ERC20_SYMBOL_TOO_LONG",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     },
                     new ValidationRule
                     {
                         Id = "erc20-decimals-range",
                         ErrorCode = "ERC20_INVALID_DECIMALS",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 }
             };

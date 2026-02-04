@@ -176,13 +176,13 @@ namespace BiatecTokensApi.Models.TokenStandards
         /// <summary>
         /// Severity level of the validation rule
         /// </summary>
-        public ValidationSeverity Severity { get; set; } = ValidationSeverity.Error;
+        public TokenValidationSeverity Severity { get; set; } = TokenValidationSeverity.Error;
     }
 
     /// <summary>
-    /// Severity levels for validation rules
+    /// Severity levels for token validation rules
     /// </summary>
-    public enum ValidationSeverity
+    public enum TokenValidationSeverity
     {
         /// <summary>
         /// Informational message, does not prevent token creation

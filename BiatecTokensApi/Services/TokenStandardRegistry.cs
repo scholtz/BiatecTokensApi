@@ -227,7 +227,7 @@ namespace BiatecTokensApi.Services
                         Description = "If image is provided, image_mimetype should start with 'image/'",
                         ErrorMessage = "Image MIME type must start with 'image/'",
                         ErrorCode = "ARC3_INVALID_IMAGE_MIMETYPE",
-                        Severity = ValidationSeverity.Warning
+                        Severity = TokenValidationSeverity.Warning
                     },
                     new ValidationRule
                     {
@@ -236,7 +236,7 @@ namespace BiatecTokensApi.Services
                         Description = "Background color must be a six-character hexadecimal without #",
                         ErrorMessage = "Background color must be in format RRGGBB (e.g., 'FF0000' for red)",
                         ErrorCode = "ARC3_INVALID_BACKGROUND_COLOR",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 },
                 IsActive = true,
@@ -316,7 +316,7 @@ namespace BiatecTokensApi.Services
                         Description = "Asset name must not exceed 32 characters for on-chain storage",
                         ErrorMessage = "Asset name must be 32 characters or less",
                         ErrorCode = "ARC19_NAME_TOO_LONG",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     },
                     new ValidationRule
                     {
@@ -325,7 +325,7 @@ namespace BiatecTokensApi.Services
                         Description = "Unit name must not exceed 8 characters",
                         ErrorMessage = "Unit name must be 8 characters or less",
                         ErrorCode = "ARC19_UNIT_NAME_TOO_LONG",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 },
                 IsActive = true,
@@ -402,7 +402,7 @@ namespace BiatecTokensApi.Services
                         Description = "The 'standard' field must be set to 'arc69'",
                         ErrorMessage = "The 'standard' field must equal 'arc69'",
                         ErrorCode = "ARC69_INVALID_STANDARD_FIELD",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 },
                 IsActive = true,
@@ -469,7 +469,7 @@ namespace BiatecTokensApi.Services
                         Description = "Token symbol should be 11 characters or less",
                         ErrorMessage = "Token symbol must be 11 characters or less",
                         ErrorCode = "ERC20_SYMBOL_TOO_LONG",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     },
                     new ValidationRule
                     {
@@ -478,7 +478,7 @@ namespace BiatecTokensApi.Services
                         Description = "Decimals must be between 0 and 18",
                         ErrorMessage = "Decimals must be between 0 and 18",
                         ErrorCode = "ERC20_INVALID_DECIMALS",
-                        Severity = ValidationSeverity.Error
+                        Severity = TokenValidationSeverity.Error
                     }
                 },
                 IsActive = true,

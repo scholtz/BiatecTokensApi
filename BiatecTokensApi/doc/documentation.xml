@@ -13047,22 +13047,22 @@
             Severity level of the validation rule
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Models.TokenStandards.ValidationSeverity">
+        <member name="T:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity">
             <summary>
-            Severity levels for validation rules
+            Severity levels for token validation rules
             </summary>
         </member>
-        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationSeverity.Info">
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity.Info">
             <summary>
             Informational message, does not prevent token creation
             </summary>
         </member>
-        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationSeverity.Warning">
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity.Warning">
             <summary>
             Warning message, may indicate potential issues
             </summary>
         </member>
-        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationSeverity.Error">
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity.Error">
             <summary>
             Error that must be fixed before token creation
             </summary>

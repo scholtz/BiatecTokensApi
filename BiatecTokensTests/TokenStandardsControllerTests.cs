@@ -375,7 +375,7 @@ namespace BiatecTokensTests
                         Code = "WARNING_CODE",
                         Field = "image_mimetype",
                         Message = "MIME type should start with image/",
-                        Severity = ValidationSeverity.Warning
+                        Severity = TokenValidationSeverity.Warning
                     }
                 }
             };

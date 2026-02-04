@@ -64,7 +64,7 @@ namespace BiatecTokensApi.Models.TokenStandards
         /// <summary>
         /// Severity level
         /// </summary>
-        public ValidationSeverity Severity { get; set; } = ValidationSeverity.Error;
+        public TokenValidationSeverity Severity { get; set; } = TokenValidationSeverity.Error;
 
         /// <summary>
         /// Additional context about the error
