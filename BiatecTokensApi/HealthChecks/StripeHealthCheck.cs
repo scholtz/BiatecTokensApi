@@ -51,7 +51,13 @@ namespace BiatecTokensApi.HealthChecks
                 }
 
                 // If using a test/placeholder key, mark as degraded rather than failing
-                if (_config.SecretKey.Contains("test_key") || _config.SecretKey.Contains("placeholder"))
+                // Stripe uses standard key prefixes: sk_test_ for test mode, sk_live_ for live mode
+                // Also handle generic test/placeholder values for development/testing
+                bool isTestPlaceholder = _config.SecretKey.Equals("test_key", StringComparison.OrdinalIgnoreCase) ||
+                                        _config.SecretKey.Contains("placeholder", StringComparison.OrdinalIgnoreCase) ||
+                                        _config.SecretKey.Equals("test", StringComparison.OrdinalIgnoreCase);
+                
+                if (isTestPlaceholder)
                 {
                     _logger.LogInformation("Stripe using test/placeholder key, marking as degraded");
                     return HealthCheckResult.Degraded("Stripe using test/placeholder API key", null, new Dictionary<string, object>
@@ -62,16 +68,15 @@ namespace BiatecTokensApi.HealthChecks
                     });
                 }
 
-                // Set the API key for this health check
-                StripeConfiguration.ApiKey = _config.SecretKey;
-
                 // Try to make a simple API call to verify connectivity
                 // Using Balance.Get as it's a lightweight operation that verifies authentication
+                // Use RequestOptions to avoid race conditions with global StripeConfiguration.ApiKey
                 using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
                 var balanceService = new BalanceService();
-                var balance = await balanceService.GetAsync(cancellationToken: linkedCts.Token);
+                var requestOptions = new RequestOptions { ApiKey = _config.SecretKey };
+                var balance = await balanceService.GetAsync(requestOptions: requestOptions, cancellationToken: linkedCts.Token);
 
                 var responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
 
