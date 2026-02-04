@@ -12682,6 +12682,41 @@
             Correlation ID for related events
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.TokenStandard">
+            <summary>
+            Token standard profile used for validation (e.g., "ARC3", "ERC20", "Baseline")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.StandardVersion">
+            <summary>
+            Version of the token standard profile used
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationPerformed">
+            <summary>
+            Whether metadata validation was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationStatus">
+            <summary>
+            Result of metadata validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationErrors">
+            <summary>
+            Validation error messages if validation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationWarnings">
+            <summary>
+            Validation warning messages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationTimestamp">
+            <summary>
+            Timestamp when validation was performed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest">
             <summary>
             Request to retrieve token issuance audit logs with filtering

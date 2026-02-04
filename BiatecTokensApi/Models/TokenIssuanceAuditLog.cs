@@ -143,6 +143,41 @@ namespace BiatecTokensApi.Models
         /// Correlation ID for related events
         /// </summary>
         public string? CorrelationId { get; set; }
+
+        /// <summary>
+        /// Token standard profile used for validation (e.g., "ARC3", "ERC20", "Baseline")
+        /// </summary>
+        public string? TokenStandard { get; set; }
+
+        /// <summary>
+        /// Version of the token standard profile used
+        /// </summary>
+        public string? StandardVersion { get; set; }
+
+        /// <summary>
+        /// Whether metadata validation was performed
+        /// </summary>
+        public bool ValidationPerformed { get; set; }
+
+        /// <summary>
+        /// Result of metadata validation
+        /// </summary>
+        public string? ValidationStatus { get; set; }
+
+        /// <summary>
+        /// Validation error messages if validation failed
+        /// </summary>
+        public string? ValidationErrors { get; set; }
+
+        /// <summary>
+        /// Validation warning messages
+        /// </summary>
+        public string? ValidationWarnings { get; set; }
+
+        /// <summary>
+        /// Timestamp when validation was performed
+        /// </summary>
+        public DateTime? ValidationTimestamp { get; set; }
     }
 
     /// <summary>
