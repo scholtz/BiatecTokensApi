@@ -1462,11 +1462,12 @@
             status history and audit trail. Supports filtering and pagination for deployment queries.
             </remarks>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.#ctor(BiatecTokensApi.Services.Interface.IDeploymentStatusService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.DeploymentStatusController})">
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.#ctor(BiatecTokensApi.Services.Interface.IDeploymentStatusService,BiatecTokensApi.Services.Interface.IDeploymentAuditService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.DeploymentStatusController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.DeploymentStatusController"/> class.
             </summary>
             <param name="deploymentStatusService">The deployment status service</param>
+            <param name="auditService">The deployment audit service</param>
             <param name="logger">The logger instance</param>
         </member>
         <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.GetDeploymentStatus(System.String)">
@@ -1532,6 +1533,114 @@
             - Deployment timeline visualization
             - Debugging deployment issues
             - Performance analysis (time between status transitions)
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.CancelDeployment(System.String,BiatecTokensApi.Models.CancelDeploymentRequest)">
+            <summary>
+            Cancels a pending deployment
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="request">Cancellation request with reason</param>
+            <returns>Cancellation result</returns>
+            <remarks>
+            Cancels a deployment that is in Queued status. Once a deployment has been
+            submitted to the blockchain, it cannot be cancelled through this endpoint.
+            
+            **Use Cases:**
+            - User changes mind before transaction submission
+            - User wants to modify parameters
+            - User realizes incorrect configuration
+            
+            **Restrictions:**
+            - Only deployments in Queued status can be cancelled
+            - Submitted transactions cannot be cancelled (blockchain immutability)
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.ExportAuditTrail(System.String,System.String)">
+            <summary>
+            Exports audit trail for a specific deployment
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="format">Export format (json or csv)</param>
+            <returns>Audit trail in requested format</returns>
+            <remarks>
+            Exports complete audit trail for a deployment including:
+            - All status transitions with timestamps
+            - Compliance checks performed
+            - Error details if applicable
+            - Transaction information
+            - Duration metrics
+            
+            **Use Cases:**
+            - Regulatory compliance reporting
+            - Incident investigation
+            - Performance analysis
+            - Customer support documentation
+            
+            **Formats:**
+            - JSON: Full structured data with nested objects
+            - CSV: Flattened data suitable for spreadsheet analysis
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.ExportAuditTrails(BiatecTokensApi.Models.AuditExportRequest)">
+            <summary>
+            Exports audit trails for multiple deployments
+            </summary>
+            <param name="request">Export request with filters</param>
+            <returns>Audit trails in requested format</returns>
+            <remarks>
+            Exports audit trails for multiple deployments with filtering and pagination.
+            Supports idempotency through the X-Idempotency-Key header for large exports.
+            
+            **Use Cases:**
+            - Bulk compliance reporting
+            - Historical analysis
+            - Data migration
+            - Backup and archival
+            
+            **Idempotency:**
+            - Include X-Idempotency-Key header for large exports
+            - Results are cached for 1 hour
+            - Repeated requests with same key return cached results
+            - Key must be unique per unique request parameters
+            
+            **Pagination:**
+            - Default: 100 records per page
+            - Maximum: 1000 records per page
+            - Use multiple requests for larger datasets
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.GetDeploymentMetrics(BiatecTokensApi.Models.GetDeploymentMetricsRequest)">
+            <summary>
+            Gets deployment metrics for monitoring and analytics
+            </summary>
+            <param name="request">Metrics request with filters</param>
+            <returns>Deployment metrics</returns>
+            <remarks>
+            Returns comprehensive deployment metrics including:
+            - Success/failure rates
+            - Duration statistics (average, median, P95)
+            - Failure breakdown by category
+            - Deployment counts by network and token type
+            - Average duration by status transition
+            - Retry statistics
+            
+            **Use Cases:**
+            - Monitoring dashboard creation
+            - SLA tracking and reporting
+            - Performance optimization
+            - Capacity planning
+            - Customer success metrics
+            
+            **Time Period:**
+            - Default: Last 24 hours
+            - Custom: Specify fromDate and toDate
+            - Maximum recommended period: 30 days (for performance)
+            
+            **Filtering:**
+            - By network (e.g., "voimain-v1.0", "base-mainnet")
+            - By token type (e.g., "ERC20_Mintable", "ARC200_Mintable")
+            - By deployer address
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
@@ -4902,6 +5011,195 @@
             <remarks>
             This model extends the base token deployment request with additional properties specific to fractional non-fungible tokens.
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditExportFormat">
+            <summary>
+            Export format for audit trails
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditExportFormat.Json">
+            <summary>
+            JSON format with full details
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditExportFormat.Csv">
+            <summary>
+            CSV format for spreadsheet import
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentAuditTrail">
+            <summary>
+            Complete audit trail for a deployment
+            </summary>
+            <remarks>
+            Provides comprehensive deployment information for compliance reporting,
+            including all status transitions, compliance checks, and timing information.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.DeploymentId">
+            <summary>
+            Unique identifier for the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TokenType">
+            <summary>
+            Token type being deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TokenName">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TokenSymbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.Network">
+            <summary>
+            Network where the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.DeployedBy">
+            <summary>
+            Address of the user who initiated the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.AssetIdentifier">
+            <summary>
+            Asset ID or contract address (if deployment succeeded)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TransactionHash">
+            <summary>
+            Transaction hash (if submitted to blockchain)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.CurrentStatus">
+            <summary>
+            Current status of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.CreatedAt">
+            <summary>
+            Timestamp when deployment was initiated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.UpdatedAt">
+            <summary>
+            Timestamp when deployment was last updated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.StatusHistory">
+            <summary>
+            Complete history of status transitions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.ComplianceSummary">
+            <summary>
+            Summary of compliance checks performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TotalDurationMs">
+            <summary>
+            Total duration of deployment in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.ErrorSummary">
+            <summary>
+            Error summary if deployment failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditExportRequest">
+            <summary>
+            Request to export audit trails
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Format">
+            <summary>
+            Export format (JSON or CSV)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.DeployedBy">
+            <summary>
+            Optional filter by deployed by address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.TokenType">
+            <summary>
+            Optional filter by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Status">
+            <summary>
+            Optional filter by current status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 100, max: 1000)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditExportResult">
+            <summary>
+            Result of an audit export operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.Success">
+            <summary>
+            Whether the export was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.Data">
+            <summary>
+            Exported data (JSON or CSV)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.Format">
+            <summary>
+            Format of the exported data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.RecordCount">
+            <summary>
+            Number of records included in the export
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.IsCached">
+            <summary>
+            Whether this result was returned from cache
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.GeneratedAt">
+            <summary>
+            Timestamp when the export was generated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.ErrorMessage">
+            <summary>
+            Error message if the export failed
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse">
             <summary>
@@ -10218,6 +10516,354 @@
             Whether this report was metered for billing
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentErrorCategory">
+            <summary>
+            Categories of deployment errors for structured error handling and reporting
+            </summary>
+            <remarks>
+            Error categories help the frontend provide appropriate user feedback and
+            enable better analytics for failure analysis. Each category maps to specific
+            remediation strategies and user-facing messages.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.Unknown">
+            <summary>
+            Error category is unknown or not yet categorized
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.NetworkError">
+            <summary>
+            Network connectivity or blockchain RPC error
+            </summary>
+            <remarks>
+            Includes timeouts, connection failures, and blockchain node unavailability.
+            These errors are typically retryable after a delay.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.ValidationError">
+            <summary>
+            Input validation error (invalid parameters, missing fields)
+            </summary>
+            <remarks>
+            User must correct the request parameters. Not retryable without changes.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.ComplianceError">
+            <summary>
+            Compliance or regulatory check failure
+            </summary>
+            <remarks>
+            Includes KYC failures, whitelist violations, and regulatory constraint violations.
+            Requires compliance remediation before retry.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.UserRejection">
+            <summary>
+            User rejected the transaction or cancelled the operation
+            </summary>
+            <remarks>
+            User-initiated cancellation. May be retried if user chooses to proceed.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.InsufficientFunds">
+            <summary>
+            Insufficient funds for transaction fees or gas
+            </summary>
+            <remarks>
+            User needs to add funds to their account before retry.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.TransactionFailure">
+            <summary>
+            Transaction failed on the blockchain (reverted, rejected by network)
+            </summary>
+            <remarks>
+            Could be due to smart contract logic, network congestion, or invalid transaction.
+            May be retryable after investigation.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.ConfigurationError">
+            <summary>
+            Configuration error (missing settings, invalid network configuration)
+            </summary>
+            <remarks>
+            System administrator must fix configuration. User cannot remediate.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.RateLimitExceeded">
+            <summary>
+            Rate limit or quota exceeded
+            </summary>
+            <remarks>
+            User must wait or upgrade subscription tier. Retryable after cooldown.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentErrorCategory.InternalError">
+            <summary>
+            Internal system error
+            </summary>
+            <remarks>
+            Unexpected error requiring engineering investigation. May be retryable.
+            </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentError">
+            <summary>
+            Detailed deployment error information
+            </summary>
+            <remarks>
+            Provides structured error information that can be used for debugging,
+            user feedback, and analytics. Includes both technical and user-friendly messages.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.Category">
+            <summary>
+            Error category for classification and handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.ErrorCode">
+            <summary>
+            Standardized error code from ErrorCodes class
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.TechnicalMessage">
+            <summary>
+            Technical error message for logging and debugging
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.UserMessage">
+            <summary>
+            User-friendly error message suitable for display in UI
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.IsRetryable">
+            <summary>
+            Whether this error is retryable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.SuggestedRetryDelaySeconds">
+            <summary>
+            Suggested retry delay in seconds (if retryable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.Context">
+            <summary>
+            Additional context for debugging
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentError.Timestamp">
+            <summary>
+            Timestamp when the error occurred (UTC)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentErrorFactory">
+            <summary>
+            Helper class for creating deployment errors with consistent categorization
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.NetworkError(System.String,System.String)">
+            <summary>
+            Creates a network error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.ValidationError(System.String,System.String)">
+            <summary>
+            Creates a validation error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.ComplianceError(System.String,System.String)">
+            <summary>
+            Creates a compliance error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.UserRejection(System.String)">
+            <summary>
+            Creates a user rejection error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.InsufficientFunds(System.String,System.String)">
+            <summary>
+            Creates an insufficient funds error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.TransactionFailure(System.String,System.String)">
+            <summary>
+            Creates a transaction failure error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.ConfigurationError(System.String)">
+            <summary>
+            Creates a configuration error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.RateLimitError(System.Int32)">
+            <summary>
+            Creates a rate limit error
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.DeploymentErrorFactory.InternalError(System.String)">
+            <summary>
+            Creates an internal error
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentMetrics">
+            <summary>
+            Deployment metrics for monitoring and analytics
+            </summary>
+            <remarks>
+            Provides comprehensive metrics about deployment performance, success rates,
+            and operational health. Useful for monitoring dashboards and SLA tracking.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.TotalDeployments">
+            <summary>
+            Total number of deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.SuccessfulDeployments">
+            <summary>
+            Number of successful deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FailedDeployments">
+            <summary>
+            Number of failed deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.PendingDeployments">
+            <summary>
+            Number of pending deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.CancelledDeployments">
+            <summary>
+            Number of cancelled deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.SuccessRate">
+            <summary>
+            Success rate as a percentage (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FailureRate">
+            <summary>
+            Failure rate as a percentage (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.AverageDurationMs">
+            <summary>
+            Average deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.MedianDurationMs">
+            <summary>
+            Median deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.P95DurationMs">
+            <summary>
+            95th percentile deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FastestDurationMs">
+            <summary>
+            Fastest deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.SlowestDurationMs">
+            <summary>
+            Slowest deployment duration in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.FailuresByCategory">
+            <summary>
+            Failure breakdown by error category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.DeploymentsByNetwork">
+            <summary>
+            Deployment counts by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.DeploymentsByTokenType">
+            <summary>
+            Deployment counts by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.AverageDurationByTransition">
+            <summary>
+            Average duration by status transition (e.g., "Submitted->Confirmed")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.RetriedDeployments">
+            <summary>
+            Number of retried deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.PeriodStart">
+            <summary>
+            Start of the time period for these metrics (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.PeriodEnd">
+            <summary>
+            End of the time period for these metrics (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetrics.CalculatedAt">
+            <summary>
+            Timestamp when these metrics were calculated (UTC)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.GetDeploymentMetricsRequest">
+            <summary>
+            Request to get deployment metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.FromDate">
+            <summary>
+            Optional start date for metrics calculation (default: 24 hours ago)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.ToDate">
+            <summary>
+            Optional end date for metrics calculation (default: now)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.TokenType">
+            <summary>
+            Optional filter by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.GetDeploymentMetricsRequest.DeployedBy">
+            <summary>
+            Optional filter by deployer address
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentMetricsResponse">
+            <summary>
+            Response containing deployment metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetricsResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetricsResponse.Metrics">
+            <summary>
+            The calculated metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentMetricsResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.DeploymentStatus">
             <summary>
             Represents the status of a token deployment operation
@@ -10225,6 +10871,15 @@
             <remarks>
             This enum defines the complete lifecycle of a token deployment from initial request
             through to completion or failure. Each status transition is tracked in the audit trail.
+            
+            State Machine Flow:
+            Queued → Submitted → Pending → Confirmed → Indexed → Completed
+              ↓         ↓          ↓          ↓          ↓
+            Failed ← ← ← ← ← ← ← ← ← ← ← ← ← ← (from any state)
+              ↓
+            Queued (retry)
+            
+            Queued → Cancelled (user-initiated)
             </remarks>
         </member>
         <member name="F:BiatecTokensApi.Models.DeploymentStatus.Queued">
@@ -10256,6 +10911,24 @@
             <summary>
             Deployment failed at any stage of the process
             </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Indexed">
+            <summary>
+            Transaction has been indexed by blockchain explorers and is fully propagated
+            </summary>
+            <remarks>
+            This intermediate state between Confirmed and Completed indicates that the
+            transaction is now visible in block explorers and can be queried by external systems.
+            Useful for SLA tracking and reconciliation.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.DeploymentStatus.Cancelled">
+            <summary>
+            Deployment was cancelled by the user before completion
+            </summary>
+            <remarks>
+            User-initiated cancellation. Only valid from Queued state before submission.
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Models.DeploymentStatusEntry">
             <summary>
@@ -10310,9 +10983,64 @@
             Error message if the deployment failed
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.ErrorDetails">
+            <summary>
+            Structured error details if the deployment failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.ReasonCode">
+            <summary>
+            Reason code for this status transition (e.g., "USER_CANCELLED", "NETWORK_TIMEOUT")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.ActorAddress">
+            <summary>
+            Wallet address that initiated this transition (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.ComplianceChecks">
+            <summary>
+            Compliance checks performed at this stage (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.DurationFromPreviousStatusMs">
+            <summary>
+            Duration in milliseconds from previous status (if applicable)
+            </summary>
+        </member>
         <member name="P:BiatecTokensApi.Models.DeploymentStatusEntry.Metadata">
             <summary>
             Additional metadata about this status entry
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceCheckResult">
+            <summary>
+            Result of a compliance check performed during deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceCheckResult.CheckName">
+            <summary>
+            Name of the compliance check (e.g., "KYC_VERIFICATION", "WHITELIST_CHECK")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceCheckResult.Passed">
+            <summary>
+            Whether the check passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceCheckResult.Message">
+            <summary>
+            Detailed result message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceCheckResult.CheckedAt">
+            <summary>
+            Timestamp when the check was performed (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceCheckResult.Context">
+            <summary>
+            Additional context for the check result
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.TokenDeployment">
@@ -10503,6 +11231,16 @@
         <member name="P:BiatecTokensApi.Models.ListDeploymentsResponse.ErrorMessage">
             <summary>
             Error message if the request failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.CancelDeploymentRequest">
+            <summary>
+            Request to cancel a deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.CancelDeploymentRequest.Reason">
+            <summary>
+            Reason for cancellation
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.EnterpriseAuditLogEntry">
@@ -17186,6 +17924,40 @@
             <param name="metadata">The compliance metadata</param>
             <returns>True if the token should be treated as RWA, false for utility tokens</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.DeploymentAuditService">
+            <summary>
+            Service for exporting deployment audit trails in various formats
+            </summary>
+            <remarks>
+            Provides export functionality for compliance reporting and regulatory requirements.
+            Supports JSON and CSV formats with idempotent operations to handle large exports safely.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.#ctor(BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.DeploymentAuditService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.DeploymentAuditService"/> class.
+            </summary>
+            <param name="repository">The deployment status repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.ExportAuditTrailAsJsonAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as JSON
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.ExportAuditTrailAsCsvAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as CSV
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.ExportAuditTrailsAsync(BiatecTokensApi.Models.AuditExportRequest,System.String)">
+            <summary>
+            Exports audit trails for multiple deployments with idempotency support
+            </summary>
+            <param name="request">Export request with filters</param>
+            <param name="idempotencyKey">Optional idempotency key for large exports</param>
+            <returns>Export result with data or cache reference</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.DeploymentStatusService">
             <summary>
             Service for managing deployment status tracking and state transitions
@@ -17202,6 +17974,16 @@
             <summary>
             Valid status transitions in the deployment state machine
             </summary>
+            <remarks>
+            State Machine Flow:
+            Queued → Submitted → Pending → Confirmed → Indexed → Completed
+              ↓         ↓          ↓          ↓          ↓         ↓
+            Failed ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← (from any non-terminal state)
+              ↓
+            Queued (retry allowed)
+            
+            Queued → Cancelled (user-initiated)
+            </remarks>
         </member>
         <member name="M:BiatecTokensApi.Services.DeploymentStatusService.#ctor(BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository,BiatecTokensApi.Services.Interface.IWebhookService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.DeploymentStatusService})">
             <summary>
@@ -17250,6 +18032,29 @@
             <summary>
             Marks a deployment as failed with retry capability check
             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.MarkDeploymentFailedAsync(System.String,BiatecTokensApi.Models.DeploymentError)">
+            <summary>
+            Marks a deployment as failed with structured error details
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="error">Structured error details</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.CancelDeploymentAsync(System.String,System.String)">
+            <summary>
+            Cancels a deployment (only allowed from Queued state)
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="reason">Reason for cancellation</param>
+            <returns>True if cancelled successfully, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentStatusService.GetDeploymentMetricsAsync(BiatecTokensApi.Models.GetDeploymentMetricsRequest)">
+            <summary>
+            Calculates deployment metrics for a given time period
+            </summary>
+            <param name="request">Metrics request with filters</param>
+            <returns>Calculated metrics</returns>
         </member>
         <member name="M:BiatecTokensApi.Services.DeploymentStatusService.SendDeploymentWebhookAsync(BiatecTokensApi.Models.TokenDeployment,BiatecTokensApi.Models.DeploymentStatus)">
             <summary>
@@ -17899,6 +18704,33 @@
             Includes whitelist adoption trends and overall compliance direction indicators.
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IDeploymentAuditService">
+            <summary>
+            Service interface for exporting deployment audit trails
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentAuditService.ExportAuditTrailAsJsonAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as JSON
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>JSON string containing the audit trail</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentAuditService.ExportAuditTrailAsCsvAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as CSV
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>CSV string containing the audit trail</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentAuditService.ExportAuditTrailsAsync(BiatecTokensApi.Models.AuditExportRequest,System.String)">
+            <summary>
+            Exports audit trails for multiple deployments with idempotency support
+            </summary>
+            <param name="request">Export request with filters</param>
+            <param name="idempotencyKey">Optional idempotency key for large exports</param>
+            <returns>Export result with data or cache reference</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IDeploymentStatusService">
             <summary>
             Service interface for managing deployment status tracking and state transitions
@@ -17978,6 +18810,29 @@
             <param name="errorMessage">The error message</param>
             <param name="isRetryable">Whether the failure is retryable</param>
             <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.MarkDeploymentFailedAsync(System.String,BiatecTokensApi.Models.DeploymentError)">
+            <summary>
+            Marks a deployment as failed with structured error details
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="error">Structured error details</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.CancelDeploymentAsync(System.String,System.String)">
+            <summary>
+            Cancels a deployment (only allowed from Queued state)
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="reason">Reason for cancellation</param>
+            <returns>True if cancelled successfully, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentStatusService.GetDeploymentMetricsAsync(BiatecTokensApi.Models.GetDeploymentMetricsRequest)">
+            <summary>
+            Calculates deployment metrics for a given time period
+            </summary>
+            <param name="request">Metrics request with filters</param>
+            <returns>Calculated metrics</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IEnterpriseAuditService">
             <summary>

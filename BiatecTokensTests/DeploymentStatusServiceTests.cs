@@ -317,5 +317,121 @@ namespace BiatecTokensTests
             _webhookServiceMock.Verify(w => w.EmitEventAsync(
                 It.Is<WebhookEvent>(e => e.EventType == WebhookEventType.TokenDeploymentCompleted)), Times.Once);
         }
+
+        [Test]
+        public async Task CancelDeploymentAsync_FromQueuedStatus_ShouldSucceed()
+        {
+            // Arrange
+            var deploymentId = Guid.NewGuid().ToString();
+            var deployment = new TokenDeployment
+            {
+                DeploymentId = deploymentId,
+                CurrentStatus = DeploymentStatus.Queued
+            };
+
+            _repositoryMock.Setup(r => r.GetDeploymentByIdAsync(deploymentId))
+                .ReturnsAsync(deployment);
+
+            _repositoryMock.Setup(r => r.AddStatusEntryAsync(deploymentId, It.IsAny<DeploymentStatusEntry>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _service.CancelDeploymentAsync(deploymentId, "User requested cancellation");
+
+            // Assert
+            Assert.That(result, Is.True);
+            _repositoryMock.Verify(r => r.AddStatusEntryAsync(
+                deploymentId,
+                It.Is<DeploymentStatusEntry>(e => e.Status == DeploymentStatus.Cancelled)), Times.Once);
+        }
+
+        [Test]
+        public async Task CancelDeploymentAsync_FromSubmittedStatus_ShouldFail()
+        {
+            // Arrange
+            var deploymentId = Guid.NewGuid().ToString();
+            var deployment = new TokenDeployment
+            {
+                DeploymentId = deploymentId,
+                CurrentStatus = DeploymentStatus.Submitted
+            };
+
+            _repositoryMock.Setup(r => r.GetDeploymentByIdAsync(deploymentId))
+                .ReturnsAsync(deployment);
+
+            // Act
+            var result = await _service.CancelDeploymentAsync(deploymentId, "User requested cancellation");
+
+            // Assert
+            Assert.That(result, Is.False);
+            _repositoryMock.Verify(r => r.AddStatusEntryAsync(
+                It.IsAny<string>(),
+                It.IsAny<DeploymentStatusEntry>()), Times.Never);
+        }
+
+        [Test]
+        public async Task CancelDeploymentAsync_WithNonExistentDeployment_ShouldFail()
+        {
+            // Arrange
+            var deploymentId = Guid.NewGuid().ToString();
+            _repositoryMock.Setup(r => r.GetDeploymentByIdAsync(deploymentId))
+                .ReturnsAsync((TokenDeployment?)null);
+
+            // Act
+            var result = await _service.CancelDeploymentAsync(deploymentId, "User requested cancellation");
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        [TestCase(DeploymentStatus.Queued, DeploymentStatus.Cancelled, true)]
+        [TestCase(DeploymentStatus.Confirmed, DeploymentStatus.Indexed, true)]
+        [TestCase(DeploymentStatus.Indexed, DeploymentStatus.Completed, true)]
+        [TestCase(DeploymentStatus.Completed, DeploymentStatus.Indexed, false)]
+        [TestCase(DeploymentStatus.Cancelled, DeploymentStatus.Queued, false)]
+        public void IsValidStatusTransition_WithNewStates_ShouldValidateCorrectly(
+            DeploymentStatus currentStatus,
+            DeploymentStatus newStatus,
+            bool expectedResult)
+        {
+            // Act
+            var result = _service.IsValidStatusTransition(currentStatus, newStatus);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public async Task MarkDeploymentFailedAsync_WithStructuredError_ShouldSetFailedStatus()
+        {
+            // Arrange
+            var deploymentId = Guid.NewGuid().ToString();
+            var deployment = new TokenDeployment
+            {
+                DeploymentId = deploymentId,
+                CurrentStatus = DeploymentStatus.Pending
+            };
+
+            var error = DeploymentErrorFactory.NetworkError("Connection timeout", "RPC unavailable");
+
+            _repositoryMock.Setup(r => r.GetDeploymentByIdAsync(deploymentId))
+                .ReturnsAsync(deployment);
+
+            _repositoryMock.Setup(r => r.AddStatusEntryAsync(deploymentId, It.IsAny<DeploymentStatusEntry>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.MarkDeploymentFailedAsync(deploymentId, error);
+
+            // Assert
+            _repositoryMock.Verify(r => r.AddStatusEntryAsync(
+                deploymentId,
+                It.Is<DeploymentStatusEntry>(e =>
+                    e.Status == DeploymentStatus.Failed &&
+                    e.Metadata != null &&
+                    e.Metadata.ContainsKey("errorCategory") &&
+                    e.Metadata["errorCategory"].ToString() == "NetworkError")), Times.Once);
+        }
     }
 }

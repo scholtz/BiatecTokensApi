@@ -6,6 +6,15 @@ namespace BiatecTokensApi.Models
     /// <remarks>
     /// This enum defines the complete lifecycle of a token deployment from initial request
     /// through to completion or failure. Each status transition is tracked in the audit trail.
+    /// 
+    /// State Machine Flow:
+    /// Queued → Submitted → Pending → Confirmed → Indexed → Completed
+    ///   ↓         ↓          ↓          ↓          ↓
+    /// Failed ← ← ← ← ← ← ← ← ← ← ← ← ← ← (from any state)
+    ///   ↓
+    /// Queued (retry)
+    /// 
+    /// Queued → Cancelled (user-initiated)
     /// </remarks>
     public enum DeploymentStatus
     {
@@ -37,7 +46,25 @@ namespace BiatecTokensApi.Models
         /// <summary>
         /// Deployment failed at any stage of the process
         /// </summary>
-        Failed = 5
+        Failed = 5,
+
+        /// <summary>
+        /// Transaction has been indexed by blockchain explorers and is fully propagated
+        /// </summary>
+        /// <remarks>
+        /// This intermediate state between Confirmed and Completed indicates that the
+        /// transaction is now visible in block explorers and can be queried by external systems.
+        /// Useful for SLA tracking and reconciliation.
+        /// </remarks>
+        Indexed = 6,
+
+        /// <summary>
+        /// Deployment was cancelled by the user before completion
+        /// </summary>
+        /// <remarks>
+        /// User-initiated cancellation. Only valid from Queued state before submission.
+        /// </remarks>
+        Cancelled = 7
     }
 
     /// <summary>
@@ -94,9 +121,65 @@ namespace BiatecTokensApi.Models
         public string? ErrorMessage { get; set; }
 
         /// <summary>
+        /// Structured error details if the deployment failed
+        /// </summary>
+        public DeploymentError? ErrorDetails { get; set; }
+
+        /// <summary>
+        /// Reason code for this status transition (e.g., "USER_CANCELLED", "NETWORK_TIMEOUT")
+        /// </summary>
+        public string? ReasonCode { get; set; }
+
+        /// <summary>
+        /// Wallet address that initiated this transition (if applicable)
+        /// </summary>
+        public string? ActorAddress { get; set; }
+
+        /// <summary>
+        /// Compliance checks performed at this stage (if applicable)
+        /// </summary>
+        public List<ComplianceCheckResult>? ComplianceChecks { get; set; }
+
+        /// <summary>
+        /// Duration in milliseconds from previous status (if applicable)
+        /// </summary>
+        public long? DurationFromPreviousStatusMs { get; set; }
+
+        /// <summary>
         /// Additional metadata about this status entry
         /// </summary>
         public Dictionary<string, object>? Metadata { get; set; }
+    }
+
+    /// <summary>
+    /// Result of a compliance check performed during deployment
+    /// </summary>
+    public class ComplianceCheckResult
+    {
+        /// <summary>
+        /// Name of the compliance check (e.g., "KYC_VERIFICATION", "WHITELIST_CHECK")
+        /// </summary>
+        public string CheckName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Whether the check passed
+        /// </summary>
+        public bool Passed { get; set; }
+
+        /// <summary>
+        /// Detailed result message
+        /// </summary>
+        public string? Message { get; set; }
+
+        /// <summary>
+        /// Timestamp when the check was performed (UTC)
+        /// </summary>
+        public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Additional context for the check result
+        /// </summary>
+        public Dictionary<string, object>? Context { get; set; }
     }
 
     /// <summary>
@@ -292,5 +375,16 @@ namespace BiatecTokensApi.Models
         /// Error message if the request failed
         /// </summary>
         public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request to cancel a deployment
+    /// </summary>
+    public class CancelDeploymentRequest
+    {
+        /// <summary>
+        /// Reason for cancellation
+        /// </summary>
+        public string Reason { get; set; } = string.Empty;
     }
 }

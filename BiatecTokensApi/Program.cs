@@ -147,6 +147,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IWebhookService, WebhookService>();
             builder.Services.AddSingleton<IStripeService, StripeService>();
             builder.Services.AddSingleton<IDeploymentStatusService, DeploymentStatusService>();
+            builder.Services.AddSingleton<IDeploymentAuditService, DeploymentAuditService>();
             builder.Services.AddSingleton<IComplianceReportService, ComplianceReportService>();
             builder.Services.AddSingleton<ISecurityActivityService, SecurityActivityService>();
             builder.Services.AddSingleton<ITokenStandardRegistry, TokenStandardRegistry>();

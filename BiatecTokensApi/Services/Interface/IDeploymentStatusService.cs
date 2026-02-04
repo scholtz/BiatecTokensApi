@@ -94,5 +94,28 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="isRetryable">Whether the failure is retryable</param>
         /// <returns>Task representing the asynchronous operation</returns>
         Task MarkDeploymentFailedAsync(string deploymentId, string errorMessage, bool isRetryable = false);
+
+        /// <summary>
+        /// Marks a deployment as failed with structured error details
+        /// </summary>
+        /// <param name="deploymentId">The deployment ID</param>
+        /// <param name="error">Structured error details</param>
+        /// <returns>Task representing the asynchronous operation</returns>
+        Task MarkDeploymentFailedAsync(string deploymentId, DeploymentError error);
+
+        /// <summary>
+        /// Cancels a deployment (only allowed from Queued state)
+        /// </summary>
+        /// <param name="deploymentId">The deployment ID</param>
+        /// <param name="reason">Reason for cancellation</param>
+        /// <returns>True if cancelled successfully, false otherwise</returns>
+        Task<bool> CancelDeploymentAsync(string deploymentId, string reason);
+
+        /// <summary>
+        /// Calculates deployment metrics for a given time period
+        /// </summary>
+        /// <param name="request">Metrics request with filters</param>
+        /// <returns>Calculated metrics</returns>
+        Task<DeploymentMetrics> GetDeploymentMetricsAsync(GetDeploymentMetricsRequest request);
     }
 }
