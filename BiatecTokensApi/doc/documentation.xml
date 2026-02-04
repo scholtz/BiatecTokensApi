@@ -2735,6 +2735,179 @@
             <param name="correlationId">The correlation ID to add</param>
             <returns>The enhanced action result</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.TokenRegistryController">
+            <summary>
+            Controller for token registry operations
+            </summary>
+            <remarks>
+            Provides endpoints for querying the token registry, retrieving token details,
+            and triggering ingestion from external sources.
+            Supports filtering by standard, compliance status, chain, issuer, and operational readiness.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenRegistryController.#ctor(BiatecTokensApi.Services.Interface.ITokenRegistryService,BiatecTokensApi.Services.Interface.IRegistryIngestionService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenRegistryController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.TokenRegistryController"/> class
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenRegistryController.ListTokens(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
+            <summary>
+            Lists tokens in the registry with optional filtering and pagination
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>Paginated list of token registry entries</returns>
+            <remarks>
+            Example request: GET /api/v1/registry/tokens?standard=ARC3&amp;complianceStatus=Compliant&amp;page=1&amp;pageSize=20
+            
+            Supports filtering by:
+            - standard: Token standard (ASA, ARC3, ARC200, ERC20, etc.)
+            - complianceStatus: Compliance state (Unknown, Pending, Compliant, NonCompliant, Suspended, Exempt)
+            - chain: Blockchain network (algorand-mainnet, base-mainnet, etc.)
+            - issuerAddress: Issuer blockchain address
+            - isContractVerified: Whether contract is verified on block explorer
+            - isAudited: Whether token has been audited
+            - hasValidMetadata: Whether token has valid metadata
+            - search: Search by name or symbol
+            - tags: Filter by tags (comma-separated)
+            - dataSource: Filter by data source (internal, external, etc.)
+            
+            Supports sorting by:
+            - name, symbol, createdAt, updatedAt, complianceScore, deployedAt
+            - sortDirection: asc or desc
+            
+            Response includes pagination metadata:
+            - totalCount: Total number of matching tokens
+            - page: Current page number
+            - pageSize: Number of items per page
+            - totalPages: Total number of pages
+            - hasNextPage: Whether there is a next page
+            - hasPreviousPage: Whether there is a previous page
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenRegistryController.GetToken(System.String,System.String)">
+            <summary>
+            Gets detailed information for a single token
+            </summary>
+            <param name="identifier">Token identifier (registry ID, asset ID, contract address, or symbol)</param>
+            <param name="chain">Optional chain filter to disambiguate symbols</param>
+            <returns>Complete token details including compliance metadata and operational readiness</returns>
+            <remarks>
+            Example request: GET /api/v1/registry/tokens/123456 or GET /api/v1/registry/tokens/USDC?chain=algorand-mainnet
+            
+            The identifier can be:
+            - Registry ID (UUID)
+            - Blockchain token identifier (asset ID for Algorand, contract address for EVM)
+            - Token symbol (may require chain parameter for disambiguation)
+            
+            Response includes:
+            - Token identity (name, symbol, decimals, total supply)
+            - Supported standards
+            - Issuer identity (name, address, verification status)
+            - Compliance scoring (status, score, regulatory frameworks, jurisdictions)
+            - Operational readiness (contract verification, audits, metadata validity)
+            - External registries and tags
+            - Creation and update timestamps
+            
+            Missing data is represented explicitly with null values rather than omitted.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenRegistryController.UpsertToken(BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest)">
+            <summary>
+            Creates or updates a token in the registry
+            </summary>
+            <param name="request">Token data</param>
+            <returns>Upsert result with registry ID and created/updated flag</returns>
+            <remarks>
+            Example request: POST /api/v1/registry/tokens
+            {
+              "tokenIdentifier": "123456",
+              "chain": "algorand-mainnet",
+              "name": "My Token",
+              "symbol": "MTK",
+              "decimals": 6,
+              "totalSupply": "1000000",
+              "supportedStandards": ["ASA", "ARC3"],
+              "primaryStandard": "ARC3",
+              "issuer": {
+                "name": "My Company",
+                "address": "ABCD...",
+                "isVerified": true
+              },
+              "compliance": {
+                "status": "Compliant",
+                "regulatoryFrameworks": ["MICA"],
+                "jurisdictions": ["EU"]
+              },
+              "readiness": {
+                "isContractVerified": true,
+                "isAudited": true,
+                "hasValidMetadata": true
+              },
+              "dataSource": "internal"
+            }
+            
+            Performs idempotent upsert based on tokenIdentifier and chain combination.
+            If a token with the same identifier and chain exists, it will be updated.
+            Otherwise, a new entry will be created.
+            
+            Response indicates whether a new entry was created or an existing entry was updated.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenRegistryController.IngestRegistry(BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest)">
+            <summary>
+            Triggers manual ingestion of token data from specified sources
+            </summary>
+            <param name="request">Ingestion parameters</param>
+            <returns>Ingestion result with statistics and anomalies</returns>
+            <remarks>
+            Example request: POST /api/v1/registry/ingest
+            {
+              "source": "internal",
+              "chain": "algorand-mainnet",
+              "force": false,
+              "limit": 100
+            }
+            
+            Supported sources:
+            - "internal": Ingest from internal token deployment records
+            - "all": Ingest from all available sources
+            
+            The force flag allows re-ingestion of existing entries.
+            The limit parameter restricts the number of entries processed (useful for testing).
+            
+            Response includes:
+            - processedCount: Total number of entries processed
+            - createdCount: Number of new entries created
+            - updatedCount: Number of existing entries updated
+            - skippedCount: Number of entries skipped due to validation failures
+            - errorCount: Number of errors encountered
+            - anomalies: List of warnings or anomalies detected
+            - errors: List of error messages
+            - duration: Time taken for ingestion
+            
+            Ingestion is idempotent - running it multiple times will not create duplicates.
+            Anomalies are logged for review but do not stop the ingestion process.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenRegistryController.SearchTokens(System.String,System.Int32)">
+            <summary>
+            Searches for tokens by name or symbol
+            </summary>
+            <param name="q">Search query</param>
+            <param name="limit">Maximum number of results (default: 10, max: 50)</param>
+            <returns>List of matching tokens</returns>
+            <remarks>
+            Example request: GET /api/v1/registry/search?q=USDC&amp;limit=10
+            
+            Searches across:
+            - Token name
+            - Token symbol
+            - Token identifier (asset ID/contract address)
+            
+            Returns a simplified list suitable for autocomplete or quick search.
+            For more detailed filtering, use the /tokens endpoint.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.TokenStandardsController">
             <summary>
             Controller for token standard compliance and validation endpoints
@@ -11856,6 +12029,26 @@
             Token standard not supported
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.InvalidRequest">
+            <summary>
+            Invalid request parameters
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.ValidationFailed">
+            <summary>
+            Validation failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.InternalError">
+            <summary>
+            Internal error occurred
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.NotFound">
+            <summary>
+            Resource not found
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
             <summary>
             Represents the response of an Ethereum Virtual Machine (EVM) token deployment operation.
@@ -13528,6 +13721,778 @@
         <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.PageSize">
             <summary>
             Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest">
+            <summary>
+            Request model for listing tokens in the registry
+            </summary>
+            <remarks>
+            Supports filtering by multiple criteria and pagination.
+            Example: GET /api/v1/registry/tokens?standard=ARC3&amp;complianceStatus=Compliant&amp;page=1&amp;pageSize=20
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.Standard">
+            <summary>
+            Filter by token standard (e.g., "ASA", "ARC3", "ERC20")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.ComplianceStatus">
+            <summary>
+            Filter by compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.Chain">
+            <summary>
+            Filter by blockchain network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.IssuerAddress">
+            <summary>
+            Filter by issuer address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.IsContractVerified">
+            <summary>
+            Filter by contract verification status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.IsAudited">
+            <summary>
+            Filter by audit status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.HasValidMetadata">
+            <summary>
+            Filter by whether the token has valid metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.Search">
+            <summary>
+            Search by token name or symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.Tags">
+            <summary>
+            Filter by tags (comma-separated)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.DataSource">
+            <summary>
+            Filter by data source
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.SortBy">
+            <summary>
+            Sort field (e.g., "name", "createdAt", "updatedAt", "complianceScore")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest.SortDirection">
+            <summary>
+            Sort direction ("asc" or "desc")
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse">
+            <summary>
+            Response model for listing tokens in the registry
+            </summary>
+            <remarks>
+            Returns paginated results with metadata about total count and pages.
+            Example response structure:
+            {
+              "tokens": [...],
+              "totalCount": 150,
+              "page": 1,
+              "pageSize": 20,
+              "totalPages": 8,
+              "hasNextPage": true,
+              "hasPreviousPage": false
+            }
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse.Tokens">
+            <summary>
+            List of token registry entries matching the filter criteria
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse.TotalCount">
+            <summary>
+            Total number of tokens matching the filter criteria
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse.HasNextPage">
+            <summary>
+            Whether there is a next page available
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse.HasPreviousPage">
+            <summary>
+            Whether there is a previous page available
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryRequest">
+            <summary>
+            Request model for retrieving a single token by identifier
+            </summary>
+            <remarks>
+            Used with GET /api/v1/registry/tokens/{identifier}
+            The identifier can be the registry ID, token identifier (asset ID/contract address), or token symbol
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryRequest.Identifier">
+            <summary>
+            Token identifier (registry ID, asset ID, contract address, or symbol)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryRequest.Chain">
+            <summary>
+            Optional chain filter to disambiguate symbols that exist on multiple chains
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryResponse">
+            <summary>
+            Response model for retrieving a single token
+            </summary>
+            <remarks>
+            Returns complete token details including all compliance metadata and operational readiness fields.
+            Example response structure includes all fields from TokenRegistryEntry with explicit null handling.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryResponse.Token">
+            <summary>
+            The token registry entry, or null if not found
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryResponse.Found">
+            <summary>
+            Whether the token was found
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryResponse.ErrorMessage">
+            <summary>
+            Error message if the token was not found or an error occurred
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest">
+            <summary>
+            Request model for creating or updating a registry entry
+            </summary>
+            <remarks>
+            Used by the ingestion pipeline to add or update tokens in the registry.
+            Supports idempotent upsert operations based on token identifier and chain.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.TokenIdentifier">
+            <summary>
+            Token identifier on the blockchain
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Chain">
+            <summary>
+            Blockchain network identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Name">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Symbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Decimals">
+            <summary>
+            Number of decimal places
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.TotalSupply">
+            <summary>
+            Total supply
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.SupportedStandards">
+            <summary>
+            Supported standards
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.PrimaryStandard">
+            <summary>
+            Primary standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Issuer">
+            <summary>
+            Issuer identity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Compliance">
+            <summary>
+            Compliance scoring
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Readiness">
+            <summary>
+            Operational readiness
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Description">
+            <summary>
+            Token description
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Website">
+            <summary>
+            Token website
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.LogoUrl">
+            <summary>
+            Token logo URL
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.DataSource">
+            <summary>
+            Data source
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.ExternalRegistries">
+            <summary>
+            External registries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.Tags">
+            <summary>
+            Tags
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest.DeployedAt">
+            <summary>
+            Deployment date
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse">
+            <summary>
+            Response model for upsert operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse.Success">
+            <summary>
+            Whether the operation was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse.RegistryId">
+            <summary>
+            The registry entry ID (new or existing)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse.Created">
+            <summary>
+            Whether a new entry was created (true) or an existing entry was updated (false)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse.ErrorMessage">
+            <summary>
+            Error message if the operation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse.Token">
+            <summary>
+            The complete registry entry after the operation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest">
+            <summary>
+            Request model for triggering registry ingestion
+            </summary>
+            <remarks>
+            Used with POST /api/v1/registry/ingest to manually trigger ingestion from external sources.
+            Supports selective ingestion by source and network.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest.Source">
+            <summary>
+            Source to ingest from (e.g., "internal", "vestige", "all")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest.Chain">
+            <summary>
+            Optional chain filter for ingestion
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest.Force">
+            <summary>
+            Whether to force re-ingestion of existing entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest.Limit">
+            <summary>
+            Maximum number of entries to ingest (for testing/debugging)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse">
+            <summary>
+            Response model for ingestion operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.Success">
+            <summary>
+            Whether the ingestion was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.ProcessedCount">
+            <summary>
+            Number of entries processed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.CreatedCount">
+            <summary>
+            Number of new entries created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.UpdatedCount">
+            <summary>
+            Number of existing entries updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.SkippedCount">
+            <summary>
+            Number of entries skipped due to validation failures
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.ErrorCount">
+            <summary>
+            Number of errors encountered
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.Anomalies">
+            <summary>
+            Anomalies or warnings encountered during ingestion
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.Errors">
+            <summary>
+            Error messages if any
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.Duration">
+            <summary>
+            Duration of the ingestion process
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.StartedAt">
+            <summary>
+            Timestamp when ingestion started
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse.CompletedAt">
+            <summary>
+            Timestamp when ingestion completed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry">
+            <summary>
+            Represents a canonical token registry entry with identity, compliance, and operational metadata
+            </summary>
+            <remarks>
+            This is the core registry model that aggregates token data from internal and external sources.
+            It provides a consistent schema for discovery and compliance filtering.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Id">
+            <summary>
+            Unique identifier for the registry entry (auto-generated)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.TokenIdentifier">
+            <summary>
+            Token identifier on the blockchain (asset ID for Algorand, contract address for EVM)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Chain">
+            <summary>
+            Blockchain network identifier (e.g., "algorand-mainnet", "base-mainnet", "ethereum-mainnet")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Name">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Symbol">
+            <summary>
+            Token symbol (ticker)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Decimals">
+            <summary>
+            Number of decimal places for the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.TotalSupply">
+            <summary>
+            Total supply of the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.SupportedStandards">
+            <summary>
+            Token standards supported (e.g., "ASA", "ARC3", "ARC19", "ARC69", "ARC200", "ERC20")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.PrimaryStandard">
+            <summary>
+            Primary token standard classification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Issuer">
+            <summary>
+            Legal issuer identity information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Compliance">
+            <summary>
+            Compliance status and scoring information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Readiness">
+            <summary>
+            Operational readiness attributes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Description">
+            <summary>
+            Optional token description
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Website">
+            <summary>
+            Token website URL
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.LogoUrl">
+            <summary>
+            Token logo URL
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.DataSource">
+            <summary>
+            Source of this registry data (e.g., "internal", "vestige", "coinmarketcap")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.ExternalRegistries">
+            <summary>
+            External registry URLs where this token is listed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.Tags">
+            <summary>
+            Tags for categorization and search
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.CreatedAt">
+            <summary>
+            Date when the registry entry was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.UpdatedAt">
+            <summary>
+            Date when the registry entry was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.CreatedBy">
+            <summary>
+            Address of the user who created this entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry.DeployedAt">
+            <summary>
+            Date when the token was deployed on the blockchain
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity">
+            <summary>
+            Issuer identity information for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.Name">
+            <summary>
+            Legal name of the issuer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.Address">
+            <summary>
+            Issuer blockchain address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.Website">
+            <summary>
+            Issuer website
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.Email">
+            <summary>
+            Issuer email contact
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.Country">
+            <summary>
+            Country of incorporation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.EntityType">
+            <summary>
+            Legal entity type (e.g., "Corporation", "Foundation", "DAO")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.RegistrationNumber">
+            <summary>
+            Legal entity registration number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.IsVerified">
+            <summary>
+            Whether the issuer identity has been verified
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.VerificationProvider">
+            <summary>
+            KYC/KYB verification provider
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.IssuerIdentity.VerificationDate">
+            <summary>
+            Date when issuer verification was completed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring">
+            <summary>
+            Compliance status and scoring information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.Status">
+            <summary>
+            Overall compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.Score">
+            <summary>
+            Compliance score (0-100, higher is better)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.StatusReason">
+            <summary>
+            Explanation of the compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.RegulatoryFrameworks">
+            <summary>
+            Regulatory frameworks the token complies with (e.g., "MICA", "SEC Reg D")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.Jurisdictions">
+            <summary>
+            Jurisdictions where the token is compliant (ISO country codes)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.LastReviewDate">
+            <summary>
+            Date of last compliance review
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.NextReviewDate">
+            <summary>
+            Date of next compliance review
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.AuditSources">
+            <summary>
+            Audit sources that have reviewed this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.RequiresKyc">
+            <summary>
+            KYC/AML requirements for token holders
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.AccreditedInvestorsOnly">
+            <summary>
+            Whether the token is restricted to accredited investors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.TransferRestrictions">
+            <summary>
+            Transfer restrictions that apply to this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.ComplianceScoring.MaxHolders">
+            <summary>
+            Maximum number of token holders allowed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness">
+            <summary>
+            Operational readiness attributes for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.IsContractVerified">
+            <summary>
+            Whether the token smart contract is verified on a block explorer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.VerificationUrl">
+            <summary>
+            Block explorer URL for contract verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.IsAudited">
+            <summary>
+            Whether the token has been audited by a third party
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.AuditReports">
+            <summary>
+            Audit report references
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.HasValidMetadata">
+            <summary>
+            Whether the token metadata is available and valid
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.MetadataUrl">
+            <summary>
+            Metadata URL (for standards like ARC3, ARC19)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.HasLiquidity">
+            <summary>
+            Whether the token has liquidity on DEXs
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.IsPausable">
+            <summary>
+            Whether the token contract is pausable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.IsUpgradeable">
+            <summary>
+            Whether the token contract is upgradeable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.HasMultisigControl">
+            <summary>
+            Whether the token has a multisig controller
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.SecurityFeatures">
+            <summary>
+            Security features enabled for the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.OperationalReadiness.SecurityIssues">
+            <summary>
+            Known vulnerabilities or security issues
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.AuditReference">
+            <summary>
+            Reference to a third-party audit report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.AuditReference.Auditor">
+            <summary>
+            Name of the auditing firm
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.AuditReference.AuditDate">
+            <summary>
+            Date when the audit was completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.AuditReference.ReportUrl">
+            <summary>
+            URL to the audit report
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.AuditReference.Result">
+            <summary>
+            Audit result summary (e.g., "Pass", "Pass with issues", "Fail")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.AuditReference.CriticalIssues">
+            <summary>
+            Number of critical issues found
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.AuditReference.HighIssues">
+            <summary>
+            Number of high severity issues found
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenRegistry.AuditReference.MediumIssues">
+            <summary>
+            Number of medium severity issues found
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenRegistry.ComplianceState">
+            <summary>
+            Compliance state taxonomy
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenRegistry.ComplianceState.Unknown">
+            <summary>
+            Compliance status is unknown or not yet evaluated
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenRegistry.ComplianceState.Pending">
+            <summary>
+            Compliance review is pending
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenRegistry.ComplianceState.Compliant">
+            <summary>
+            Token is compliant with relevant regulations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenRegistry.ComplianceState.NonCompliant">
+            <summary>
+            Token is non-compliant with relevant regulations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenRegistry.ComplianceState.Suspended">
+            <summary>
+            Compliance status is suspended pending review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenRegistry.ComplianceState.Exempt">
+            <summary>
+            Token is exempt from certain regulations
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.TokenStandards.GetTokenStandardsRequest">
@@ -16682,6 +17647,68 @@
             <param name="request">The audit log request with filters</param>
             <returns>Total count of matching entries</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository">
+            <summary>
+            Repository interface for token registry operations
+            </summary>
+            <remarks>
+            Provides data access methods for the token registry with filtering, pagination, and CRUD operations.
+            Designed to be implementation-agnostic (in-memory, database, etc.).
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository.ListTokensAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
+            <summary>
+            Lists tokens in the registry with optional filtering and pagination
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>List of matching token registry entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository.GetTokenByIdAsync(System.String,System.String)">
+            <summary>
+            Gets a single token by its unique identifier
+            </summary>
+            <param name="id">Registry ID, token identifier, or symbol</param>
+            <param name="chain">Optional chain filter for disambiguation</param>
+            <returns>The token registry entry if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository.GetTokenByIdentifierAsync(System.String,System.String)">
+            <summary>
+            Gets a token by its blockchain token identifier and chain
+            </summary>
+            <param name="tokenIdentifier">The blockchain token identifier (asset ID or contract address)</param>
+            <param name="chain">The blockchain network</param>
+            <returns>The token registry entry if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository.UpsertTokenAsync(BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest,System.String)">
+            <summary>
+            Creates or updates a token registry entry
+            </summary>
+            <param name="request">The token data to upsert</param>
+            <param name="createdBy">Address of the user creating/updating the entry</param>
+            <returns>Response indicating success and whether a new entry was created</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository.DeleteTokenAsync(System.String)">
+            <summary>
+            Deletes a token registry entry
+            </summary>
+            <param name="id">The registry ID to delete</param>
+            <returns>True if deleted, false if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository.SearchTokensAsync(System.String,System.Int32)">
+            <summary>
+            Searches for tokens by name or symbol
+            </summary>
+            <param name="searchTerm">The search term</param>
+            <param name="limit">Maximum number of results</param>
+            <returns>List of matching tokens</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository.GetTokenCountAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
+            <summary>
+            Gets the total count of tokens matching the filter criteria
+            </summary>
+            <param name="request">Filter parameters</param>
+            <returns>Total count of matching tokens</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IWebhookRepository">
             <summary>
             Repository interface for webhook operations
@@ -17094,6 +18121,42 @@
             <summary>
             Gets the total count of token issuance audit log entries matching the filter
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.TokenRegistryRepository">
+            <summary>
+            In-memory repository implementation for token registry
+            </summary>
+            <remarks>
+            Uses thread-safe concurrent collections for production-grade concurrency.
+            Can be replaced with a database-backed implementation without API changes.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.TokenRegistryRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.TokenRegistryRepository"/> class
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.ListTokensAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.GetTokenByIdAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.GetTokenByIdentifierAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.UpsertTokenAsync(BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.DeleteTokenAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.SearchTokensAsync(System.String,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.GetTokenCountAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Repositories.WebhookRepository">
             <summary>
@@ -19103,6 +20166,117 @@
             Remaining capacity (-1 for unlimited)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ITokenRegistryService">
+            <summary>
+            Service interface for token registry operations
+            </summary>
+            <remarks>
+            Provides business logic for token registry management, including validation,
+            normalization, and integration with external data sources.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenRegistryService.ListTokensAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
+            <summary>
+            Lists tokens in the registry with filtering and pagination
+            </summary>
+            <param name="request">Filter and pagination parameters</param>
+            <returns>Paginated list of tokens</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenRegistryService.GetTokenAsync(System.String,System.String)">
+            <summary>
+            Gets detailed information for a single token
+            </summary>
+            <param name="identifier">Token identifier (ID, asset ID, contract address, or symbol)</param>
+            <param name="chain">Optional chain filter</param>
+            <returns>Token details or error response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenRegistryService.UpsertTokenAsync(BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest,System.String)">
+            <summary>
+            Creates or updates a token in the registry
+            </summary>
+            <param name="request">Token data</param>
+            <param name="createdBy">User address</param>
+            <returns>Upsert result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenRegistryService.SearchTokensAsync(System.String,System.Int32)">
+            <summary>
+            Searches for tokens by name or symbol
+            </summary>
+            <param name="searchTerm">Search term</param>
+            <param name="limit">Maximum results</param>
+            <returns>List of matching tokens</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenRegistryService.ValidateTokenAsync(BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry)">
+            <summary>
+            Validates a token registry entry
+            </summary>
+            <param name="entry">The entry to validate</param>
+            <returns>Validation result with any errors or warnings</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IRegistryIngestionService">
+            <summary>
+            Service interface for ingesting token data from external sources
+            </summary>
+            <remarks>
+            Handles data normalization, validation, and idempotent processing of token data
+            from internal and external registry sources.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IRegistryIngestionService.IngestAsync(BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest)">
+            <summary>
+            Ingests token data from specified sources
+            </summary>
+            <param name="request">Ingestion parameters</param>
+            <returns>Ingestion result with statistics and anomalies</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IRegistryIngestionService.IngestInternalTokensAsync(System.String,System.Nullable{System.Int32})">
+            <summary>
+            Ingests tokens from internal token deployment records
+            </summary>
+            <param name="chain">Optional chain filter</param>
+            <param name="limit">Maximum number of tokens to ingest</param>
+            <returns>Number of tokens ingested</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IRegistryIngestionService.NormalizeTokenDataAsync(System.Object,System.String)">
+            <summary>
+            Normalizes token data from an external source
+            </summary>
+            <param name="rawData">Raw token data</param>
+            <param name="source">Data source identifier</param>
+            <returns>Normalized token registry entry</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IRegistryIngestionService.ValidateAndLogAnomaliesAsync(BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry)">
+            <summary>
+            Validates and logs anomalies in token data
+            </summary>
+            <param name="entry">Token entry to validate</param>
+            <returns>List of anomalies found</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.RegistryValidationResult">
+            <summary>
+            Validation result for token registry entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.RegistryValidationResult.IsValid">
+            <summary>
+            Whether the entry is valid
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.RegistryValidationResult.Errors">
+            <summary>
+            Validation errors (critical issues)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.RegistryValidationResult.Warnings">
+            <summary>
+            Validation warnings (non-critical issues)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.RegistryValidationResult.Info">
+            <summary>
+            Informational messages
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.ITokenStandardRegistry">
             <summary>
             Service for managing and retrieving token standard profiles
@@ -19392,6 +20566,32 @@
             <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
             <returns>The verification response with statuses and compliance disclosures</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.RegistryIngestionService">
+            <summary>
+            Service for ingesting token data from internal and external sources
+            </summary>
+            <remarks>
+            Handles data normalization, validation, and idempotent processing of token registry data.
+            Designed to be run on a schedule or triggered manually via API.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RegistryIngestionService.#ctor(BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository,BiatecTokensApi.Services.Interface.ITokenRegistryService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.RegistryIngestionService},BiatecTokensApi.Repositories.TokenIssuanceRepository,BiatecTokensApi.Repositories.ComplianceRepository)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.RegistryIngestionService"/> class
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RegistryIngestionService.IngestAsync(BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RegistryIngestionService.IngestInternalTokensAsync(System.String,System.Nullable{System.Int32})">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RegistryIngestionService.NormalizeTokenDataAsync(System.Object,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RegistryIngestionService.ValidateAndLogAnomaliesAsync(BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.SecurityActivityService">
             <summary>
             Service implementation for security activity and audit operations
@@ -19553,6 +20753,37 @@
             <inheritdoc/>
         </member>
         <member name="M:BiatecTokensApi.Services.SubscriptionTierService.GetTokenDeploymentCountAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="T:BiatecTokensApi.Services.TokenRegistryService">
+            <summary>
+            Service for token registry operations
+            </summary>
+            <remarks>
+            Provides business logic for managing the token registry, including validation,
+            filtering, and retrieval operations.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenRegistryService.#ctor(BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.TokenRegistryService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.TokenRegistryService"/> class
+            </summary>
+            <param name="repository">Token registry repository</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenRegistryService.ListTokensAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenRegistryService.GetTokenAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenRegistryService.UpsertTokenAsync(BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenRegistryService.SearchTokensAsync(System.String,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenRegistryService.ValidateTokenAsync(BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry)">
             <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.TokenStandardRegistry">

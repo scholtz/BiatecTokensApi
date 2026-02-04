@@ -193,5 +193,26 @@ namespace BiatecTokensApi.Models
         /// Token standard not supported
         /// </summary>
         public const string TOKEN_STANDARD_NOT_SUPPORTED = "TOKEN_STANDARD_NOT_SUPPORTED";
+
+        // Additional error codes for token registry
+        /// <summary>
+        /// Invalid request parameters
+        /// </summary>
+        public const string InvalidRequest = "INVALID_REQUEST";
+
+        /// <summary>
+        /// Validation failed
+        /// </summary>
+        public const string ValidationFailed = "VALIDATION_FAILED";
+
+        /// <summary>
+        /// Internal error occurred
+        /// </summary>
+        public const string InternalError = "INTERNAL_ERROR";
+
+        /// <summary>
+        /// Resource not found
+        /// </summary>
+        public const string NotFound = "NOT_FOUND";
     }
 }
