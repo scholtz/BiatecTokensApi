@@ -50,6 +50,18 @@ namespace BiatecTokensApi.HealthChecks
                     });
                 }
 
+                // If using a test/placeholder key, mark as degraded rather than failing
+                if (_config.SecretKey.Contains("test_key") || _config.SecretKey.Contains("placeholder"))
+                {
+                    _logger.LogInformation("Stripe using test/placeholder key, marking as degraded");
+                    return HealthCheckResult.Degraded("Stripe using test/placeholder API key", null, new Dictionary<string, object>
+                    {
+                        { "configured", true },
+                        { "mode", "test-placeholder" },
+                        { "message", "Using test or placeholder API key" }
+                    });
+                }
+
                 // Set the API key for this health check
                 StripeConfiguration.ApiKey = _config.SecretKey;
 
