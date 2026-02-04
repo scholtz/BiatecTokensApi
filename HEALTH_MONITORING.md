@@ -415,8 +415,8 @@ Support Email: support@biatec.io
 
 **Health Status Indicators:**
 - **Healthy**: API is reachable, authenticated, and responsive
-- **Degraded**: API configured but experiencing issues (slow response, intermittent failures)
-- **Unhealthy**: API key invalid, not configured, or service unreachable
+- **Degraded**: API key not configured, is a test/placeholder value, or experiencing issues
+- **Unhealthy**: API key configured with real credentials but service is unreachable or authentication failed
 
 **Response Data:**
 ```json

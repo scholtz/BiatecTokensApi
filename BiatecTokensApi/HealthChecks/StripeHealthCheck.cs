@@ -53,8 +53,9 @@ namespace BiatecTokensApi.HealthChecks
                 // If using a test/placeholder key, mark as degraded rather than failing
                 // Stripe uses standard key prefixes: sk_test_ for test mode, sk_live_ for live mode
                 // Also handle generic test/placeholder values for development/testing
+                // Note: We check for exact matches or obvious placeholders, not just "test" substring
                 bool isTestPlaceholder = _config.SecretKey.Equals("test_key", StringComparison.OrdinalIgnoreCase) ||
-                                        _config.SecretKey.Contains("placeholder", StringComparison.OrdinalIgnoreCase) ||
+                                        _config.SecretKey.Equals("placeholder", StringComparison.OrdinalIgnoreCase) ||
                                         _config.SecretKey.Equals("test", StringComparison.OrdinalIgnoreCase);
                 
                 if (isTestPlaceholder)
