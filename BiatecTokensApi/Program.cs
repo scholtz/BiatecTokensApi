@@ -125,6 +125,11 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository, BiatecTokensApi.Repositories.DeploymentStatusRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceReportRepository, BiatecTokensApi.Repositories.ComplianceReportRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository, BiatecTokensApi.Repositories.SecurityActivityRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository, BiatecTokensApi.Repositories.TokenRegistryRepository>();
+
+            // Also register non-interface repositories for ingestion service
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.TokenIssuanceRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.ComplianceRepository>();
 
             // Register metering service
             builder.Services.AddSingleton<ISubscriptionMeteringService, SubscriptionMeteringService>();
@@ -153,6 +158,8 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<ISecurityActivityService, SecurityActivityService>();
             builder.Services.AddSingleton<ITokenStandardRegistry, TokenStandardRegistry>();
             builder.Services.AddSingleton<ITokenStandardValidator, TokenStandardValidator>();
+            builder.Services.AddSingleton<ITokenRegistryService, TokenRegistryService>();
+            builder.Services.AddSingleton<IRegistryIngestionService, RegistryIngestionService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
