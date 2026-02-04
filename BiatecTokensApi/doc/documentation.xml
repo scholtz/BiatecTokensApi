@@ -4175,6 +4175,26 @@
             <param name="cancellationToken">Cancellation token</param>
             <returns>Health check result</returns>
         </member>
+        <member name="T:BiatecTokensApi.HealthChecks.StripeHealthCheck">
+            <summary>
+            Health check for Stripe API availability and connectivity
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.StripeHealthCheck.#ctor(Microsoft.Extensions.Options.IOptions{BiatecTokensApi.Configuration.StripeConfig},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.HealthChecks.StripeHealthCheck})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.HealthChecks.StripeHealthCheck"/> class.
+            </summary>
+            <param name="config">Stripe configuration</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.HealthChecks.StripeHealthCheck.CheckHealthAsync(Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext,System.Threading.CancellationToken)">
+            <summary>
+            Checks the health of the Stripe API connection
+            </summary>
+            <param name="context">Health check context</param>
+            <param name="cancellationToken">Cancellation token</param>
+            <returns>Health check result</returns>
+        </member>
         <member name="T:BiatecTokensApi.Helpers.ErrorResponseBuilder">
             <summary>
             Helper class for building consistent error responses across the API
