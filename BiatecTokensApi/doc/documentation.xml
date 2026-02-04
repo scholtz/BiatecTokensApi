@@ -2626,6 +2626,58 @@
             <param name="correlationId">The correlation ID to add</param>
             <returns>The enhanced action result</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.TokenStandardsController">
+            <summary>
+            Controller for token standard compliance and validation endpoints
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenStandardsController.#ctor(BiatecTokensApi.Services.Interface.ITokenStandardRegistry,BiatecTokensApi.Services.Interface.ITokenStandardValidator,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenStandardsController})">
+            <summary>
+            Initializes a new instance of the TokenStandardsController
+            </summary>
+            <param name="registry">Token standard registry service</param>
+            <param name="validator">Token standard validator service</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenStandardsController.GetStandards(BiatecTokensApi.Models.TokenStandards.GetTokenStandardsRequest)">
+            <summary>
+            Gets all supported token standards and their requirements
+            </summary>
+            <param name="request">Optional filters for standard retrieval</param>
+            <returns>List of supported token standard profiles</returns>
+            <remarks>
+            This endpoint returns a comprehensive list of all supported token standards,
+            including their version, required fields, optional fields, and validation rules.
+            Use this endpoint to discover what standards are available and what fields are
+            required for each standard when creating tokens.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenStandardsController.GetStandard(BiatecTokensApi.Models.TokenStandards.TokenStandard)">
+            <summary>
+            Gets details for a specific token standard
+            </summary>
+            <param name="standard">The token standard to retrieve</param>
+            <returns>Token standard profile details</returns>
+            <remarks>
+            Returns detailed information about a specific token standard, including all
+            required and optional fields, validation rules, and example metadata.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenStandardsController.ValidateMetadata(BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest)">
+            <summary>
+            Validates token metadata against a specified standard (preflight validation)
+            </summary>
+            <param name="request">Validation request with metadata and standard</param>
+            <returns>Validation result with any errors or warnings</returns>
+            <remarks>
+            This endpoint performs preflight validation of token metadata against a specified
+            standard without creating a token. Use this to validate metadata before submitting
+            a full token creation request. The response includes detailed error messages and
+            field-specific validation feedback.
+            
+            **Performance:** Target p95 latency is under 200ms for typical payloads.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.WebhookController">
             <summary>
             Provides endpoints for managing compliance webhook subscriptions
@@ -11016,6 +11068,36 @@
             Recovery cooldown active
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.METADATA_VALIDATION_FAILED">
+            <summary>
+            Token metadata validation failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_TOKEN_STANDARD">
+            <summary>
+            Invalid token standard specified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.REQUIRED_METADATA_FIELD_MISSING">
+            <summary>
+            Required metadata field missing
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.METADATA_FIELD_TYPE_MISMATCH">
+            <summary>
+            Metadata field type mismatch
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.METADATA_FIELD_VALIDATION_FAILED">
+            <summary>
+            Metadata field validation failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.TOKEN_STANDARD_NOT_SUPPORTED">
+            <summary>
+            Token standard not supported
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
             <summary>
             Represents the response of an Ethereum Virtual Machine (EVM) token deployment operation.
@@ -12600,6 +12682,41 @@
             Correlation ID for related events
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.TokenStandard">
+            <summary>
+            Token standard profile used for validation (e.g., "ARC3", "ERC20", "Baseline")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.StandardVersion">
+            <summary>
+            Version of the token standard profile used
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationPerformed">
+            <summary>
+            Whether metadata validation was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationStatus">
+            <summary>
+            Result of metadata validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationErrors">
+            <summary>
+            Validation error messages if validation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationWarnings">
+            <summary>
+            Validation warning messages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenIssuanceAuditLogEntry.ValidationTimestamp">
+            <summary>
+            Timestamp when validation was performed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest">
             <summary>
             Request to retrieve token issuance audit logs with filtering
@@ -12653,6 +12770,436 @@
         <member name="P:BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest.PageSize">
             <summary>
             Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.GetTokenStandardsRequest">
+            <summary>
+            Request for standards discovery endpoint
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.GetTokenStandardsRequest.ActiveOnly">
+            <summary>
+            Optional filter to only return active standards
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.GetTokenStandardsRequest.Standard">
+            <summary>
+            Optional filter by specific standard
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.GetTokenStandardsResponse">
+            <summary>
+            Response containing list of supported token standards
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.GetTokenStandardsResponse.Standards">
+            <summary>
+            List of available token standard profiles
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.GetTokenStandardsResponse.TotalCount">
+            <summary>
+            Total number of standards available
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest">
+            <summary>
+            Request to validate token metadata against a standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest.Standard">
+            <summary>
+            Token standard to validate against
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest.Metadata">
+            <summary>
+            Token metadata as JSON object
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest.TokenType">
+            <summary>
+            Token type (optional, for context)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest.Name">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest.Symbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest.Decimals">
+            <summary>
+            Number of decimals
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest.TotalSupply">
+            <summary>
+            Total supply
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse">
+            <summary>
+            Response from metadata validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse.IsValid">
+            <summary>
+            Whether validation passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse.ValidationResult">
+            <summary>
+            Validation result details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse.ErrorCode">
+            <summary>
+            Error code if validation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse.Message">
+            <summary>
+            Human-readable message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracking
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.TokenStandard">
+            <summary>
+            Enumeration of supported token standards for validation and compliance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenStandard.Baseline">
+            <summary>
+            Baseline standard with minimal validation requirements
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenStandard.ARC3">
+            <summary>
+            ARC-3 standard for Algorand tokens with rich metadata
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenStandard.ARC19">
+            <summary>
+            ARC-19 standard for Algorand tokens with on-chain metadata
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenStandard.ARC69">
+            <summary>
+            ARC-69 standard for Algorand tokens with simplified metadata
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenStandard.ERC20">
+            <summary>
+            ERC-20 standard for Ethereum-compatible tokens
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile">
+            <summary>
+            Token standard profile defining validation rules and requirements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.Id">
+            <summary>
+            Unique identifier for the standard profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.Name">
+            <summary>
+            Display name of the standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.Version">
+            <summary>
+            Version of the standard profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.Description">
+            <summary>
+            Human-readable description of the standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.Standard">
+            <summary>
+            Token standard enumeration value
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.RequiredFields">
+            <summary>
+            List of required metadata fields for this standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.OptionalFields">
+            <summary>
+            List of optional metadata fields for this standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.ValidationRules">
+            <summary>
+            Validation rules for this standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.IsActive">
+            <summary>
+            Whether this profile is currently active and available for use
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.ExampleJson">
+            <summary>
+            Example metadata JSON for this standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenStandardProfile.SpecificationUrl">
+            <summary>
+            External reference URL for standard specification
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition">
+            <summary>
+            Definition of a metadata field for a token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.Name">
+            <summary>
+            Field name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.DataType">
+            <summary>
+            Expected data type (string, number, boolean, object, array)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.Description">
+            <summary>
+            Human-readable description of the field
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.DefaultValue">
+            <summary>
+            Default value if not provided (for optional fields)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.ValidationPattern">
+            <summary>
+            Regular expression pattern for validation (for string types)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.MinValue">
+            <summary>
+            Minimum value (for numeric types)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.MaxValue">
+            <summary>
+            Maximum value (for numeric types)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.MaxLength">
+            <summary>
+            Maximum length (for string types)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition.IsRequired">
+            <summary>
+            Whether this field is required
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.ValidationRule">
+            <summary>
+            Validation rule for token standard compliance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationRule.Id">
+            <summary>
+            Unique identifier for the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationRule.Name">
+            <summary>
+            Human-readable name of the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationRule.Description">
+            <summary>
+            Description of what this rule validates
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationRule.ErrorMessage">
+            <summary>
+            Error message to display when validation fails
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationRule.ErrorCode">
+            <summary>
+            Error code for programmatic handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationRule.Severity">
+            <summary>
+            Severity level of the validation rule
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity">
+            <summary>
+            Severity levels for token validation rules
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity.Info">
+            <summary>
+            Informational message, does not prevent token creation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity.Warning">
+            <summary>
+            Warning message, may indicate potential issues
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.TokenValidationSeverity.Error">
+            <summary>
+            Error that must be fixed before token creation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.TokenValidationResult">
+            <summary>
+            Result of token metadata validation against a standard profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenValidationResult.IsValid">
+            <summary>
+            Whether the validation passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenValidationResult.Standard">
+            <summary>
+            Token standard that was validated against
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenValidationResult.StandardVersion">
+            <summary>
+            Version of the standard profile used for validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenValidationResult.Errors">
+            <summary>
+            List of validation errors encountered
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenValidationResult.Warnings">
+            <summary>
+            List of validation warnings
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenValidationResult.ValidatedAt">
+            <summary>
+            Timestamp when validation was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.TokenValidationResult.Message">
+            <summary>
+            Summary message describing validation status
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.ValidationError">
+            <summary>
+            Individual validation error or warning
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationError.Code">
+            <summary>
+            Error code for programmatic handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationError.Field">
+            <summary>
+            Field name that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationError.Message">
+            <summary>
+            Human-readable error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationError.Severity">
+            <summary>
+            Severity level
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidationError.Details">
+            <summary>
+            Additional context about the error
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata">
+            <summary>
+            Token metadata with validation status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata.Standard">
+            <summary>
+            Selected token standard profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata.StandardVersion">
+            <summary>
+            Version of the standard profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata.Status">
+            <summary>
+            Current validation status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata.LastValidatedAt">
+            <summary>
+            Last validation timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata.ValidationMessage">
+            <summary>
+            Validation result message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata.CorrelationId">
+            <summary>
+            Correlation ID for tracking validation through logs
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenStandards.ValidationStatus">
+            <summary>
+            Validation status enumeration
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationStatus.NotValidated">
+            <summary>
+            Not yet validated
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationStatus.Validating">
+            <summary>
+            Validation in progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationStatus.Valid">
+            <summary>
+            Validation passed successfully
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationStatus.Invalid">
+            <summary>
+            Validation failed with errors
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenStandards.ValidationStatus.ValidWithWarnings">
+            <summary>
+            Validation passed with warnings
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.TokenType">
@@ -17681,6 +18228,77 @@
             Remaining capacity (-1 for unlimited)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ITokenStandardRegistry">
+            <summary>
+            Service for managing and retrieving token standard profiles
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardRegistry.GetAllStandardsAsync(System.Boolean)">
+            <summary>
+            Gets all available token standard profiles
+            </summary>
+            <param name="activeOnly">If true, only returns active profiles</param>
+            <returns>List of token standard profiles</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardRegistry.GetStandardProfileAsync(BiatecTokensApi.Models.TokenStandards.TokenStandard)">
+            <summary>
+            Gets a specific token standard profile by standard type
+            </summary>
+            <param name="standard">The token standard to retrieve</param>
+            <returns>Token standard profile or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardRegistry.GetDefaultStandardAsync">
+            <summary>
+            Gets the default token standard for backward compatibility
+            </summary>
+            <returns>Default token standard profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardRegistry.IsStandardSupportedAsync(BiatecTokensApi.Models.TokenStandards.TokenStandard)">
+            <summary>
+            Checks if a token standard is supported
+            </summary>
+            <param name="standard">The token standard to check</param>
+            <returns>True if supported, false otherwise</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ITokenStandardValidator">
+            <summary>
+            Service for validating token metadata against standards
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardValidator.ValidateAsync(BiatecTokensApi.Models.TokenStandards.TokenStandard,System.Object,System.String,System.String,System.Nullable{System.Int32})">
+            <summary>
+            Validates token metadata against a specified standard profile
+            </summary>
+            <param name="standard">The token standard to validate against</param>
+            <param name="metadata">The metadata object to validate</param>
+            <param name="tokenName">Optional token name for context</param>
+            <param name="tokenSymbol">Optional token symbol for context</param>
+            <param name="decimals">Optional decimals for context</param>
+            <returns>Validation result with errors and warnings</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardValidator.ValidateRequiredFieldsAsync(BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Object)">
+            <summary>
+            Validates that required fields are present
+            </summary>
+            <param name="profile">The standard profile to validate against</param>
+            <param name="metadata">The metadata object to validate</param>
+            <returns>List of validation errors for missing required fields</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardValidator.ValidateFieldTypesAsync(BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Object)">
+            <summary>
+            Validates field types and constraints
+            </summary>
+            <param name="profile">The standard profile to validate against</param>
+            <param name="metadata">The metadata object to validate</param>
+            <returns>List of validation errors for field type mismatches</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenStandardValidator.SupportsStandard(BiatecTokensApi.Models.TokenStandards.TokenStandard)">
+            <summary>
+            Checks if the validator supports a given standard
+            </summary>
+            <param name="standard">The token standard to check</param>
+            <returns>True if supported, false otherwise</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IWebhookService">
             <summary>
             Service interface for webhook operations
@@ -18061,6 +18679,144 @@
         </member>
         <member name="M:BiatecTokensApi.Services.SubscriptionTierService.GetTokenDeploymentCountAsync(System.String)">
             <inheritdoc/>
+        </member>
+        <member name="T:BiatecTokensApi.Services.TokenStandardRegistry">
+            <summary>
+            Registry service for managing token standard profiles
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.TokenStandardRegistry})">
+            <summary>
+            Initializes a new instance of the TokenStandardRegistry
+            </summary>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.GetAllStandardsAsync(System.Boolean)">
+            <summary>
+            Gets all available token standard profiles
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.GetStandardProfileAsync(BiatecTokensApi.Models.TokenStandards.TokenStandard)">
+            <summary>
+            Gets a specific token standard profile by standard type
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.GetDefaultStandardAsync">
+            <summary>
+            Gets the default token standard for backward compatibility
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.IsStandardSupportedAsync(BiatecTokensApi.Models.TokenStandards.TokenStandard)">
+            <summary>
+            Checks if a token standard is supported
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.InitializeStandardProfiles">
+            <summary>
+            Initializes all supported token standard profiles
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.CreateBaselineProfile">
+            <summary>
+            Creates the Baseline standard profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.CreateARC3Profile">
+            <summary>
+            Creates the ARC-3 standard profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.CreateARC19Profile">
+            <summary>
+            Creates the ARC-19 standard profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.CreateARC69Profile">
+            <summary>
+            Creates the ARC-69 standard profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardRegistry.CreateERC20Profile">
+            <summary>
+            Creates the ERC-20 standard profile
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.TokenStandardValidator">
+            <summary>
+            Service for validating token metadata against standards
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.TokenStandardValidator},BiatecTokensApi.Services.Interface.ITokenStandardRegistry)">
+            <summary>
+            Initializes a new instance of the TokenStandardValidator
+            </summary>
+            <param name="logger">Logger instance</param>
+            <param name="registry">Token standard registry</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ValidateAsync(BiatecTokensApi.Models.TokenStandards.TokenStandard,System.Object,System.String,System.String,System.Nullable{System.Int32})">
+            <summary>
+            Validates token metadata against a specified standard profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ValidateRequiredFieldsAsync(BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Object)">
+            <summary>
+            Validates that required fields are present
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ValidateFieldTypesAsync(BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Object)">
+            <summary>
+            Validates field types and constraints
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.SupportsStandard(BiatecTokensApi.Models.TokenStandards.TokenStandard)">
+            <summary>
+            Checks if the validator supports a given standard
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ValidateRequiredFieldsInternal(BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Internal method to validate required fields
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ValidateFieldTypesInternal(BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Internal method to validate field types and constraints
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ValidateFieldValue(BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition,System.Object)">
+            <summary>
+            Validates a single field value against its definition
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ValidateCustomRulesAsync(BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Validates custom rules from the standard profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ApplyCustomRule(BiatecTokensApi.Models.TokenStandards.ValidationRule,BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Applies a custom validation rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.ConvertToDictionary(System.Object)">
+            <summary>
+            Converts metadata object to dictionary
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.GetValueType(System.Object)">
+            <summary>
+            Gets the type name of a value
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.IsNumeric(System.Object)">
+            <summary>
+            Checks if a value is numeric
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenStandardValidator.IsTypeCompatible(System.String,System.String,System.Object)">
+            <summary>
+            Checks if actual type is compatible with expected type
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.WebhookService">
             <summary>

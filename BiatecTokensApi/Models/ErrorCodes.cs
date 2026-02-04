@@ -162,5 +162,36 @@ namespace BiatecTokensApi.Models
         /// Recovery cooldown active
         /// </summary>
         public const string RECOVERY_COOLDOWN_ACTIVE = "RECOVERY_COOLDOWN_ACTIVE";
+
+        // Token Standard Validation errors
+        /// <summary>
+        /// Token metadata validation failed
+        /// </summary>
+        public const string METADATA_VALIDATION_FAILED = "METADATA_VALIDATION_FAILED";
+        
+        /// <summary>
+        /// Invalid token standard specified
+        /// </summary>
+        public const string INVALID_TOKEN_STANDARD = "INVALID_TOKEN_STANDARD";
+        
+        /// <summary>
+        /// Required metadata field missing
+        /// </summary>
+        public const string REQUIRED_METADATA_FIELD_MISSING = "REQUIRED_METADATA_FIELD_MISSING";
+        
+        /// <summary>
+        /// Metadata field type mismatch
+        /// </summary>
+        public const string METADATA_FIELD_TYPE_MISMATCH = "METADATA_FIELD_TYPE_MISMATCH";
+        
+        /// <summary>
+        /// Metadata field validation failed
+        /// </summary>
+        public const string METADATA_FIELD_VALIDATION_FAILED = "METADATA_FIELD_VALIDATION_FAILED";
+        
+        /// <summary>
+        /// Token standard not supported
+        /// </summary>
+        public const string TOKEN_STANDARD_NOT_SUPPORTED = "TOKEN_STANDARD_NOT_SUPPORTED";
     }
 }

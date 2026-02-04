@@ -149,6 +149,8 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IDeploymentStatusService, DeploymentStatusService>();
             builder.Services.AddSingleton<IComplianceReportService, ComplianceReportService>();
             builder.Services.AddSingleton<ISecurityActivityService, SecurityActivityService>();
+            builder.Services.AddSingleton<ITokenStandardRegistry, TokenStandardRegistry>();
+            builder.Services.AddSingleton<ITokenStandardValidator, TokenStandardValidator>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
