@@ -1462,11 +1462,12 @@
             status history and audit trail. Supports filtering and pagination for deployment queries.
             </remarks>
         </member>
-        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.#ctor(BiatecTokensApi.Services.Interface.IDeploymentStatusService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.DeploymentStatusController})">
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.#ctor(BiatecTokensApi.Services.Interface.IDeploymentStatusService,BiatecTokensApi.Services.Interface.IDeploymentAuditService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.DeploymentStatusController})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.DeploymentStatusController"/> class.
             </summary>
             <param name="deploymentStatusService">The deployment status service</param>
+            <param name="auditService">The deployment audit service</param>
             <param name="logger">The logger instance</param>
         </member>
         <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.GetDeploymentStatus(System.String)">
@@ -1553,6 +1554,60 @@
             **Restrictions:**
             - Only deployments in Queued status can be cancelled
             - Submitted transactions cannot be cancelled (blockchain immutability)
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.ExportAuditTrail(System.String,System.String)">
+            <summary>
+            Exports audit trail for a specific deployment
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <param name="format">Export format (json or csv)</param>
+            <returns>Audit trail in requested format</returns>
+            <remarks>
+            Exports complete audit trail for a deployment including:
+            - All status transitions with timestamps
+            - Compliance checks performed
+            - Error details if applicable
+            - Transaction information
+            - Duration metrics
+            
+            **Use Cases:**
+            - Regulatory compliance reporting
+            - Incident investigation
+            - Performance analysis
+            - Customer support documentation
+            
+            **Formats:**
+            - JSON: Full structured data with nested objects
+            - CSV: Flattened data suitable for spreadsheet analysis
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.DeploymentStatusController.ExportAuditTrails(BiatecTokensApi.Models.AuditExportRequest)">
+            <summary>
+            Exports audit trails for multiple deployments
+            </summary>
+            <param name="request">Export request with filters</param>
+            <returns>Audit trails in requested format</returns>
+            <remarks>
+            Exports audit trails for multiple deployments with filtering and pagination.
+            Supports idempotency through the X-Idempotency-Key header for large exports.
+            
+            **Use Cases:**
+            - Bulk compliance reporting
+            - Historical analysis
+            - Data migration
+            - Backup and archival
+            
+            **Idempotency:**
+            - Include X-Idempotency-Key header for large exports
+            - Results are cached for 1 hour
+            - Repeated requests with same key return cached results
+            - Key must be unique per unique request parameters
+            
+            **Pagination:**
+            - Default: 100 records per page
+            - Maximum: 1000 records per page
+            - Use multiple requests for larger datasets
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Controllers.EnterpriseAuditController">
@@ -4923,6 +4978,195 @@
             <remarks>
             This model extends the base token deployment request with additional properties specific to fractional non-fungible tokens.
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditExportFormat">
+            <summary>
+            Export format for audit trails
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditExportFormat.Json">
+            <summary>
+            JSON format with full details
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.AuditExportFormat.Csv">
+            <summary>
+            CSV format for spreadsheet import
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.DeploymentAuditTrail">
+            <summary>
+            Complete audit trail for a deployment
+            </summary>
+            <remarks>
+            Provides comprehensive deployment information for compliance reporting,
+            including all status transitions, compliance checks, and timing information.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.DeploymentId">
+            <summary>
+            Unique identifier for the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TokenType">
+            <summary>
+            Token type being deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TokenName">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TokenSymbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.Network">
+            <summary>
+            Network where the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.DeployedBy">
+            <summary>
+            Address of the user who initiated the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.AssetIdentifier">
+            <summary>
+            Asset ID or contract address (if deployment succeeded)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TransactionHash">
+            <summary>
+            Transaction hash (if submitted to blockchain)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.CurrentStatus">
+            <summary>
+            Current status of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.CreatedAt">
+            <summary>
+            Timestamp when deployment was initiated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.UpdatedAt">
+            <summary>
+            Timestamp when deployment was last updated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.StatusHistory">
+            <summary>
+            Complete history of status transitions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.ComplianceSummary">
+            <summary>
+            Summary of compliance checks performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.TotalDurationMs">
+            <summary>
+            Total duration of deployment in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.DeploymentAuditTrail.ErrorSummary">
+            <summary>
+            Error summary if deployment failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditExportRequest">
+            <summary>
+            Request to export audit trails
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Format">
+            <summary>
+            Export format (JSON or CSV)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.DeployedBy">
+            <summary>
+            Optional filter by deployed by address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.TokenType">
+            <summary>
+            Optional filter by token type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Status">
+            <summary>
+            Optional filter by current status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 100, max: 1000)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AuditExportResult">
+            <summary>
+            Result of an audit export operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.Success">
+            <summary>
+            Whether the export was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.Data">
+            <summary>
+            Exported data (JSON or CSV)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.Format">
+            <summary>
+            Format of the exported data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.RecordCount">
+            <summary>
+            Number of records included in the export
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.IsCached">
+            <summary>
+            Whether this result was returned from cache
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.GeneratedAt">
+            <summary>
+            Timestamp when the export was generated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AuditExportResult.ErrorMessage">
+            <summary>
+            Error message if the export failed
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse">
             <summary>
@@ -17488,6 +17732,40 @@
             <param name="metadata">The compliance metadata</param>
             <returns>True if the token should be treated as RWA, false for utility tokens</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.DeploymentAuditService">
+            <summary>
+            Service for exporting deployment audit trails in various formats
+            </summary>
+            <remarks>
+            Provides export functionality for compliance reporting and regulatory requirements.
+            Supports JSON and CSV formats with idempotent operations to handle large exports safely.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.#ctor(BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.DeploymentAuditService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.DeploymentAuditService"/> class.
+            </summary>
+            <param name="repository">The deployment status repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.ExportAuditTrailAsJsonAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as JSON
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.ExportAuditTrailAsCsvAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as CSV
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.DeploymentAuditService.ExportAuditTrailsAsync(BiatecTokensApi.Models.AuditExportRequest,System.String)">
+            <summary>
+            Exports audit trails for multiple deployments with idempotency support
+            </summary>
+            <param name="request">Export request with filters</param>
+            <param name="idempotencyKey">Optional idempotency key for large exports</param>
+            <returns>Export result with data or cache reference</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.DeploymentStatusService">
             <summary>
             Service for managing deployment status tracking and state transitions
@@ -18226,6 +18504,33 @@
             Provides insights into compliance posture improvement or degradation over time.
             Includes whitelist adoption trends and overall compliance direction indicators.
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IDeploymentAuditService">
+            <summary>
+            Service interface for exporting deployment audit trails
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentAuditService.ExportAuditTrailAsJsonAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as JSON
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>JSON string containing the audit trail</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentAuditService.ExportAuditTrailAsCsvAsync(System.String)">
+            <summary>
+            Exports audit trail for a specific deployment as CSV
+            </summary>
+            <param name="deploymentId">The deployment ID</param>
+            <returns>CSV string containing the audit trail</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IDeploymentAuditService.ExportAuditTrailsAsync(BiatecTokensApi.Models.AuditExportRequest,System.String)">
+            <summary>
+            Exports audit trails for multiple deployments with idempotency support
+            </summary>
+            <param name="request">Export request with filters</param>
+            <param name="idempotencyKey">Optional idempotency key for large exports</param>
+            <returns>Export result with data or cache reference</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IDeploymentStatusService">
             <summary>

@@ -20,18 +20,22 @@ namespace BiatecTokensApi.Controllers
     public class DeploymentStatusController : ControllerBase
     {
         private readonly IDeploymentStatusService _deploymentStatusService;
+        private readonly IDeploymentAuditService _auditService;
         private readonly ILogger<DeploymentStatusController> _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DeploymentStatusController"/> class.
         /// </summary>
         /// <param name="deploymentStatusService">The deployment status service</param>
+        /// <param name="auditService">The deployment audit service</param>
         /// <param name="logger">The logger instance</param>
         public DeploymentStatusController(
             IDeploymentStatusService deploymentStatusService,
+            IDeploymentAuditService auditService,
             ILogger<DeploymentStatusController> logger)
         {
             _deploymentStatusService = deploymentStatusService;
+            _auditService = auditService;
             _logger = logger;
         }
 
@@ -307,6 +311,163 @@ namespace BiatecTokensApi.Controllers
                 {
                     success = false,
                     errorMessage = "An error occurred while cancelling the deployment"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports audit trail for a specific deployment
+        /// </summary>
+        /// <param name="deploymentId">The deployment ID</param>
+        /// <param name="format">Export format (json or csv)</param>
+        /// <returns>Audit trail in requested format</returns>
+        /// <remarks>
+        /// Exports complete audit trail for a deployment including:
+        /// - All status transitions with timestamps
+        /// - Compliance checks performed
+        /// - Error details if applicable
+        /// - Transaction information
+        /// - Duration metrics
+        /// 
+        /// **Use Cases:**
+        /// - Regulatory compliance reporting
+        /// - Incident investigation
+        /// - Performance analysis
+        /// - Customer support documentation
+        /// 
+        /// **Formats:**
+        /// - JSON: Full structured data with nested objects
+        /// - CSV: Flattened data suitable for spreadsheet analysis
+        /// </remarks>
+        [HttpGet("{deploymentId}/audit-trail")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK, "application/json")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK, "text/csv")]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ExportAuditTrail(
+            [FromRoute] string deploymentId,
+            [FromQuery] string format = "json")
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(deploymentId))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        errorMessage = "DeploymentId is required"
+                    });
+                }
+
+                // Validate format
+                if (format.ToLower() != "json" && format.ToLower() != "csv")
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        errorMessage = "Format must be 'json' or 'csv'"
+                    });
+                }
+
+                string data;
+                string contentType;
+                string fileName;
+
+                if (format.ToLower() == "json")
+                {
+                    data = await _auditService.ExportAuditTrailAsJsonAsync(deploymentId);
+                    contentType = "application/json";
+                    fileName = $"audit-trail-{deploymentId}.json";
+                }
+                else
+                {
+                    data = await _auditService.ExportAuditTrailAsCsvAsync(deploymentId);
+                    contentType = "text/csv";
+                    fileName = $"audit-trail-{deploymentId}.csv";
+                }
+
+                _logger.LogInformation("Exported audit trail: DeploymentId={DeploymentId}, Format={Format}, Size={Size}",
+                    LoggingHelper.SanitizeLogInput(deploymentId), format, data.Length);
+
+                return File(System.Text.Encoding.UTF8.GetBytes(data), contentType, fileName);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning("Deployment not found for audit trail: DeploymentId={DeploymentId}, Error={Error}",
+                    LoggingHelper.SanitizeLogInput(deploymentId), ex.Message);
+                return NotFound(new
+                {
+                    success = false,
+                    errorMessage = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting audit trail: DeploymentId={DeploymentId}",
+                    LoggingHelper.SanitizeLogInput(deploymentId));
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    errorMessage = "An error occurred while exporting the audit trail"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports audit trails for multiple deployments
+        /// </summary>
+        /// <param name="request">Export request with filters</param>
+        /// <returns>Audit trails in requested format</returns>
+        /// <remarks>
+        /// Exports audit trails for multiple deployments with filtering and pagination.
+        /// Supports idempotency through the X-Idempotency-Key header for large exports.
+        /// 
+        /// **Use Cases:**
+        /// - Bulk compliance reporting
+        /// - Historical analysis
+        /// - Data migration
+        /// - Backup and archival
+        /// 
+        /// **Idempotency:**
+        /// - Include X-Idempotency-Key header for large exports
+        /// - Results are cached for 1 hour
+        /// - Repeated requests with same key return cached results
+        /// - Key must be unique per unique request parameters
+        /// 
+        /// **Pagination:**
+        /// - Default: 100 records per page
+        /// - Maximum: 1000 records per page
+        /// - Use multiple requests for larger datasets
+        /// </remarks>
+        [HttpPost("audit-trail/export")]
+        [ProducesResponseType(typeof(AuditExportResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ExportAuditTrails([FromBody] AuditExportRequest request)
+        {
+            try
+            {
+                // Get idempotency key from header
+                var idempotencyKey = Request.Headers["X-Idempotency-Key"].FirstOrDefault();
+
+                var result = await _auditService.ExportAuditTrailsAsync(request, idempotencyKey);
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                _logger.LogInformation("Exported audit trails: Count={Count}, Format={Format}, Cached={Cached}",
+                    result.RecordCount, request.Format, result.IsCached);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting audit trails");
+                return StatusCode(StatusCodes.Status500InternalServerError, new AuditExportResult
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while exporting audit trails"
                 });
             }
         }
