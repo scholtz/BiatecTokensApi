@@ -56,6 +56,27 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="currentCount">Current number of whitelisted addresses</param>
         /// <returns>Remaining capacity (-1 for unlimited)</returns>
         Task<int> GetRemainingCapacityAsync(string userAddress, int currentCount);
+
+        /// <summary>
+        /// Checks if token deployment is allowed for the user's tier
+        /// </summary>
+        /// <param name="userAddress">The user's Algorand address</param>
+        /// <returns>True if token deployment is allowed</returns>
+        Task<bool> CanDeployTokenAsync(string userAddress);
+
+        /// <summary>
+        /// Records a token deployment for the user
+        /// </summary>
+        /// <param name="userAddress">The user's Algorand address</param>
+        /// <returns>True if deployment was recorded successfully</returns>
+        Task<bool> RecordTokenDeploymentAsync(string userAddress);
+
+        /// <summary>
+        /// Gets the token deployment count for the user
+        /// </summary>
+        /// <param name="userAddress">The user's Algorand address</param>
+        /// <returns>Number of token deployments</returns>
+        Task<int> GetTokenDeploymentCountAsync(string userAddress);
     }
 
     /// <summary>
