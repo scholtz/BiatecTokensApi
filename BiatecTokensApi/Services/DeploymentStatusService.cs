@@ -24,14 +24,26 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Valid status transitions in the deployment state machine
         /// </summary>
+        /// <remarks>
+        /// State Machine Flow:
+        /// Queued → Submitted → Pending → Confirmed → Indexed → Completed
+        ///   ↓         ↓          ↓          ↓          ↓         ↓
+        /// Failed ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← (from any non-terminal state)
+        ///   ↓
+        /// Queued (retry allowed)
+        /// 
+        /// Queued → Cancelled (user-initiated)
+        /// </remarks>
         private static readonly Dictionary<DeploymentStatus, List<DeploymentStatus>> ValidTransitions = new()
         {
-            { DeploymentStatus.Queued, new List<DeploymentStatus> { DeploymentStatus.Submitted, DeploymentStatus.Failed } },
+            { DeploymentStatus.Queued, new List<DeploymentStatus> { DeploymentStatus.Submitted, DeploymentStatus.Failed, DeploymentStatus.Cancelled } },
             { DeploymentStatus.Submitted, new List<DeploymentStatus> { DeploymentStatus.Pending, DeploymentStatus.Failed } },
             { DeploymentStatus.Pending, new List<DeploymentStatus> { DeploymentStatus.Confirmed, DeploymentStatus.Failed } },
-            { DeploymentStatus.Confirmed, new List<DeploymentStatus> { DeploymentStatus.Completed, DeploymentStatus.Failed } },
+            { DeploymentStatus.Confirmed, new List<DeploymentStatus> { DeploymentStatus.Indexed, DeploymentStatus.Completed, DeploymentStatus.Failed } },
+            { DeploymentStatus.Indexed, new List<DeploymentStatus> { DeploymentStatus.Completed, DeploymentStatus.Failed } },
             { DeploymentStatus.Completed, new List<DeploymentStatus>() }, // Terminal state
-            { DeploymentStatus.Failed, new List<DeploymentStatus> { DeploymentStatus.Queued } } // Allow retry from failed
+            { DeploymentStatus.Failed, new List<DeploymentStatus> { DeploymentStatus.Queued } }, // Allow retry from failed
+            { DeploymentStatus.Cancelled, new List<DeploymentStatus>() } // Terminal state
         };
 
         /// <summary>
@@ -278,6 +290,72 @@ namespace BiatecTokensApi.Services
 
             _logger.LogWarning("Deployment failed: DeploymentId={DeploymentId}, IsRetryable={IsRetryable}, Error={Error}",
                 deploymentId, isRetryable, errorMessage);
+        }
+
+        /// <summary>
+        /// Marks a deployment as failed with structured error details
+        /// </summary>
+        /// <param name="deploymentId">The deployment ID</param>
+        /// <param name="error">Structured error details</param>
+        /// <returns>Task representing the asynchronous operation</returns>
+        public async Task MarkDeploymentFailedAsync(string deploymentId, DeploymentError error)
+        {
+            var metadata = new Dictionary<string, object>
+            {
+                { "isRetryable", error.IsRetryable },
+                { "errorCategory", error.Category.ToString() },
+                { "errorCode", error.ErrorCode }
+            };
+
+            if (error.SuggestedRetryDelaySeconds.HasValue)
+            {
+                metadata["suggestedRetryDelaySeconds"] = error.SuggestedRetryDelaySeconds.Value;
+            }
+
+            await UpdateDeploymentStatusAsync(
+                deploymentId,
+                DeploymentStatus.Failed,
+                error.UserMessage,
+                errorMessage: error.TechnicalMessage,
+                metadata: metadata);
+
+            _logger.LogWarning("Deployment failed: DeploymentId={DeploymentId}, Category={Category}, Code={Code}, Retryable={Retryable}",
+                deploymentId, error.Category, error.ErrorCode, error.IsRetryable);
+        }
+
+        /// <summary>
+        /// Cancels a deployment (only allowed from Queued state)
+        /// </summary>
+        /// <param name="deploymentId">The deployment ID</param>
+        /// <param name="reason">Reason for cancellation</param>
+        /// <returns>True if cancelled successfully, false otherwise</returns>
+        public async Task<bool> CancelDeploymentAsync(string deploymentId, string reason)
+        {
+            var deployment = await _repository.GetDeploymentByIdAsync(deploymentId);
+            if (deployment == null)
+            {
+                _logger.LogWarning("Deployment not found for cancellation: DeploymentId={DeploymentId}", deploymentId);
+                return false;
+            }
+
+            // Can only cancel from Queued state
+            if (deployment.CurrentStatus != DeploymentStatus.Queued)
+            {
+                _logger.LogWarning("Cannot cancel deployment in status {Status}: DeploymentId={DeploymentId}",
+                    deployment.CurrentStatus, deploymentId);
+                return false;
+            }
+
+            await UpdateDeploymentStatusAsync(
+                deploymentId,
+                DeploymentStatus.Cancelled,
+                $"Cancelled by user: {reason}",
+                metadata: new Dictionary<string, object> { { "reason", reason } });
+
+            _logger.LogInformation("Deployment cancelled: DeploymentId={DeploymentId}, Reason={Reason}",
+                deploymentId, reason);
+
+            return true;
         }
 
         /// <summary>

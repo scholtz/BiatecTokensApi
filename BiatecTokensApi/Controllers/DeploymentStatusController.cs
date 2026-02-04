@@ -232,5 +232,83 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Cancels a pending deployment
+        /// </summary>
+        /// <param name="deploymentId">The deployment ID</param>
+        /// <param name="request">Cancellation request with reason</param>
+        /// <returns>Cancellation result</returns>
+        /// <remarks>
+        /// Cancels a deployment that is in Queued status. Once a deployment has been
+        /// submitted to the blockchain, it cannot be cancelled through this endpoint.
+        /// 
+        /// **Use Cases:**
+        /// - User changes mind before transaction submission
+        /// - User wants to modify parameters
+        /// - User realizes incorrect configuration
+        /// 
+        /// **Restrictions:**
+        /// - Only deployments in Queued status can be cancelled
+        /// - Submitted transactions cannot be cancelled (blockchain immutability)
+        /// </remarks>
+        [HttpPost("{deploymentId}/cancel")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CancelDeployment(
+            [FromRoute] string deploymentId,
+            [FromBody] CancelDeploymentRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(deploymentId))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        errorMessage = "DeploymentId is required"
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(request?.Reason))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        errorMessage = "Cancellation reason is required"
+                    });
+                }
+
+                var result = await _deploymentStatusService.CancelDeploymentAsync(deploymentId, request.Reason);
+
+                if (!result)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        errorMessage = "Deployment cannot be cancelled. It may not exist or may have already been submitted."
+                    });
+                }
+
+                _logger.LogInformation("Deployment cancelled: DeploymentId={DeploymentId}, Reason={Reason}",
+                    LoggingHelper.SanitizeLogInput(deploymentId), LoggingHelper.SanitizeLogInput(request.Reason));
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Deployment cancelled successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cancelling deployment: DeploymentId={DeploymentId}", LoggingHelper.SanitizeLogInput(deploymentId));
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    errorMessage = "An error occurred while cancelling the deployment"
+                });
+            }
+        }
     }
 }
