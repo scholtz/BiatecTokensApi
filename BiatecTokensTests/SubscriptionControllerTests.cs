@@ -344,5 +344,152 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region GetEntitlements Tests
+
+        [Test]
+        public async Task GetEntitlements_AuthenticatedUser_ReturnsEntitlements()
+        {
+            // Arrange
+            var entitlements = new SubscriptionEntitlements
+            {
+                Tier = SubscriptionTier.Premium,
+                MaxTokenDeployments = 100,
+                MaxWhitelistedAddresses = 1000,
+                AdvancedComplianceEnabled = true,
+                WebhooksEnabled = true,
+                SlaEnabled = true,
+                SlaUptimePercentage = 99.5
+            };
+
+            _stripeServiceMock
+                .Setup(x => x.GetEntitlementsAsync(TestUserAddress))
+                .ReturnsAsync(entitlements);
+
+            // Act
+            var result = await _controller.GetEntitlements();
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            Assert.That(okResult!.Value, Is.InstanceOf<SubscriptionEntitlementsResponse>());
+            var response = okResult.Value as SubscriptionEntitlementsResponse;
+            Assert.That(response!.Success, Is.True);
+            Assert.That(response.Entitlements, Is.Not.Null);
+            Assert.That(response.Entitlements!.Tier, Is.EqualTo(SubscriptionTier.Premium));
+            Assert.That(response.Entitlements.MaxTokenDeployments, Is.EqualTo(100));
+            Assert.That(response.Entitlements.WebhooksEnabled, Is.True);
+        }
+
+        [Test]
+        public async Task GetEntitlements_FreeTierUser_ReturnsFreeTierEntitlements()
+        {
+            // Arrange
+            var entitlements = new SubscriptionEntitlements
+            {
+                Tier = SubscriptionTier.Free,
+                MaxTokenDeployments = 1,
+                MaxWhitelistedAddresses = 10,
+                AdvancedComplianceEnabled = false,
+                WebhooksEnabled = false,
+                SlaEnabled = false
+            };
+
+            _stripeServiceMock
+                .Setup(x => x.GetEntitlementsAsync(TestUserAddress))
+                .ReturnsAsync(entitlements);
+
+            // Act
+            var result = await _controller.GetEntitlements();
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var response = okResult!.Value as SubscriptionEntitlementsResponse;
+            Assert.That(response!.Success, Is.True);
+            Assert.That(response.Entitlements!.Tier, Is.EqualTo(SubscriptionTier.Free));
+            Assert.That(response.Entitlements.MaxTokenDeployments, Is.EqualTo(1));
+            Assert.That(response.Entitlements.WebhooksEnabled, Is.False);
+        }
+
+        [Test]
+        public async Task GetEntitlements_EnterpriseTierUser_ReturnsUnlimitedEntitlements()
+        {
+            // Arrange
+            var entitlements = new SubscriptionEntitlements
+            {
+                Tier = SubscriptionTier.Enterprise,
+                MaxTokenDeployments = -1, // Unlimited
+                MaxWhitelistedAddresses = -1,
+                MaxAuditExports = -1,
+                AdvancedComplianceEnabled = true,
+                MultiJurisdictionEnabled = true,
+                CustomBrandingEnabled = true,
+                PrioritySupportEnabled = true,
+                WebhooksEnabled = true,
+                AuditExportsEnabled = true,
+                SlaEnabled = true,
+                SlaUptimePercentage = 99.9
+            };
+
+            _stripeServiceMock
+                .Setup(x => x.GetEntitlementsAsync(TestUserAddress))
+                .ReturnsAsync(entitlements);
+
+            // Act
+            var result = await _controller.GetEntitlements();
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            var okResult = result as OkObjectResult;
+            var response = okResult!.Value as SubscriptionEntitlementsResponse;
+            Assert.That(response!.Success, Is.True);
+            Assert.That(response.Entitlements!.Tier, Is.EqualTo(SubscriptionTier.Enterprise));
+            Assert.That(response.Entitlements.MaxTokenDeployments, Is.EqualTo(-1)); // Unlimited
+            Assert.That(response.Entitlements.PrioritySupportEnabled, Is.True);
+            Assert.That(response.Entitlements.SlaUptimePercentage, Is.EqualTo(99.9));
+        }
+
+        [Test]
+        public async Task GetEntitlements_UnauthenticatedUser_ReturnsUnauthorized()
+        {
+            // Arrange - remove authentication
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal() }
+            };
+
+            // Act
+            var result = await _controller.GetEntitlements();
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<UnauthorizedObjectResult>());
+            var unauthorizedResult = result as UnauthorizedObjectResult;
+            var response = unauthorizedResult!.Value as SubscriptionEntitlementsResponse;
+            Assert.That(response!.Success, Is.False);
+            Assert.That(response.ErrorMessage, Does.Contain("Authentication required"));
+        }
+
+        [Test]
+        public async Task GetEntitlements_ServiceThrowsException_ReturnsInternalServerError()
+        {
+            // Arrange
+            _stripeServiceMock
+                .Setup(x => x.GetEntitlementsAsync(TestUserAddress))
+                .ThrowsAsync(new Exception("Database connection failed"));
+
+            // Act
+            var result = await _controller.GetEntitlements();
+
+            // Assert
+            Assert.That(result, Is.InstanceOf<ObjectResult>());
+            var objectResult = result as ObjectResult;
+            Assert.That(objectResult!.StatusCode, Is.EqualTo(500));
+            var response = objectResult.Value as SubscriptionEntitlementsResponse;
+            Assert.That(response!.Success, Is.False);
+            Assert.That(response.ErrorMessage, Does.Contain("error"));
+        }
+
+        #endregion
     }
 }

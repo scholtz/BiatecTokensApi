@@ -334,5 +334,287 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region New Webhook Handler Tests
+
+        [Test]
+        public async Task GetEntitlements_FreeTier_ReturnsCorrectLimits()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var service = new StripeService(_configMock.Object, repository, _tierService, _loggerMock.Object);
+            
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Free,
+                Status = SubscriptionStatus.None
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act
+            var entitlements = await service.GetEntitlementsAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(entitlements.Tier, Is.EqualTo(SubscriptionTier.Free));
+            Assert.That(entitlements.MaxTokenDeployments, Is.EqualTo(1));
+            Assert.That(entitlements.MaxWhitelistedAddresses, Is.EqualTo(10));
+            Assert.That(entitlements.MaxComplianceReports, Is.EqualTo(1));
+            Assert.That(entitlements.AdvancedComplianceEnabled, Is.False);
+            Assert.That(entitlements.WebhooksEnabled, Is.False);
+            Assert.That(entitlements.AuditExportsEnabled, Is.False);
+            Assert.That(entitlements.MaxAuditExports, Is.EqualTo(0));
+            Assert.That(entitlements.SlaEnabled, Is.False);
+        }
+
+        [Test]
+        public async Task GetEntitlements_BasicTier_ReturnsCorrectLimits()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var service = new StripeService(_configMock.Object, repository, _tierService, _loggerMock.Object);
+            
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Basic,
+                Status = SubscriptionStatus.Active
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act
+            var entitlements = await service.GetEntitlementsAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(entitlements.Tier, Is.EqualTo(SubscriptionTier.Basic));
+            Assert.That(entitlements.MaxTokenDeployments, Is.EqualTo(10));
+            Assert.That(entitlements.MaxWhitelistedAddresses, Is.EqualTo(100));
+            Assert.That(entitlements.MaxComplianceReports, Is.EqualTo(10));
+            Assert.That(entitlements.AdvancedComplianceEnabled, Is.True);
+            Assert.That(entitlements.WebhooksEnabled, Is.True);
+            Assert.That(entitlements.AuditExportsEnabled, Is.True);
+            Assert.That(entitlements.MaxAuditExports, Is.EqualTo(5));
+            Assert.That(entitlements.SlaEnabled, Is.False);
+        }
+
+        [Test]
+        public async Task GetEntitlements_PremiumTier_ReturnsCorrectLimits()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var service = new StripeService(_configMock.Object, repository, _tierService, _loggerMock.Object);
+            
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Premium,
+                Status = SubscriptionStatus.Active
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act
+            var entitlements = await service.GetEntitlementsAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(entitlements.Tier, Is.EqualTo(SubscriptionTier.Premium));
+            Assert.That(entitlements.MaxTokenDeployments, Is.EqualTo(100));
+            Assert.That(entitlements.MaxWhitelistedAddresses, Is.EqualTo(1000));
+            Assert.That(entitlements.MaxComplianceReports, Is.EqualTo(100));
+            Assert.That(entitlements.AdvancedComplianceEnabled, Is.True);
+            Assert.That(entitlements.MultiJurisdictionEnabled, Is.True);
+            Assert.That(entitlements.CustomBrandingEnabled, Is.True);
+            Assert.That(entitlements.PrioritySupportEnabled, Is.True);
+            Assert.That(entitlements.WebhooksEnabled, Is.True);
+            Assert.That(entitlements.AuditExportsEnabled, Is.True);
+            Assert.That(entitlements.MaxAuditExports, Is.EqualTo(50));
+            Assert.That(entitlements.SlaEnabled, Is.True);
+            Assert.That(entitlements.SlaUptimePercentage, Is.EqualTo(99.5));
+        }
+
+        [Test]
+        public async Task GetEntitlements_EnterpriseTier_ReturnsUnlimitedLimits()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var service = new StripeService(_configMock.Object, repository, _tierService, _loggerMock.Object);
+            
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Enterprise,
+                Status = SubscriptionStatus.Active
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act
+            var entitlements = await service.GetEntitlementsAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(entitlements.Tier, Is.EqualTo(SubscriptionTier.Enterprise));
+            Assert.That(entitlements.MaxTokenDeployments, Is.EqualTo(-1)); // Unlimited
+            Assert.That(entitlements.MaxWhitelistedAddresses, Is.EqualTo(-1)); // Unlimited
+            Assert.That(entitlements.MaxComplianceReports, Is.EqualTo(-1)); // Unlimited
+            Assert.That(entitlements.AdvancedComplianceEnabled, Is.True);
+            Assert.That(entitlements.MultiJurisdictionEnabled, Is.True);
+            Assert.That(entitlements.CustomBrandingEnabled, Is.True);
+            Assert.That(entitlements.PrioritySupportEnabled, Is.True);
+            Assert.That(entitlements.WebhooksEnabled, Is.True);
+            Assert.That(entitlements.AuditExportsEnabled, Is.True);
+            Assert.That(entitlements.MaxAuditExports, Is.EqualTo(-1)); // Unlimited
+            Assert.That(entitlements.SlaEnabled, Is.True);
+            Assert.That(entitlements.SlaUptimePercentage, Is.EqualTo(99.9));
+        }
+
+        [Test]
+        public async Task GetEntitlements_NewUser_ReturnsFreeTierDefaults()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var service = new StripeService(_configMock.Object, repository, _tierService, _loggerMock.Object);
+
+            // Act - user with no subscription
+            var entitlements = await service.GetEntitlementsAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(entitlements.Tier, Is.EqualTo(SubscriptionTier.Free));
+            Assert.That(entitlements.MaxTokenDeployments, Is.EqualTo(1));
+            Assert.That(entitlements.ApiAccessEnabled, Is.True); // API access always enabled
+        }
+
+        [Test]
+        public async Task SubscriptionState_TracksPaymentFailures()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Premium,
+                Status = SubscriptionStatus.Active,
+                StripeSubscriptionId = TestSubscriptionId
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act - simulate payment failure
+            subscription.PaymentFailureCount = 1;
+            subscription.LastPaymentFailure = DateTime.UtcNow;
+            subscription.LastPaymentFailureReason = "Insufficient funds";
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Retrieve and verify
+            var retrieved = await repository.GetSubscriptionAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(retrieved, Is.Not.Null);
+            Assert.That(retrieved!.PaymentFailureCount, Is.EqualTo(1));
+            Assert.That(retrieved.LastPaymentFailure, Is.Not.Null);
+            Assert.That(retrieved.LastPaymentFailureReason, Is.EqualTo("Insufficient funds"));
+        }
+
+        [Test]
+        public async Task SubscriptionState_TracksDisputes()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Premium,
+                Status = SubscriptionStatus.Active,
+                StripeSubscriptionId = TestSubscriptionId
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act - simulate dispute
+            subscription.HasActiveDispute = true;
+            subscription.LastDisputeDate = DateTime.UtcNow;
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Retrieve and verify
+            var retrieved = await repository.GetSubscriptionAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(retrieved, Is.Not.Null);
+            Assert.That(retrieved!.HasActiveDispute, Is.True);
+            Assert.That(retrieved.LastDisputeDate, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task PaymentSuccess_ResetsFailureCounters()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Premium,
+                Status = SubscriptionStatus.PastDue,
+                StripeSubscriptionId = TestSubscriptionId,
+                PaymentFailureCount = 2,
+                LastPaymentFailure = DateTime.UtcNow.AddDays(-1),
+                LastPaymentFailureReason = "Card declined"
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act - simulate successful payment
+            subscription.PaymentFailureCount = 0;
+            subscription.LastPaymentFailure = null;
+            subscription.LastPaymentFailureReason = null;
+            subscription.Status = SubscriptionStatus.Active;
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Retrieve and verify
+            var retrieved = await repository.GetSubscriptionAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(retrieved, Is.Not.Null);
+            Assert.That(retrieved!.PaymentFailureCount, Is.EqualTo(0));
+            Assert.That(retrieved.LastPaymentFailure, Is.Null);
+            Assert.That(retrieved.LastPaymentFailureReason, Is.Null);
+            Assert.That(retrieved.Status, Is.EqualTo(SubscriptionStatus.Active));
+        }
+
+        [Test]
+        public async Task MultiplePaymentFailures_IncrementCounter()
+        {
+            // Arrange
+            var repoLoggerMock = new Mock<ILogger<SubscriptionRepository>>();
+            var repository = new SubscriptionRepository(repoLoggerMock.Object);
+            var subscription = new SubscriptionState
+            {
+                UserAddress = TestUserAddress,
+                Tier = SubscriptionTier.Basic,
+                Status = SubscriptionStatus.Active,
+                StripeSubscriptionId = TestSubscriptionId
+            };
+            await repository.SaveSubscriptionAsync(subscription);
+
+            // Act - simulate multiple payment failures
+            for (int i = 1; i <= 3; i++)
+            {
+                subscription.PaymentFailureCount = i;
+                subscription.LastPaymentFailure = DateTime.UtcNow;
+                subscription.LastPaymentFailureReason = $"Payment failure attempt {i}";
+                await repository.SaveSubscriptionAsync(subscription);
+            }
+
+            // Retrieve and verify
+            var retrieved = await repository.GetSubscriptionAsync(TestUserAddress);
+
+            // Assert
+            Assert.That(retrieved, Is.Not.Null);
+            Assert.That(retrieved!.PaymentFailureCount, Is.EqualTo(3));
+            Assert.That(retrieved.LastPaymentFailureReason, Does.Contain("attempt 3"));
+        }
+
+        #endregion
     }
 }
