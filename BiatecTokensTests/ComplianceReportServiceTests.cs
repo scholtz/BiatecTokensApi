@@ -16,6 +16,7 @@ namespace BiatecTokensTests
         private Mock<IComplianceReportRepository> _reportRepositoryMock;
         private Mock<IEnterpriseAuditService> _auditServiceMock;
         private Mock<IComplianceService> _complianceServiceMock;
+        private Mock<IJurisdictionRulesService> _jurisdictionRulesServiceMock;
         private Mock<ILogger<ComplianceReportService>> _loggerMock;
         private ComplianceReportService _service;
 
@@ -29,12 +30,14 @@ namespace BiatecTokensTests
             _reportRepositoryMock = new Mock<IComplianceReportRepository>();
             _auditServiceMock = new Mock<IEnterpriseAuditService>();
             _complianceServiceMock = new Mock<IComplianceService>();
+            _jurisdictionRulesServiceMock = new Mock<IJurisdictionRulesService>();
             _loggerMock = new Mock<ILogger<ComplianceReportService>>();
 
             _service = new ComplianceReportService(
                 _reportRepositoryMock.Object,
                 _auditServiceMock.Object,
                 _complianceServiceMock.Object,
+                _jurisdictionRulesServiceMock.Object,
                 _loggerMock.Object);
         }
 

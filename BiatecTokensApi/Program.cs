@@ -126,6 +126,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceReportRepository, BiatecTokensApi.Repositories.ComplianceReportRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository, BiatecTokensApi.Repositories.SecurityActivityRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository, BiatecTokensApi.Repositories.TokenRegistryRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository, BiatecTokensApi.Repositories.JurisdictionRulesRepository>();
 
             // Also register non-interface repositories for ingestion service
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.TokenIssuanceRepository>();
@@ -160,6 +161,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<ITokenStandardValidator, TokenStandardValidator>();
             builder.Services.AddSingleton<ITokenRegistryService, TokenRegistryService>();
             builder.Services.AddSingleton<IRegistryIngestionService, RegistryIngestionService>();
+            builder.Services.AddSingleton<IJurisdictionRulesService, JurisdictionRulesService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");

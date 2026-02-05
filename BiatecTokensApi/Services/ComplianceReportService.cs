@@ -17,6 +17,7 @@ namespace BiatecTokensApi.Services
         private readonly IComplianceReportRepository _reportRepository;
         private readonly IEnterpriseAuditService _auditService;
         private readonly IComplianceService _complianceService;
+        private readonly IJurisdictionRulesService _jurisdictionRulesService;
         private readonly ILogger<ComplianceReportService> _logger;
 
         private const string SchemaVersion = "1.0";
@@ -27,16 +28,19 @@ namespace BiatecTokensApi.Services
         /// <param name="reportRepository">The compliance report repository</param>
         /// <param name="auditService">The enterprise audit service</param>
         /// <param name="complianceService">The compliance service</param>
+        /// <param name="jurisdictionRulesService">The jurisdiction rules service</param>
         /// <param name="logger">The logger instance</param>
         public ComplianceReportService(
             IComplianceReportRepository reportRepository,
             IEnterpriseAuditService auditService,
             IComplianceService complianceService,
+            IJurisdictionRulesService jurisdictionRulesService,
             ILogger<ComplianceReportService> logger)
         {
             _reportRepository = reportRepository;
             _auditService = auditService;
             _complianceService = complianceService;
+            _jurisdictionRulesService = jurisdictionRulesService;
             _logger = logger;
         }
 
