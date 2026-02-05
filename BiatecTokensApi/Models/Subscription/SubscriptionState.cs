@@ -59,6 +59,31 @@ namespace BiatecTokensApi.Models.Subscription
         /// Last update timestamp
         /// </summary>
         public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Last payment failure date
+        /// </summary>
+        public DateTime? LastPaymentFailure { get; set; }
+
+        /// <summary>
+        /// Count of consecutive payment failures
+        /// </summary>
+        public int PaymentFailureCount { get; set; }
+
+        /// <summary>
+        /// Last payment failure reason
+        /// </summary>
+        public string? LastPaymentFailureReason { get; set; }
+
+        /// <summary>
+        /// Whether there's an active dispute
+        /// </summary>
+        public bool HasActiveDispute { get; set; }
+
+        /// <summary>
+        /// Last dispute date
+        /// </summary>
+        public DateTime? LastDisputeDate { get; set; }
     }
 
     /// <summary>

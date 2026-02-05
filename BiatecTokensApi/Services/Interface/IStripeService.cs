@@ -37,5 +37,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="signature">Stripe signature header</param>
         /// <returns>Processing result</returns>
         Task<bool> ProcessWebhookEventAsync(string json, string signature);
+
+        /// <summary>
+        /// Gets subscription entitlements for a user
+        /// </summary>
+        /// <param name="userAddress">User's Algorand address</param>
+        /// <returns>Subscription entitlements</returns>
+        Task<SubscriptionEntitlements> GetEntitlementsAsync(string userAddress);
     }
 }

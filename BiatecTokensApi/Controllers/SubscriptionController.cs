@@ -283,6 +283,87 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Gets subscription entitlements for the authenticated user
+        /// </summary>
+        /// <returns>Subscription entitlements (feature access)</returns>
+        /// <remarks>
+        /// This endpoint returns the feature entitlements for the authenticated user's subscription tier.
+        /// Entitlements define what features and limits apply to the user based on their subscription.
+        /// 
+        /// **Authentication:**
+        /// Requires ARC-0014 authentication. The authenticated user's address is used to query entitlements.
+        /// 
+        /// **Entitlement Fields:**
+        /// - MaxTokenDeployments: Maximum tokens deployable per month (-1 = unlimited)
+        /// - MaxWhitelistedAddresses: Maximum whitelisted addresses per token (-1 = unlimited)
+        /// - MaxComplianceReports: Maximum compliance reports per month (-1 = unlimited)
+        /// - AdvancedComplianceEnabled: Whether advanced compliance features are available
+        /// - MultiJurisdictionEnabled: Whether multi-jurisdiction support is available
+        /// - CustomBrandingEnabled: Whether custom branding is available
+        /// - PrioritySupportEnabled: Whether priority support is included
+        /// - ApiAccessEnabled: Whether API access is enabled
+        /// - WebhooksEnabled: Whether webhook subscriptions are allowed
+        /// - AuditExportsEnabled: Whether audit exports are available
+        /// - MaxAuditExports: Maximum audit exports per month (-1 = unlimited)
+        /// - SlaEnabled: Whether SLA guarantees apply
+        /// - SlaUptimePercentage: Uptime guarantee percentage (e.g., 99.9)
+        /// 
+        /// **Tier Mapping:**
+        /// - Free: Limited features, 1 token, 10 whitelist addresses
+        /// - Basic: Basic features, 10 tokens, 100 whitelist addresses
+        /// - Premium: Advanced features, 100 tokens, 1000 whitelist addresses, 99.5% SLA
+        /// - Enterprise: All features unlimited, 99.9% SLA, priority support
+        /// 
+        /// **Use Cases:**
+        /// - Feature gating in frontend UI
+        /// - Determining available capabilities
+        /// - Displaying current plan benefits
+        /// - Upgrade decision support
+        /// </remarks>
+        [Authorize]
+        [HttpGet("entitlements")]
+        [ProducesResponseType(typeof(SubscriptionEntitlementsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetEntitlements()
+        {
+            try
+            {
+                var userAddress = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userAddress))
+                {
+                    _logger.LogWarning("GetEntitlements called without authenticated user");
+                    return Unauthorized(new SubscriptionEntitlementsResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Authentication required"
+                    });
+                }
+
+                var entitlements = await _stripeService.GetEntitlementsAsync(userAddress);
+
+                _logger.LogInformation(
+                    "Retrieved entitlements for user {UserAddress}, tier {Tier}",
+                    userAddress, entitlements.Tier);
+
+                return Ok(new SubscriptionEntitlementsResponse
+                {
+                    Success = true,
+                    Entitlements = entitlements
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving entitlements");
+                return StatusCode(StatusCodes.Status500InternalServerError, new SubscriptionEntitlementsResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while retrieving entitlements"
+                });
+            }
+        }
+
+        /// <summary>
         /// Webhook endpoint for processing Stripe events
         /// </summary>
         /// <remarks>
@@ -306,6 +387,9 @@ namespace BiatecTokensApi.Controllers
         /// - customer.subscription.created: New subscription activated
         /// - customer.subscription.updated: Subscription tier or status changed
         /// - customer.subscription.deleted: Subscription canceled
+        /// - invoice.payment_succeeded: Invoice payment successful
+        /// - invoice.payment_failed: Invoice payment failed
+        /// - charge.dispute.created: Payment dispute initiated
         /// 
         /// **Event Processing:**
         /// 1. Validate webhook signature
@@ -327,12 +411,16 @@ namespace BiatecTokensApi.Controllers
         /// - customer.subscription.created
         /// - customer.subscription.updated
         /// - customer.subscription.deleted
+        /// - invoice.payment_succeeded
+        /// - invoice.payment_failed
+        /// - charge.dispute.created
         /// 
         /// **Use Cases:**
         /// - Real-time subscription state synchronization
         /// - Automatic tier updates when customer changes plan
         /// - Cancellation handling
         /// - Payment failure notifications
+        /// - Dispute tracking and resolution
         /// </remarks>
         [HttpPost("webhook")]
         [ProducesResponseType(StatusCodes.Status200OK)]
