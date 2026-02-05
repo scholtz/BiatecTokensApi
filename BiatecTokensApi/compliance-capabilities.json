@@ -1,0 +1,359 @@
+{
+  "version": "2026-02-05",
+  "jurisdictions": [
+    {
+      "code": "CH",
+      "name": "Switzerland",
+      "walletTypes": [
+        {
+          "type": "custodial",
+          "description": "Custodial wallet with third-party control",
+          "kycTiers": [
+            {
+              "tier": "2",
+              "description": "Standard KYC with identity verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-19",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "accreditation"],
+                  "notes": "Requires investor accreditation verification"
+                },
+                {
+                  "standard": "ARC-3",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "accreditation"],
+                  "notes": null
+                }
+              ]
+            },
+            {
+              "tier": "3",
+              "description": "Enhanced KYC with source of funds verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-19",
+                  "actions": ["mint", "transfer", "burn", "freeze"],
+                  "checks": ["sanctions", "accreditation", "source_of_funds"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-3",
+                  "actions": ["mint", "transfer", "burn", "freeze"],
+                  "checks": ["sanctions", "source_of_funds"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer", "burn", "freeze"],
+                  "checks": ["sanctions", "accreditation", "source_of_funds"],
+                  "notes": null
+                },
+                {
+                  "standard": "ERC-20",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "source_of_funds"],
+                  "notes": "Cross-chain compliance required"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "non-custodial",
+          "description": "Self-custody wallet with user control",
+          "kycTiers": [
+            {
+              "tier": "1",
+              "description": "Basic KYC with email verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-3",
+                  "actions": ["transfer"],
+                  "checks": ["sanctions"],
+                  "notes": "Limited to small transfers"
+                }
+              ]
+            },
+            {
+              "tier": "2",
+              "description": "Standard KYC with identity verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-3",
+                  "actions": ["transfer", "burn"],
+                  "checks": ["sanctions"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["transfer"],
+                  "checks": ["sanctions", "accreditation"],
+                  "notes": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "US",
+      "name": "United States",
+      "walletTypes": [
+        {
+          "type": "custodial",
+          "description": "Custodial wallet with third-party control",
+          "kycTiers": [
+            {
+              "tier": "2",
+              "description": "Standard KYC with identity verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-19",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "accreditation", "sec_regulation_d"],
+                  "notes": "Must comply with SEC Regulation D"
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "accreditation", "sec_regulation_d"],
+                  "notes": "Must comply with SEC Regulation D"
+                },
+                {
+                  "standard": "ERC-20",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "sec_regulation_d"],
+                  "notes": "Subject to SEC oversight"
+                }
+              ]
+            },
+            {
+              "tier": "3",
+              "description": "Enhanced KYC with source of funds verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-19",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "accreditation", "sec_regulation_d", "aml_check"],
+                  "notes": "Full SEC and AML compliance required"
+                },
+                {
+                  "standard": "ARC-3",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "aml_check"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "accreditation", "sec_regulation_d", "aml_check"],
+                  "notes": "Full SEC and AML compliance required"
+                },
+                {
+                  "standard": "ERC-20",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "sec_regulation_d", "aml_check"],
+                  "notes": "Subject to SEC oversight and AML requirements"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "non-custodial",
+          "description": "Self-custody wallet with user control",
+          "kycTiers": [
+            {
+              "tier": "2",
+              "description": "Standard KYC with identity verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-3",
+                  "actions": ["transfer"],
+                  "checks": ["sanctions"],
+                  "notes": "Limited functionality for non-custodial wallets"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "EU",
+      "name": "European Union",
+      "walletTypes": [
+        {
+          "type": "custodial",
+          "description": "Custodial wallet with third-party control",
+          "kycTiers": [
+            {
+              "tier": "2",
+              "description": "Standard KYC with identity verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-19",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "mica_compliance"],
+                  "notes": "Must comply with MiCA regulation"
+                },
+                {
+                  "standard": "ARC-3",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "mica_compliance"],
+                  "notes": "Must comply with MiCA regulation"
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "mica_compliance"],
+                  "notes": "Must comply with MiCA regulation"
+                }
+              ]
+            },
+            {
+              "tier": "3",
+              "description": "Enhanced KYC with source of funds verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-19",
+                  "actions": ["mint", "transfer", "burn", "freeze"],
+                  "checks": ["sanctions", "mica_compliance", "gdpr_check"],
+                  "notes": "Full MiCA and GDPR compliance required"
+                },
+                {
+                  "standard": "ARC-3",
+                  "actions": ["mint", "transfer", "burn", "freeze"],
+                  "checks": ["sanctions", "mica_compliance", "gdpr_check"],
+                  "notes": "Full MiCA and GDPR compliance required"
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer", "burn", "freeze"],
+                  "checks": ["sanctions", "mica_compliance", "gdpr_check"],
+                  "notes": "Full MiCA and GDPR compliance required"
+                },
+                {
+                  "standard": "ERC-20",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "mica_compliance", "gdpr_check"],
+                  "notes": "Cross-chain MiCA compliance required"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "non-custodial",
+          "description": "Self-custody wallet with user control",
+          "kycTiers": [
+            {
+              "tier": "1",
+              "description": "Basic KYC with email verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-3",
+                  "actions": ["transfer"],
+                  "checks": ["sanctions"],
+                  "notes": "Limited to transactions under €1000"
+                }
+              ]
+            },
+            {
+              "tier": "2",
+              "description": "Standard KYC with identity verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-3",
+                  "actions": ["transfer", "burn"],
+                  "checks": ["sanctions", "mica_compliance"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["transfer"],
+                  "checks": ["sanctions", "mica_compliance"],
+                  "notes": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SG",
+      "name": "Singapore",
+      "walletTypes": [
+        {
+          "type": "custodial",
+          "description": "Custodial wallet with third-party control",
+          "kycTiers": [
+            {
+              "tier": "2",
+              "description": "Standard KYC with identity verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-3",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions", "mas_accreditation"],
+                  "notes": "Subject to MAS guidelines"
+                },
+                {
+                  "standard": "ERC-20",
+                  "actions": ["mint", "transfer"],
+                  "checks": ["sanctions"],
+                  "notes": "Subject to MAS guidelines"
+                }
+              ]
+            },
+            {
+              "tier": "3",
+              "description": "Enhanced KYC with source of funds verification",
+              "tokenStandards": [
+                {
+                  "standard": "ARC-19",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "mas_accreditation", "source_of_funds"],
+                  "notes": "Full MAS compliance required"
+                },
+                {
+                  "standard": "ARC-3",
+                  "actions": ["mint", "transfer", "burn", "freeze"],
+                  "checks": ["sanctions", "source_of_funds"],
+                  "notes": null
+                },
+                {
+                  "standard": "ARC-200",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "mas_accreditation", "source_of_funds"],
+                  "notes": "Full MAS compliance required"
+                },
+                {
+                  "standard": "ERC-20",
+                  "actions": ["mint", "transfer", "burn"],
+                  "checks": ["sanctions", "source_of_funds"],
+                  "notes": "Subject to MAS guidelines"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
