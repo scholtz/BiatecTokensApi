@@ -19476,13 +19476,14 @@
             Service implementation for compliance report generation and management
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ComplianceReportService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceReportRepository,BiatecTokensApi.Services.Interface.IEnterpriseAuditService,BiatecTokensApi.Services.Interface.IComplianceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceReportService})">
+        <member name="M:BiatecTokensApi.Services.ComplianceReportService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceReportRepository,BiatecTokensApi.Services.Interface.IEnterpriseAuditService,BiatecTokensApi.Services.Interface.IComplianceService,BiatecTokensApi.Services.Interface.IJurisdictionRulesService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceReportService})">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ComplianceReportService"/> class.
             </summary>
             <param name="reportRepository">The compliance report repository</param>
             <param name="auditService">The enterprise audit service</param>
             <param name="complianceService">The compliance service</param>
+            <param name="jurisdictionRulesService">The jurisdiction rules service</param>
             <param name="logger">The logger instance</param>
         </member>
         <member name="M:BiatecTokensApi.Services.ComplianceReportService.CreateReportAsync(BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest,System.String)">
