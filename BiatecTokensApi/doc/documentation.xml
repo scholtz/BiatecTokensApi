@@ -1990,6 +1990,320 @@
             </summary>
             <returns>The user's Algorand address or empty string if not found</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.JurisdictionRulesController">
+            <summary>
+            Provides endpoints for managing jurisdiction-specific compliance rules
+            </summary>
+            <remarks>
+            This controller enables configuration-driven jurisdiction rules that map regulatory
+            requirements to tokens and issuers. Rules can be created, updated, and evaluated
+            without code changes, supporting MICA, FATF, SEC, and other frameworks.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.#ctor(BiatecTokensApi.Services.Interface.IJurisdictionRulesService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.JurisdictionRulesController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.JurisdictionRulesController"/> class.
+            </summary>
+            <param name="rulesService">The jurisdiction rules service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.CreateRule(BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest)">
+            <summary>
+            Creates a new jurisdiction rule
+            </summary>
+            <param name="request">The rule creation request</param>
+            <returns>The created jurisdiction rule</returns>
+            <remarks>
+            Creates a new compliance rule for a specific jurisdiction. Each jurisdiction can have
+            multiple compliance requirements that are evaluated when determining token compliance status.
+            
+            **Jurisdiction Codes:**
+            - Use ISO 3166-1 alpha-2 country codes (e.g., "US", "DE", "FR")
+            - Or region identifiers (e.g., "EU" for European Union, "GLOBAL" for worldwide)
+            
+            **Regulatory Frameworks:**
+            - MICA (EU Markets in Crypto-Assets Regulation)
+            - FATF (Financial Action Task Force)
+            - SEC (US Securities and Exchange Commission)
+            - MiFID II (Markets in Financial Instruments Directive)
+            
+            **Requirements:**
+            Each rule can have multiple compliance requirements with:
+            - Unique requirement code (e.g., "MICA_ARTICLE_17")
+            - Category (KYC, AML, Disclosure, Licensing, etc.)
+            - Severity (Critical, High, Medium, Low, Info)
+            - Mandatory flag
+            - Validation criteria and remediation guidance
+            
+            **Example Request:**
+            ```json
+            {
+              "jurisdictionCode": "US",
+              "jurisdictionName": "United States",
+              "regulatoryFramework": "SEC",
+              "isActive": true,
+              "priority": 100,
+              "requirements": [
+                {
+                  "requirementCode": "SEC_ACCREDITED",
+                  "category": "Disclosure",
+                  "description": "Accredited investor verification required",
+                  "isMandatory": true,
+                  "severity": "Critical",
+                  "regulatoryReference": "SEC Regulation D"
+                }
+              ]
+            }
+            ```
+            
+            **Access Control:**
+            Requires authenticated user. Admin role recommended for production use.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.ListRules(System.String,System.String,System.Nullable{System.Boolean},System.Int32,System.Int32)">
+            <summary>
+            Lists all jurisdiction rules with optional filtering
+            </summary>
+            <param name="jurisdictionCode">Optional filter by jurisdiction code</param>
+            <param name="regulatoryFramework">Optional filter by regulatory framework</param>
+            <param name="isActive">Optional filter by active status</param>
+            <param name="page">Page number for pagination (default: 1)</param>
+            <param name="pageSize">Page size for pagination (default: 50, max: 100)</param>
+            <returns>Paginated list of jurisdiction rules</returns>
+            <remarks>
+            Returns a paginated list of jurisdiction rules. Useful for displaying available
+            jurisdictions in UI dropdowns or for auditing rule configurations.
+            
+            **Filters:**
+            - `jurisdictionCode`: Show rules for a specific jurisdiction
+            - `regulatoryFramework`: Show rules for a specific framework (MICA, FATF, SEC, etc.)
+            - `isActive`: Show only active or inactive rules
+            
+            **Pagination:**
+            - Default page size: 50
+            - Maximum page size: 100
+            - Results ordered by priority (descending), then by jurisdiction code
+            
+            **Response:**
+            Each rule includes:
+            - Jurisdiction code and name
+            - Regulatory framework
+            - Active status and priority
+            - List of compliance requirements
+            - Creation and update metadata
+            
+            **Example:**
+            ```
+            GET /api/v1/compliance/jurisdiction-rules?regulatoryFramework=MICA&amp;isActive=true
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.GetRule(System.String)">
+            <summary>
+            Gets a specific jurisdiction rule by ID
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <returns>The jurisdiction rule details</returns>
+            <remarks>
+            Retrieves complete details of a jurisdiction rule including all requirements.
+            
+            **Use Cases:**
+            - Display rule details in administrative UI
+            - Audit rule configuration
+            - Prepare rule for editing
+            
+            **Example:**
+            ```
+            GET /api/v1/compliance/jurisdiction-rules/eu-mica-baseline
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.UpdateRule(System.String,BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest)">
+            <summary>
+            Updates an existing jurisdiction rule
+            </summary>
+            <param name="ruleId">The rule ID to update</param>
+            <param name="request">The updated rule data</param>
+            <returns>The updated jurisdiction rule</returns>
+            <remarks>
+            Updates an existing jurisdiction rule. All fields are replaced with the new values.
+            
+            **Note:** Updating a rule may affect existing compliance evaluations for tokens
+            assigned to this jurisdiction. Consider the impact on existing tokens before making changes.
+            
+            **Example Request:**
+            ```json
+            {
+              "jurisdictionCode": "EU",
+              "jurisdictionName": "European Union",
+              "regulatoryFramework": "MICA",
+              "isActive": true,
+              "priority": 100,
+              "requirements": [...]
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.DeleteRule(System.String)">
+            <summary>
+            Deletes a jurisdiction rule
+            </summary>
+            <param name="ruleId">The rule ID to delete</param>
+            <returns>Success or failure response</returns>
+            <remarks>
+            Deletes a jurisdiction rule. Exercise caution as this may affect existing token compliance evaluations.
+            
+            **Warning:** Deleting a rule that is referenced by token jurisdiction assignments
+            may cause those tokens to fall back to the GLOBAL baseline rule.
+            
+            **Example:**
+            ```
+            DELETE /api/v1/compliance/jurisdiction-rules/custom-rule-id
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.EvaluateTokenCompliance(System.UInt64,System.String)">
+            <summary>
+            Evaluates jurisdiction rules for a token and returns compliance status
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <param name="network">The network on which the token is deployed</param>
+            <returns>Jurisdiction evaluation result with compliance status</returns>
+            <remarks>
+            Evaluates all applicable jurisdiction rules for a token and determines its
+            overall compliance status. This endpoint aggregates compliance checks across
+            all assigned jurisdictions and returns a comprehensive evaluation.
+            
+            **Process:**
+            1. Retrieves jurisdiction assignments for the token
+            2. If no jurisdictions assigned, uses GLOBAL baseline
+            3. Evaluates each requirement in applicable jurisdiction rules
+            4. Aggregates results into overall compliance status
+            5. Provides rationale for status determination
+            
+            **Compliance Status Values:**
+            - **Compliant**: All mandatory requirements passed
+            - **PartiallyCompliant**: Some mandatory requirements passed, others failed
+            - **NonCompliant**: All mandatory requirements failed
+            - **Unknown**: No requirements evaluated or evaluation error
+            
+            **Check Result Status Values:**
+            - **Pass**: Requirement met
+            - **Fail**: Requirement not met
+            - **Partial**: Partially met
+            - **NotApplicable**: Cannot be evaluated automatically
+            
+            **Example:**
+            ```
+            GET /api/v1/compliance/jurisdiction-rules/evaluate?assetId=12345&amp;network=voimain-v1.0
+            ```
+            
+            **Response Example:**
+            ```json
+            {
+              "assetId": 12345,
+              "network": "voimain-v1.0",
+              "applicableJurisdictions": ["EU"],
+              "complianceStatus": "PartiallyCompliant",
+              "checkResults": [
+                {
+                  "requirementCode": "MICA_ARTICLE_20",
+                  "jurisdictionCode": "EU",
+                  "status": "Pass",
+                  "evidence": "KYC verified on 2024-01-15"
+                }
+              ],
+              "rationale": [
+                "Passed 4 of 6 mandatory requirements",
+                "Failed: MICA_ARTICLE_30 - Licensing authorization pending"
+              ]
+            }
+            ```
+            
+            **Access Control:**
+            Returns evaluation only for tokens owned by the authenticated user.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.AssignTokenJurisdiction(System.UInt64,System.String,System.String,System.Boolean,System.String)">
+            <summary>
+            Assigns a jurisdiction to a token
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <param name="network">The network on which the token is deployed</param>
+            <param name="jurisdictionCode">The jurisdiction code to assign</param>
+            <param name="isPrimary">Whether this is the primary jurisdiction (default: true)</param>
+            <param name="notes">Optional notes about the assignment</param>
+            <returns>Success or failure response</returns>
+            <remarks>
+            Assigns a jurisdiction to a token. A token can have multiple jurisdictions,
+            but only one can be marked as primary. The primary jurisdiction typically
+            represents the token issuer's legal domicile.
+            
+            **Rules:**
+            - Jurisdiction rule must exist and be active
+            - If isPrimary is true, other jurisdictions are automatically unmarked as primary
+            - Assigning a jurisdiction that already exists updates the assignment
+            
+            **Example:**
+            ```
+            POST /api/v1/compliance/jurisdiction-rules/assign?assetId=12345&amp;network=voimain-v1.0&amp;jurisdictionCode=EU&amp;isPrimary=true
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.GetTokenJurisdictions(System.UInt64,System.String)">
+            <summary>
+            Gets jurisdiction assignments for a token
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <param name="network">The network on which the token is deployed</param>
+            <returns>List of jurisdiction assignments</returns>
+            <remarks>
+            Returns all jurisdiction assignments for a token, including primary and secondary jurisdictions.
+            
+            **Example:**
+            ```
+            GET /api/v1/compliance/jurisdiction-rules/token-jurisdictions?assetId=12345&amp;network=voimain-v1.0
+            ```
+            
+            **Response:**
+            ```json
+            [
+              {
+                "assetId": 12345,
+                "network": "voimain-v1.0",
+                "jurisdictionCode": "EU",
+                "isPrimary": true,
+                "assignedAt": "2024-01-15T10:30:00Z",
+                "assignedBy": "ADDR123..."
+              }
+            ]
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.RemoveTokenJurisdiction(System.UInt64,System.String,System.String)">
+            <summary>
+            Removes a jurisdiction assignment from a token
+            </summary>
+            <param name="assetId">The asset ID (token ID)</param>
+            <param name="network">The network on which the token is deployed</param>
+            <param name="jurisdictionCode">The jurisdiction code to remove</param>
+            <returns>Success or failure response</returns>
+            <remarks>
+            Removes a jurisdiction assignment from a token. If the removed jurisdiction was the
+            primary jurisdiction, no other jurisdiction is automatically promoted to primary.
+            
+            **Example:**
+            ```
+            DELETE /api/v1/compliance/jurisdiction-rules/token-jurisdictions?assetId=12345&amp;network=voimain-v1.0&amp;jurisdictionCode=EU
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.JurisdictionRulesController.GetUserAddress">
+            <summary>
+            Gets the user's Algorand address from the authentication context
+            </summary>
+            <returns>The user's Algorand address</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.NetworkController">
             <summary>
             Provides endpoints for querying supported blockchain networks and their configurations
@@ -10079,6 +10393,381 @@
             Profile suspended
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.JurisdictionRule">
+            <summary>
+            Represents jurisdiction-specific compliance rules and requirements
+            </summary>
+            <remarks>
+            This model defines compliance requirements for specific jurisdictions (countries or regions).
+            Rules can be configured without code changes and are evaluated during compliance checks.
+            Supports MICA, FATF, SEC, and other regulatory frameworks.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.Id">
+            <summary>
+            Unique identifier for the jurisdiction rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.JurisdictionCode">
+            <summary>
+            Jurisdiction code (ISO 3166-1 alpha-2 country code or region identifier like "EU", "US", "GLOBAL")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.JurisdictionName">
+            <summary>
+            Human-readable name of the jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.RegulatoryFramework">
+            <summary>
+            Regulatory framework applicable in this jurisdiction (e.g., "MICA", "SEC", "FATF", "MiFID II")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.IsActive">
+            <summary>
+            Whether this jurisdiction is active and should be evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.Priority">
+            <summary>
+            Priority for rule evaluation (higher priority evaluated first)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.Requirements">
+            <summary>
+            Compliance requirements for this jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.CreatedAt">
+            <summary>
+            Date when the rule was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.UpdatedAt">
+            <summary>
+            Date when the rule was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.CreatedBy">
+            <summary>
+            User who created the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.UpdatedBy">
+            <summary>
+            User who last updated the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.Notes">
+            <summary>
+            Additional notes or context about this jurisdiction rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRule.Version">
+            <summary>
+            Rule version for compatibility tracking
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceRequirement">
+            <summary>
+            Represents a specific compliance requirement for a jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.Id">
+            <summary>
+            Unique identifier for the requirement
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.RequirementCode">
+            <summary>
+            Requirement code (e.g., "MICA_ARTICLE_17", "SEC_ACCREDITED", "FATF_KYC")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.Category">
+            <summary>
+            Requirement category (e.g., "KYC", "AML", "Disclosure", "Licensing", "Transfer Restrictions")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.Description">
+            <summary>
+            Human-readable description of the requirement
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.IsMandatory">
+            <summary>
+            Whether this requirement is mandatory or optional
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.Severity">
+            <summary>
+            Requirement severity (Critical, High, Medium, Low, Info)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.RegulatoryReference">
+            <summary>
+            Reference to applicable regulation article or section
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.ValidationCriteria">
+            <summary>
+            Validation criteria for this requirement (JSON schema or description)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceRequirement.RemediationGuidance">
+            <summary>
+            Recommended remediation action if requirement is not met
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RequirementSeverity">
+            <summary>
+            Severity level for compliance requirements
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RequirementSeverity.Info">
+            <summary>
+            Informational requirement (best practice)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RequirementSeverity.Low">
+            <summary>
+            Low severity requirement
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RequirementSeverity.Medium">
+            <summary>
+            Medium severity requirement
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RequirementSeverity.High">
+            <summary>
+            High severity requirement
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RequirementSeverity.Critical">
+            <summary>
+            Critical requirement (must be met for compliance)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest">
+            <summary>
+            Request to create or update a jurisdiction rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest.JurisdictionCode">
+            <summary>
+            Jurisdiction code (ISO 3166-1 alpha-2 or region identifier)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest.JurisdictionName">
+            <summary>
+            Human-readable name of the jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest.RegulatoryFramework">
+            <summary>
+            Regulatory framework applicable in this jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest.IsActive">
+            <summary>
+            Whether this jurisdiction rule should be active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest.Priority">
+            <summary>
+            Priority for rule evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest.Requirements">
+            <summary>
+            Compliance requirements for this jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest.Notes">
+            <summary>
+            Additional notes
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.JurisdictionRuleResponse">
+            <summary>
+            Response after creating or updating a jurisdiction rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionRuleResponse.Rule">
+            <summary>
+            The created or updated jurisdiction rule
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest">
+            <summary>
+            Request to list jurisdiction rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest.JurisdictionCode">
+            <summary>
+            Optional filter by jurisdiction code
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest.RegulatoryFramework">
+            <summary>
+            Optional filter by regulatory framework
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest.IsActive">
+            <summary>
+            Optional filter by active status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse">
+            <summary>
+            Response containing list of jurisdiction rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse.Rules">
+            <summary>
+            List of jurisdiction rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse.TotalCount">
+            <summary>
+            Total number of rules matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TokenJurisdiction">
+            <summary>
+            Jurisdiction tagging for tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenJurisdiction.AssetId">
+            <summary>
+            Asset ID (token ID)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenJurisdiction.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenJurisdiction.JurisdictionCode">
+            <summary>
+            Jurisdiction code applicable to this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenJurisdiction.IsPrimary">
+            <summary>
+            Whether this jurisdiction is the primary jurisdiction for the token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenJurisdiction.AssignedAt">
+            <summary>
+            Date when the jurisdiction was assigned
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenJurisdiction.AssignedBy">
+            <summary>
+            User who assigned the jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenJurisdiction.Notes">
+            <summary>
+            Additional notes about the jurisdiction assignment
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult">
+            <summary>
+            Result of evaluating jurisdiction rules for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult.AssetId">
+            <summary>
+            Asset ID that was evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult.Network">
+            <summary>
+            Network on which the token is deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult.ApplicableJurisdictions">
+            <summary>
+            Jurisdiction codes applicable to this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult.ComplianceStatus">
+            <summary>
+            Overall compliance status (Compliant, PartiallyCompliant, NonCompliant, Unknown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult.CheckResults">
+            <summary>
+            List of compliance checks performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult.Rationale">
+            <summary>
+            Rationale for the compliance status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult.EvaluatedAt">
+            <summary>
+            Timestamp when the evaluation was performed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck">
+            <summary>
+            Result of a single jurisdiction compliance check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck.RequirementCode">
+            <summary>
+            Requirement code that was checked
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck.JurisdictionCode">
+            <summary>
+            Jurisdiction for which this check was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck.Status">
+            <summary>
+            Check result status (Pass, Fail, Partial, NotApplicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck.Evidence">
+            <summary>
+            Evidence or details supporting the check result
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck.CheckedAt">
+            <summary>
+            Timestamp when the check was performed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.MicaComplianceChecklist">
             <summary>
             MICA compliance checklist for a specific token
@@ -17505,6 +18194,83 @@
             <param name="request">The audit log request with filters</param>
             <returns>Summary statistics including event counts and date ranges</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository">
+            <summary>
+            Repository interface for managing jurisdiction rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.CreateRuleAsync(BiatecTokensApi.Models.Compliance.JurisdictionRule)">
+            <summary>
+            Creates a new jurisdiction rule
+            </summary>
+            <param name="rule">The jurisdiction rule to create</param>
+            <returns>The created jurisdiction rule with assigned ID</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.GetRuleByIdAsync(System.String)">
+            <summary>
+            Gets a jurisdiction rule by ID
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <returns>The jurisdiction rule if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.GetRuleByJurisdictionCodeAsync(System.String)">
+            <summary>
+            Gets a jurisdiction rule by jurisdiction code
+            </summary>
+            <param name="jurisdictionCode">The jurisdiction code</param>
+            <returns>The jurisdiction rule if found, null otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.ListRulesAsync(BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest)">
+            <summary>
+            Gets all jurisdiction rules matching the filter criteria
+            </summary>
+            <param name="request">The filter request</param>
+            <returns>List of matching jurisdiction rules</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.UpdateRuleAsync(BiatecTokensApi.Models.Compliance.JurisdictionRule)">
+            <summary>
+            Updates an existing jurisdiction rule
+            </summary>
+            <param name="rule">The jurisdiction rule with updated values</param>
+            <returns>The updated jurisdiction rule</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.DeleteRuleAsync(System.String)">
+            <summary>
+            Deletes a jurisdiction rule by ID
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <returns>True if deleted, false if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.GetActiveRulesAsync">
+            <summary>
+            Gets all active jurisdiction rules
+            </summary>
+            <returns>List of active jurisdiction rules ordered by priority</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.GetTokenJurisdictionsAsync(System.UInt64,System.String)">
+            <summary>
+            Gets a token's jurisdiction assignments
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="network">The network</param>
+            <returns>List of jurisdiction assignments for the token</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.AssignTokenJurisdictionAsync(BiatecTokensApi.Models.Compliance.TokenJurisdiction)">
+            <summary>
+            Assigns a jurisdiction to a token
+            </summary>
+            <param name="tokenJurisdiction">The jurisdiction assignment</param>
+            <returns>The created jurisdiction assignment</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository.RemoveTokenJurisdictionAsync(System.UInt64,System.String,System.String)">
+            <summary>
+            Removes a jurisdiction assignment from a token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="network">The network</param>
+            <param name="jurisdictionCode">The jurisdiction code</param>
+            <returns>True if removed, false if not found</returns>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository">
             <summary>
             Repository interface for security activity and audit operations
@@ -17994,6 +18760,52 @@
             <param name="fromDate">Optional start date filter</param>
             <param name="toDate">Optional end date filter</param>
             <returns>List of audit log entries</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.JurisdictionRulesRepository">
+            <summary>
+            In-memory repository implementation for jurisdiction rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.JurisdictionRulesRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.JurisdictionRulesRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.CreateRuleAsync(BiatecTokensApi.Models.Compliance.JurisdictionRule)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.GetRuleByIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.GetRuleByJurisdictionCodeAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.ListRulesAsync(BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.UpdateRuleAsync(BiatecTokensApi.Models.Compliance.JurisdictionRule)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.DeleteRuleAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.GetActiveRulesAsync">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.GetTokenJurisdictionsAsync(System.UInt64,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.AssignTokenJurisdictionAsync(BiatecTokensApi.Models.Compliance.TokenJurisdiction)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.RemoveTokenJurisdictionAsync(System.UInt64,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.JurisdictionRulesRepository.SeedDefaultRules">
+            <summary>
+            Seeds default MICA jurisdiction rules for EU
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Repositories.SecurityActivityRepository">
             <summary>
@@ -19971,6 +20783,87 @@
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IJurisdictionRulesService">
+            <summary>
+            Service interface for managing and evaluating jurisdiction rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.CreateRuleAsync(BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest,System.String)">
+            <summary>
+            Creates a new jurisdiction rule
+            </summary>
+            <param name="request">The rule creation request</param>
+            <param name="createdBy">The user creating the rule</param>
+            <returns>Response containing the created rule</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.GetRuleByIdAsync(System.String)">
+            <summary>
+            Gets a jurisdiction rule by ID
+            </summary>
+            <param name="ruleId">The rule ID</param>
+            <returns>Response containing the rule if found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.ListRulesAsync(BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest)">
+            <summary>
+            Lists jurisdiction rules with optional filtering
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Response containing the list of rules</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.UpdateRuleAsync(System.String,BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest,System.String)">
+            <summary>
+            Updates an existing jurisdiction rule
+            </summary>
+            <param name="ruleId">The rule ID to update</param>
+            <param name="request">The updated rule data</param>
+            <param name="updatedBy">The user updating the rule</param>
+            <returns>Response containing the updated rule</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.DeleteRuleAsync(System.String)">
+            <summary>
+            Deletes a jurisdiction rule
+            </summary>
+            <param name="ruleId">The rule ID to delete</param>
+            <returns>Response indicating success or failure</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.EvaluateTokenComplianceAsync(System.UInt64,System.String,System.String)">
+            <summary>
+            Evaluates jurisdiction rules for a token and returns compliance status
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="network">The network</param>
+            <param name="issuerId">The issuer address</param>
+            <returns>Evaluation result with compliance status and check results</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.AssignTokenJurisdictionAsync(System.UInt64,System.String,System.String,System.Boolean,System.String,System.String)">
+            <summary>
+            Assigns a jurisdiction to a token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="network">The network</param>
+            <param name="jurisdictionCode">The jurisdiction code</param>
+            <param name="isPrimary">Whether this is the primary jurisdiction</param>
+            <param name="assignedBy">The user assigning the jurisdiction</param>
+            <param name="notes">Optional notes</param>
+            <returns>Response indicating success or failure</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.GetTokenJurisdictionsAsync(System.UInt64,System.String)">
+            <summary>
+            Gets jurisdiction assignments for a token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="network">The network</param>
+            <returns>List of jurisdiction assignments</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IJurisdictionRulesService.RemoveTokenJurisdictionAsync(System.UInt64,System.String,System.String)">
+            <summary>
+            Removes a jurisdiction assignment from a token
+            </summary>
+            <param name="assetId">The asset ID</param>
+            <param name="network">The network</param>
+            <param name="jurisdictionCode">The jurisdiction code</param>
+            <returns>Response indicating success or failure</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.ISecurityActivityService">
             <summary>
             Service interface for security activity and audit operations
@@ -20565,6 +21458,51 @@
             <param name="request">The allowlist verification request</param>
             <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
             <returns>The verification response with statuses and compliance disclosures</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.JurisdictionRulesService">
+            <summary>
+            Service implementation for managing and evaluating jurisdiction rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.#ctor(BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.JurisdictionRulesService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.JurisdictionRulesService"/> class.
+            </summary>
+            <param name="rulesRepository">The jurisdiction rules repository</param>
+            <param name="complianceRepository">The compliance repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.CreateRuleAsync(BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.GetRuleByIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.ListRulesAsync(BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.UpdateRuleAsync(System.String,BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.DeleteRuleAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.EvaluateTokenComplianceAsync(System.UInt64,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.AssignTokenJurisdictionAsync(System.UInt64,System.String,System.String,System.Boolean,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.GetTokenJurisdictionsAsync(System.UInt64,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.RemoveTokenJurisdictionAsync(System.UInt64,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.JurisdictionRulesService.EvaluateRequirement(BiatecTokensApi.Models.Compliance.ComplianceRequirement,BiatecTokensApi.Models.Compliance.ComplianceMetadata,System.UInt64,System.String)">
+            <summary>
+            Evaluates a single compliance requirement
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.RegistryIngestionService">
             <summary>
