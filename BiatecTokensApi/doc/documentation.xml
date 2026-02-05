@@ -2794,6 +2794,46 @@
             - Determine if subscription is expiring
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.SubscriptionController.GetEntitlements">
+            <summary>
+            Gets subscription entitlements for the authenticated user
+            </summary>
+            <returns>Subscription entitlements (feature access)</returns>
+            <remarks>
+            This endpoint returns the feature entitlements for the authenticated user's subscription tier.
+            Entitlements define what features and limits apply to the user based on their subscription.
+            
+            **Authentication:**
+            Requires ARC-0014 authentication. The authenticated user's address is used to query entitlements.
+            
+            **Entitlement Fields:**
+            - MaxTokenDeployments: Maximum tokens deployable per month (-1 = unlimited)
+            - MaxWhitelistedAddresses: Maximum whitelisted addresses per token (-1 = unlimited)
+            - MaxComplianceReports: Maximum compliance reports per month (-1 = unlimited)
+            - AdvancedComplianceEnabled: Whether advanced compliance features are available
+            - MultiJurisdictionEnabled: Whether multi-jurisdiction support is available
+            - CustomBrandingEnabled: Whether custom branding is available
+            - PrioritySupportEnabled: Whether priority support is included
+            - ApiAccessEnabled: Whether API access is enabled
+            - WebhooksEnabled: Whether webhook subscriptions are allowed
+            - AuditExportsEnabled: Whether audit exports are available
+            - MaxAuditExports: Maximum audit exports per month (-1 = unlimited)
+            - SlaEnabled: Whether SLA guarantees apply
+            - SlaUptimePercentage: Uptime guarantee percentage (e.g., 99.9)
+            
+            **Tier Mapping:**
+            - Free: Limited features, 1 token, 10 whitelist addresses
+            - Basic: Basic features, 10 tokens, 100 whitelist addresses
+            - Premium: Advanced features, 100 tokens, 1000 whitelist addresses, 99.5% SLA
+            - Enterprise: All features unlimited, 99.9% SLA, priority support
+            
+            **Use Cases:**
+            - Feature gating in frontend UI
+            - Determining available capabilities
+            - Displaying current plan benefits
+            - Upgrade decision support
+            </remarks>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.SubscriptionController.HandleWebhook">
             <summary>
             Webhook endpoint for processing Stripe events
@@ -2819,6 +2859,9 @@
             - customer.subscription.created: New subscription activated
             - customer.subscription.updated: Subscription tier or status changed
             - customer.subscription.deleted: Subscription canceled
+            - invoice.payment_succeeded: Invoice payment successful
+            - invoice.payment_failed: Invoice payment failed
+            - charge.dispute.created: Payment dispute initiated
             
             **Event Processing:**
             1. Validate webhook signature
@@ -2840,12 +2883,16 @@
             - customer.subscription.created
             - customer.subscription.updated
             - customer.subscription.deleted
+            - invoice.payment_succeeded
+            - invoice.payment_failed
+            - charge.dispute.created
             
             **Use Cases:**
             - Real-time subscription state synchronization
             - Automatic tier updates when customer changes plan
             - Cancellation handling
             - Payment failure notifications
+            - Dispute tracking and resolution
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Controllers.TokenController">
@@ -13072,6 +13119,66 @@
             Resource not found
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.SUBSCRIPTION_NOT_FOUND">
+            <summary>
+            Subscription not found
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.SUBSCRIPTION_EXPIRED">
+            <summary>
+            Subscription has expired
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.PAYMENT_FAILED">
+            <summary>
+            Payment failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.PAYMENT_METHOD_REQUIRED">
+            <summary>
+            Payment method required
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.SUBSCRIPTION_PAST_DUE">
+            <summary>
+            Subscription is past due
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.SUBSCRIPTION_HAS_DISPUTE">
+            <summary>
+            Subscription has an active dispute
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.FEATURE_NOT_AVAILABLE">
+            <summary>
+            Feature not available in current subscription tier
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.UPGRADE_REQUIRED">
+            <summary>
+            Subscription upgrade required
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.CANNOT_PURCHASE_FREE_TIER">
+            <summary>
+            Cannot purchase free tier
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.STRIPE_SERVICE_ERROR">
+            <summary>
+            Stripe service error
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.WEBHOOK_SIGNATURE_INVALID">
+            <summary>
+            Webhook signature validation failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.PRICE_NOT_CONFIGURED">
+            <summary>
+            Price ID not configured
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
             <summary>
             Represents the response of an Ethereum Virtual Machine (EVM) token deployment operation.
@@ -14077,6 +14184,101 @@
             The amount to transfer (for demonstration purposes)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements">
+            <summary>
+            Represents the entitlements (feature access) for a subscription tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.Tier">
+            <summary>
+            Subscription tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.MaxTokenDeployments">
+            <summary>
+            Maximum number of tokens that can be deployed per month
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.MaxWhitelistedAddresses">
+            <summary>
+            Maximum number of whitelisted addresses per token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.MaxComplianceReports">
+            <summary>
+            Maximum number of compliance reports per month
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.AdvancedComplianceEnabled">
+            <summary>
+            Whether advanced compliance features are enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.MultiJurisdictionEnabled">
+            <summary>
+            Whether multi-jurisdiction support is enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.CustomBrandingEnabled">
+            <summary>
+            Whether custom branding is enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.PrioritySupportEnabled">
+            <summary>
+            Whether priority support is included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.ApiAccessEnabled">
+            <summary>
+            Whether API access is enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.WebhooksEnabled">
+            <summary>
+            Whether webhook support is enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.AuditExportsEnabled">
+            <summary>
+            Whether audit exports are enabled
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.MaxAuditExports">
+            <summary>
+            Maximum number of audit exports per month
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.SlaEnabled">
+            <summary>
+            Whether SLA guarantees apply
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlements.SlaUptimePercentage">
+            <summary>
+            SLA uptime guarantee percentage (e.g., 99.9)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionEntitlementsResponse">
+            <summary>
+            Response containing subscription entitlements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlementsResponse.Success">
+            <summary>
+            Whether the operation was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlementsResponse.Entitlements">
+            <summary>
+            Subscription entitlements
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionEntitlementsResponse.ErrorMessage">
+            <summary>
+            Error message if operation failed
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionState">
             <summary>
             Represents the subscription state for a user
@@ -14135,6 +14337,31 @@
         <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.LastUpdated">
             <summary>
             Last update timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.LastPaymentFailure">
+            <summary>
+            Last payment failure date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.PaymentFailureCount">
+            <summary>
+            Count of consecutive payment failures
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.LastPaymentFailureReason">
+            <summary>
+            Last payment failure reason
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.HasActiveDispute">
+            <summary>
+            Whether there's an active dispute
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Subscription.SubscriptionState.LastDisputeDate">
+            <summary>
+            Last dispute date
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Subscription.SubscriptionStatus">
@@ -21375,6 +21602,13 @@
             <param name="signature">Stripe signature header</param>
             <returns>Processing result</returns>
         </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStripeService.GetEntitlementsAsync(System.String)">
+            <summary>
+            Gets subscription entitlements for a user
+            </summary>
+            <param name="userAddress">User's Algorand address</param>
+            <returns>Subscription entitlements</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.ISubscriptionMeteringService">
             <summary>
             Service for emitting subscription metering events for billing and analytics
@@ -22051,6 +22285,9 @@
             <inheritdoc/>
         </member>
         <member name="M:BiatecTokensApi.Services.StripeService.ProcessWebhookEventAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StripeService.GetEntitlementsAsync(System.String)">
             <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.SubscriptionMeteringService">

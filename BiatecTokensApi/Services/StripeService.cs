@@ -269,6 +269,9 @@ namespace BiatecTokensApi.Services
                     "customer.subscription.created" => await HandleSubscriptionCreatedAsync(stripeEvent),
                     "customer.subscription.updated" => await HandleSubscriptionUpdatedAsync(stripeEvent),
                     "customer.subscription.deleted" => await HandleSubscriptionDeletedAsync(stripeEvent),
+                    "invoice.payment_succeeded" => await HandleInvoicePaymentSucceededAsync(stripeEvent),
+                    "invoice.payment_failed" => await HandleInvoicePaymentFailedAsync(stripeEvent),
+                    "charge.dispute.created" => await HandleDisputeCreatedAsync(stripeEvent),
                     _ => await HandleUnknownEventAsync(stripeEvent)
                 };
 
@@ -591,6 +594,264 @@ namespace BiatecTokensApi.Services
                 return SubscriptionTier.Enterprise;
 
             return SubscriptionTier.Free;
+        }
+
+        private async Task<bool> HandleInvoicePaymentSucceededAsync(Event stripeEvent)
+        {
+            var invoice = stripeEvent.Data.Object as Stripe.Invoice;
+            if (invoice == null)
+            {
+                _logger.LogWarning("Invoice data is null in event {EventId}", stripeEvent.Id);
+                return false;
+            }
+
+            // Get the subscription ID from the first line item
+            var subscriptionId = invoice.Lines?.Data?.FirstOrDefault()?.SubscriptionId 
+                ?? invoice.Metadata?.GetValueOrDefault("subscription_id");
+            
+            // Only process if associated with a subscription
+            if (string.IsNullOrWhiteSpace(subscriptionId))
+            {
+                _logger.LogInformation("Invoice {InvoiceId} not associated with subscription, skipping", invoice.Id);
+                return true;
+            }
+
+            var subscription = await _subscriptionRepository.GetSubscriptionBySubscriptionIdAsync(subscriptionId);
+            if (subscription == null)
+            {
+                _logger.LogWarning("Subscription not found for invoice {InvoiceId}", invoice.Id);
+                return false;
+            }
+
+            // Reset payment failure counters on successful payment
+            subscription.PaymentFailureCount = 0;
+            subscription.LastPaymentFailure = null;
+            subscription.LastPaymentFailureReason = null;
+            subscription.LastUpdated = DateTime.UtcNow;
+
+            await _subscriptionRepository.SaveSubscriptionAsync(subscription);
+
+            await _subscriptionRepository.MarkEventProcessedAsync(new SubscriptionWebhookEvent
+            {
+                EventId = stripeEvent.Id,
+                EventType = stripeEvent.Type,
+                UserAddress = subscription.UserAddress,
+                StripeSubscriptionId = subscription.StripeSubscriptionId,
+                Tier = subscription.Tier,
+                Status = subscription.Status,
+                Success = true
+            });
+
+            _logger.LogInformation(
+                "Processed invoice payment success for user {UserAddress}, invoice {InvoiceId}",
+                subscription.UserAddress, invoice.Id);
+
+            return true;
+        }
+
+        private async Task<bool> HandleInvoicePaymentFailedAsync(Event stripeEvent)
+        {
+            var invoice = stripeEvent.Data.Object as Stripe.Invoice;
+            if (invoice == null)
+            {
+                _logger.LogWarning("Invoice data is null in event {EventId}", stripeEvent.Id);
+                return false;
+            }
+
+            // Get the subscription ID from the first line item
+            var subscriptionId = invoice.Lines?.Data?.FirstOrDefault()?.SubscriptionId 
+                ?? invoice.Metadata?.GetValueOrDefault("subscription_id");
+            
+            // Only process if associated with a subscription
+            if (string.IsNullOrWhiteSpace(subscriptionId))
+            {
+                _logger.LogInformation("Invoice {InvoiceId} not associated with subscription, skipping", invoice.Id);
+                return true;
+            }
+
+            var subscription = await _subscriptionRepository.GetSubscriptionBySubscriptionIdAsync(subscriptionId);
+            if (subscription == null)
+            {
+                _logger.LogWarning("Subscription not found for invoice {InvoiceId}", invoice.Id);
+                return false;
+            }
+
+            // Track payment failure
+            subscription.PaymentFailureCount++;
+            subscription.LastPaymentFailure = DateTime.UtcNow;
+            subscription.LastPaymentFailureReason = invoice.LastFinalizationError?.Message ?? "Payment failed";
+            subscription.LastUpdated = DateTime.UtcNow;
+
+            await _subscriptionRepository.SaveSubscriptionAsync(subscription);
+
+            await _subscriptionRepository.MarkEventProcessedAsync(new SubscriptionWebhookEvent
+            {
+                EventId = stripeEvent.Id,
+                EventType = stripeEvent.Type,
+                UserAddress = subscription.UserAddress,
+                StripeSubscriptionId = subscription.StripeSubscriptionId,
+                Tier = subscription.Tier,
+                Status = subscription.Status,
+                Success = true,
+                ErrorMessage = subscription.LastPaymentFailureReason
+            });
+
+            _logger.LogWarning(
+                "Processed invoice payment failure for user {UserAddress}, invoice {InvoiceId}, reason: {Reason}",
+                subscription.UserAddress, invoice.Id, subscription.LastPaymentFailureReason);
+
+            return true;
+        }
+
+        private async Task<bool> HandleDisputeCreatedAsync(Event stripeEvent)
+        {
+            var dispute = stripeEvent.Data.Object as Stripe.Dispute;
+            if (dispute == null)
+            {
+                _logger.LogWarning("Dispute data is null in event {EventId}", stripeEvent.Id);
+                return false;
+            }
+
+            // Find subscription by customer ID from the charge
+            var chargeService = new Stripe.ChargeService();
+            var charge = await chargeService.GetAsync(dispute.ChargeId);
+            
+            if (charge == null || string.IsNullOrWhiteSpace(charge.CustomerId))
+            {
+                _logger.LogWarning("Could not find customer for dispute {DisputeId}", dispute.Id);
+                return false;
+            }
+
+            var subscription = await _subscriptionRepository.GetSubscriptionByCustomerIdAsync(charge.CustomerId);
+            if (subscription == null)
+            {
+                _logger.LogWarning("Subscription not found for customer {CustomerId}", charge.CustomerId);
+                return false;
+            }
+
+            // Mark dispute in subscription state
+            subscription.HasActiveDispute = true;
+            subscription.LastDisputeDate = DateTime.UtcNow;
+            subscription.LastUpdated = DateTime.UtcNow;
+
+            await _subscriptionRepository.SaveSubscriptionAsync(subscription);
+
+            await _subscriptionRepository.MarkEventProcessedAsync(new SubscriptionWebhookEvent
+            {
+                EventId = stripeEvent.Id,
+                EventType = stripeEvent.Type,
+                UserAddress = subscription.UserAddress,
+                StripeSubscriptionId = subscription.StripeSubscriptionId,
+                Tier = subscription.Tier,
+                Status = subscription.Status,
+                Success = true,
+                ErrorMessage = $"Dispute created: {dispute.Reason}"
+            });
+
+            _logger.LogWarning(
+                "Processed dispute created for user {UserAddress}, dispute {DisputeId}, reason: {Reason}",
+                subscription.UserAddress, dispute.Id, dispute.Reason);
+
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public async Task<SubscriptionEntitlements> GetEntitlementsAsync(string userAddress)
+        {
+            var subscription = await GetSubscriptionStatusAsync(userAddress);
+            return MapTierToEntitlements(subscription.Tier);
+        }
+
+        private SubscriptionEntitlements MapTierToEntitlements(SubscriptionTier tier)
+        {
+            return tier switch
+            {
+                SubscriptionTier.Free => new SubscriptionEntitlements
+                {
+                    Tier = SubscriptionTier.Free,
+                    MaxTokenDeployments = 1,
+                    MaxWhitelistedAddresses = 10,
+                    MaxComplianceReports = 1,
+                    AdvancedComplianceEnabled = false,
+                    MultiJurisdictionEnabled = false,
+                    CustomBrandingEnabled = false,
+                    PrioritySupportEnabled = false,
+                    ApiAccessEnabled = true,
+                    WebhooksEnabled = false,
+                    AuditExportsEnabled = false,
+                    MaxAuditExports = 0,
+                    SlaEnabled = false,
+                    SlaUptimePercentage = null
+                },
+                SubscriptionTier.Basic => new SubscriptionEntitlements
+                {
+                    Tier = SubscriptionTier.Basic,
+                    MaxTokenDeployments = 10,
+                    MaxWhitelistedAddresses = 100,
+                    MaxComplianceReports = 10,
+                    AdvancedComplianceEnabled = true,
+                    MultiJurisdictionEnabled = false,
+                    CustomBrandingEnabled = false,
+                    PrioritySupportEnabled = false,
+                    ApiAccessEnabled = true,
+                    WebhooksEnabled = true,
+                    AuditExportsEnabled = true,
+                    MaxAuditExports = 5,
+                    SlaEnabled = false,
+                    SlaUptimePercentage = null
+                },
+                SubscriptionTier.Premium => new SubscriptionEntitlements
+                {
+                    Tier = SubscriptionTier.Premium,
+                    MaxTokenDeployments = 100,
+                    MaxWhitelistedAddresses = 1000,
+                    MaxComplianceReports = 100,
+                    AdvancedComplianceEnabled = true,
+                    MultiJurisdictionEnabled = true,
+                    CustomBrandingEnabled = true,
+                    PrioritySupportEnabled = true,
+                    ApiAccessEnabled = true,
+                    WebhooksEnabled = true,
+                    AuditExportsEnabled = true,
+                    MaxAuditExports = 50,
+                    SlaEnabled = true,
+                    SlaUptimePercentage = 99.5
+                },
+                SubscriptionTier.Enterprise => new SubscriptionEntitlements
+                {
+                    Tier = SubscriptionTier.Enterprise,
+                    MaxTokenDeployments = -1, // Unlimited
+                    MaxWhitelistedAddresses = -1, // Unlimited
+                    MaxComplianceReports = -1, // Unlimited
+                    AdvancedComplianceEnabled = true,
+                    MultiJurisdictionEnabled = true,
+                    CustomBrandingEnabled = true,
+                    PrioritySupportEnabled = true,
+                    ApiAccessEnabled = true,
+                    WebhooksEnabled = true,
+                    AuditExportsEnabled = true,
+                    MaxAuditExports = -1, // Unlimited
+                    SlaEnabled = true,
+                    SlaUptimePercentage = 99.9
+                },
+                _ => new SubscriptionEntitlements
+                {
+                    Tier = SubscriptionTier.Free,
+                    MaxTokenDeployments = 1,
+                    MaxWhitelistedAddresses = 10,
+                    MaxComplianceReports = 1,
+                    AdvancedComplianceEnabled = false,
+                    MultiJurisdictionEnabled = false,
+                    CustomBrandingEnabled = false,
+                    PrioritySupportEnabled = false,
+                    ApiAccessEnabled = true,
+                    WebhooksEnabled = false,
+                    AuditExportsEnabled = false,
+                    MaxAuditExports = 0,
+                    SlaEnabled = false,
+                    SlaUptimePercentage = null
+                }
+            };
         }
     }
 }

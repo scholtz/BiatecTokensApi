@@ -214,5 +214,66 @@ namespace BiatecTokensApi.Models
         /// Resource not found
         /// </summary>
         public const string NotFound = "NOT_FOUND";
+
+        // Subscription and billing errors
+        /// <summary>
+        /// Subscription not found
+        /// </summary>
+        public const string SUBSCRIPTION_NOT_FOUND = "SUBSCRIPTION_NOT_FOUND";
+
+        /// <summary>
+        /// Subscription has expired
+        /// </summary>
+        public const string SUBSCRIPTION_EXPIRED = "SUBSCRIPTION_EXPIRED";
+
+        /// <summary>
+        /// Payment failed
+        /// </summary>
+        public const string PAYMENT_FAILED = "PAYMENT_FAILED";
+
+        /// <summary>
+        /// Payment method required
+        /// </summary>
+        public const string PAYMENT_METHOD_REQUIRED = "PAYMENT_METHOD_REQUIRED";
+
+        /// <summary>
+        /// Subscription is past due
+        /// </summary>
+        public const string SUBSCRIPTION_PAST_DUE = "SUBSCRIPTION_PAST_DUE";
+
+        /// <summary>
+        /// Subscription has an active dispute
+        /// </summary>
+        public const string SUBSCRIPTION_HAS_DISPUTE = "SUBSCRIPTION_HAS_DISPUTE";
+
+        /// <summary>
+        /// Feature not available in current subscription tier
+        /// </summary>
+        public const string FEATURE_NOT_AVAILABLE = "FEATURE_NOT_AVAILABLE";
+
+        /// <summary>
+        /// Subscription upgrade required
+        /// </summary>
+        public const string UPGRADE_REQUIRED = "UPGRADE_REQUIRED";
+
+        /// <summary>
+        /// Cannot purchase free tier
+        /// </summary>
+        public const string CANNOT_PURCHASE_FREE_TIER = "CANNOT_PURCHASE_FREE_TIER";
+
+        /// <summary>
+        /// Stripe service error
+        /// </summary>
+        public const string STRIPE_SERVICE_ERROR = "STRIPE_SERVICE_ERROR";
+
+        /// <summary>
+        /// Webhook signature validation failed
+        /// </summary>
+        public const string WEBHOOK_SIGNATURE_INVALID = "WEBHOOK_SIGNATURE_INVALID";
+
+        /// <summary>
+        /// Price ID not configured
+        /// </summary>
+        public const string PRICE_NOT_CONFIGURED = "PRICE_NOT_CONFIGURED";
     }
 }
