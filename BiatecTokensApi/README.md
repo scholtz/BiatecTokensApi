@@ -12,6 +12,7 @@ A comprehensive API for deploying and managing various types of tokens on differ
 - **ARC200 Token Support**: Create ARC200 tokens with mintable and preminted variants
 - **RWA Compliance Management**: Comprehensive compliance metadata and whitelist management for Real World Asset tokens
 - **Compliance Indicators API**: Frontend-friendly endpoint exposing MICA readiness, whitelisting status, and enterprise readiness scores
+- **Compliance Capability Matrix**: Configuration-driven API providing jurisdiction-aware compliance rules and enforcement
 - **Network-Specific Validation**: Enforce compliance rules for VOI and Aramid networks
 - **Authentication**: Secure API access using ARC-0014 Algorand authentication
 - **Multi-Network Support**: Support for various Algorand networks and EVM chains
@@ -563,6 +564,43 @@ Returns simplified compliance status including:
 - **KYC verification status** - Current verification state
 
 For detailed documentation, see [COMPLIANCE_INDICATORS_API.md](../COMPLIANCE_INDICATORS_API.md)
+
+### Compliance Capability Matrix API (NEW)
+
+**GET** `/api/v1/compliance/capabilities` - Query compliance capability matrix with optional filtering
+**POST** `/api/v1/compliance/capabilities/check` - Check if a specific action is allowed
+**GET** `/api/v1/compliance/capabilities/version` - Get current capability matrix version
+
+The Compliance Capability Matrix API provides a configurable, jurisdiction-aware system that defines which token standards, compliance checks, and transaction types are allowed per jurisdiction, wallet type, and KYC tier. This serves as the single source of truth for compliance gating across the platform.
+
+**Key Features:**
+- **Jurisdiction-specific rules** - Support for US, CH, EU, SG, and more
+- **Wallet type awareness** - Different rules for custodial vs. non-custodial wallets
+- **KYC tier gating** - Progressive capabilities based on KYC level (0-3)
+- **Token standard support** - Rules for ARC-3, ARC-19, ARC-200, ERC-20
+- **Action enforcement** - Control mint, transfer, burn, freeze operations
+- **Required checks** - Define mandatory compliance checks per action
+- **Audit logging** - All capability queries and enforcement decisions logged
+- **Caching** - In-memory caching for performance
+
+**Example - Get capabilities for Switzerland:**
+```bash
+GET /api/v1/compliance/capabilities?jurisdiction=CH&walletType=custodial&kycTier=2
+```
+
+**Example - Check if mint is allowed:**
+```bash
+POST /api/v1/compliance/capabilities/check
+{
+  "jurisdiction": "CH",
+  "walletType": "custodial",
+  "tokenStandard": "ARC-19",
+  "kycTier": "2",
+  "action": "mint"
+}
+```
+
+For comprehensive documentation, examples, and integration guide, see [CAPABILITY_MATRIX_API.md](../CAPABILITY_MATRIX_API.md)
 
 ### Compliance Metadata Endpoints
 

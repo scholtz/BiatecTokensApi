@@ -4,6 +4,36 @@
         <name>BiatecTokensApi</name>
     </assembly>
     <members>
+        <member name="T:BiatecTokensApi.Configuration.CapabilityMatrixConfig">
+            <summary>
+            Configuration for compliance capability matrix
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.CapabilityMatrixConfig.ConfigFilePath">
+            <summary>
+            Path to the capability matrix configuration file
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.CapabilityMatrixConfig.Version">
+            <summary>
+            Version of the capability matrix
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.CapabilityMatrixConfig.StrictMode">
+            <summary>
+            Enable strict validation mode (deny by default if rule not found)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.CapabilityMatrixConfig.EnableCaching">
+            <summary>
+            Enable caching of capability matrix
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.CapabilityMatrixConfig.CacheDurationSeconds">
+            <summary>
+            Cache duration in seconds
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Configuration.EVMBlockchainConfig">
             <summary>
             Represents the configuration settings for an EVM-compatible blockchain, such as Base Mainnet or Base Sepolia
@@ -336,6 +366,55 @@
             - All operations are logged for audit purposes
             - Rate limiting may apply to prevent abuse
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.CapabilityMatrixController">
+            <summary>
+            Provides endpoints for querying compliance capability matrix
+            </summary>
+            <remarks>
+            This controller provides read-only access to the compliance capability matrix,
+            which defines allowed token standards, compliance checks, and transaction types
+            per jurisdiction, wallet type, and KYC tier.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.CapabilityMatrixController.#ctor(BiatecTokensApi.Services.Interface.ICapabilityMatrixService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.CapabilityMatrixController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.CapabilityMatrixController"/> class.
+            </summary>
+            <param name="capabilityMatrixService">The capability matrix service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.CapabilityMatrixController.GetCapabilityMatrix(System.String,System.String,System.String,System.String)">
+            <summary>
+            Gets the compliance capability matrix with optional filtering
+            </summary>
+            <param name="jurisdiction">Optional filter by jurisdiction code (e.g., "US", "CH", "EU")</param>
+            <param name="walletType">Optional filter by wallet type (e.g., "custodial", "non-custodial")</param>
+            <param name="tokenStandard">Optional filter by token standard (e.g., "ARC-3", "ARC-19", "ARC-200", "ERC-20")</param>
+            <param name="kycTier">Optional filter by KYC tier (e.g., "1", "2", "3")</param>
+            <returns>The capability matrix with allowed actions and compliance requirements</returns>
+            <response code="200">Returns the capability matrix data</response>
+            <response code="400">If the filter combination is invalid</response>
+            <response code="404">If no matching capabilities are found</response>
+            <response code="500">If an internal error occurs</response>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.CapabilityMatrixController.CheckCapability(BiatecTokensApi.Models.Compliance.CapabilityCheckRequest)">
+            <summary>
+            Checks if a specific action is allowed based on capability rules
+            </summary>
+            <param name="request">The capability check request containing jurisdiction, wallet type, token standard, KYC tier, and action</param>
+            <returns>Response indicating if the action is allowed and required compliance checks</returns>
+            <response code="200">Returns the capability check result</response>
+            <response code="400">If the request is invalid</response>
+            <response code="403">If the action is not allowed based on capability rules</response>
+            <response code="500">If an internal error occurs</response>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.CapabilityMatrixController.GetVersion">
+            <summary>
+            Gets the current capability matrix version
+            </summary>
+            <returns>The version string</returns>
+            <response code="200">Returns the version information</response>
         </member>
         <member name="T:BiatecTokensApi.Controllers.ComplianceController">
             <summary>
@@ -6294,6 +6373,261 @@
         <member name="F:BiatecTokensApi.Models.Compliance.BlacklistStatus.Removed">
             <summary>
             Removed from blacklist
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CapabilityMatrix">
+            <summary>
+            Represents the complete capability matrix for compliance rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityMatrix.Version">
+            <summary>
+            Version of the capability matrix (e.g., "2026-02-05")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityMatrix.GeneratedAt">
+            <summary>
+            Timestamp when the matrix was generated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityMatrix.Jurisdictions">
+            <summary>
+            List of jurisdiction-specific capabilities
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.JurisdictionCapability">
+            <summary>
+            Represents capabilities for a specific jurisdiction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionCapability.Code">
+            <summary>
+            ISO country code (e.g., "US", "CH", "EU")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionCapability.Name">
+            <summary>
+            Human-readable jurisdiction name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.JurisdictionCapability.WalletTypes">
+            <summary>
+            List of wallet type capabilities for this jurisdiction
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.WalletTypeCapability">
+            <summary>
+            Represents capabilities for a specific wallet type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WalletTypeCapability.Type">
+            <summary>
+            Wallet type (e.g., "custodial", "non-custodial", "hardware")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WalletTypeCapability.Description">
+            <summary>
+            Human-readable wallet type description
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.WalletTypeCapability.KycTiers">
+            <summary>
+            List of KYC tier capabilities for this wallet type
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.KycTierCapability">
+            <summary>
+            Represents capabilities for a specific KYC tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.KycTierCapability.Tier">
+            <summary>
+            KYC tier level (e.g., "0", "1", "2", "3")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.KycTierCapability.Description">
+            <summary>
+            Human-readable tier description
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.KycTierCapability.TokenStandards">
+            <summary>
+            List of token standard capabilities for this KYC tier
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.TokenStandardCapability">
+            <summary>
+            Represents capabilities for a specific token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenStandardCapability.Standard">
+            <summary>
+            Token standard name (e.g., "ARC-3", "ARC-19", "ARC-200", "ERC-20")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenStandardCapability.Actions">
+            <summary>
+            List of allowed actions for this token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenStandardCapability.Checks">
+            <summary>
+            List of required compliance checks
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.TokenStandardCapability.Notes">
+            <summary>
+            Optional regulatory notes or restrictions
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest">
+            <summary>
+            Request model for querying capability matrix
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest.Jurisdiction">
+            <summary>
+            Optional filter by jurisdiction code
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest.WalletType">
+            <summary>
+            Optional filter by wallet type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest.TokenStandard">
+            <summary>
+            Optional filter by token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest.KycTier">
+            <summary>
+            Optional filter by KYC tier
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CapabilityMatrixResponse">
+            <summary>
+            Response model for capability matrix queries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityMatrixResponse.Success">
+            <summary>
+            Indicates if the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityMatrixResponse.Data">
+            <summary>
+            The capability matrix data (may be filtered based on request)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityMatrixResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityMatrixResponse.ErrorDetails">
+            <summary>
+            Detailed error information for unsupported combinations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails">
+            <summary>
+            Detailed error information for capability violations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails.Error">
+            <summary>
+            Error code (e.g., "capability_not_allowed", "invalid_filter")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails.Jurisdiction">
+            <summary>
+            Jurisdiction code that was requested
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails.WalletType">
+            <summary>
+            Wallet type that was requested
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails.TokenStandard">
+            <summary>
+            Token standard that was requested
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails.KycTier">
+            <summary>
+            KYC tier that was requested
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails.Action">
+            <summary>
+            Action that was attempted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityErrorDetails.RuleId">
+            <summary>
+            ID of the rule that blocked the action
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CapabilityCheckRequest">
+            <summary>
+            Model for capability enforcement check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckRequest.Jurisdiction">
+            <summary>
+            Jurisdiction code
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckRequest.WalletType">
+            <summary>
+            Wallet type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckRequest.TokenStandard">
+            <summary>
+            Token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckRequest.KycTier">
+            <summary>
+            KYC tier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckRequest.Action">
+            <summary>
+            Action to check (e.g., "mint", "transfer", "burn", "freeze")
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CapabilityCheckResponse">
+            <summary>
+            Response model for capability enforcement check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckResponse.Allowed">
+            <summary>
+            Indicates if the action is allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckResponse.Reason">
+            <summary>
+            Reason if the action is not allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckResponse.RequiredChecks">
+            <summary>
+            Required compliance checks for this action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckResponse.Notes">
+            <summary>
+            Regulatory notes if applicable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CapabilityCheckResponse.ErrorDetails">
+            <summary>
+            Error details if the check failed
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest">
@@ -19471,6 +19805,74 @@
             Internal class for tracking usage data per tenant
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.CapabilityMatrixService">
+            <summary>
+            Service for managing compliance capability matrix
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.CapabilityMatrixService},Microsoft.Extensions.Options.IOptions{BiatecTokensApi.Configuration.CapabilityMatrixConfig})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.CapabilityMatrixService"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+            <param name="config">The capability matrix configuration</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.GetCapabilityMatrixAsync(BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest)">
+            <summary>
+            Gets the complete capability matrix with optional filtering
+            </summary>
+            <param name="request">Optional filters for jurisdiction, wallet type, token standard, and KYC tier</param>
+            <returns>Response with the capability matrix data</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.CheckCapabilityAsync(BiatecTokensApi.Models.Compliance.CapabilityCheckRequest)">
+            <summary>
+            Checks if a specific action is allowed based on capability rules
+            </summary>
+            <param name="request">The capability check request</param>
+            <returns>Response indicating if the action is allowed and required checks</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.ReloadConfigurationAsync">
+            <summary>
+            Reloads the capability matrix configuration from file
+            </summary>
+            <returns>True if reload was successful</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.GetVersion">
+            <summary>
+            Gets the current configuration version
+            </summary>
+            <returns>The version string</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.GetMatrixAsync">
+            <summary>
+            Gets the capability matrix, using cache if enabled
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.LoadConfigurationAsync">
+            <summary>
+            Loads the capability matrix configuration from file asynchronously
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.LoadConfigurationSync">
+            <summary>
+            Loads the capability matrix configuration from file synchronously (for constructor)
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.ValidateConfiguration(BiatecTokensApi.Models.Compliance.CapabilityMatrix)">
+            <summary>
+            Validates the capability matrix configuration
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.HasFilters(BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest)">
+            <summary>
+            Checks if the request has any filters
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.ApplyFilters(BiatecTokensApi.Models.Compliance.CapabilityMatrix,BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest)">
+            <summary>
+            Applies filters to the capability matrix
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ComplianceReportService">
             <summary>
             Service implementation for compliance report generation and management
@@ -20185,6 +20587,37 @@
             <param name="tenantAddress">The tenant's Algorand address</param>
             <param name="operationType">Type of operation performed</param>
             <param name="count">Number of operations performed</param>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ICapabilityMatrixService">
+            <summary>
+            Service interface for managing compliance capability matrix
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ICapabilityMatrixService.GetCapabilityMatrixAsync(BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest)">
+            <summary>
+            Gets the complete capability matrix with optional filtering
+            </summary>
+            <param name="request">Optional filters for jurisdiction, wallet type, token standard, and KYC tier</param>
+            <returns>Response with the capability matrix data</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ICapabilityMatrixService.CheckCapabilityAsync(BiatecTokensApi.Models.Compliance.CapabilityCheckRequest)">
+            <summary>
+            Checks if a specific action is allowed based on capability rules
+            </summary>
+            <param name="request">The capability check request</param>
+            <returns>Response indicating if the action is allowed and required checks</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ICapabilityMatrixService.ReloadConfigurationAsync">
+            <summary>
+            Reloads the capability matrix configuration from file
+            </summary>
+            <returns>True if reload was successful</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ICapabilityMatrixService.GetVersion">
+            <summary>
+            Gets the current configuration version
+            </summary>
+            <returns>The version string</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IComplianceReportService">
             <summary>

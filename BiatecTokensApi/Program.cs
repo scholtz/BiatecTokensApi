@@ -89,6 +89,9 @@ namespace BiatecTokensApi
             builder.Services.Configure<BiatecTokensApi.Configuration.StripeConfig>(
                 builder.Configuration.GetSection("StripeConfig"));
 
+            builder.Services.Configure<BiatecTokensApi.Configuration.CapabilityMatrixConfig>(
+                builder.Configuration.GetSection("CapabilityMatrixConfig"));
+
             // Register HTTP client for API calls with resilience policies
             builder.Services.AddHttpClient("default")
                 .AddStandardResilienceHandler(options =>
@@ -162,6 +165,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<ITokenRegistryService, TokenRegistryService>();
             builder.Services.AddSingleton<IRegistryIngestionService, RegistryIngestionService>();
             builder.Services.AddSingleton<IJurisdictionRulesService, JurisdictionRulesService>();
+            builder.Services.AddSingleton<ICapabilityMatrixService, CapabilityMatrixService>();
 
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
