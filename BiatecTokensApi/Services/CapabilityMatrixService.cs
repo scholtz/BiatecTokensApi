@@ -16,7 +16,7 @@ namespace BiatecTokensApi.Services
         private readonly CapabilityMatrixConfig _config;
         private CapabilityMatrix? _cachedMatrix;
         private DateTime _lastLoadTime;
-        private readonly object _lockObject = new object();
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CapabilityMatrixService"/> class.
@@ -31,8 +31,8 @@ namespace BiatecTokensApi.Services
             _config = config.Value;
             _lastLoadTime = DateTime.MinValue;
 
-            // Load configuration at startup
-            _ = LoadConfigurationAsync().Result;
+            // Load configuration at startup synchronously to avoid constructor async issues
+            LoadConfigurationSync();
         }
 
         /// <summary>
@@ -337,59 +337,112 @@ namespace BiatecTokensApi.Services
         }
 
         /// <summary>
-        /// Loads the capability matrix configuration from file
+        /// Loads the capability matrix configuration from file asynchronously
         /// </summary>
         private async Task<CapabilityMatrix?> LoadConfigurationAsync()
         {
-            lock (_lockObject)
+            await _semaphore.WaitAsync();
+            try
             {
-                try
+                var filePath = Path.Combine(AppContext.BaseDirectory, _config.ConfigFilePath);
+
+                if (!File.Exists(filePath))
                 {
-                    var filePath = Path.Combine(AppContext.BaseDirectory, _config.ConfigFilePath);
-
-                    if (!File.Exists(filePath))
-                    {
-                        _logger.LogError("Capability matrix configuration file not found: {FilePath}", LoggingHelper.SanitizeLogInput(filePath));
-                        return null;
-                    }
-
-                    var json = File.ReadAllText(filePath);
-                    var matrix = JsonSerializer.Deserialize<CapabilityMatrix>(json, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
-
-                    if (matrix == null)
-                    {
-                        _logger.LogError("Failed to deserialize capability matrix configuration");
-                        return null;
-                    }
-
-                    // Validate the configuration
-                    if (!ValidateConfiguration(matrix))
-                    {
-                        _logger.LogError("Capability matrix configuration validation failed");
-                        return null;
-                    }
-
-                    // Set generated timestamp
-                    matrix.GeneratedAt = DateTime.UtcNow;
-
-                    // Cache the matrix
-                    _cachedMatrix = matrix;
-                    _lastLoadTime = DateTime.UtcNow;
-
-                    _logger.LogInformation("Capability matrix configuration loaded successfully: Version={Version}, Jurisdictions={Count}",
-                        LoggingHelper.SanitizeLogInput(matrix.Version),
-                        matrix.Jurisdictions.Count);
-
-                    return matrix;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error loading capability matrix configuration");
+                    _logger.LogError("Capability matrix configuration file not found: {FilePath}", LoggingHelper.SanitizeLogInput(filePath));
                     return null;
                 }
+
+                var json = await File.ReadAllTextAsync(filePath);
+                var matrix = JsonSerializer.Deserialize<CapabilityMatrix>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (matrix == null)
+                {
+                    _logger.LogError("Failed to deserialize capability matrix configuration");
+                    return null;
+                }
+
+                // Validate the configuration
+                if (!ValidateConfiguration(matrix))
+                {
+                    _logger.LogError("Capability matrix configuration validation failed");
+                    return null;
+                }
+
+                // Set generated timestamp
+                matrix.GeneratedAt = DateTime.UtcNow;
+
+                // Cache the matrix
+                _cachedMatrix = matrix;
+                _lastLoadTime = DateTime.UtcNow;
+
+                _logger.LogInformation("Capability matrix configuration loaded successfully: Version={Version}, Jurisdictions={Count}",
+                    LoggingHelper.SanitizeLogInput(matrix.Version),
+                    matrix.Jurisdictions.Count);
+
+                return matrix;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading capability matrix configuration");
+                return null;
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Loads the capability matrix configuration from file synchronously (for constructor)
+        /// </summary>
+        private void LoadConfigurationSync()
+        {
+            try
+            {
+                var filePath = Path.Combine(AppContext.BaseDirectory, _config.ConfigFilePath);
+
+                if (!File.Exists(filePath))
+                {
+                    _logger.LogError("Capability matrix configuration file not found: {FilePath}", LoggingHelper.SanitizeLogInput(filePath));
+                    return;
+                }
+
+                var json = File.ReadAllText(filePath);
+                var matrix = JsonSerializer.Deserialize<CapabilityMatrix>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (matrix == null)
+                {
+                    _logger.LogError("Failed to deserialize capability matrix configuration");
+                    return;
+                }
+
+                // Validate the configuration
+                if (!ValidateConfiguration(matrix))
+                {
+                    _logger.LogError("Capability matrix configuration validation failed");
+                    return;
+                }
+
+                // Set generated timestamp
+                matrix.GeneratedAt = DateTime.UtcNow;
+
+                // Cache the matrix
+                _cachedMatrix = matrix;
+                _lastLoadTime = DateTime.UtcNow;
+
+                _logger.LogInformation("Capability matrix configuration loaded successfully: Version={Version}, Jurisdictions={Count}",
+                    LoggingHelper.SanitizeLogInput(matrix.Version),
+                    matrix.Jurisdictions.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading capability matrix configuration");
             }
         }
 

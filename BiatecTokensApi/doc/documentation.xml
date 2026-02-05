@@ -19850,7 +19850,12 @@
         </member>
         <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.LoadConfigurationAsync">
             <summary>
-            Loads the capability matrix configuration from file
+            Loads the capability matrix configuration from file asynchronously
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.LoadConfigurationSync">
+            <summary>
+            Loads the capability matrix configuration from file synchronously (for constructor)
             </summary>
         </member>
         <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.ValidateConfiguration(BiatecTokensApi.Models.Compliance.CapabilityMatrix)">
