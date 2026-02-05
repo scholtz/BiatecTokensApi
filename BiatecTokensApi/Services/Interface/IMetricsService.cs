@@ -46,6 +46,27 @@ namespace BiatecTokensApi.Services.Interface
         void RecordAuditWrite(string category, bool success);
 
         /// <summary>
+        /// Increments a counter metric
+        /// </summary>
+        /// <param name="name">Metric name</param>
+        /// <param name="increment">Amount to increment (default: 1)</param>
+        void IncrementCounter(string name, long increment = 1);
+
+        /// <summary>
+        /// Records a value in a histogram metric
+        /// </summary>
+        /// <param name="name">Metric name</param>
+        /// <param name="value">Value to record</param>
+        void RecordHistogram(string name, double value);
+
+        /// <summary>
+        /// Sets a gauge metric to a specific value
+        /// </summary>
+        /// <param name="name">Metric name</param>
+        /// <param name="value">Value to set</param>
+        void SetGauge(string name, double value);
+
+        /// <summary>
         /// Gets all current metrics
         /// </summary>
         /// <returns>Dictionary of metric categories and their data</returns>

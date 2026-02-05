@@ -69,6 +69,24 @@ namespace BiatecTokensApi.Services
         }
 
         /// <inheritdoc/>
+        public void IncrementCounter(string name, long increment = 1)
+        {
+            _metrics.IncrementCounter(name, increment);
+        }
+
+        /// <inheritdoc/>
+        public void RecordHistogram(string name, double value)
+        {
+            _metrics.RecordHistogram(name, value);
+        }
+
+        /// <inheritdoc/>
+        public void SetGauge(string name, double value)
+        {
+            _metrics.SetGauge(name, value);
+        }
+
+        /// <inheritdoc/>
         public Dictionary<string, object> GetMetrics()
         {
             return new Dictionary<string, object>

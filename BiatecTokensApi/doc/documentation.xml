@@ -20200,6 +20200,68 @@
             Persists compliance metadata for a deployed token
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.BaseObservableService">
+            <summary>
+            Base class for services that provides automatic observability features
+            </summary>
+            <remarks>
+            This base class provides:
+            - Automatic metrics recording for operations
+            - Correlation ID access from HTTP context
+            - Structured logging with correlation IDs
+            - Standardized error handling patterns
+            
+            Services inheriting from this class get observability features automatically.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Services.BaseObservableService.Metrics">
+            <summary>
+            Metrics service for recording operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.BaseObservableService.Logger">
+            <summary>
+            Logger instance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.BaseObservableService.HttpContextAccessor">
+            <summary>
+            HTTP context accessor for correlation ID access
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.BaseObservableService.CorrelationId">
+            <summary>
+            Gets the current correlation ID from HTTP context or generates one
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BaseObservableService.#ctor(BiatecTokensApi.Services.Interface.IMetricsService,Microsoft.Extensions.Logging.ILogger,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.BaseObservableService"/> class
+            </summary>
+            <param name="metrics">Metrics service</param>
+            <param name="logger">Logger instance</param>
+            <param name="httpContextAccessor">HTTP context accessor (optional)</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BaseObservableService.ExecuteWithMetricsAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}},System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Executes an operation with automatic metrics and logging
+            </summary>
+            <typeparam name="T">Return type</typeparam>
+            <param name="operationName">Name of the operation for metrics</param>
+            <param name="operation">The operation to execute</param>
+            <param name="logParameters">Optional parameters to log</param>
+            <returns>Result of the operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BaseObservableService.ExecuteWithMetrics``1(System.String,System.Func{``0},System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Executes an operation with automatic metrics and logging (synchronous version)
+            </summary>
+            <typeparam name="T">Return type</typeparam>
+            <param name="operationName">Name of the operation for metrics</param>
+            <param name="operation">The operation to execute</param>
+            <param name="logParameters">Optional parameters to log</param>
+            <returns>Result of the operation</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.BillingService">
             <summary>
             Service for billing operations including usage tracking and plan limit enforcement
@@ -21776,6 +21838,27 @@
             <param name="category">Audit category</param>
             <param name="success">Whether write succeeded</param>
         </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.IncrementCounter(System.String,System.Int64)">
+            <summary>
+            Increments a counter metric
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="increment">Amount to increment (default: 1)</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.RecordHistogram(System.String,System.Double)">
+            <summary>
+            Records a value in a histogram metric
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="value">Value to record</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.SetGauge(System.String,System.Double)">
+            <summary>
+            Sets a gauge metric to a specific value
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="value">Value to set</param>
+        </member>
         <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.GetMetrics">
             <summary>
             Gets all current metrics
@@ -22453,6 +22536,15 @@
             <inheritdoc/>
         </member>
         <member name="M:BiatecTokensApi.Services.MetricsService.RecordAuditWrite(System.String,System.Boolean)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.IncrementCounter(System.String,System.Int64)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.RecordHistogram(System.String,System.Double)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.SetGauge(System.String,System.Double)">
             <inheritdoc/>
         </member>
         <member name="M:BiatecTokensApi.Services.MetricsService.GetMetrics">
