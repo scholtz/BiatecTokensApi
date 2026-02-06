@@ -16,6 +16,7 @@ using BiatecTokensApi.Models;
 using AlgorandARC76AccountDotNet;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Models.Compliance;
+using BiatecTokensApi.Helpers;
 
 namespace BiatecTokensApi.Services
 {
@@ -37,6 +38,8 @@ namespace BiatecTokensApi.Services
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
         private readonly IComplianceRepository _complianceRepository;
         private readonly IDeploymentStatusService _deploymentStatusService;
+        private readonly IAuthenticationService _authenticationService;
+        private readonly IUserRepository _userRepository;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -57,6 +60,8 @@ namespace BiatecTokensApi.Services
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         /// <param name="complianceRepository">The compliance metadata repository</param>
         /// <param name="deploymentStatusService">The deployment status tracking service</param>
+        /// <param name="authenticationService">The authentication service for user account management</param>
+        /// <param name="userRepository">The user repository for accessing user data</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ERC20TokenService(
             IOptionsMonitor<EVMChains> config,
@@ -64,7 +69,9 @@ namespace BiatecTokensApi.Services
             ILogger<ERC20TokenService> logger,
             ITokenIssuanceRepository tokenIssuanceRepository,
             IComplianceRepository complianceRepository,
-            IDeploymentStatusService deploymentStatusService
+            IDeploymentStatusService deploymentStatusService,
+            IAuthenticationService authenticationService,
+            IUserRepository userRepository
             )
         {
             _config = config;
@@ -73,6 +80,8 @@ namespace BiatecTokensApi.Services
             _tokenIssuanceRepository = tokenIssuanceRepository;
             _complianceRepository = complianceRepository;
             _deploymentStatusService = deploymentStatusService;
+            _authenticationService = authenticationService;
+            _userRepository = userRepository;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -192,10 +201,11 @@ namespace BiatecTokensApi.Services
         /// <param name="request">The deployment request containing the token details, such as name, symbol, decimals, initial supply, and the
         /// blockchain configuration (e.g., chain ID and RPC URL).</param>
         /// <param name="tokenType">Token type</param>
+        /// <param name="userId">Optional user ID for JWT-authenticated requests. If provided, uses user's ARC76 account. If null, uses system account.</param>
         /// <returns>A <see cref="ERC20TokenDeploymentResponse"/> containing the deployment result, including the contract
         /// address, transaction hash, and success status. If the deployment fails, the response includes an error
         /// message.</returns>
-        public async Task<ERC20TokenDeploymentResponse> DeployERC20TokenAsync(ERC20TokenDeploymentRequest request, TokenType tokenType)
+        public async Task<ERC20TokenDeploymentResponse> DeployERC20TokenAsync(ERC20TokenDeploymentRequest request, TokenType tokenType, string? userId = null)
         {
             ERC20TokenDeploymentResponse? response = null;
             string? deploymentId = null;
@@ -204,7 +214,35 @@ namespace BiatecTokensApi.Services
             {
                 ValidateRequest(request, tokenType);
 
-                var acc = ARC76.GetEVMAccount(_appConfig.CurrentValue.Account, Convert.ToInt32(request.ChainId));
+                // Determine which account mnemonic to use: user's ARC76 account or system account
+                string accountMnemonic;
+                if (!string.IsNullOrWhiteSpace(userId))
+                {
+                    // JWT-authenticated user: use their ARC76-derived account
+                    var userMnemonic = await _authenticationService.GetUserMnemonicForSigningAsync(userId);
+                    if (string.IsNullOrWhiteSpace(userMnemonic))
+                    {
+                        _logger.LogError("Failed to retrieve mnemonic for user: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                        return new ERC20TokenDeploymentResponse
+                        {
+                            Success = false,
+                            ErrorCode = ErrorCodes.USER_NOT_FOUND,
+                            ErrorMessage = "Failed to retrieve user account for token deployment",
+                            TransactionHash = string.Empty,
+                            ContractAddress = string.Empty
+                        };
+                    }
+                    accountMnemonic = userMnemonic;
+                    _logger.LogInformation("Using user's ARC76 account for deployment: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                }
+                else
+                {
+                    // ARC-0014 authenticated or system: use system account
+                    accountMnemonic = _appConfig.CurrentValue.Account;
+                    _logger.LogInformation("Using system account for deployment (ARC-0014 authentication)");
+                }
+
+                var acc = ARC76.GetEVMAccount(accountMnemonic, Convert.ToInt32(request.ChainId));
                 var chainConfig = GetBlockchainConfig(Convert.ToInt32(request.ChainId));
                 var account = new Account(acc, request.ChainId);
 

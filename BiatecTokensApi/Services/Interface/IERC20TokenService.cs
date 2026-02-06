@@ -18,7 +18,8 @@ namespace BiatecTokensApi.Services.Interface
         /// </summary>
         /// <param name="request">Token deployment parameters</param>
         /// <param name="tokenType">Token type</param>
+        /// <param name="userId">Optional user ID for JWT-authenticated requests. If provided, uses user's ARC76 account. If null, uses system account.</param>
         /// <returns>Response with transaction details</returns>
-        Task<ERC20TokenDeploymentResponse> DeployERC20TokenAsync(ERC20TokenDeploymentRequest request, TokenType tokenType);
+        Task<ERC20TokenDeploymentResponse> DeployERC20TokenAsync(ERC20TokenDeploymentRequest request, TokenType tokenType, string? userId = null);
     }
 }

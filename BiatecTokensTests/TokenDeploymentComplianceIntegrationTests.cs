@@ -69,13 +69,18 @@ namespace BiatecTokensTests
                 It.IsAny<Dictionary<string, object>>()))
                 .ReturnsAsync(true);
 
+            var mockAuthService = Mock.Of<IAuthenticationService>();
+            var mockUserRepo = Mock.Of<IUserRepository>();
+
             var service = new ERC20TokenService(
                 mockConfig.Object, 
                 mockAppConfig.Object, 
                 mockLogger.Object, 
                 mockTokenIssuanceRepo.Object,
                 _complianceRepository,
-                deploymentStatusServiceMock.Object);
+                deploymentStatusServiceMock.Object,
+                mockAuthService,
+                mockUserRepo);
 
             // Act & Assert
             var ex = Assert.Throws<ArgumentException>(() => 
@@ -128,13 +133,18 @@ namespace BiatecTokensTests
                 It.IsAny<Dictionary<string, object>>()))
                 .ReturnsAsync(true);
 
+            var mockAuthService = Mock.Of<IAuthenticationService>();
+            var mockUserRepo = Mock.Of<IUserRepository>();
+
             var service = new ERC20TokenService(
                 mockConfig.Object, 
                 mockAppConfig.Object, 
                 mockLogger.Object, 
                 mockTokenIssuanceRepo.Object,
                 _complianceRepository,
-                deploymentStatusServiceMock.Object);
+                deploymentStatusServiceMock.Object,
+                mockAuthService,
+                mockUserRepo);
 
             // Act & Assert - should not throw
             Assert.DoesNotThrow(() => service.ValidateRequest(request, TokenType.ERC20_Mintable));
@@ -172,13 +182,18 @@ namespace BiatecTokensTests
                 It.IsAny<Dictionary<string, object>>()))
                 .ReturnsAsync(true);
 
+            var mockAuthService = Mock.Of<IAuthenticationService>();
+            var mockUserRepo = Mock.Of<IUserRepository>();
+
             var service = new ERC20TokenService(
                 mockConfig.Object, 
                 mockAppConfig.Object, 
                 mockLogger.Object, 
                 mockTokenIssuanceRepo.Object,
                 _complianceRepository,
-                deploymentStatusServiceMock.Object);
+                deploymentStatusServiceMock.Object,
+                mockAuthService,
+                mockUserRepo);
 
             // Act & Assert - should not throw
             Assert.DoesNotThrow(() => service.ValidateRequest(request, TokenType.ERC20_Mintable));

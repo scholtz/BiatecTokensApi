@@ -562,7 +562,10 @@ namespace BiatecTokensTests
                 It.IsAny<Dictionary<string, object>>()))
                 .ReturnsAsync(true);
             
-            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object);
+            var mockAuthService = Mock.Of<IAuthenticationService>();
+            var mockUserRepo = Mock.Of<IUserRepository>();
+            
+            return new ERC20TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object, mockAuthService, mockUserRepo);
         }
 
         #endregion

@@ -107,7 +107,11 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Mintable);
+                // Extract userId from JWT claims if present (JWT Bearer authentication)
+                // Falls back to null for ARC-0014 authentication
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                
+                var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Mintable, userId);
                 
                 // Add correlation ID to response
                 result.CorrelationId = correlationId;
@@ -171,7 +175,11 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Preminted);
+                // Extract userId from JWT claims if present (JWT Bearer authentication)
+                // Falls back to null for ARC-0014 authentication
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                
+                var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Preminted, userId);
                 
                 // Add correlation ID to response
                 result.CorrelationId = correlationId;
