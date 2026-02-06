@@ -156,6 +156,201 @@
             Cancel URL for checkout redirect
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.AuthController">
+            <summary>
+            Provides endpoints for authentication diagnostics and ARC-0014 authentication flow support
+            </summary>
+            <remarks>
+            This controller provides tools to debug authentication issues and understand the ARC-0014
+            authentication flow. All endpoints require valid ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthController.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.AuthController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.AuthController"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthController.VerifyAuthentication">
+            <summary>
+            Verifies ARC-0014 authentication and returns user identity information
+            </summary>
+            <returns>Authentication status and user claims</returns>
+            <remarks>
+            This endpoint helps verify that ARC-0014 authentication is working correctly
+            and provides visibility into the authenticated user's identity.
+            
+            **Sample Request:**
+            ```
+            GET /api/v1/auth/verify
+            Authorization: SigTx [base64-encoded-signed-transaction]
+            ```
+            
+            **Sample Response:**
+            ```json
+            {
+              "success": true,
+              "authenticated": true,
+              "userAddress": "ALGORAND_ADDRESS_HERE",
+              "authenticationMethod": "ARC-0014",
+              "claims": {
+                "sub": "ALGORAND_ADDRESS_HERE",
+                "nameidentifier": "ALGORAND_ADDRESS_HERE"
+              },
+              "correlationId": "abc123-def456"
+            }
+            ```
+            
+            **Use Cases:**
+            - Verify authentication is working
+            - Debug authentication issues
+            - Confirm user identity before operations
+            - Integration testing authentication flow
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthController.GetAuthInfo">
+            <summary>
+            Returns information about the ARC-0014 authentication flow and requirements
+            </summary>
+            <returns>Authentication flow documentation and configuration</returns>
+            <remarks>
+            This endpoint provides detailed information about how to authenticate with the API
+            using ARC-0014. It does NOT require authentication and can be used by clients
+            to understand the authentication requirements.
+            
+            **Sample Response:**
+            ```json
+            {
+              "authenticationMethod": "ARC-0014",
+              "realm": "BiatecTokens#ARC14",
+              "description": "Algorand ARC-0014 transaction-based authentication",
+              "headerFormat": "Authorization: SigTx [base64-encoded-signed-transaction]",
+              "documentation": "https://github.com/algorandfoundation/ARCs/blob/main/ARCs/arc-0014.md",
+              "supportedNetworks": ["mainnet", "testnet"]
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.AuthVerificationResponse">
+            <summary>
+            Response model for authentication verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.Success">
+            <summary>
+            Indicates if the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.Authenticated">
+            <summary>
+            Indicates if the user is authenticated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.UserAddress">
+            <summary>
+            The authenticated user's Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.AuthenticationMethod">
+            <summary>
+            The authentication method used (always "ARC-0014" for this API)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.Claims">
+            <summary>
+            User claims extracted from the authentication token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.ErrorMessage">
+            <summary>
+            Error message if verification failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthVerificationResponse.Timestamp">
+            <summary>
+            Timestamp when the verification was performed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.AuthInfoResponse">
+            <summary>
+            Response model for authentication information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.AuthenticationMethod">
+            <summary>
+            The authentication method supported by the API
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.Realm">
+            <summary>
+            The ARC-0014 realm identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.Description">
+            <summary>
+            Human-readable description of the authentication method
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.HeaderFormat">
+            <summary>
+            Format of the Authorization header
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.Documentation">
+            <summary>
+            URL to ARC-0014 specification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.SupportedNetworks">
+            <summary>
+            List of supported Algorand networks
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.Requirements">
+            <summary>
+            Authentication requirements details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthInfoResponse.Timestamp">
+            <summary>
+            Timestamp when the information was retrieved
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.AuthRequirements">
+            <summary>
+            Authentication requirements details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthRequirements.TransactionFormat">
+            <summary>
+            Required format for authentication transactions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthRequirements.ExpirationCheck">
+            <summary>
+            Whether transaction expiration is checked
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthRequirements.NetworkValidation">
+            <summary>
+            Whether network validation is performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Controllers.AuthRequirements.MinimumValidityRounds">
+            <summary>
+            Minimum validity period in rounds
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.BillingController">
             <summary>
             Provides endpoints for subscription usage metering and plan limit management
