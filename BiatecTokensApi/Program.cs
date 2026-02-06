@@ -171,6 +171,9 @@ namespace BiatecTokensApi
             // Register metrics service for observability
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
 
+            // Register background workers
+            builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
+
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
             builder.Services.AddAuthentication(AlgorandAuthenticationHandlerV2.ID).AddAlgorand(a =>

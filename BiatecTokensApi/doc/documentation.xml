@@ -23319,5 +23319,37 @@
             Gets a human-readable description of the transfer status
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Workers.TransactionMonitorWorker">
+            <summary>
+            Background service that monitors blockchain transactions for deployment status updates
+            </summary>
+            <remarks>
+            This worker polls blockchain networks at configurable intervals to check transaction
+            confirmations and update deployment statuses accordingly. Supports both Algorand and
+            EVM chains with automatic retry logic for transient failures.
+            
+            NOTE: This is a placeholder implementation. The actual monitoring logic should be
+            implemented based on the specific blockchain APIs and indexers available for each network.
+            For production use, consider integrating with:
+            - Algorand indexer APIs for transaction status
+            - Block explorers APIs (Algoexplorer, Blockchair, Etherscan)
+            - Chain-specific RPC endpoints with proper error handling
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Workers.TransactionMonitorWorker.#ctor(BiatecTokensApi.Services.Interface.IDeploymentStatusService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Workers.TransactionMonitorWorker})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Workers.TransactionMonitorWorker"/> class
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Workers.TransactionMonitorWorker.ExecuteAsync(System.Threading.CancellationToken)">
+            <summary>
+            Executes the background monitoring task
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Workers.TransactionMonitorWorker.MonitorPendingDeploymentsAsync(System.Threading.CancellationToken)">
+            <summary>
+            Monitors all pending deployments and updates their status
+            </summary>
+        </member>
     </members>
 </doc>
