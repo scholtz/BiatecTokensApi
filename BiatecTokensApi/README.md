@@ -122,7 +122,65 @@ dotnet run
 
 ## Authentication
 
-The API uses ARC-0014 Algorand authentication. You need to include an `Authorization` header with your authentication transaction.
+The API supports **two authentication methods** for different use cases:
+
+### 1. JWT Bearer Authentication (Email/Password)
+
+**Wallet-free authentication** for non-crypto-native users:
+
+**Register a new user:**
+```bash
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!",
+  "confirmPassword": "SecurePass123!",
+  "fullName": "John Doe"
+}
+```
+
+**Response includes:**
+- User ID
+- Email
+- **Algorand address** (automatically derived from ARC76)
+- Access token (JWT, 60 min expiry)
+- Refresh token (30 days expiry)
+
+**Login:**
+```bash
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+**Use JWT token in API requests:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Key Features:**
+- ✅ Automatic ARC76 account derivation (no wallet required)
+- ✅ Secure BIP39 mnemonic generation
+- ✅ AES-256-GCM encryption for mnemonic storage  
+- ✅ Server-side token deployment using user's derived account
+- ✅ Password requirements: 8+ chars, uppercase, lowercase, number, special character
+- ✅ Account lockout after 5 failed login attempts
+
+**Additional endpoints:**
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - Logout and invalidate tokens
+- `GET /api/v1/auth/profile` - Get user profile with Algorand address
+- `POST /api/v1/auth/change-password` - Change password
+
+### 2. ARC-0014 Authentication (Blockchain Signatures)
+
+**Blockchain-native authentication** for users with Algorand wallets:
 
 Realm: ***BiatecTokens#ARC14***
 
@@ -130,6 +188,20 @@ Realm: ***BiatecTokens#ARC14***
 ```
 Authorization: SigTx <your-arc14-signed-transaction>
 ```
+
+**How it works:**
+1. Create a transaction with note: `BiatecTokens#ARC14`
+2. Sign the transaction with your Algorand wallet
+3. Include the signed transaction in the Authorization header
+
+**Supported Networks:**
+- Algorand Mainnet
+- Algorand Testnet  
+- Algorand Betanet
+- VOI Mainnet
+- Aramid Mainnet
+
+For more details, see [ARC-0014 specification](https://github.com/algorandfoundation/ARCs/blob/main/ARCs/arc-0014.md) and [JWT_AUTHENTICATION_COMPLETE_GUIDE.md](../JWT_AUTHENTICATION_COMPLETE_GUIDE.md).
 
 ## Subscription Management
 
@@ -410,6 +482,83 @@ All endpoints return responses in the following format:
   "errorMessage": "Error description"
 }
 ```
+
+## Deployment Status Tracking
+
+The API provides comprehensive deployment status tracking for all token creation requests. Track your deployments in real-time through polling endpoints.
+
+### Check Deployment Status
+
+```http
+GET /api/v1/token/deployments/{deploymentId}
+Authorization: Bearer <jwt-token> or SigTx <arc14-signed-tx>
+```
+
+**Response:**
+```json
+{
+  "deploymentId": "deploy_abc123",
+  "status": "Completed",
+  "tokenType": "ERC20_Mintable",
+  "transactionHash": "0x...",
+  "assetId": "0x742d35Cc6634C0532925a3b8D4434d3C7f2db9bc",
+  "createdAt": "2026-02-06T13:00:00Z",
+  "completedAt": "2026-02-06T13:02:30Z",
+  "history": [
+    {
+      "status": "Queued",
+      "timestamp": "2026-02-06T13:00:00Z"
+    },
+    {
+      "status": "Submitted",
+      "timestamp": "2026-02-06T13:00:15Z"
+    },
+    {
+      "status": "Confirmed",
+      "timestamp": "2026-02-06T13:02:00Z"
+    },
+    {
+      "status": "Completed",
+      "timestamp": "2026-02-06T13:02:30Z"
+    }
+  ]
+}
+```
+
+### Deployment Status States
+
+- `Queued` - Deployment request received
+- `Submitted` - Transaction submitted to blockchain
+- `Pending` - Waiting for confirmation
+- `Confirmed` - Transaction confirmed on blockchain
+- `Indexed` - Transaction indexed by blockchain explorer
+- `Completed` - Deployment fully complete
+- `Failed` - Deployment failed (see error message)
+- `Cancelled` - Deployment cancelled by user
+
+### List All Deployments
+
+```http
+GET /api/v1/token/deployments?status=Completed&page=1&pageSize=20
+Authorization: Bearer <jwt-token> or SigTx <arc14-signed-tx>
+```
+
+**Query Parameters:**
+- `status` - Filter by status (optional)
+- `tokenType` - Filter by token type (optional)
+- `page` - Page number (default: 1)
+- `pageSize` - Items per page (default: 20, max: 100)
+
+### Get Deployment History
+
+```http
+GET /api/v1/token/deployments/{deploymentId}/history
+Authorization: Bearer <jwt-token> or SigTx <arc14-signed-tx>
+```
+
+Returns complete audit trail of all status transitions with timestamps.
+
+For more details, see [DEPLOYMENT_STATUS_IMPLEMENTATION_SUMMARY.md](../DEPLOYMENT_STATUS_IMPLEMENTATION_SUMMARY.md).
 
 ## Supported Networks
 
