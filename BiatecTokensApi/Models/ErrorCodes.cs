@@ -275,5 +275,11 @@ namespace BiatecTokensApi.Models
         /// Price ID not configured
         /// </summary>
         public const string PRICE_NOT_CONFIGURED = "PRICE_NOT_CONFIGURED";
+
+        // Idempotency errors
+        /// <summary>
+        /// Idempotency key has been reused with different request parameters
+        /// </summary>
+        public const string IDEMPOTENCY_KEY_MISMATCH = "IDEMPOTENCY_KEY_MISMATCH";
     }
 }
