@@ -86,7 +86,11 @@ namespace BiatecTokensTests
                 It.IsAny<Dictionary<string, object>>()))
                 .ReturnsAsync(true);
             
-            _tokenService = new ERC20TokenService(configMock.Object, appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object);
+            // Add mock authentication service and user repository for new dependencies
+            var mockAuthService = Moq.Mock.Of<IAuthenticationService>();
+            var mockUserRepo = Moq.Mock.Of<IUserRepository>();
+            
+            _tokenService = new ERC20TokenService(configMock.Object, appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object, mockAuthService, mockUserRepo);
 
             // Setup accounts
             _ownerAccount = new Account(_accounts.Owner, 31337);

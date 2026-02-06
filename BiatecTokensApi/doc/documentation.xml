@@ -21827,7 +21827,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IDeploymentStatusService)">
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IDeploymentStatusService,BiatecTokensApi.Services.Interface.IAuthenticationService,BiatecTokensApi.Repositories.Interface.IUserRepository)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ERC20TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -21842,6 +21842,8 @@
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
             <param name="complianceRepository">The compliance metadata repository</param>
             <param name="deploymentStatusService">The deployment status tracking service</param>
+            <param name="authenticationService">The authentication service for user account management</param>
+            <param name="userRepository">The user repository for accessing user data</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ERC20TokenService.ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -21853,7 +21855,7 @@
             <exception cref="T:System.ArgumentException"></exception>
             <exception cref="T:System.ArgumentOutOfRangeException"></exception>
         </member>
-        <member name="M:BiatecTokensApi.Services.ERC20TokenService.DeployERC20TokenAsync(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.DeployERC20TokenAsync(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType,System.String)">
             <summary>
             Deploys an ERC-20 token contract to the specified blockchain network.
             </summary>
@@ -21864,6 +21866,7 @@
             <param name="request">The deployment request containing the token details, such as name, symbol, decimals, initial supply, and the
             blockchain configuration (e.g., chain ID and RPC URL).</param>
             <param name="tokenType">Token type</param>
+            <param name="userId">Optional user ID for JWT-authenticated requests. If provided, uses user's ARC76 account. If null, uses system account.</param>
             <returns>A <see cref="T:BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse"/> containing the deployment result, including the contract
             address, transaction hash, and success status. If the deployment fails, the response includes an error
             message.</returns>
@@ -22663,12 +22666,13 @@
             deploying new tokens. Implementations of this interface are expected to handle the underlying blockchain
             interactions required for these operations.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.Interface.IERC20TokenService.DeployERC20TokenAsync(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+        <member name="M:BiatecTokensApi.Services.Interface.IERC20TokenService.DeployERC20TokenAsync(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType,System.String)">
             <summary>
             Deploys an ERC20 token
             </summary>
             <param name="request">Token deployment parameters</param>
             <param name="tokenType">Token type</param>
+            <param name="userId">Optional user ID for JWT-authenticated requests. If provided, uses user's ARC76 account. If null, uses system account.</param>
             <returns>Response with transaction details</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IJurisdictionRulesService">
