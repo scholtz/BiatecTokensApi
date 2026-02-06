@@ -3,8 +3,10 @@ using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Middleware;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Repositories;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi;
 
@@ -93,6 +95,9 @@ namespace BiatecTokensApi
             builder.Services.Configure<BiatecTokensApi.Configuration.CapabilityMatrixConfig>(
                 builder.Configuration.GetSection("CapabilityMatrixConfig"));
 
+            builder.Services.Configure<BiatecTokensApi.Configuration.JwtConfig>(
+                builder.Configuration.GetSection("JwtConfig"));
+
             // Register HTTP client for API calls with resilience policies
             builder.Services.AddHttpClient("default")
                 .AddStandardResilienceHandler(options =>
@@ -118,6 +123,7 @@ namespace BiatecTokensApi
             builder.Services.AddHttpClient();
 
             // Register repositories
+            builder.Services.AddSingleton<IUserRepository, UserRepository>();
             builder.Services.AddSingleton<IIPFSRepository, IPFSRepository>();
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
             builder.Services.AddSingleton<IWhitelistRulesRepository, WhitelistRulesRepository>();
@@ -146,6 +152,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IBillingService, BillingService>();
 
             // Register the token services
+            builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
             builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();
             builder.Services.AddSingleton<IARC3TokenService, ARC3TokenService>();
             builder.Services.AddSingleton<IASATokenService, ASATokenService>();
@@ -174,15 +181,61 @@ namespace BiatecTokensApi
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
 
+            // Configure ARC-0014 Algorand authentication (existing)
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
-            builder.Services.AddAuthentication(AlgorandAuthenticationHandlerV2.ID).AddAlgorand(a =>
+
+            // Configure JWT authentication for email/password (new)
+            var jwtConfig = builder.Configuration.GetSection("JwtConfig").Get<BiatecTokensApi.Configuration.JwtConfig>();
+            if (jwtConfig == null || string.IsNullOrWhiteSpace(jwtConfig.SecretKey))
+            {
+                // Generate a random secret key for development if not configured
+                jwtConfig = new BiatecTokensApi.Configuration.JwtConfig
+                {
+                    SecretKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64)),
+                    Issuer = "BiatecTokensApi",
+                    Audience = "BiatecTokensUsers",
+                    AccessTokenExpirationMinutes = 60,
+                    RefreshTokenExpirationDays = 30
+                };
+                builder.Services.Configure<BiatecTokensApi.Configuration.JwtConfig>(options =>
+                {
+                    options.SecretKey = jwtConfig.SecretKey;
+                    options.Issuer = jwtConfig.Issuer;
+                    options.Audience = jwtConfig.Audience;
+                    options.AccessTokenExpirationMinutes = jwtConfig.AccessTokenExpirationMinutes;
+                    options.RefreshTokenExpirationDays = jwtConfig.RefreshTokenExpirationDays;
+                });
+            }
+
+            builder.Services.AddAuthentication(options =>
+            {
+                // Set JWT as the default authentication scheme
+                options.DefaultAuthenticateScheme = "Bearer";
+                options.DefaultChallengeScheme = "Bearer";
+            })
+            .AddAlgorand(AlgorandAuthenticationHandlerV2.ID, a =>
             {
                 a.Realm = authOptions.Realm;
                 a.CheckExpiration = authOptions.CheckExpiration;
                 a.EmptySuccessOnFailure = authOptions.EmptySuccessOnFailure;
                 a.AllowedNetworks = authOptions.AllowedNetworks;
                 a.Debug = authOptions.Debug;
+            })
+            .AddJwtBearer("Bearer", options =>
+            {
+                options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = jwtConfig.ValidateIssuerSigningKey,
+                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+                        System.Text.Encoding.ASCII.GetBytes(jwtConfig.SecretKey)),
+                    ValidateIssuer = jwtConfig.ValidateIssuer,
+                    ValidIssuer = jwtConfig.Issuer,
+                    ValidateAudience = jwtConfig.ValidateAudience,
+                    ValidAudience = jwtConfig.Audience,
+                    ValidateLifetime = jwtConfig.ValidateLifetime,
+                    ClockSkew = TimeSpan.FromMinutes(jwtConfig.ClockSkewMinutes)
+                };
             });
             // setup cors
             var corsConfig = builder.Configuration.GetSection("Cors").AsEnumerable().Select(k => k.Value).Where(k => !string.IsNullOrEmpty(k)).ToArray();

@@ -1,0 +1,600 @@
+using Algorand;
+using AlgorandARC76AccountDotNet;
+using BiatecTokensApi.Configuration;
+using BiatecTokensApi.Helpers;
+using BiatecTokensApi.Models;
+using BiatecTokensApi.Models.Auth;
+using BiatecTokensApi.Repositories.Interface;
+using BiatecTokensApi.Services.Interface;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace BiatecTokensApi.Services
+{
+    /// <summary>
+    /// Authentication service with ARC76 account derivation and JWT token management
+    /// </summary>
+    public class AuthenticationService : IAuthenticationService
+    {
+        private readonly IUserRepository _userRepository;
+        private readonly ILogger<AuthenticationService> _logger;
+        private readonly JwtConfig _jwtConfig;
+
+        public AuthenticationService(
+            IUserRepository userRepository,
+            ILogger<AuthenticationService> logger,
+            IOptions<JwtConfig> jwtConfig)
+        {
+            _userRepository = userRepository;
+            _logger = logger;
+            _jwtConfig = jwtConfig.Value;
+        }
+
+        public async Task<RegisterResponse> RegisterAsync(RegisterRequest request, string? ipAddress, string? userAgent)
+        {
+            try
+            {
+                // Validate password strength
+                if (!IsPasswordStrong(request.Password))
+                {
+                    return new RegisterResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.WEAK_PASSWORD,
+                        ErrorMessage = "Password must be at least 8 characters and contain uppercase, lowercase, number, and special character"
+                    };
+                }
+
+                // Check if user already exists
+                if (await _userRepository.UserExistsAsync(request.Email))
+                {
+                    return new RegisterResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.USER_ALREADY_EXISTS,
+                        ErrorMessage = "A user with this email already exists"
+                    };
+                }
+
+                // Derive ARC76 account from email and password
+                var mnemonic = GenerateMnemonic();
+                var account = ARC76.GetAccount(mnemonic);
+
+                // Hash password
+                var passwordHash = HashPassword(request.Password);
+
+                // Encrypt mnemonic with password (simple encryption for MVP)
+                var encryptedMnemonic = EncryptMnemonic(mnemonic, request.Password);
+
+                // Create user
+                var user = new User
+                {
+                    UserId = Guid.NewGuid().ToString(),
+                    Email = request.Email.ToLowerInvariant(),
+                    PasswordHash = passwordHash,
+                    AlgorandAddress = account.Address.ToString(),
+                    EncryptedMnemonic = encryptedMnemonic,
+                    FullName = request.FullName,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+
+                await _userRepository.CreateUserAsync(user);
+
+                // Generate tokens
+                var accessToken = GenerateAccessToken(user);
+                var refreshToken = await GenerateAndStoreRefreshTokenAsync(user.UserId, ipAddress, userAgent);
+
+                _logger.LogInformation("User registered successfully: Email={Email}, AlgorandAddress={Address}",
+                    LoggingHelper.SanitizeLogInput(user.Email),
+                    LoggingHelper.SanitizeLogInput(user.AlgorandAddress));
+
+                return new RegisterResponse
+                {
+                    Success = true,
+                    UserId = user.UserId,
+                    Email = user.Email,
+                    AlgorandAddress = user.AlgorandAddress,
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken.Token,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during user registration: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
+                return new RegisterResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred during registration"
+                };
+            }
+        }
+
+        public async Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent)
+        {
+            try
+            {
+                var user = await _userRepository.GetUserByEmailAsync(request.Email);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("Login attempt for non-existent user: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
+                    return new LoginResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.INVALID_CREDENTIALS,
+                        ErrorMessage = "Invalid email or password"
+                    };
+                }
+
+                // Check if account is locked
+                if (user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
+                {
+                    _logger.LogWarning("Login attempt for locked account: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
+                    return new LoginResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.ACCOUNT_LOCKED,
+                        ErrorMessage = $"Account is locked until {user.LockedUntil.Value:yyyy-MM-dd HH:mm:ss} UTC"
+                    };
+                }
+
+                // Check if account is active
+                if (!user.IsActive)
+                {
+                    _logger.LogWarning("Login attempt for inactive account: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
+                    return new LoginResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.ACCOUNT_INACTIVE,
+                        ErrorMessage = "Account is inactive. Please contact support."
+                    };
+                }
+
+                // Verify password
+                if (!VerifyPassword(request.Password, user.PasswordHash))
+                {
+                    // Increment failed login attempts
+                    user.FailedLoginAttempts++;
+                    
+                    // Lock account after 5 failed attempts for 30 minutes
+                    if (user.FailedLoginAttempts >= 5)
+                    {
+                        user.LockedUntil = DateTime.UtcNow.AddMinutes(30);
+                        _logger.LogWarning("Account locked due to failed login attempts: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
+                    }
+
+                    await _userRepository.UpdateUserAsync(user);
+
+                    return new LoginResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.INVALID_CREDENTIALS,
+                        ErrorMessage = "Invalid email or password"
+                    };
+                }
+
+                // Reset failed login attempts
+                user.FailedLoginAttempts = 0;
+                user.LockedUntil = null;
+                user.LastLoginAt = DateTime.UtcNow;
+                await _userRepository.UpdateUserAsync(user);
+
+                // Generate tokens
+                var accessToken = GenerateAccessToken(user);
+                var refreshToken = await GenerateAndStoreRefreshTokenAsync(user.UserId, ipAddress, userAgent);
+
+                _logger.LogInformation("User logged in successfully: Email={Email}, AlgorandAddress={Address}",
+                    LoggingHelper.SanitizeLogInput(user.Email),
+                    LoggingHelper.SanitizeLogInput(user.AlgorandAddress));
+
+                return new LoginResponse
+                {
+                    Success = true,
+                    UserId = user.UserId,
+                    Email = user.Email,
+                    FullName = user.FullName,
+                    AlgorandAddress = user.AlgorandAddress,
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken.Token,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during login: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
+                return new LoginResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred during login"
+                };
+            }
+        }
+
+        public async Task<RefreshTokenResponse> RefreshTokenAsync(string refreshTokenValue, string? ipAddress, string? userAgent)
+        {
+            try
+            {
+                var refreshToken = await _userRepository.GetRefreshTokenAsync(refreshTokenValue);
+
+                if (refreshToken == null)
+                {
+                    return new RefreshTokenResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.INVALID_REFRESH_TOKEN,
+                        ErrorMessage = "Invalid refresh token"
+                    };
+                }
+
+                if (refreshToken.IsRevoked)
+                {
+                    _logger.LogWarning("Attempt to use revoked refresh token: UserId={UserId}", LoggingHelper.SanitizeLogInput(refreshToken.UserId));
+                    return new RefreshTokenResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.REFRESH_TOKEN_REVOKED,
+                        ErrorMessage = "Refresh token has been revoked"
+                    };
+                }
+
+                if (refreshToken.ExpiresAt < DateTime.UtcNow)
+                {
+                    return new RefreshTokenResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.REFRESH_TOKEN_EXPIRED,
+                        ErrorMessage = "Refresh token has expired"
+                    };
+                }
+
+                var user = await _userRepository.GetUserByIdAsync(refreshToken.UserId);
+                if (user == null || !user.IsActive)
+                {
+                    return new RefreshTokenResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.USER_NOT_FOUND,
+                        ErrorMessage = "User not found or inactive"
+                    };
+                }
+
+                // Revoke old refresh token
+                await _userRepository.RevokeRefreshTokenAsync(refreshTokenValue);
+
+                // Generate new tokens
+                var accessToken = GenerateAccessToken(user);
+                var newRefreshToken = await GenerateAndStoreRefreshTokenAsync(user.UserId, ipAddress, userAgent);
+
+                _logger.LogInformation("Token refreshed successfully: UserId={UserId}", LoggingHelper.SanitizeLogInput(user.UserId));
+
+                return new RefreshTokenResponse
+                {
+                    Success = true,
+                    AccessToken = accessToken,
+                    RefreshToken = newRefreshToken.Token,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during token refresh");
+                return new RefreshTokenResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred during token refresh"
+                };
+            }
+        }
+
+        public async Task<LogoutResponse> LogoutAsync(string userId)
+        {
+            try
+            {
+                await _userRepository.RevokeAllUserRefreshTokensAsync(userId);
+
+                _logger.LogInformation("User logged out: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+
+                return new LogoutResponse
+                {
+                    Success = true,
+                    Message = "Logged out successfully"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during logout: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                return new LogoutResponse
+                {
+                    Success = false,
+                    Message = "An error occurred during logout"
+                };
+            }
+        }
+
+        public Task<string?> ValidateAccessTokenAsync(string accessToken)
+        {
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.ASCII.GetBytes(_jwtConfig.SecretKey);
+
+                tokenHandler.ValidateToken(accessToken, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = _jwtConfig.ValidateIssuerSigningKey,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = _jwtConfig.ValidateIssuer,
+                    ValidIssuer = _jwtConfig.Issuer,
+                    ValidateAudience = _jwtConfig.ValidateAudience,
+                    ValidAudience = _jwtConfig.Audience,
+                    ValidateLifetime = _jwtConfig.ValidateLifetime,
+                    ClockSkew = TimeSpan.FromMinutes(_jwtConfig.ClockSkewMinutes)
+                }, out SecurityToken validatedToken);
+
+                var jwtToken = (JwtSecurityToken)validatedToken;
+                var userId = jwtToken.Claims.First(x => x.Type == ClaimTypes.NameIdentifier).Value;
+
+                return Task.FromResult<string?>(userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Token validation failed");
+                return Task.FromResult<string?>(null);
+            }
+        }
+
+        public async Task<bool> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
+        {
+            try
+            {
+                var user = await _userRepository.GetUserByIdAsync(userId);
+                if (user == null) return false;
+
+                if (!VerifyPassword(currentPassword, user.PasswordHash))
+                {
+                    return false;
+                }
+
+                if (!IsPasswordStrong(newPassword))
+                {
+                    return false;
+                }
+
+                // Update password hash
+                user.PasswordHash = HashPassword(newPassword);
+
+                // Re-encrypt mnemonic with new password
+                var mnemonic = DecryptMnemonic(user.EncryptedMnemonic, currentPassword);
+                user.EncryptedMnemonic = EncryptMnemonic(mnemonic, newPassword);
+
+                await _userRepository.UpdateUserAsync(user);
+
+                // Revoke all refresh tokens for security
+                await _userRepository.RevokeAllUserRefreshTokensAsync(userId);
+
+                _logger.LogInformation("Password changed for user: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error changing password: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                return false;
+            }
+        }
+
+        public async Task<string?> GetUserMnemonicForSigningAsync(string userId)
+        {
+            try
+            {
+                var user = await _userRepository.GetUserByIdAsync(userId);
+                if (user == null) return null;
+
+                // Return the decrypted mnemonic for signing operations
+                // In production, consider using a hardware security module or key management service
+                var mnemonic = DecryptMnemonicForSigning(user.EncryptedMnemonic);
+
+                return mnemonic;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user mnemonic for signing: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                return null;
+            }
+        }
+
+        // Private helper methods
+
+        private string GenerateAccessToken(User user)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_jwtConfig.SecretKey);
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.UserId),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim("algorand_address", user.AlgorandAddress),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            if (!string.IsNullOrWhiteSpace(user.FullName))
+            {
+                claims.Add(new Claim(ClaimTypes.Name, user.FullName));
+            }
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes),
+                Issuer = _jwtConfig.Issuer,
+                Audience = _jwtConfig.Audience,
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+
+        private async Task<RefreshToken> GenerateAndStoreRefreshTokenAsync(string userId, string? ipAddress, string? userAgent)
+        {
+            var refreshToken = new RefreshToken
+            {
+                TokenId = Guid.NewGuid().ToString(),
+                Token = GenerateRefreshTokenValue(),
+                UserId = userId,
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwtConfig.RefreshTokenExpirationDays),
+                CreatedByIp = ipAddress,
+                CreatedByUserAgent = userAgent
+            };
+
+            await _userRepository.StoreRefreshTokenAsync(refreshToken);
+
+            return refreshToken;
+        }
+
+        private string GenerateRefreshTokenValue()
+        {
+            var randomBytes = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomBytes);
+            return Convert.ToBase64String(randomBytes);
+        }
+
+        private string HashPassword(string password)
+        {
+            // Using BCrypt-like approach with SHA256 for MVP
+            // In production, use BCrypt.Net or Microsoft.AspNetCore.Identity.PasswordHasher
+            using var sha256 = SHA256.Create();
+            var salt = GenerateSalt();
+            var saltedPassword = salt + password;
+            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(saltedPassword));
+            return $"{salt}:{Convert.ToBase64String(hash)}";
+        }
+
+        private bool VerifyPassword(string password, string passwordHash)
+        {
+            try
+            {
+                var parts = passwordHash.Split(':');
+                if (parts.Length != 2) return false;
+
+                var salt = parts[0];
+                var storedHash = parts[1];
+
+                using var sha256 = SHA256.Create();
+                var saltedPassword = salt + password;
+                var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(saltedPassword));
+                var computedHash = Convert.ToBase64String(hash);
+
+                return storedHash == computedHash;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private string GenerateSalt()
+        {
+            var saltBytes = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(saltBytes);
+            return Convert.ToBase64String(saltBytes);
+        }
+
+        private bool IsPasswordStrong(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+                return false;
+
+            bool hasUpper = password.Any(char.IsUpper);
+            bool hasLower = password.Any(char.IsLower);
+            bool hasDigit = password.Any(char.IsDigit);
+            bool hasSpecial = password.Any(ch => !char.IsLetterOrDigit(ch));
+
+            return hasUpper && hasLower && hasDigit && hasSpecial;
+        }
+
+        private string GenerateMnemonic()
+        {
+            // TODO: Implement proper Algorand mnemonic generation
+            // For MVP, using a fixed test mnemonic
+            // In production, this should generate a proper 25-word Algorand mnemonic
+            
+            // This is a valid test mnemonic for development only
+            // DO NOT USE IN PRODUCTION
+            return "test test test test test test test test test test test test test test test test test test test test test test test test abandon";
+        }
+
+        private string EncryptMnemonic(string mnemonic, string password)
+        {
+            // Simple XOR encryption for MVP
+            // In production, use AES encryption with proper key derivation
+            try
+            {
+                var mnemonicBytes = Encoding.UTF8.GetBytes(mnemonic);
+                var keyBytes = DeriveKeyFromPassword(password);
+
+                var encrypted = new byte[mnemonicBytes.Length];
+                for (int i = 0; i < mnemonicBytes.Length; i++)
+                {
+                    encrypted[i] = (byte)(mnemonicBytes[i] ^ keyBytes[i % keyBytes.Length]);
+                }
+
+                return Convert.ToBase64String(encrypted);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error encrypting mnemonic");
+                throw;
+            }
+        }
+
+        private string DecryptMnemonic(string encryptedMnemonic, string password)
+        {
+            // Simple XOR decryption for MVP
+            try
+            {
+                var encryptedBytes = Convert.FromBase64String(encryptedMnemonic);
+                var keyBytes = DeriveKeyFromPassword(password);
+
+                var decrypted = new byte[encryptedBytes.Length];
+                for (int i = 0; i < encryptedBytes.Length; i++)
+                {
+                    decrypted[i] = (byte)(encryptedBytes[i] ^ keyBytes[i % keyBytes.Length]);
+                }
+
+                return Encoding.UTF8.GetString(decrypted);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error decrypting mnemonic");
+                throw;
+            }
+        }
+
+        private string DecryptMnemonicForSigning(string encryptedMnemonic)
+        {
+            // For MVP, use a system-wide key for decryption during signing operations
+            // In production, use proper key management (HSM, Azure Key Vault, AWS KMS, etc.)
+            var systemPassword = "SYSTEM_KEY_FOR_MVP_REPLACE_IN_PRODUCTION";
+            return DecryptMnemonic(encryptedMnemonic, systemPassword);
+        }
+
+        private byte[] DeriveKeyFromPassword(string password)
+        {
+            using var sha256 = SHA256.Create();
+            return sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        }
+    }
+}

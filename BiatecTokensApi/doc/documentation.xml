@@ -111,6 +111,61 @@
             Whether to validate content hashes when retrieving data
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Configuration.JwtConfig">
+            <summary>
+            JWT authentication configuration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.SecretKey">
+            <summary>
+            Secret key for JWT token signing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.Issuer">
+            <summary>
+            JWT issuer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.Audience">
+            <summary>
+            JWT audience
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.AccessTokenExpirationMinutes">
+            <summary>
+            Access token expiration in minutes (default: 60 minutes = 1 hour)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.RefreshTokenExpirationDays">
+            <summary>
+            Refresh token expiration in days (default: 30 days)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.ValidateIssuer">
+            <summary>
+            Whether to validate token issuer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.ValidateAudience">
+            <summary>
+            Whether to validate token audience
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.ValidateLifetime">
+            <summary>
+            Whether to validate token lifetime
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.ValidateIssuerSigningKey">
+            <summary>
+            Whether to validate issuer signing key
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.JwtConfig.ClockSkewMinutes">
+            <summary>
+            Clock skew in minutes (tolerance for time differences)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Configuration.StripeConfig">
             <summary>
             Configuration for Stripe API integration
@@ -350,6 +405,176 @@
             <summary>
             Minimum validity period in rounds
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.AuthV2Controller">
+            <summary>
+            Authentication controller for email/password based authentication with ARC76 account derivation
+            </summary>
+            <remarks>
+            This controller provides email/password authentication endpoints that derive ARC76 accounts
+            automatically. No wallet connection is required. The backend handles all blockchain signing
+            operations on behalf of the user.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.Register(BiatecTokensApi.Models.Auth.RegisterRequest)">
+            <summary>
+            Registers a new user with email and password
+            </summary>
+            <param name="request">Registration request containing email, password, and optional full name</param>
+            <returns>Registration response with user details and authentication tokens</returns>
+            <remarks>
+            Creates a new user account with email/password credentials. Automatically derives an
+            ARC76 Algorand account for the user. No wallet connection required.
+            
+            **Password Requirements:**
+            - Minimum 8 characters
+            - Must contain at least one uppercase letter
+            - Must contain at least one lowercase letter
+            - Must contain at least one number
+            - Must contain at least one special character
+            
+            **Sample Request:**
+            ```
+            POST /api/v1/auth/register
+            {
+              "email": "user@example.com",
+              "password": "SecurePass123!",
+              "confirmPassword": "SecurePass123!",
+              "fullName": "John Doe"
+            }
+            ```
+            
+            **Sample Response:**
+            ```json
+            {
+              "success": true,
+              "userId": "550e8400-e29b-41d4-a716-446655440000",
+              "email": "user@example.com",
+              "algorandAddress": "ALGORAND_ADDRESS_HERE",
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+              "refreshToken": "refresh_token_value",
+              "expiresAt": "2026-02-06T13:18:44.986Z"
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.Login(BiatecTokensApi.Models.Auth.LoginRequest)">
+            <summary>
+            Authenticates a user with email and password
+            </summary>
+            <param name="request">Login request containing email and password</param>
+            <returns>Login response with user details and authentication tokens</returns>
+            <remarks>
+            Authenticates a user and returns JWT access token and refresh token. The backend
+            manages the user's ARC76-derived Algorand account for all blockchain operations.
+            
+            **Account Locking:**
+            After 5 failed login attempts, the account will be locked for 30 minutes.
+            
+            **Sample Request:**
+            ```
+            POST /api/v1/auth/login
+            {
+              "email": "user@example.com",
+              "password": "SecurePass123!"
+            }
+            ```
+            
+            **Sample Response:**
+            ```json
+            {
+              "success": true,
+              "userId": "550e8400-e29b-41d4-a716-446655440000",
+              "email": "user@example.com",
+              "fullName": "John Doe",
+              "algorandAddress": "ALGORAND_ADDRESS_HERE",
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+              "refreshToken": "refresh_token_value",
+              "expiresAt": "2026-02-06T13:18:44.986Z"
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.RefreshToken(BiatecTokensApi.Models.Auth.RefreshTokenRequest)">
+            <summary>
+            Refreshes an access token using a refresh token
+            </summary>
+            <param name="request">Refresh token request</param>
+            <returns>New access token and refresh token</returns>
+            <remarks>
+            Exchanges a valid refresh token for a new access token and refresh token.
+            The old refresh token is automatically revoked.
+            
+            **Sample Request:**
+            ```
+            POST /api/v1/auth/refresh
+            {
+              "refreshToken": "refresh_token_value"
+            }
+            ```
+            
+            **Sample Response:**
+            ```json
+            {
+              "success": true,
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+              "refreshToken": "new_refresh_token_value",
+              "expiresAt": "2026-02-06T13:18:44.986Z"
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.Logout">
+            <summary>
+            Logs out the current user and revokes all refresh tokens
+            </summary>
+            <returns>Logout confirmation</returns>
+            <remarks>
+            Logs out the authenticated user and revokes all their refresh tokens.
+            The access token should be discarded by the client.
+            
+            **Sample Request:**
+            ```
+            POST /api/v1/auth/logout
+            Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            ```
+            
+            **Sample Response:**
+            ```json
+            {
+              "success": true,
+              "message": "Logged out successfully"
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.GetProfile">
+            <summary>
+            Gets the current authenticated user's profile
+            </summary>
+            <returns>User profile information</returns>
+            <remarks>
+            Returns the current user's profile including their ARC76-derived Algorand address.
+            This endpoint is useful for the frontend to display user information and verify authentication.
+            
+            **Sample Request:**
+            ```
+            GET /api/v1/auth/profile
+            Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            ```
+            
+            **Sample Response:**
+            ```json
+            {
+              "userId": "550e8400-e29b-41d4-a716-446655440000",
+              "email": "user@example.com",
+              "fullName": "John Doe",
+              "algorandAddress": "ALGORAND_ADDRESS_HERE",
+              "createdAt": "2026-02-01T10:00:00Z",
+              "lastLoginAt": "2026-02-06T12:18:44.986Z"
+            }
+            ```
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Controllers.BillingController">
             <summary>
@@ -6150,6 +6375,366 @@
         <member name="P:BiatecTokensApi.Models.AuditExportResult.ErrorMessage">
             <summary>
             Error message if the export failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.LoginRequest">
+            <summary>
+            Request model for user login
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginRequest.Email">
+            <summary>
+            User's email address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginRequest.Password">
+            <summary>
+            User's password
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.LoginResponse">
+            <summary>
+            Response model for successful login
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.Success">
+            <summary>
+            Indicates if login was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.UserId">
+            <summary>
+            User ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.Email">
+            <summary>
+            User's email address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.FullName">
+            <summary>
+            User's full name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.AlgorandAddress">
+            <summary>
+            ARC76-derived Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.AccessToken">
+            <summary>
+            JWT access token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.RefreshToken">
+            <summary>
+            Refresh token for obtaining new access tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.ExpiresAt">
+            <summary>
+            Token expiration timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.ErrorMessage">
+            <summary>
+            Error message if login failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.ErrorCode">
+            <summary>
+            Error code for client handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.Timestamp">
+            <summary>
+            Timestamp of the response
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.RefreshTokenRequest">
+            <summary>
+            Request model for token refresh
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenRequest.RefreshToken">
+            <summary>
+            The refresh token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.RefreshTokenResponse">
+            <summary>
+            Response model for token refresh
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.Success">
+            <summary>
+            Indicates if refresh was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.AccessToken">
+            <summary>
+            New JWT access token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.RefreshToken">
+            <summary>
+            New refresh token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.ExpiresAt">
+            <summary>
+            Token expiration timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.ErrorMessage">
+            <summary>
+            Error message if refresh failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.ErrorCode">
+            <summary>
+            Error code for client handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshTokenResponse.Timestamp">
+            <summary>
+            Timestamp of the response
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.LogoutResponse">
+            <summary>
+            Response model for logout
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LogoutResponse.Success">
+            <summary>
+            Indicates if logout was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LogoutResponse.Message">
+            <summary>
+            Message describing the result
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LogoutResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LogoutResponse.Timestamp">
+            <summary>
+            Timestamp of the response
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.RefreshToken">
+            <summary>
+            Represents a refresh token for session management
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.TokenId">
+            <summary>
+            Token identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.Token">
+            <summary>
+            The token value
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.UserId">
+            <summary>
+            User ID this token belongs to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.CreatedAt">
+            <summary>
+            When the token was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.ExpiresAt">
+            <summary>
+            When the token expires
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.IsRevoked">
+            <summary>
+            Whether the token has been revoked
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.RevokedAt">
+            <summary>
+            When the token was revoked (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.CreatedByIp">
+            <summary>
+            IP address where the token was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RefreshToken.CreatedByUserAgent">
+            <summary>
+            User agent where the token was created
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.RegisterRequest">
+            <summary>
+            Request model for user registration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterRequest.Email">
+            <summary>
+            User's email address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterRequest.Password">
+            <summary>
+            User's password (minimum 8 characters, must contain uppercase, lowercase, number, and special character)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterRequest.ConfirmPassword">
+            <summary>
+            Password confirmation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterRequest.FullName">
+            <summary>
+            User's full name (optional)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.RegisterResponse">
+            <summary>
+            Response model for successful registration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.Success">
+            <summary>
+            Indicates if registration was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.UserId">
+            <summary>
+            User ID of the newly created account
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.Email">
+            <summary>
+            Email address of the new user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.AlgorandAddress">
+            <summary>
+            ARC76-derived Algorand address for the user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.AccessToken">
+            <summary>
+            JWT access token for immediate authentication
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.RefreshToken">
+            <summary>
+            Refresh token for obtaining new access tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.ExpiresAt">
+            <summary>
+            Token expiration timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.ErrorMessage">
+            <summary>
+            Error message if registration failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.ErrorCode">
+            <summary>
+            Error code for client handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.Timestamp">
+            <summary>
+            Timestamp of the response
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.User">
+            <summary>
+            Represents a user account in the system
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.UserId">
+            <summary>
+            Unique identifier for the user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.Email">
+            <summary>
+            User's email address (used for login)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.PasswordHash">
+            <summary>
+            Hashed password (never store plain text passwords)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.AlgorandAddress">
+            <summary>
+            ARC76-derived Algorand account address for this user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.EncryptedMnemonic">
+            <summary>
+            Encrypted mnemonic for ARC76 account (encrypted with password)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.CreatedAt">
+            <summary>
+            When the account was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.LastLoginAt">
+            <summary>
+            Last login timestamp
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.IsActive">
+            <summary>
+            Whether the account is active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.FailedLoginAttempts">
+            <summary>
+            Number of failed login attempts
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.LockedUntil">
+            <summary>
+            When the account was locked (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.FullName">
+            <summary>
+            User's full name (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.User.Metadata">
+            <summary>
+            Additional metadata
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse">
@@ -13502,6 +14087,51 @@
             Idempotency key has been reused with different request parameters
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.WEAK_PASSWORD">
+            <summary>
+            Password does not meet strength requirements
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.USER_ALREADY_EXISTS">
+            <summary>
+            User with this email already exists
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_CREDENTIALS">
+            <summary>
+            Invalid email or password
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.ACCOUNT_LOCKED">
+            <summary>
+            Account is locked due to failed login attempts
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.ACCOUNT_INACTIVE">
+            <summary>
+            Account is inactive
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_REFRESH_TOKEN">
+            <summary>
+            Invalid or expired refresh token
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.REFRESH_TOKEN_REVOKED">
+            <summary>
+            Refresh token has been revoked
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.REFRESH_TOKEN_EXPIRED">
+            <summary>
+            Refresh token has expired
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.USER_NOT_FOUND">
+            <summary>
+            User not found
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
             <summary>
             Represents the response of an Ethereum Virtual Machine (EVM) token deployment operation.
@@ -19453,6 +20083,71 @@
             <param name="request">Filter parameters</param>
             <returns>Total count of matching tokens</returns>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IUserRepository">
+            <summary>
+            Interface for user repository operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.CreateUserAsync(BiatecTokensApi.Models.Auth.User)">
+            <summary>
+            Creates a new user
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.GetUserByEmailAsync(System.String)">
+            <summary>
+            Gets a user by email
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.GetUserByIdAsync(System.String)">
+            <summary>
+            Gets a user by ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.GetUserByAlgorandAddressAsync(System.String)">
+            <summary>
+            Gets a user by Algorand address
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.UpdateUserAsync(BiatecTokensApi.Models.Auth.User)">
+            <summary>
+            Updates an existing user
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.DeleteUserAsync(System.String)">
+            <summary>
+            Deletes a user
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.UserExistsAsync(System.String)">
+            <summary>
+            Checks if a user with the given email exists
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.StoreRefreshTokenAsync(BiatecTokensApi.Models.Auth.RefreshToken)">
+            <summary>
+            Stores a refresh token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.GetRefreshTokenAsync(System.String)">
+            <summary>
+            Gets a refresh token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.RevokeRefreshTokenAsync(System.String)">
+            <summary>
+            Revokes a refresh token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.GetUserRefreshTokensAsync(System.String)">
+            <summary>
+            Gets all refresh tokens for a user
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IUserRepository.RevokeAllUserRefreshTokensAsync(System.String)">
+            <summary>
+            Revokes all refresh tokens for a user
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IWebhookRepository">
             <summary>
             Repository interface for webhook operations
@@ -19948,6 +20643,11 @@
         <member name="M:BiatecTokensApi.Repositories.TokenRegistryRepository.GetTokenCountAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.UserRepository">
+            <summary>
+            In-memory repository for user management
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.WebhookRepository">
             <summary>
             In-memory implementation of webhook repository
@@ -20409,6 +21109,11 @@
         <member name="M:BiatecTokensApi.Services.ASATokenService.PersistComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.UInt64,System.String,System.String)">
             <summary>
             Persists compliance metadata for a deployed token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.AuthenticationService">
+            <summary>
+            Authentication service with ARC76 account derivation and JWT token management
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.BaseObservableService">
@@ -21243,6 +21948,49 @@
             <param name="request">Token creation parameters</param>
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details and asset ID</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IAuthenticationService">
+            <summary>
+            Interface for authentication service with ARC76 account derivation
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.RegisterAsync(BiatecTokensApi.Models.Auth.RegisterRequest,System.String,System.String)">
+            <summary>
+            Registers a new user with email/password and derives ARC76 account
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.LoginAsync(BiatecTokensApi.Models.Auth.LoginRequest,System.String,System.String)">
+            <summary>
+            Authenticates a user with email/password
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.RefreshTokenAsync(System.String,System.String,System.String)">
+            <summary>
+            Refreshes an access token using a refresh token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.LogoutAsync(System.String)">
+            <summary>
+            Logs out a user and revokes all their refresh tokens
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.ValidateAccessTokenAsync(System.String)">
+            <summary>
+            Validates a JWT access token and returns user ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.ChangePasswordAsync(System.String,System.String,System.String)">
+            <summary>
+            Changes a user's password
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.GetUserMnemonicForSigningAsync(System.String)">
+            <summary>
+            Gets an Algorand account mnemonic for signing on behalf of the user
+            </summary>
+            <remarks>
+            Returns the encrypted mnemonic that can be used with ARC76.GetAccount() to derive the account
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IBillingService">
             <summary>

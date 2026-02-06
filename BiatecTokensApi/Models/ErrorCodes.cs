@@ -281,5 +281,51 @@ namespace BiatecTokensApi.Models
         /// Idempotency key has been reused with different request parameters
         /// </summary>
         public const string IDEMPOTENCY_KEY_MISMATCH = "IDEMPOTENCY_KEY_MISMATCH";
+
+        // Authentication errors
+        /// <summary>
+        /// Password does not meet strength requirements
+        /// </summary>
+        public const string WEAK_PASSWORD = "WEAK_PASSWORD";
+
+        /// <summary>
+        /// User with this email already exists
+        /// </summary>
+        public const string USER_ALREADY_EXISTS = "USER_ALREADY_EXISTS";
+
+        /// <summary>
+        /// Invalid email or password
+        /// </summary>
+        public const string INVALID_CREDENTIALS = "INVALID_CREDENTIALS";
+
+        /// <summary>
+        /// Account is locked due to failed login attempts
+        /// </summary>
+        public const string ACCOUNT_LOCKED = "ACCOUNT_LOCKED";
+
+        /// <summary>
+        /// Account is inactive
+        /// </summary>
+        public const string ACCOUNT_INACTIVE = "ACCOUNT_INACTIVE";
+
+        /// <summary>
+        /// Invalid or expired refresh token
+        /// </summary>
+        public const string INVALID_REFRESH_TOKEN = "INVALID_REFRESH_TOKEN";
+
+        /// <summary>
+        /// Refresh token has been revoked
+        /// </summary>
+        public const string REFRESH_TOKEN_REVOKED = "REFRESH_TOKEN_REVOKED";
+
+        /// <summary>
+        /// Refresh token has expired
+        /// </summary>
+        public const string REFRESH_TOKEN_EXPIRED = "REFRESH_TOKEN_EXPIRED";
+
+        /// <summary>
+        /// User not found
+        /// </summary>
+        public const string USER_NOT_FOUND = "USER_NOT_FOUND";
     }
 }
