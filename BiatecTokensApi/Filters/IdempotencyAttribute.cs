@@ -4,6 +4,8 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
+using BiatecTokensApi.Models;
+using BiatecTokensApi.Services.Interface;
 
 namespace BiatecTokensApi.Filters
 {
@@ -56,6 +58,7 @@ namespace BiatecTokensApi.Filters
 
             var key = idempotencyKey.ToString();
             var logger = context.HttpContext.RequestServices.GetService<ILogger<IdempotencyKeyAttribute>>();
+            var metricsService = context.HttpContext.RequestServices.GetService<IMetricsService>();
 
             // Clean up expired entries periodically
             CleanupExpiredEntries();
@@ -76,10 +79,13 @@ namespace BiatecTokensApi.Filters
                             "Idempotency key reused with different parameters. Key: {Key}, CorrelationId: {CorrelationId}",
                             key, context.HttpContext.TraceIdentifier);
 
+                        // Record idempotency conflict metric
+                        metricsService?.IncrementCounter("idempotency_conflicts_total");
+
                         context.Result = new BadRequestObjectResult(new
                         {
                             success = false,
-                            errorCode = "IDEMPOTENCY_KEY_MISMATCH",
+                            errorCode = ErrorCodes.IDEMPOTENCY_KEY_MISMATCH,
                             errorMessage = "The provided idempotency key has been used with different request parameters. Please use a unique key for this request or reuse the same parameters.",
                             correlationId = context.HttpContext.TraceIdentifier
                         });
@@ -93,6 +99,9 @@ namespace BiatecTokensApi.Filters
                     };
                     context.HttpContext.Response.Headers["X-Idempotency-Hit"] = "true";
                     
+                    // Record idempotency cache hit metric
+                    metricsService?.IncrementCounter("idempotency_cache_hits_total");
+                    
                     logger?.LogDebug(
                         "Idempotency cache hit. Key: {Key}, CorrelationId: {CorrelationId}",
                         key, context.HttpContext.TraceIdentifier);
@@ -103,6 +112,10 @@ namespace BiatecTokensApi.Filters
                 {
                     // Expired - remove it and continue
                     _cache.TryRemove(key, out _);
+                    
+                    // Record idempotency expiration metric
+                    metricsService?.IncrementCounter("idempotency_expirations_total");
+                    
                     logger?.LogDebug(
                         "Idempotency record expired and removed. Key: {Key}",
                         key);
@@ -126,6 +139,9 @@ namespace BiatecTokensApi.Filters
 
                 _cache.TryAdd(key, newRecord);
                 executedContext.HttpContext.Response.Headers["X-Idempotency-Hit"] = "false";
+                
+                // Record idempotency cache miss metric (new request cached)
+                metricsService?.IncrementCounter("idempotency_cache_misses_total");
                 
                 logger?.LogDebug(
                     "Idempotency record cached. Key: {Key}, StatusCode: {StatusCode}",
@@ -184,6 +200,29 @@ namespace BiatecTokensApi.Filters
             {
                 _cache.TryRemove(key, out _);
             }
+        }
+
+        /// <summary>
+        /// Gets cache statistics for monitoring
+        /// </summary>
+        /// <returns>Cache statistics including size and entry count</returns>
+        /// <remarks>
+        /// Note: For performance, this method counts all entries without filtering.
+        /// Some expired entries may still be counted until they are cleaned up.
+        /// Use CleanupExpiredEntries() first if you need precise active entry count.
+        /// </remarks>
+        public static Dictionary<string, object> GetCacheStatistics()
+        {
+            // For performance with large caches, we return total count only
+            // Counting active vs expired would require iterating all entries
+            // which could be expensive for large caches
+            var totalEntries = _cache.Count;
+            
+            return new Dictionary<string, object>
+            {
+                { "total_entries", totalEntries },
+                { "note", "Total includes some expired entries pending cleanup" }
+            };
         }
 
         /// <summary>

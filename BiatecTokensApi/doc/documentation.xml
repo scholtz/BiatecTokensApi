@@ -4446,6 +4446,17 @@
             Removes expired entries from the cache
             </summary>
         </member>
+        <member name="M:BiatecTokensApi.Filters.IdempotencyKeyAttribute.GetCacheStatistics">
+            <summary>
+            Gets cache statistics for monitoring
+            </summary>
+            <returns>Cache statistics including size and entry count</returns>
+            <remarks>
+            Note: For performance, this method counts all entries without filtering.
+            Some expired entries may still be counted until they are cleaned up.
+            Use CleanupExpiredEntries() first if you need precise active entry count.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Filters.IdempotencyKeyAttribute.IdempotencyRecord">
             <summary>
             Internal record structure for storing idempotency information
@@ -13484,6 +13495,11 @@
         <member name="F:BiatecTokensApi.Models.ErrorCodes.PRICE_NOT_CONFIGURED">
             <summary>
             Price ID not configured
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.IDEMPOTENCY_KEY_MISMATCH">
+            <summary>
+            Idempotency key has been reused with different request parameters
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
