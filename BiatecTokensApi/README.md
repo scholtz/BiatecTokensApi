@@ -2,10 +2,14 @@
 
 [![Test Pull Request](https://github.com/scholtz/BiatecTokensApi/actions/workflows/test-pr.yml/badge.svg)](https://github.com/scholtz/BiatecTokensApi/actions/workflows/test-pr.yml)
 
-A comprehensive API for deploying and managing various types of tokens on different blockchain networks, including ERC20 tokens on EVM chains, ARC3 tokens, and ARC200 tokens on Algorand.
+A comprehensive, wallet-free API for deploying and managing various types of tokens on different blockchain networks. **No wallet installation or blockchain knowledge required** - users authenticate with email and password, and the backend handles all blockchain operations transparently using ARC76 account derivation.
+
+**Perfect for:** Traditional businesses, non-crypto-native users, and regulated financial institutions looking to issue compliant tokens without the complexity of wallet management.
 
 ## Features
 
+- **🔐 Wallet-Free Authentication**: Email/password authentication with automatic ARC76 account derivation - no wallet installation or blockchain knowledge required
+- **🚀 Server-Side Token Deployment**: Complete backend-managed token creation across 11 token standards - users never handle private keys
 - **ERC20 Token Deployment**: Deploy mintable and preminted ERC20 tokens on EVM chains (Base blockchain)
 - **Algorand Standard Assets (ASA)**: Create fungible tokens, NFTs, and fractional NFTs on Algorand
 - **ARC3 Token Support**: Deploy ARC3-compliant tokens with rich metadata and IPFS integration
@@ -14,7 +18,7 @@ A comprehensive API for deploying and managing various types of tokens on differ
 - **Compliance Indicators API**: Frontend-friendly endpoint exposing MICA readiness, whitelisting status, and enterprise readiness scores
 - **Compliance Capability Matrix**: Configuration-driven API providing jurisdiction-aware compliance rules and enforcement
 - **Network-Specific Validation**: Enforce compliance rules for VOI and Aramid networks
-- **Authentication**: Secure API access using ARC-0014 Algorand authentication
+- **Dual Authentication**: JWT Bearer (email/password) and ARC-0014 (blockchain signatures) support
 - **Multi-Network Support**: Support for various Algorand networks and EVM chains
 - **Subscription Management**: Stripe-powered subscription tiers (Free, Basic, Premium, Enterprise) with self-service billing
 - **Health Monitoring**: Comprehensive health checks for all external dependencies (IPFS, Algorand, EVM chains)
@@ -198,6 +202,68 @@ Authorization: SigTx <your-arc14-signed-transaction>
 - Algorand Mainnet
 - Algorand Testnet  
 - Algorand Betanet
+
+---
+
+## Quick Start for Non-Crypto Users
+
+**No wallet required!** Here's how to get started with the Biatec Tokens API using just email and password:
+
+### Step 1: Register Your Account
+```bash
+curl -X POST https://api.biatec.io/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "your-email@example.com",
+    "password": "SecurePass123!",
+    "confirmPassword": "SecurePass123!",
+    "fullName": "Your Name"
+  }'
+```
+
+**Response includes:**
+- Your unique Algorand blockchain address (automatically generated)
+- JWT access token for API requests
+- Refresh token for session renewal
+
+### Step 2: Deploy Your First Token
+```bash
+curl -X POST https://api.biatec.io/api/v1/token/erc20-mintable/create \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "name": "My Company Token",
+    "symbol": "MCT",
+    "decimals": 18,
+    "initialSupply": "1000000",
+    "maxSupply": "10000000",
+    "chainId": "8453"
+  }'
+```
+
+**That's it!** The backend:
+- ✅ Signs the transaction using your derived blockchain account
+- ✅ Submits it to the blockchain network
+- ✅ Tracks deployment status
+- ✅ Returns the token contract address
+
+**You never need to:**
+- ❌ Install a wallet extension
+- ❌ Write down seed phrases
+- ❌ Approve transaction popups
+- ❌ Switch networks manually
+- ❌ Understand gas fees or blockchain concepts
+
+### Step 3: Track Deployment Status
+```bash
+curl -X GET https://api.biatec.io/api/v1/deployment/status \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+See all your token deployments, their status (Pending, Confirmed, Completed), and blockchain transaction details.
+
+---
+
 - VOI Mainnet
 - Aramid Mainnet
 
