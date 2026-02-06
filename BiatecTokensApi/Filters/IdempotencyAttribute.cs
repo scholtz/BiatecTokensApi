@@ -206,16 +206,22 @@ namespace BiatecTokensApi.Filters
         /// Gets cache statistics for monitoring
         /// </summary>
         /// <returns>Cache statistics including size and entry count</returns>
+        /// <remarks>
+        /// Note: For performance, this method counts all entries without filtering.
+        /// Some expired entries may still be counted until they are cleaned up.
+        /// Use CleanupExpiredEntries() first if you need precise active entry count.
+        /// </remarks>
         public static Dictionary<string, object> GetCacheStatistics()
         {
-            var now = DateTime.UtcNow;
-            var activeEntries = _cache.Count(kvp => now - kvp.Value.Timestamp < DefaultExpiration);
+            // For performance with large caches, we return total count only
+            // Counting active vs expired would require iterating all entries
+            // which could be expensive for large caches
+            var totalEntries = _cache.Count;
             
             return new Dictionary<string, object>
             {
-                { "total_entries", _cache.Count },
-                { "active_entries", activeEntries },
-                { "expired_entries", _cache.Count - activeEntries }
+                { "total_entries", totalEntries },
+                { "note", "Total includes some expired entries pending cleanup" }
             };
         }
 

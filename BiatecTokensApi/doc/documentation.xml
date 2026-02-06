@@ -4451,6 +4451,11 @@
             Gets cache statistics for monitoring
             </summary>
             <returns>Cache statistics including size and entry count</returns>
+            <remarks>
+            Note: For performance, this method counts all entries without filtering.
+            Some expired entries may still be counted until they are cleaned up.
+            Use CleanupExpiredEntries() first if you need precise active entry count.
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Filters.IdempotencyKeyAttribute.IdempotencyRecord">
             <summary>

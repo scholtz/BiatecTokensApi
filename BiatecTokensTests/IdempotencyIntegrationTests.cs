@@ -250,8 +250,12 @@ namespace BiatecTokensTests
                 Assert.That(response2.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
                     "Request with same idempotency key but different parameters should return BadRequest");
 
-                var errorResponse = await response2.Content.ReadFromJsonAsync<dynamic>();
-                Assert.That(errorResponse, Is.Not.Null);
+                // Verify the error response contains the correct error code
+                var errorContent = await response2.Content.ReadAsStringAsync();
+                Assert.That(errorContent, Does.Contain("IDEMPOTENCY_KEY_MISMATCH"),
+                    "Error response should contain IDEMPOTENCY_KEY_MISMATCH error code");
+                Assert.That(errorContent, Does.Contain("different request parameters"),
+                    "Error response should explain the parameter mismatch");
             }
             else
             {
