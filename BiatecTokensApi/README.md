@@ -500,8 +500,8 @@ Authorization: Bearer <jwt-token> or SigTx <arc14-signed-tx>
   "deploymentId": "deploy_abc123",
   "status": "Completed",
   "tokenType": "ERC20_Mintable",
-  "transactionHash": "0x...",
-  "assetId": "0x742d35Cc6634C0532925a3b8D4434d3C7f2db9bc",
+  "transactionHash": "T7YFVXO5W5Q4NBVXMTGABCD...",
+  "assetId": "123456789",
   "createdAt": "2026-02-06T13:00:00Z",
   "completedAt": "2026-02-06T13:02:30Z",
   "history": [

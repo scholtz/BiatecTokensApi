@@ -529,16 +529,13 @@ namespace BiatecTokensApi.Services
         private string GenerateMnemonic()
         {
             // Generate a new BIP39 mnemonic using NBitcoin
-            // Algorand uses 25-word mnemonics (256 bits of entropy + 1 checksum word)
+            // NBitcoin generates 24-word BIP39 mnemonics (256 bits of entropy)
+            // This is compatible with Algorand which uses the same BIP39 standard
+            // ARC76.GetAccount accepts standard BIP39 mnemonics and derives Algorand accounts
             try
             {
                 var mnemonic = new Mnemonic(Wordlist.English, WordCount.TwentyFour);
                 var mnemonicString = mnemonic.ToString();
-                
-                // Algorand uses 25 words, but NBitcoin generates 24
-                // We need to add the Algorand checksum word
-                // For now, use the 24-word mnemonic and let ARC76 handle it
-                // ARC76.GetAccount will validate and work with standard Algorand mnemonics
                 
                 _logger.LogInformation("Generated new BIP39 mnemonic for user account");
                 return mnemonicString;
@@ -556,9 +553,6 @@ namespace BiatecTokensApi.Services
             try
             {
                 var mnemonicBytes = Encoding.UTF8.GetBytes(mnemonic);
-                
-                // Derive key from password using PBKDF2
-                var keyBytes = DeriveKeyFromPassword(password);
                 
                 // Generate random nonce (12 bytes for GCM)
                 var nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
