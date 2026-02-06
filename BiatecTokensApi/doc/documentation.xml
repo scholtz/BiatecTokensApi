@@ -2383,6 +2383,49 @@
             </summary>
             <returns>The user's Algorand address</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.MetricsController">
+            <summary>
+            Provides metrics endpoints for monitoring and observability
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.MetricsController.#ctor(BiatecTokensApi.Services.Interface.IMetricsService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.MetricsController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.MetricsController"/> class.
+            </summary>
+            <param name="metricsService">Metrics service</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.MetricsController.GetMetrics">
+            <summary>
+            Gets current API metrics
+            </summary>
+            <returns>Dictionary of metrics organized by category</returns>
+            <remarks>
+            This endpoint provides comprehensive metrics for monitoring:
+            
+            **Counters:**
+            - http_requests_total: Total requests by method and endpoint
+            - http_errors_total: Total errors by method, endpoint, and error code
+            - token_deployments_total: Deployments by token type and status
+            - rpc_calls_total: RPC calls by network, operation, and status
+            - audit_writes_total: Audit writes by category and status
+            
+            **Histograms:**
+            - http_request_duration_ms: Request latency distribution
+            - token_deployment_duration_ms: Deployment duration distribution
+            - rpc_call_duration_ms: RPC call latency distribution
+            
+            **Gauges:**
+            - token_deployment_success_rate: Success rate by token type
+            - rpc_failure_rate: Failure rate by network
+            
+            **Use Cases:**
+            - Prometheus scraping for alerting
+            - Performance monitoring dashboards
+            - Capacity planning
+            - Incident investigation
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.NetworkController">
             <summary>
             Provides endpoints for querying supported blockchain networks and their configurations
@@ -4907,6 +4950,43 @@
             <param name="inputs">Array of strings to sanitize</param>
             <returns>Array of sanitized strings</returns>
         </member>
+        <member name="T:BiatecTokensApi.Middleware.CorrelationIdMiddleware">
+            <summary>
+            Middleware that ensures every request has a correlation ID for distributed tracing
+            </summary>
+            <remarks>
+            This middleware:
+            - Accepts X-Correlation-ID header from clients or generates a new one
+            - Adds correlation ID to response headers for client-side tracking
+            - Makes correlation ID available through HttpContext.TraceIdentifier
+            - Enables end-to-end request tracing across services and logs
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.CorrelationIdMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Middleware.CorrelationIdMiddleware"/> class.
+            </summary>
+            <param name="next">The next middleware in the pipeline</param>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.CorrelationIdMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext)">
+            <summary>
+            Invokes the middleware to process the request
+            </summary>
+            <param name="context">HTTP context</param>
+            <returns>Task representing the async operation</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Middleware.CorrelationIdMiddlewareExtensions">
+            <summary>
+            Extension methods for registering the correlation ID middleware
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.CorrelationIdMiddlewareExtensions.UseCorrelationId(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>
+            Adds the correlation ID middleware to the application pipeline
+            </summary>
+            <param name="app">The application builder</param>
+            <returns>The application builder for method chaining</returns>
+        </member>
         <member name="T:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware">
             <summary>
             Global exception handling middleware that catches unhandled exceptions and returns standardized error responses
@@ -4949,6 +5029,38 @@
         <member name="M:BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddlewareExtensions.UseGlobalExceptionHandler(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
             <summary>
             Adds the global exception handler middleware to the application pipeline
+            </summary>
+            <param name="app">The application builder</param>
+            <returns>The application builder for method chaining</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Middleware.MetricsMiddleware">
+            <summary>
+            Middleware that tracks metrics for all HTTP requests
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.MetricsMiddleware.#ctor(Microsoft.AspNetCore.Http.RequestDelegate,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Middleware.MetricsMiddleware})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Middleware.MetricsMiddleware"/> class.
+            </summary>
+            <param name="next">The next middleware in the pipeline</param>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.MetricsMiddleware.InvokeAsync(Microsoft.AspNetCore.Http.HttpContext,BiatecTokensApi.Services.Interface.IMetricsService)">
+            <summary>
+            Invokes the middleware
+            </summary>
+            <param name="context">HTTP context</param>
+            <param name="metricsService">Metrics service (injected per request)</param>
+            <returns>Task representing the async operation</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Middleware.MetricsMiddlewareExtensions">
+            <summary>
+            Extension methods for registering the metrics middleware
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Middleware.MetricsMiddlewareExtensions.UseMetrics(Microsoft.AspNetCore.Builder.IApplicationBuilder)">
+            <summary>
+            Adds the metrics middleware to the application pipeline
             </summary>
             <param name="app">The application builder</param>
             <returns>The application builder for method chaining</returns>
@@ -13442,6 +13554,100 @@
             Export operation (CSV/JSON compliance data export)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Metrics.ApiMetrics">
+            <summary>
+            In-memory metrics storage for API operations
+            </summary>
+            <remarks>
+            This class provides thread-safe metrics collection for monitoring API health,
+            performance, and reliability. Metrics are stored in memory and can be exported
+            for monitoring dashboards or Prometheus scraping.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Metrics.ApiMetrics.IncrementCounter(System.String,System.Int64)">
+            <summary>
+            Increments a counter metric
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="increment">Amount to increment (default: 1)</param>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Metrics.ApiMetrics.RecordHistogram(System.String,System.Double)">
+            <summary>
+            Records a value in a histogram metric
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="value">Value to record</param>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Metrics.ApiMetrics.SetGauge(System.String,System.Double)">
+            <summary>
+            Sets a gauge metric to a specific value
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="value">Value to set</param>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Metrics.ApiMetrics.GetCounters">
+            <summary>
+            Gets all current counter values
+            </summary>
+            <returns>Dictionary of counter names and values</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Metrics.ApiMetrics.GetHistograms">
+            <summary>
+            Gets histogram statistics
+            </summary>
+            <returns>Dictionary of histogram statistics</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Metrics.ApiMetrics.GetGauges">
+            <summary>
+            Gets all current gauge values
+            </summary>
+            <returns>Dictionary of gauge names and values</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Models.Metrics.ApiMetrics.Reset">
+            <summary>
+            Resets all metrics (for testing or periodic resets)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Metrics.HistogramStats">
+            <summary>
+            Statistics for histogram metrics
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metrics.HistogramStats.Count">
+            <summary>
+            Number of values recorded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metrics.HistogramStats.Min">
+            <summary>
+            Minimum value
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metrics.HistogramStats.Max">
+            <summary>
+            Maximum value
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metrics.HistogramStats.Average">
+            <summary>
+            Average value
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metrics.HistogramStats.P50">
+            <summary>
+            50th percentile (median)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metrics.HistogramStats.P95">
+            <summary>
+            95th percentile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Metrics.HistogramStats.P99">
+            <summary>
+            99th percentile
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.NetworkMetadata">
             <summary>
             Represents metadata for a supported blockchain network
@@ -19994,6 +20200,68 @@
             Persists compliance metadata for a deployed token
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.BaseObservableService">
+            <summary>
+            Base class for services that provides automatic observability features
+            </summary>
+            <remarks>
+            This base class provides:
+            - Automatic metrics recording for operations
+            - Correlation ID access from HTTP context
+            - Structured logging with correlation IDs
+            - Standardized error handling patterns
+            
+            Services inheriting from this class get observability features automatically.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Services.BaseObservableService.Metrics">
+            <summary>
+            Metrics service for recording operations
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.BaseObservableService.Logger">
+            <summary>
+            Logger instance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.BaseObservableService.HttpContextAccessor">
+            <summary>
+            HTTP context accessor for correlation ID access
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.BaseObservableService.CorrelationId">
+            <summary>
+            Gets the current correlation ID from HTTP context or generates one
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BaseObservableService.#ctor(BiatecTokensApi.Services.Interface.IMetricsService,Microsoft.Extensions.Logging.ILogger,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.BaseObservableService"/> class
+            </summary>
+            <param name="metrics">Metrics service</param>
+            <param name="logger">Logger instance</param>
+            <param name="httpContextAccessor">HTTP context accessor (optional)</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BaseObservableService.ExecuteWithMetricsAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}},System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Executes an operation with automatic metrics and logging
+            </summary>
+            <typeparam name="T">Return type</typeparam>
+            <param name="operationName">Name of the operation for metrics</param>
+            <param name="operation">The operation to execute</param>
+            <param name="logParameters">Optional parameters to log</param>
+            <returns>Result of the operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.BaseObservableService.ExecuteWithMetrics``1(System.String,System.Func{``0},System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Executes an operation with automatic metrics and logging (synchronous version)
+            </summary>
+            <typeparam name="T">Return type</typeparam>
+            <param name="operationName">Name of the operation for metrics</param>
+            <param name="operation">The operation to execute</param>
+            <param name="logParameters">Optional parameters to log</param>
+            <returns>Result of the operation</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.BillingService">
             <summary>
             Service for billing operations including usage tracking and plan limit enforcement
@@ -21525,6 +21793,78 @@
             <param name="jurisdictionCode">The jurisdiction code</param>
             <returns>Response indicating success or failure</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IMetricsService">
+            <summary>
+            Service for collecting and exposing API metrics
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.RecordRequest(System.String,System.String,System.Double)">
+            <summary>
+            Records a successful API request
+            </summary>
+            <param name="endpoint">Endpoint path</param>
+            <param name="method">HTTP method</param>
+            <param name="durationMs">Request duration in milliseconds</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.RecordError(System.String,System.String,System.String)">
+            <summary>
+            Records an API error
+            </summary>
+            <param name="endpoint">Endpoint path</param>
+            <param name="method">HTTP method</param>
+            <param name="errorCode">Error code</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.RecordDeployment(System.String,System.Boolean,System.Double)">
+            <summary>
+            Records a token deployment attempt
+            </summary>
+            <param name="tokenType">Type of token</param>
+            <param name="success">Whether deployment succeeded</param>
+            <param name="durationMs">Deployment duration in milliseconds</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.RecordRpcCall(System.String,System.String,System.Boolean,System.Double)">
+            <summary>
+            Records an RPC call
+            </summary>
+            <param name="network">Network name</param>
+            <param name="operation">Operation type</param>
+            <param name="success">Whether call succeeded</param>
+            <param name="durationMs">Call duration in milliseconds</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.RecordAuditWrite(System.String,System.Boolean)">
+            <summary>
+            Records an audit log write
+            </summary>
+            <param name="category">Audit category</param>
+            <param name="success">Whether write succeeded</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.IncrementCounter(System.String,System.Int64)">
+            <summary>
+            Increments a counter metric
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="increment">Amount to increment (default: 1)</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.RecordHistogram(System.String,System.Double)">
+            <summary>
+            Records a value in a histogram metric
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="value">Value to record</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.SetGauge(System.String,System.Double)">
+            <summary>
+            Sets a gauge metric to a specific value
+            </summary>
+            <param name="name">Metric name</param>
+            <param name="value">Value to set</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IMetricsService.GetMetrics">
+            <summary>
+            Gets all current metrics
+            </summary>
+            <returns>Dictionary of metric categories and their data</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.ISecurityActivityService">
             <summary>
             Service interface for security activity and audit operations
@@ -22171,6 +22511,44 @@
             <summary>
             Evaluates a single compliance requirement
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.MetricsService">
+            <summary>
+            Implementation of metrics collection service
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.MetricsService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.MetricsService"/> class.
+            </summary>
+            <param name="logger">Logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.RecordRequest(System.String,System.String,System.Double)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.RecordError(System.String,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.RecordDeployment(System.String,System.Boolean,System.Double)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.RecordRpcCall(System.String,System.String,System.Boolean,System.Double)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.RecordAuditWrite(System.String,System.Boolean)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.IncrementCounter(System.String,System.Int64)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.RecordHistogram(System.String,System.Double)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.SetGauge(System.String,System.Double)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.MetricsService.GetMetrics">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.RegistryIngestionService">
             <summary>

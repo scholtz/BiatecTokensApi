@@ -32,6 +32,7 @@ namespace BiatecTokensApi
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+            builder.Services.AddHttpContextAccessor(); // For correlation ID access in services
             builder.Services.AddControllers();
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -167,6 +168,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IJurisdictionRulesService, JurisdictionRulesService>();
             builder.Services.AddSingleton<ICapabilityMatrixService, CapabilityMatrixService>();
 
+            // Register metrics service for observability
+            builder.Services.AddSingleton<IMetricsService, MetricsService>();
+
             var authOptions = builder.Configuration.GetSection("AlgorandAuthentication").Get<AlgorandAuthenticationOptionsV2>();
             if (authOptions == null) throw new Exception("Config for the authentication is missing");
             builder.Services.AddAuthentication(AlgorandAuthenticationHandlerV2.ID).AddAlgorand(a =>
@@ -196,8 +200,14 @@ namespace BiatecTokensApi
 
             var app = builder.Build();
 
-            // Add global exception handler middleware (should be first)
+            // Add correlation ID middleware (should be first to ensure all requests have IDs)
+            app.UseCorrelationId();
+            
+            // Add global exception handler middleware
             app.UseGlobalExceptionHandler();
+            
+            // Add metrics middleware to track all requests
+            app.UseMetrics();
             
             // Add request/response logging middleware for debugging
             app.UseRequestResponseLogging();
