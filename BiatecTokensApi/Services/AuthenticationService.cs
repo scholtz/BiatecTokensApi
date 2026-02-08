@@ -68,8 +68,10 @@ namespace BiatecTokensApi.Services
                 // Hash password
                 var passwordHash = HashPassword(request.Password);
 
-                // Encrypt mnemonic with password (simple encryption for MVP)
-                var encryptedMnemonic = EncryptMnemonic(mnemonic, request.Password);
+                // Encrypt mnemonic with system password (so it can be decrypted for signing operations)
+                // In production, use proper key management (HSM, Azure Key Vault, AWS KMS, etc.)
+                var systemPassword = "SYSTEM_KEY_FOR_MVP_REPLACE_IN_PRODUCTION";
+                var encryptedMnemonic = EncryptMnemonic(mnemonic, systemPassword);
 
                 // Create user
                 var user = new User
@@ -372,9 +374,8 @@ namespace BiatecTokensApi.Services
                 // Update password hash
                 user.PasswordHash = HashPassword(newPassword);
 
-                // Re-encrypt mnemonic with new password
-                var mnemonic = DecryptMnemonic(user.EncryptedMnemonic, currentPassword);
-                user.EncryptedMnemonic = EncryptMnemonic(mnemonic, newPassword);
+                // Mnemonic remains encrypted with system password (no need to re-encrypt)
+                // The user password is only for authentication, not for mnemonic encryption
 
                 await _userRepository.UpdateUserAsync(user);
 
