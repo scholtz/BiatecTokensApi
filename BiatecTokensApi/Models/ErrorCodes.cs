@@ -327,5 +327,26 @@ namespace BiatecTokensApi.Models
         /// User not found
         /// </summary>
         public const string USER_NOT_FOUND = "USER_NOT_FOUND";
+
+        // Compliance Profile errors
+        /// <summary>
+        /// Compliance profile not found
+        /// </summary>
+        public const string COMPLIANCE_PROFILE_NOT_FOUND = "COMPLIANCE_PROFILE_NOT_FOUND";
+
+        /// <summary>
+        /// Invalid jurisdiction code
+        /// </summary>
+        public const string INVALID_JURISDICTION = "INVALID_JURISDICTION";
+
+        /// <summary>
+        /// Invalid issuance intent
+        /// </summary>
+        public const string INVALID_ISSUANCE_INTENT = "INVALID_ISSUANCE_INTENT";
+
+        /// <summary>
+        /// Compliance profile validation failed
+        /// </summary>
+        public const string COMPLIANCE_PROFILE_VALIDATION_FAILED = "COMPLIANCE_PROFILE_VALIDATION_FAILED";
     }
 }
