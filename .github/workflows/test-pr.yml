@@ -111,6 +111,7 @@ jobs:
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
+        continue-on-error: true
         with:
           files: '**/test-results.trx'
           check_name: 'Test Results'
@@ -173,6 +174,7 @@ jobs:
       
       - name: Comment PR with OpenAPI artifact link
         if: github.event_name == 'pull_request' && always()
+        continue-on-error: true
         uses: actions/github-script@v8
         with:
           script: |
@@ -191,9 +193,13 @@ jobs:
               }
             }
             
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: message
-            })
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: message
+              });
+            } catch (error) {
+              console.log('Could not post comment (expected for Dependabot PRs):', error.message);
+            }
