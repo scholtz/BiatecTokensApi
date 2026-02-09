@@ -274,8 +274,8 @@ namespace BiatecTokensApi.Services
             {
                 var chainLower = chain.ToLowerInvariant();
 
-                // Algorand networks
-                if (chainLower.Contains("algorand") || chainLower.Contains("testnet") || chainLower.Contains("betanet"))
+                // Algorand networks - check for algorand-specific identifiers first
+                if (chainLower.Contains("algorand"))
                 {
                     if (chainLower.Contains("mainnet") || chainLower == "algorand")
                     {
@@ -289,6 +289,16 @@ namespace BiatecTokensApi.Services
                     {
                         return $"https://betanet.explorer.perawallet.app/asset/{tokenIdentifier}";
                     }
+                }
+                
+                // Separate testnet/betanet checks for backward compatibility with simple chain names
+                if (chainLower == "testnet")
+                {
+                    return $"https://testnet.explorer.perawallet.app/asset/{tokenIdentifier}";
+                }
+                else if (chainLower == "betanet")
+                {
+                    return $"https://betanet.explorer.perawallet.app/asset/{tokenIdentifier}";
                 }
 
                 // VOI network
@@ -410,16 +420,31 @@ namespace BiatecTokensApi.Services
         /// </summary>
         private void ValidateUrlField(string? url, string fieldName, string errorCode, List<TokenMetadataValidationIssue> issues)
         {
-            if (!string.IsNullOrWhiteSpace(url) && !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            if (!string.IsNullOrWhiteSpace(url))
             {
-                issues.Add(new TokenMetadataValidationIssue
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
                 {
-                    Code = errorCode,
-                    Field = fieldName,
-                    Message = $"{fieldName} is not a valid URL",
-                    Severity = TokenMetadataIssueSeverity.Warning,
-                    Remediation = $"Provide a valid absolute URL starting with http:// or https://"
-                });
+                    issues.Add(new TokenMetadataValidationIssue
+                    {
+                        Code = errorCode,
+                        Field = fieldName,
+                        Message = $"{fieldName} is not a valid URL",
+                        Severity = TokenMetadataIssueSeverity.Warning,
+                        Remediation = $"Provide a valid absolute URL starting with http:// or https://"
+                    });
+                }
+                else if (uri.Scheme != "http" && uri.Scheme != "https")
+                {
+                    // Only allow HTTP(S) schemes for security
+                    issues.Add(new TokenMetadataValidationIssue
+                    {
+                        Code = errorCode,
+                        Field = fieldName,
+                        Message = $"{fieldName} must use http:// or https:// scheme",
+                        Severity = TokenMetadataIssueSeverity.Error,
+                        Remediation = $"Update the URL to use http:// or https:// instead of {uri.Scheme}://"
+                    });
+                }
             }
         }
 

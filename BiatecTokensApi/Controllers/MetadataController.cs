@@ -61,7 +61,10 @@ namespace BiatecTokensApi.Controllers
         /// - Error: Critical issues that should be fixed for proper functionality
         /// - Warning: Recommended fields missing or incorrectly formatted
         /// - Info: Informational messages about auto-generated or fallback values
+        /// 
+        /// This endpoint is publicly accessible to support wallet integrations without requiring authentication.
         /// </remarks>
+        [AllowAnonymous]
         [HttpGet("token")]
         [SwaggerOperation(
             Summary = "Get token metadata",
