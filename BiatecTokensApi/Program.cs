@@ -127,6 +127,7 @@ namespace BiatecTokensApi
 
             // Register repositories
             builder.Services.AddSingleton<IUserRepository, UserRepository>();
+            builder.Services.AddSingleton<IComplianceProfileRepository, ComplianceProfileRepository>();
             builder.Services.AddSingleton<IIPFSRepository, IPFSRepository>();
             builder.Services.AddSingleton<IWhitelistRepository, WhitelistRepository>();
             builder.Services.AddSingleton<IWhitelistRulesRepository, WhitelistRulesRepository>();
@@ -172,6 +173,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IWhitelistService, WhitelistService>();
             builder.Services.AddSingleton<IWhitelistRulesService, WhitelistRulesService>();
             builder.Services.AddSingleton<IComplianceService, ComplianceService>();
+            builder.Services.AddSingleton<IComplianceProfileService, ComplianceProfileService>();
             builder.Services.AddSingleton<IEnterpriseAuditService, EnterpriseAuditService>();
             builder.Services.AddSingleton<IWebhookService, WebhookService>();
             builder.Services.AddSingleton<IStripeService, StripeService>();
