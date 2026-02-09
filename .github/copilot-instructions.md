@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-BiatecTokensApi is a comprehensive .NET 8.0 Web API for deploying and managing various types of tokens on different blockchain networks, including ERC20 tokens on EVM chains (Base blockchain) and multiple Algorand token standards (ASA, ARC3, ARC200).
+BiatecTokensApi is a comprehensive .NET 10.0 Web API for deploying and managing various types of tokens on different blockchain networks, including ERC20 tokens on EVM chains (Base blockchain) and multiple Algorand token standards (ASA, ARC3, ARC200, ARC1400).
 
 ## Technology Stack
 
-- **Framework**: .NET 8.0 (C#)
+- **Framework**: .NET 10.0 (C#)
 - **IDE**: Visual Studio 2022 or Visual Studio Code
 - **Package Manager**: NuGet
-- **Testing Framework**: xUnit
+- **Testing Framework**: NUnit
 - **API Documentation**: Swagger/OpenAPI (Swashbuckle)
 - **Blockchain Libraries**:
   - Algorand4 (v4.0.3.2025051817) - Algorand blockchain integration
@@ -343,6 +343,18 @@ docker run --rm -v ".:/app/out" scholtz2/dotnet-avm-generated-client:latest \
 - Keep dependencies up to date
 - Test thoroughly after updating major versions
 
+### Handling Dependency Updates (e.g., Dependabot PRs)
+1. **Always verify locally first** before reporting CI failures
+2. Run the exact CI commands locally:
+   - `dotnet restore BiatecTokensApi.sln`
+   - `dotnet build BiatecTokensApi.sln --configuration Release --no-restore`
+   - `dotnet test BiatecTokensTests/BiatecTokensTests.csproj --configuration Release --no-build --verbosity normal --filter "FullyQualifiedName!~RealEndpoint"`
+3. Check for breaking API changes in updated packages
+4. Verify test coverage remains above thresholds (line: 15%, branch: 8%)
+5. Look for version compatibility warnings during restore
+6. If tests pass locally but CI claims failure, use GitHub Actions tools to fetch actual CI logs
+7. Do not assume CI failures without verifying - Dependabot PRs often trigger false alerts
+
 ### Key Dependencies
 - **Algorand4**: Core Algorand SDK
 - **Nethereum.Web3**: Ethereum interaction
@@ -389,6 +401,8 @@ docker run --rm -v ".:/app/out" scholtz2/dotnet-avm-generated-client:latest \
 - Always validate authentication tokens
 - Always log important operations
 - Always review security implications of changes
+- **Always run full test suite before reporting CI failures** - verify locally first
+- **Always check actual CI logs** using GitHub Actions tools before assuming failures
 
 ## Support and Resources
 
