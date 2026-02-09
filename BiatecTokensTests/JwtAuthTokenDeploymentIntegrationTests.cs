@@ -68,7 +68,11 @@ namespace BiatecTokensTests
                 ["StripeConfig:WebhookSecret"] = "test_secret",
                 ["StripeConfig:BasicPriceId"] = "price_test_basic",
                 ["StripeConfig:ProPriceId"] = "price_test_pro",
-                ["StripeConfig:EnterprisePriceId"] = "price_test_enterprise"
+                ["StripeConfig:EnterprisePriceId"] = "price_test_enterprise",
+                
+                // Key management configuration for tests
+                ["KeyManagementConfig:Provider"] = "Hardcoded",
+                ["KeyManagementConfig:HardcodedKey"] = "TestKeyForIntegrationTests32CharactersMinimumRequired"
             };
 
             _factory = new WebApplicationFactory<BiatecTokensApi.Program>()
