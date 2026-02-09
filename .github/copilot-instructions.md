@@ -6,15 +6,15 @@ BiatecTokensApi is a comprehensive .NET 8.0 Web API for deploying and managing v
 
 ## Technology Stack
 
-- **Framework**: .NET 8.0 (C#)
+- **Framework**: .NET 10.0 (C#)
 - **IDE**: Visual Studio 2022 or Visual Studio Code
 - **Package Manager**: NuGet
-- **Testing Framework**: xUnit
+- **Testing Framework**: NUnit (not xUnit)
 - **API Documentation**: Swagger/OpenAPI (Swashbuckle)
 - **Blockchain Libraries**:
-  - Algorand4 (v4.0.3.2025051817) - Algorand blockchain integration
-  - Nethereum.Web3 (v5.0.0) - Ethereum/EVM blockchain integration
-  - AlgorandAuthentication (v2.0.1) - ARC-0014 authentication
+  - Algorand4 (v4.4.1.2026010317) - Algorand blockchain integration
+  - Nethereum.Web3 (v5.8.0) - Ethereum/EVM blockchain integration
+  - AlgorandAuthentication (v2.1.1) - ARC-0014 authentication
   - AlgorandARC76Account (v1.1.0) - ARC-76 account management
 - **Containerization**: Docker
 
@@ -397,6 +397,88 @@ docker run --rm -v ".:/app/out" scholtz2/dotnet-avm-generated-client:latest \
 - Algorand Documentation: https://developer.algorand.org
 - Nethereum Documentation: https://docs.nethereum.com
 - ARC Standards: https://github.com/algorandfoundation/ARCs
+
+## Dependency Updates and Verification
+
+### Handling Dependabot PRs
+When Dependabot creates PRs for dependency updates, follow this verification process:
+
+#### 1. Local Verification (ALWAYS Required)
+```bash
+# Step 1: Restore dependencies
+dotnet restore
+
+# Step 2: Build in Release mode
+dotnet build --configuration Release --no-restore
+
+# Step 3: Run tests (excluding RealEndpoint tests)
+dotnet test --configuration Release --no-build --verbosity normal --filter "FullyQualifiedName!~RealEndpoint"
+
+# Step 4: Check for security vulnerabilities
+dotnet list package --vulnerable
+```
+
+#### 2. CI Workflow Considerations
+- Dependabot PRs run with **read-only permissions** by default for security
+- Workflows that post comments to PRs will fail with `403 Resource not accessible by integration`
+- This is **NOT a code failure** - it's expected behavior for dependabot PRs
+- Always verify test results, not workflow comment step results
+
+#### 3. Dependency Update Checklist
+Before approving a dependency update PR:
+- [ ] Local build succeeds with 0 errors
+- [ ] All tests pass locally (verify count matches baseline: ~1397 tests)
+- [ ] No new security vulnerabilities introduced
+- [ ] Breaking changes documented if major version updates
+- [ ] Test coverage remains at or above baseline (~99%)
+- [ ] CI workflow completes (ignore comment step failures for dependabot PRs)
+
+#### 4. Known Safe Update Types
+These updates are generally safe and require only verification:
+- **Patch updates** (x.y.Z): Bug fixes, security patches
+- **Minor updates** (x.Y.z): New features, backward compatible
+- **Framework updates**: .NET SDK patches within same major version
+
+These require extra scrutiny:
+- **Major updates** (X.y.z): May contain breaking changes
+- **Multi-package updates**: Verify compatibility between updated packages
+- **Security-critical packages**: JWT, authentication, cryptography libraries
+
+#### 5. When CI Shows "Failed" for Dependabot PRs
+If the CI workflow shows as "failed" for a dependabot PR:
+
+1. **Check the actual failure reason** using GitHub Actions logs
+2. **If the failure is permissions-related** (`403 Resource not accessible by integration`):
+   - This is expected for dependabot PRs
+   - Verify tests passed in earlier steps of the workflow
+   - Verify locally as per step 1 above
+3. **If the failure is test or build related**:
+   - Investigate the specific error
+   - Check for breaking changes in updated packages
+   - Consider rejecting the PR or requesting manual updates
+
+#### 6. Workflow Permissions
+The `test-pr.yml` workflow includes these permissions:
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+```
+
+For dependabot PRs, the comment step is skipped:
+```yaml
+if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+```
+
+#### 7. Security Advisory Checks
+Before approving dependency updates, always check:
+- GitHub Security Advisories for the package
+- Release notes for security fixes
+- Known vulnerabilities in old vs. new version
+
+Use the `gh-advisory-database` tool for supported ecosystems before adding new dependencies.
 
 ## Questions and Clarifications
 

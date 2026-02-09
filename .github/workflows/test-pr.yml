@@ -5,10 +5,18 @@ on:
     branches:
       - master
       - main
+      - 'dependabot/**'  # Test stacked PRs on dependabot branches
+      - 'copilot/**'     # Test agent branches
   push:
     branches:
       - master
       - main
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
 
 jobs:
   build-and-test:
@@ -172,7 +180,8 @@ jobs:
           retention-days: 90
       
       - name: Comment PR with OpenAPI artifact link
-        if: github.event_name == 'pull_request' && always()
+        # Skip for dependabot PRs as they have restricted permissions
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && always()
         uses: actions/github-script@v8
         with:
           script: |
@@ -191,9 +200,14 @@ jobs:
               }
             }
             
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: message
-            })
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: message
+              });
+            } catch (error) {
+              console.log('Unable to comment on PR:', error.message);
+              console.log('This is expected for dependabot PRs with restricted permissions.');
+            }
