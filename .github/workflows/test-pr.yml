@@ -5,6 +5,8 @@ on:
     branches:
       - master
       - main
+      - 'dependabot/**'  # Test stacked PRs on dependabot branches
+      - 'copilot/**'     # Test agent branches
   push:
     branches:
       - master
