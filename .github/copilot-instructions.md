@@ -390,6 +390,163 @@ docker run --rm -v ".:/app/out" scholtz2/dotnet-avm-generated-client:latest \
 - Always log important operations
 - Always review security implications of changes
 
+## Dependency Updates and Dependabot PRs
+
+### Handling Dependabot Pull Requests
+
+Dependabot PRs often show **false positive CI failures** due to GitHub Actions permission restrictions. Follow this workflow to properly evaluate them:
+
+#### 1. Identify Dependabot Permission Errors
+Look for these indicators of a **false positive failure**:
+- Error message: `RequestError [HttpError]: Resource not accessible by integration`
+- HTTP Status: `403 Forbidden`
+- URL pattern: `https://api.github.com/repos/.../issues/.../comments`
+- Error location: **AFTER** test execution completes
+- Message content: Workflow trying to post "✅ CI checks passed!" comment
+
+**This is NOT a test or build failure** - it's a GitHub security restriction on Dependabot PRs.
+
+#### 2. Verify Tests Locally
+**ALWAYS** verify dependency updates locally before assuming CI failure:
+
+```bash
+# Standard dependency update verification workflow
+cd /path/to/BiatecTokensApi
+
+# Step 1: Restore dependencies
+dotnet restore
+# Expected: Success (warnings about version constraints are usually safe)
+
+# Step 2: Build in Release mode
+dotnet build --configuration Release --no-restore
+# Expected: 0 Errors, ~97 warnings (pre-existing)
+
+# Step 3: Run tests (exclude RealEndpoint tests)
+dotnet test --configuration Release --no-build --verbosity normal \
+  --filter "FullyQualifiedName!~RealEndpoint"
+# Expected baseline: ~1397 tests passing out of 1401 total
+# Pass rate should be ≥99.5%
+```
+
+#### 3. Evaluate Dependency Security Impact
+
+For each updated dependency, assess:
+
+**Critical Security Updates (P0 - Fast Track)**:
+- `System.IdentityModel.Tokens.Jwt`: JWT validation, log sanitization, crypto algorithms
+- `Microsoft.AspNetCore.Authentication.JwtBearer`: Authentication security
+- `Nethereum.Web3`: Smart contract security, EVM interactions
+- `NBitcoin`: Cryptographic operations, BIP39 mnemonics
+
+**API Stability Updates (P1 - Important)**:
+- `Microsoft.OpenApi`: OpenAPI spec compatibility
+- `Swashbuckle.AspNetCore.*`: Swagger UI, API documentation
+- `Algorand4`: Algorand protocol updates
+- `AlgorandAuthentication`: ARC-14 auth security
+
+**Testing Infrastructure (P2 - Standard)**:
+- `Microsoft.NET.Test.Sdk`: Test framework updates
+- `coverlet.*`: Code coverage tools
+- `NUnit.*`: Test framework and adapters
+- `Moq`: Mocking library updates
+
+#### 4. Document Business Value
+
+Every dependency PR must document:
+
+**Test Coverage**:
+- Which tests validate the updated dependencies
+- Pass rate (should match ~1397/1401 baseline)
+- Any new test failures or regressions
+
+**Security Impact**:
+- CVE fixes (link to security advisories)
+- Log sanitization improvements
+- Cryptographic algorithm updates
+- Authentication/authorization changes
+
+**Business Context**:
+- Link to product roadmap requirement
+- Compliance impact (GDPR, MICA, etc.)
+- Customer-facing improvements
+- Risk if update is delayed
+
+#### 5. Workflow Fixes for Dependabot PRs
+
+GitHub Actions steps that post comments or create checks **must** include:
+
+```yaml
+- name: Comment PR with results
+  if: github.actor != 'dependabot[bot]'  # Skip for Dependabot
+  continue-on-error: true                 # Don't fail on permission errors
+  uses: actions/github-script@v8
+  with:
+    script: |
+      # Your comment logic here
+```
+
+**Required conditions**:
+- `if: github.actor != 'dependabot[bot]'`: Skip Dependabot PRs entirely
+- `continue-on-error: true`: Don't fail workflow on permission errors
+
+#### 6. Common Dependabot False Positive Patterns
+
+| Symptom | Root Cause | Resolution |
+|---------|-----------|------------|
+| "Resource not accessible by integration" | GitHub token has read-only permissions | Skip comment step for Dependabot |
+| Workflow "failed" but tests show "Passed" | Permission error after successful tests | Verify tests locally, merge if passing |
+| 403 Forbidden on PR comment | Dependabot security restrictions | Add `continue-on-error: true` to step |
+| Unable to publish test results | No write permission to create checks | Use `continue-on-error: true` |
+
+#### 7. Quality Standards for Dependency PRs
+
+**Before Merging**, confirm:
+- ✅ All tests pass (1397/1401 baseline)
+- ✅ Build succeeds (0 errors)
+- ✅ No new security vulnerabilities introduced
+- ✅ Documentation updated (if API surface changes)
+- ✅ Business value documented (security fixes, compliance, etc.)
+- ✅ Breaking changes assessed (should be none for patch/minor updates)
+
+**After Merging**, monitor:
+- Application startup (no new exceptions)
+- Log output (verify log sanitization working)
+- API endpoints (no regression in response format)
+- Test pass rate (should remain at baseline)
+
+#### 8. Dependency Update Prioritization
+
+| Priority | Type | SLA | Examples |
+|----------|------|-----|----------|
+| P0 | Security Critical | 24 hours | JWT vulnerabilities, crypto bugs |
+| P1 | API Breaking | 1 week | OpenAPI incompatibility, auth changes |
+| P2 | Standard Updates | 2 weeks | Minor version bumps, tooling updates |
+| P3 | Nice-to-Have | 1 month | Documentation improvements, dev tools |
+
+#### 9. When to Reject a Dependabot PR
+
+Reject or defer if:
+- ❌ Tests fail locally (actual regression)
+- ❌ Breaking changes without migration path
+- ❌ Major version jump without evaluation
+- ❌ Dependency introduces new vulnerabilities
+- ❌ Conflicts with other critical changes in flight
+
+#### 10. Lessons Learned
+
+**Problem**: Dependabot PRs consistently show "failed" status in GitHub UI, causing confusion and blocking merges.
+
+**Root Cause**: GitHub restricts Dependabot PR tokens to read-only for security. Workflows that post comments or create checks fail with 403 errors **after** tests pass.
+
+**Solution**: 
+1. Always verify tests locally: `dotnet test --configuration Release --no-build --filter "FullyQualifiedName!~RealEndpoint"`
+2. Add `continue-on-error: true` to all PR comment/check steps
+3. Skip comment steps for Dependabot: `if: github.actor != 'dependabot[bot]'`
+4. Document test results and security impact in PR description
+5. Trust local verification over CI status when CI fails on permissions
+
+**Prevention**: Updated `.github/workflows/test-pr.yml` to handle Dependabot gracefully. Future dependency PRs should show accurate status.
+
 ## Support and Resources
 
 - API Documentation: Available at `/swagger` endpoint

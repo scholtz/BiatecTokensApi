@@ -111,6 +111,7 @@ jobs:
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
+        continue-on-error: true
         with:
           files: '**/test-results.trx'
           check_name: 'Test Results'
@@ -172,7 +173,8 @@ jobs:
           retention-days: 90
       
       - name: Comment PR with OpenAPI artifact link
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && always()
+        continue-on-error: true
         uses: actions/github-script@v8
         with:
           script: |
