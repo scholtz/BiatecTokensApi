@@ -308,7 +308,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task SupresedeDecisionAsync_UpdatesDecisionStatus()
+        public async Task SupersedeDecisionAsync_UpdatesDecisionStatus()
         {
             // Arrange
             var decision = new ComplianceDecision
@@ -320,7 +320,7 @@ namespace BiatecTokensTests
             await _repository.CreateDecisionAsync(decision);
 
             // Act
-            var result = await _repository.SupresedeDecisionAsync("dec-to-supersede", "dec-new");
+            var result = await _repository.SupersedeDecisionAsync("dec-to-supersede", "dec-new");
 
             // Assert
             Assert.That(result, Is.True);
@@ -332,10 +332,10 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task SupresedeDecisionAsync_WithNonExistentId_ReturnsFalse()
+        public async Task SupersedeDecisionAsync_WithNonExistentId_ReturnsFalse()
         {
             // Act
-            var result = await _repository.SupresedeDecisionAsync("nonexistent", "dec-new");
+            var result = await _repository.SupersedeDecisionAsync("nonexistent", "dec-new");
 
             // Assert
             Assert.That(result, Is.False);

@@ -327,7 +327,7 @@ namespace BiatecTokensApi.Services
                     response.Decision.PreviousDecisionId = previousDecisionId;
 
                     // Mark previous decision as superseded
-                    await _repository.SupresedeDecisionAsync(previousDecisionId, response.Decision.Id);
+                    await _repository.SupersedeDecisionAsync(previousDecisionId, response.Decision.Id);
 
                     _logger.LogInformation(
                         "Decision updated: NewDecisionId={NewDecisionId}, PreviousDecisionId={PreviousDecisionId}",

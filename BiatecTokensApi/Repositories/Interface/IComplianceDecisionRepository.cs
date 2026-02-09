@@ -42,7 +42,7 @@ namespace BiatecTokensApi.Repositories.Interface
         /// <param name="decisionId">The decision ID to supersede</param>
         /// <param name="supersededById">The ID of the new decision</param>
         /// <returns>True if successful, false otherwise</returns>
-        Task<bool> SupresedeDecisionAsync(string decisionId, string supersededById);
+        Task<bool> SupersedeDecisionAsync(string decisionId, string supersededById);
 
         /// <summary>
         /// Gets decisions requiring review

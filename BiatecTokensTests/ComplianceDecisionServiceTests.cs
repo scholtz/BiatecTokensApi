@@ -397,7 +397,7 @@ namespace BiatecTokensTests
             Assert.That(response.Success, Is.True);
             Assert.That(response.Decision, Is.Not.Null);
             Assert.That(response.Decision.PreviousDecisionId, Is.EqualTo("dec-old"));
-            _repositoryMock.Verify(r => r.SupresedeDecisionAsync("dec-old", It.IsAny<string>()), Times.Once);
+            _repositoryMock.Verify(r => r.SupersedeDecisionAsync("dec-old", It.IsAny<string>()), Times.Once);
         }
 
         [Test]

@@ -171,7 +171,7 @@ namespace BiatecTokensApi.Repositories
         /// <summary>
         /// Marks a decision as superseded
         /// </summary>
-        public Task<bool> SupresedeDecisionAsync(string decisionId, string supersededById)
+        public Task<bool> SupersedeDecisionAsync(string decisionId, string supersededById)
         {
             lock (_lock)
             {
