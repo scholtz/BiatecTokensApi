@@ -174,6 +174,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IRegistryIngestionService, RegistryIngestionService>();
             builder.Services.AddSingleton<IJurisdictionRulesService, JurisdictionRulesService>();
             builder.Services.AddSingleton<ICapabilityMatrixService, CapabilityMatrixService>();
+            builder.Services.AddSingleton<ITokenMetadataService, TokenMetadataService>();
 
             // Register metrics service for observability
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
