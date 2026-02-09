@@ -194,27 +194,35 @@ var secret = await client.GetSecretAsync(_config.AzureKeyVault.SecretName);
 return secret.Value.Value;
 ```
 
-### Option 3: AWS KMS (Enterprise)
+### Option 3: AWS Secrets Manager (Enterprise)
 
-AWS KMS provides enterprise-grade key management integrated with AWS CloudTrail.
+AWS Secrets Manager provides enterprise-grade key management integrated with AWS CloudTrail.
 
 #### Prerequisites
 
-1. Create a KMS key:
-```bash
-aws kms create-key \
-  --description "Biatec Tokens API encryption key" \
-  --key-usage ENCRYPT_DECRYPT
-```
-
-2. Create a secret in AWS Secrets Manager:
+1. Create a secret in AWS Secrets Manager:
 ```bash
 aws secretsmanager create-secret \
   --name biatec/encryption-key \
+  --description "Biatec Tokens API encryption key" \
   --secret-string "your-base64-encoded-key"
 ```
 
-3. Attach IAM policy to your EC2 instance role or ECS task role
+2. Attach IAM policy to your EC2 instance role or ECS task role:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:biatec/encryption-key-*"
+    }
+  ]
+}
+```
 
 #### Configuration
 
@@ -226,7 +234,7 @@ In `appsettings.Production.json`:
     "Provider": "AwsKms",
     "AwsKms": {
       "Region": "us-east-1",
-      "KeyId": "arn:aws:secretsmanager:us-east-1:123456789012:secret:biatec/encryption-key",
+      "KeyId": "biatec/encryption-key",
       "UseIamRole": true
     }
   }
@@ -235,7 +243,7 @@ In `appsettings.Production.json`:
 
 #### Implementation Required
 
-The AWS KMS provider is currently a stub. To enable it:
+The AWS Secrets Manager provider is currently a stub. To enable it:
 
 1. Install the AWS SDK:
 ```bash
@@ -409,7 +417,7 @@ openssl rand -base64 48
 
 ### Error: "AWS KMS provider requires AWSSDK package"
 
-**Solution**: The AWS KMS provider needs to be implemented. Follow the implementation instructions above.
+**Solution**: The AWS Secrets Manager provider needs to be implemented. Follow the implementation instructions above.
 
 ## Cost Analysis
 
@@ -430,6 +438,8 @@ openssl rand -base64 48
 - **Setup Time**: 30 minutes
 - **Operational Overhead**: Low (managed service)
 - **Security Level**: Very High (FIPS 140-2)
+
+Note: "AwsKms" provider name refers to AWS Secrets Manager service (not KMS encryption), which is the recommended AWS service for storing and retrieving application secrets.
 
 ## Migration from MVP
 

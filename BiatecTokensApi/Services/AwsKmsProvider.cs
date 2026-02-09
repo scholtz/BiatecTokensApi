@@ -5,8 +5,8 @@ using Microsoft.Extensions.Options;
 namespace BiatecTokensApi.Services
 {
     /// <summary>
-    /// AWS KMS key provider for production encryption key management
-    /// Requires AWSSDK.KeyManagementService NuGet package
+    /// AWS Secrets Manager provider for production encryption key management
+    /// Requires AWSSDK.SecretsManager NuGet package
     /// </summary>
     public class AwsKmsProvider : IKeyProvider
     {
@@ -32,37 +32,37 @@ namespace BiatecTokensApi.Services
 
             try
             {
-                _logger.LogInformation("Retrieving encryption key from AWS KMS: Region={Region}, KeyId={KeyId}", 
+                _logger.LogInformation("Retrieving encryption key from AWS Secrets Manager: Region={Region}, SecretId={SecretId}", 
                     _config.AwsKms.Region, _config.AwsKms.KeyId);
 
-                // TODO: Implement AWS KMS integration
+                // TODO: Implement AWS Secrets Manager integration
                 // To implement this, add the following NuGet package:
-                // AWSSDK.KeyManagementService
+                // AWSSDK.SecretsManager
                 // 
                 // Example implementation:
-                // var kmsConfig = new AmazonKeyManagementServiceConfig 
+                // var config = new AmazonSecretsManagerConfig 
                 // { 
                 //     RegionEndpoint = RegionEndpoint.GetBySystemName(_config.AwsKms.Region) 
                 // };
                 // 
-                // var kmsClient = _config.AwsKms.UseIamRole 
-                //     ? new AmazonKeyManagementServiceClient(kmsConfig)
-                //     : new AmazonKeyManagementServiceClient(
+                // var client = _config.AwsKms.UseIamRole 
+                //     ? new AmazonSecretsManagerClient(config)
+                //     : new AmazonSecretsManagerClient(
                 //         _config.AwsKms.AccessKeyId,
                 //         _config.AwsKms.SecretAccessKey,
-                //         kmsConfig);
+                //         config);
                 // 
                 // var request = new GetSecretValueRequest 
                 // { 
                 //     SecretId = _config.AwsKms.KeyId 
                 // };
-                // var response = await kmsClient.GetSecretValueAsync(request);
+                // var response = await client.GetSecretValueAsync(request);
                 // return response.SecretString;
 
                 throw new NotImplementedException(
-                    "AWS KMS provider requires AWSSDK.KeyManagementService NuGet package. " +
+                    "AWS Secrets Manager provider requires AWSSDK.SecretsManager NuGet package. " +
                     "To enable this provider: " +
-                    "1. Install AWSSDK.KeyManagementService NuGet package " +
+                    "1. Install AWSSDK.SecretsManager NuGet package " +
                     "2. Uncomment and complete the implementation in AwsKmsProvider.cs " +
                     "3. Ensure AWS credentials are configured (IAM Role or Access Keys)");
             }
@@ -72,10 +72,10 @@ namespace BiatecTokensApi.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to retrieve encryption key from AWS KMS");
+                _logger.LogError(ex, "Failed to retrieve encryption key from AWS Secrets Manager");
                 throw new InvalidOperationException(
-                    "Failed to retrieve encryption key from AWS KMS. " +
-                    "Check configuration and ensure the application has access to the KMS key.", ex);
+                    "Failed to retrieve encryption key from AWS Secrets Manager. " +
+                    "Check configuration and ensure the application has access to the secret.", ex);
             }
         }
 
