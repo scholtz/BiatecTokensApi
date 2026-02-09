@@ -213,22 +213,67 @@ var assemblies = [
   {
     "name": "BiatecTokensApi",
     "classes": [
+      { "name": "BiatecTokensApi.Configuration.CapabilityMatrixConfig", "rp": "BiatecTokensApi_CapabilityMatrixConfig.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 33, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Configuration.EVMBlockchainConfig", "rp": "BiatecTokensApi_EVMBlockchainConfig.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 27, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Configuration.EVMChains", "rp": "BiatecTokensApi_EVMChains.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 16, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Configuration.IPFSConfig", "rp": "BiatecTokensApi_IPFSConfig.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 43, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Controllers.TokenController", "rp": "BiatecTokensApi_TokenController.html", "cl": 76, "ucl": 148, "cal": 224, "tl": 562, "cb": 12, "tb": 44, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Generated.Arc1644Proxy", "rp": "BiatecTokensApi_Arc1644Proxy.html", "cl": 0, "ucl": 1955, "cal": 1955, "tl": 2870, "cb": 0, "tb": 1008, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Generated.Arc200Proxy", "rp": "BiatecTokensApi_Arc200Proxy.html", "cl": 0, "ucl": 304, "cal": 304, "tl": 492, "cb": 0, "tb": 232, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Configuration.JwtConfig", "rp": "BiatecTokensApi_JwtConfig.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 58, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Configuration.StripeConfig", "rp": "BiatecTokensApi_StripeConfig.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 48, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.AuthController", "rp": "BiatecTokensApi_AuthController.html", "cl": 26, "ucl": 37, "cal": 63, "tl": 298, "cb": 0, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.AuthInfoResponse", "rp": "BiatecTokensApi_AuthInfoResponse.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 298, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.AuthRequirements", "rp": "BiatecTokensApi_AuthRequirements.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 298, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.AuthV2Controller", "rp": "BiatecTokensApi_AuthV2Controller.html", "cl": 75, "ucl": 15, "cal": 90, "tl": 345, "cb": 22, "tb": 38, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.AuthVerificationResponse", "rp": "BiatecTokensApi_AuthVerificationResponse.html", "cl": 0, "ucl": 8, "cal": 8, "tl": 298, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.BillingController", "rp": "BiatecTokensApi_BillingController.html", "cl": 0, "ucl": 184, "cal": 184, "tl": 532, "cb": 0, "tb": 39, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.CapabilityMatrixController", "rp": "BiatecTokensApi_CapabilityMatrixController.html", "cl": 82, "ucl": 0, "cal": 82, "tl": 201, "cb": 18, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.ComplianceController", "rp": "BiatecTokensApi_ComplianceController.html", "cl": 459, "ucl": 486, "cal": 945, "tl": 2735, "cb": 119, "tb": 216, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.ComplianceReportController", "rp": "BiatecTokensApi_ComplianceReportController.html", "cl": 92, "ucl": 7, "cal": 99, "tl": 405, "cb": 15, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.DeploymentStatusController", "rp": "BiatecTokensApi_DeploymentStatusController.html", "cl": 0, "ucl": 192, "cal": 192, "tl": 536, "cb": 0, "tb": 32, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.EnterpriseAuditController", "rp": "BiatecTokensApi_EnterpriseAuditController.html", "cl": 0, "ucl": 113, "cal": 113, "tl": 406, "cb": 0, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.IssuerController", "rp": "BiatecTokensApi_IssuerController.html", "cl": 151, "ucl": 82, "cal": 233, "tl": 593, "cb": 26, "tb": 40, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.JurisdictionRulesController", "rp": "BiatecTokensApi_JurisdictionRulesController.html", "cl": 0, "ucl": 165, "cal": 165, "tl": 681, "cb": 0, "tb": 38, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.MetadataController", "rp": "BiatecTokensApi_MetadataController.html", "cl": 0, "ucl": 160, "cal": 160, "tl": 372, "cb": 0, "tb": 36, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.MetricsController", "rp": "BiatecTokensApi_MetricsController.html", "cl": 7, "ucl": 7, "cal": 14, "tl": 76, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.NetworkController", "rp": "BiatecTokensApi_NetworkController.html", "cl": 83, "ucl": 35, "cal": 118, "tl": 263, "cb": 36, "tb": 62, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.SecurityActivityController", "rp": "BiatecTokensApi_SecurityActivityController.html", "cl": 96, "ucl": 27, "cal": 123, "tl": 464, "cb": 21, "tb": 30, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.StatusController", "rp": "BiatecTokensApi_StatusController.html", "cl": 34, "ucl": 25, "cal": 59, "tl": 135, "cb": 9, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.SubscriptionController", "rp": "BiatecTokensApi_SubscriptionController.html", "cl": 101, "ucl": 25, "cal": 126, "tl": 458, "cb": 18, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.TokenController", "rp": "BiatecTokensApi_TokenController.html", "cl": 104, "ucl": 155, "cal": 259, "tl": 971, "cb": 25, "tb": 144, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.TokenRegistryController", "rp": "BiatecTokensApi_TokenRegistryController.html", "cl": 0, "ucl": 124, "cal": 124, "tl": 414, "cb": 0, "tb": 52, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.TokenStandardsController", "rp": "BiatecTokensApi_TokenStandardsController.html", "cl": 82, "ucl": 29, "cal": 111, "tl": 235, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.WebhookController", "rp": "BiatecTokensApi_WebhookController.html", "cl": 0, "ucl": 162, "cal": 162, "tl": 430, "cb": 0, "tb": 56, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.WhitelistController", "rp": "BiatecTokensApi_WhitelistController.html", "cl": 314, "ucl": 325, "cal": 639, "tl": 1711, "cb": 118, "tb": 190, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Controllers.WhitelistRulesController", "rp": "BiatecTokensApi_WhitelistRulesController.html", "cl": 113, "ucl": 55, "cal": 168, "tl": 484, "cb": 37, "tb": 48, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Filters.IdempotencyKeyAttribute", "rp": "BiatecTokensApi_IdempotencyKeyAttribute.html", "cl": 74, "ucl": 18, "cal": 92, "tl": 240, "cb": 21, "tb": 38, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Filters.SubscriptionTierValidationAttribute", "rp": "BiatecTokensApi_SubscriptionTierValidationAttribute.html", "cl": 51, "ucl": 3, "cal": 54, "tl": 109, "cb": 9, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Filters.TokenDeploymentSubscriptionAttribute", "rp": "BiatecTokensApi_TokenDeploymentSubscriptionAttribute.html", "cl": 56, "ucl": 3, "cal": 59, "tl": 124, "cb": 11, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Filters.WhitelistEnforcementAttribute", "rp": "BiatecTokensApi_WhitelistEnforcementAttribute.html", "cl": 118, "ucl": 32, "cal": 150, "tl": 316, "cb": 55, "tb": 74, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck", "rp": "BiatecTokensApi_AlgorandNetworkHealthCheck.html", "cl": 43, "ucl": 43, "cal": 86, "tl": 156, "cb": 14, "tb": 32, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.HealthChecks.EVMChainHealthCheck", "rp": "BiatecTokensApi_EVMChainHealthCheck.html", "cl": 9, "ucl": 101, "cal": 110, "tl": 184, "cb": 4, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.HealthChecks.IPFSHealthCheck", "rp": "BiatecTokensApi_IPFSHealthCheck.html", "cl": 22, "ucl": 23, "cal": 45, "tl": 94, "cb": 2, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.HealthChecks.StripeHealthCheck", "rp": "BiatecTokensApi_StripeHealthCheck.html", "cl": 26, "ucl": 49, "cal": 75, "tl": 142, "cb": 5, "tb": 38, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Helpers.ErrorResponseBuilder", "rp": "BiatecTokensApi_ErrorResponseBuilder.html", "cl": 12, "ucl": 82, "cal": 94, "tl": 203, "cb": 2, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Helpers.LoggingHelper", "rp": "BiatecTokensApi_LoggingHelper.html", "cl": 10, "ucl": 1, "cal": 11, "tl": 56, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.CorrelationIdMiddleware", "rp": "BiatecTokensApi_CorrelationIdMiddleware.html", "cl": 18, "ucl": 0, "cal": 18, "tl": 76, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.CorrelationIdMiddlewareExtensions", "rp": "BiatecTokensApi_CorrelationIdMiddlewareExtensions.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 76, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware", "rp": "BiatecTokensApi_GlobalExceptionHandlerMiddleware.html", "cl": 72, "ucl": 29, "cal": 101, "tl": 232, "cb": 23, "tb": 32, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddlewareExtensions", "rp": "BiatecTokensApi_GlobalExceptionHandlerMiddlewareExtensions.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 232, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.MetricsMiddleware", "rp": "BiatecTokensApi_MetricsMiddleware.html", "cl": 22, "ucl": 13, "cal": 35, "tl": 99, "cb": 16, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.MetricsMiddlewareExtensions", "rp": "BiatecTokensApi_MetricsMiddlewareExtensions.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 99, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware", "rp": "BiatecTokensApi_RequestResponseLoggingMiddleware.html", "cl": 59, "ucl": 3, "cal": 62, "tl": 180, "cb": 14, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Middleware.RequestResponseLoggingMiddlewareExtensions", "rp": "BiatecTokensApi_RequestResponseLoggingMiddlewareExtensions.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 180, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ApiErrorResponse", "rp": "BiatecTokensApi_ApiErrorResponse.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 48, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ApiStatusResponse", "rp": "BiatecTokensApi_ApiStatusResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 64, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.AppConfiguration", "rp": "BiatecTokensApi_AppConfiguration.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 15, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC1400.Request.ARC1400MintableTokenDeploymentRequest", "rp": "BiatecTokensApi_ARC1400MintableTokenDeploymentRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 24, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest", "rp": "BiatecTokensApi_ARC1400TokenDeploymentRequest.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 49, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC1400.Response.ARC1400TokenDeploymentResponse", "rp": "BiatecTokensApi_ARC1400TokenDeploymentResponse.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC200.Request.ARC200MintableTokenDeploymentRequest", "rp": "BiatecTokensApi_ARC200MintableTokenDeploymentRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 24, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC200.Request.ARC200PremintedTokenDeploymentRequest", "rp": "BiatecTokensApi_ARC200PremintedTokenDeploymentRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 13, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest", "rp": "BiatecTokensApi_ARC200TokenDeploymentRequest.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 49, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest", "rp": "BiatecTokensApi_ARC200TokenDeploymentRequest.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 54, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse", "rp": "BiatecTokensApi_ARC200TokenDeploymentResponse.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenInfo", "rp": "BiatecTokensApi_ARC3TokenInfo.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 16, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenLocalization", "rp": "BiatecTokensApi_ARC3TokenLocalization.html", "cl": 0, "ucl": 4, "cal": 4, "tl": 33, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenLocalization", "rp": "BiatecTokensApi_ARC3TokenLocalization.html", "cl": 3, "ucl": 1, "cal": 4, "tl": 33, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.ARC3TokenMetadata", "rp": "BiatecTokensApi_ARC3TokenMetadata.html", "cl": 16, "ucl": 0, "cal": 16, "tl": 91, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest", "rp": "BiatecTokensApi_ARC3FractionalNonFungibleTokenDeploymentRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest", "rp": "BiatecTokensApi_ARC3FungibleTokenDeploymentRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 16, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -236,29 +281,350 @@ var assemblies = [
       { "name": "BiatecTokensApi.Models.ARC3.Response.ARC3TokenDeploymentResponse", "rp": "BiatecTokensApi_ARC3TokenDeploymentResponse.html", "cl": 0, "ucl": 3, "cal": 3, "tl": 25, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse", "rp": "BiatecTokensApi_ASATokenDeploymentResponse.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ASA.ASATokenInfo", "rp": "BiatecTokensApi_ASATokenInfo.html", "cl": 0, "ucl": 13, "cal": 13, "tl": 83, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest", "rp": "BiatecTokensApi_ASABaseTokenDeploymentRequest.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 72, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample", "rp": "BiatecTokensApi_ASABaseTokenDeploymentRequestExample.html", "cl": 3, "ucl": 15, "cal": 18, "tl": 30, "cb": 2, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest", "rp": "BiatecTokensApi_ASABaseTokenDeploymentRequest.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 77, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample", "rp": "BiatecTokensApi_ASABaseTokenDeploymentRequestExample.html", "cl": 2, "ucl": 13, "cal": 15, "tl": 30, "cb": 2, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest", "rp": "BiatecTokensApi_ASAFractionalNonFungibleTokenDeploymentRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 27, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest", "rp": "BiatecTokensApi_ASAFungibleTokenDeploymentRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 24, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample", "rp": "BiatecTokensApi_ASAFungibleTokenDeploymentRequestExample.html", "cl": 20, "ucl": 0, "cal": 20, "tl": 38, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample", "rp": "BiatecTokensApi_ASAFungibleTokenDeploymentRequestExample.html", "cl": 17, "ucl": 0, "cal": 17, "tl": 38, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.AuditDateRange", "rp": "BiatecTokensApi_AuditDateRange.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 332, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.AuditExportRequest", "rp": "BiatecTokensApi_AuditExportRequest.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 195, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.AuditExportResult", "rp": "BiatecTokensApi_AuditExportResult.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 195, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.AuditLogSummary", "rp": "BiatecTokensApi_AuditLogSummary.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 332, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.LoginRequest", "rp": "BiatecTokensApi_LoginRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 173, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.LoginResponse", "rp": "BiatecTokensApi_LoginResponse.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 173, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.LogoutResponse", "rp": "BiatecTokensApi_LogoutResponse.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 173, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.RefreshToken", "rp": "BiatecTokensApi_RefreshToken.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 53, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.RefreshTokenRequest", "rp": "BiatecTokensApi_RefreshTokenRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 173, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.RefreshTokenResponse", "rp": "BiatecTokensApi_RefreshTokenResponse.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 173, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.RegisterRequest", "rp": "BiatecTokensApi_RegisterRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 97, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.RegisterResponse", "rp": "BiatecTokensApi_RegisterResponse.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 97, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Auth.User", "rp": "BiatecTokensApi_User.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 68, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse", "rp": "BiatecTokensApi_AVMTokenDeploymentResponse.html", "cl": 0, "ucl": 4, "cal": 4, "tl": 33, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.BaseResponse", "rp": "BiatecTokensApi_BaseResponse.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 18, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.BaseResponse", "rp": "BiatecTokensApi_BaseResponse.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 56, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.LimitCheckRequest", "rp": "BiatecTokensApi_LimitCheckRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 109, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.LimitCheckResponse", "rp": "BiatecTokensApi_LimitCheckResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 109, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.PlanLimits", "rp": "BiatecTokensApi_PlanLimits.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 84, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.PlanLimitsResponse", "rp": "BiatecTokensApi_PlanLimitsResponse.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 84, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.RecordUsageRequest", "rp": "BiatecTokensApi_RecordUsageRequest.html", "cl": 0, "ucl": 5, "cal": 5, "tl": 83, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.RecordUsageResponse", "rp": "BiatecTokensApi_RecordUsageResponse.html", "cl": 0, "ucl": 7, "cal": 7, "tl": 83, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest", "rp": "BiatecTokensApi_UpdatePlanLimitsRequest.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 84, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.UsageSummary", "rp": "BiatecTokensApi_UsageSummary.html", "cl": 13, "ucl": 0, "cal": 13, "tl": 98, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Billing.UsageSummaryResponse", "rp": "BiatecTokensApi_UsageSummaryResponse.html", "cl": 0, "ucl": 3, "cal": 3, "tl": 98, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.CancelDeploymentRequest", "rp": "BiatecTokensApi_CancelDeploymentRequest.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest", "rp": "BiatecTokensApi_AddBlacklistEntryRequest.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AssetComplianceSummary", "rp": "BiatecTokensApi_AssetComplianceSummary.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics", "rp": "BiatecTokensApi_AssetRegulatoryMetrics.html", "cl": 0, "ucl": 8, "cal": 8, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AttestationPackage", "rp": "BiatecTokensApi_AttestationPackage.html", "cl": 13, "ucl": 0, "cal": 13, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AttestationPackageResponse", "rp": "BiatecTokensApi_AttestationPackageResponse.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditAggregateFilters", "rp": "BiatecTokensApi_AuditAggregateFilters.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditHealthResponse", "rp": "BiatecTokensApi_AuditHealthResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditLogHealth", "rp": "BiatecTokensApi_AuditLogHealth.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditRetentionPolicy", "rp": "BiatecTokensApi_AuditRetentionPolicy.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 245, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse", "rp": "BiatecTokensApi_AuditSummaryAggregatesResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditSummaryStatistics", "rp": "BiatecTokensApi_AuditSummaryStatistics.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint", "rp": "BiatecTokensApi_AuditTimeSeriesDataPoint.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditTrailReportContent", "rp": "BiatecTokensApi_AuditTrailReportContent.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata", "rp": "BiatecTokensApi_AuditTrailReportMetadata.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.BlacklistCheckResponse", "rp": "BiatecTokensApi_BlacklistCheckResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.BlacklistEntry", "rp": "BiatecTokensApi_BlacklistEntry.html", "cl": 15, "ucl": 2, "cal": 17, "tl": 170, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.BlacklistListResponse", "rp": "BiatecTokensApi_BlacklistListResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.BlacklistResponse", "rp": "BiatecTokensApi_BlacklistResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.BundleFile", "rp": "BiatecTokensApi_BundleFile.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 220, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.BundleSummary", "rp": "BiatecTokensApi_BundleSummary.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 220, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CapabilityCheckRequest", "rp": "BiatecTokensApi_CapabilityCheckRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CapabilityCheckResponse", "rp": "BiatecTokensApi_CapabilityCheckResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CapabilityErrorDetails", "rp": "BiatecTokensApi_CapabilityErrorDetails.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CapabilityMatrix", "rp": "BiatecTokensApi_CapabilityMatrix.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CapabilityMatrixResponse", "rp": "BiatecTokensApi_CapabilityMatrixResponse.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CheckBlacklistRequest", "rp": "BiatecTokensApi_CheckBlacklistRequest.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceAlert", "rp": "BiatecTokensApi_ComplianceAlert.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceAttestation", "rp": "BiatecTokensApi_ComplianceAttestation.html", "cl": 20, "ucl": 0, "cal": 20, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse", "rp": "BiatecTokensApi_ComplianceAttestationListResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceAttestationResponse", "rp": "BiatecTokensApi_ComplianceAttestationResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry", "rp": "BiatecTokensApi_ComplianceAuditLogEntry.html", "cl": 18, "ucl": 0, "cal": 18, "tl": 245, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse", "rp": "BiatecTokensApi_ComplianceAuditLogResponse.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 245, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceBadgeReportContent", "rp": "BiatecTokensApi_ComplianceBadgeReportContent.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata", "rp": "BiatecTokensApi_ComplianceBadgeReportMetadata.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceCountMetrics", "rp": "BiatecTokensApi_ComplianceCountMetrics.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse", "rp": "BiatecTokensApi_ComplianceDashboardAggregationResponse.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics", "rp": "BiatecTokensApi_ComplianceDashboardMetrics.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata", "rp": "BiatecTokensApi_ComplianceEvidenceBundleMetadata.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 220, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleResponse", "rp": "BiatecTokensApi_ComplianceEvidenceBundleResponse.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 220, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem", "rp": "BiatecTokensApi_ComplianceEvidenceItem.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceHealthResponse", "rp": "BiatecTokensApi_ComplianceHealthResponse.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceMetadata", "rp": "BiatecTokensApi_ComplianceMetadata.html", "cl": 21, "ucl": 0, "cal": 21, "tl": 181, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse", "rp": "BiatecTokensApi_ComplianceMetadataListResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceMetadataResponse", "rp": "BiatecTokensApi_ComplianceMetadataResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse", "rp": "BiatecTokensApi_ComplianceMonitoringMetricsResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceReport", "rp": "BiatecTokensApi_ComplianceReport.html", "cl": 16, "ucl": 0, "cal": 16, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceReportSummary", "rp": "BiatecTokensApi_ComplianceReportSummary.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceRequirement", "rp": "BiatecTokensApi_ComplianceRequirement.html", "cl": 8, "ucl": 1, "cal": 9, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceStatusInfo", "rp": "BiatecTokensApi_ComplianceStatusInfo.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceStatusTrend", "rp": "BiatecTokensApi_ComplianceStatusTrend.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse", "rp": "BiatecTokensApi_ComplianceTrendsResponse.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest", "rp": "BiatecTokensApi_CreateComplianceAttestationRequest.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest", "rp": "BiatecTokensApi_CreateComplianceReportRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CreateComplianceReportResponse", "rp": "BiatecTokensApi_CreateComplianceReportResponse.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest", "rp": "BiatecTokensApi_CreateJurisdictionRuleRequest.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.DateRangeInfo", "rp": "BiatecTokensApi_DateRangeInfo.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.DeleteComplianceMetadataRequest", "rp": "BiatecTokensApi_DeleteComplianceMetadataRequest.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.DenialReasonCount", "rp": "BiatecTokensApi_DenialReasonCount.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest", "rp": "BiatecTokensApi_GenerateAttestationPackageRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest", "rp": "BiatecTokensApi_GenerateComplianceEvidenceBundleRequest.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 220, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetAuditHealthRequest", "rp": "BiatecTokensApi_GetAuditHealthRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest", "rp": "BiatecTokensApi_GetAuditSummaryAggregatesRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest", "rp": "BiatecTokensApi_GetCapabilityMatrixRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest", "rp": "BiatecTokensApi_GetComplianceAuditLogRequest.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 245, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest", "rp": "BiatecTokensApi_GetComplianceDashboardAggregationRequest.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetComplianceMetadataRequest", "rp": "BiatecTokensApi_GetComplianceMetadataRequest.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest", "rp": "BiatecTokensApi_GetComplianceMonitoringMetricsRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetComplianceReportResponse", "rp": "BiatecTokensApi_GetComplianceReportResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest", "rp": "BiatecTokensApi_GetComplianceTrendsRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest", "rp": "BiatecTokensApi_GetRegulatoryReportingAnalyticsRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetRetentionStatusRequest", "rp": "BiatecTokensApi_GetRetentionStatusRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest", "rp": "BiatecTokensApi_GetTokenComplianceReportRequest.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.IssuerAddress", "rp": "BiatecTokensApi_IssuerAddress.html", "cl": 4, "ucl": 2, "cal": 6, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.IssuerAssetsResponse", "rp": "BiatecTokensApi_IssuerAssetsResponse.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.IssuerContact", "rp": "BiatecTokensApi_IssuerContact.html", "cl": 2, "ucl": 2, "cal": 4, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.IssuerProfile", "rp": "BiatecTokensApi_IssuerProfile.html", "cl": 23, "ucl": 1, "cal": 24, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.IssuerProfileResponse", "rp": "BiatecTokensApi_IssuerProfileResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.IssuerVerificationResponse", "rp": "BiatecTokensApi_IssuerVerificationResponse.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.JurisdictionCapability", "rp": "BiatecTokensApi_JurisdictionCapability.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck", "rp": "BiatecTokensApi_JurisdictionComplianceCheck.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult", "rp": "BiatecTokensApi_JurisdictionEvaluationResult.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.JurisdictionMetrics", "rp": "BiatecTokensApi_JurisdictionMetrics.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.JurisdictionRule", "rp": "BiatecTokensApi_JurisdictionRule.html", "cl": 13, "ucl": 0, "cal": 13, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.JurisdictionRuleResponse", "rp": "BiatecTokensApi_JurisdictionRuleResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.KycTierCapability", "rp": "BiatecTokensApi_KycTierCapability.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest", "rp": "BiatecTokensApi_ListBlacklistEntriesRequest.html", "cl": 4, "ucl": 3, "cal": 7, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest", "rp": "BiatecTokensApi_ListComplianceAttestationsRequest.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest", "rp": "BiatecTokensApi_ListComplianceMetadataRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest", "rp": "BiatecTokensApi_ListComplianceReportsRequest.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse", "rp": "BiatecTokensApi_ListComplianceReportsResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest", "rp": "BiatecTokensApi_ListIssuerAssetsRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest", "rp": "BiatecTokensApi_ListJurisdictionRulesRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse", "rp": "BiatecTokensApi_ListJurisdictionRulesResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaComplianceCheck", "rp": "BiatecTokensApi_MicaComplianceCheck.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaComplianceChecklist", "rp": "BiatecTokensApi_MicaComplianceChecklist.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 158, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaComplianceChecklistResponse", "rp": "BiatecTokensApi_MicaComplianceChecklistResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaReadinessMetrics", "rp": "BiatecTokensApi_MicaReadinessMetrics.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaReadinessReportContent", "rp": "BiatecTokensApi_MicaReadinessReportContent.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata", "rp": "BiatecTokensApi_MicaReadinessReportMetadata.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 579, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaReadinessTrend", "rp": "BiatecTokensApi_MicaReadinessTrend.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.MicaRequirement", "rp": "BiatecTokensApi_MicaRequirement.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 158, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata", "rp": "BiatecTokensApi_NetworkComplianceMetadata.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 83, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.NetworkComplianceMetadataResponse", "rp": "BiatecTokensApi_NetworkComplianceMetadataResponse.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 83, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.NetworkComplianceStatus", "rp": "BiatecTokensApi_NetworkComplianceStatus.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics", "rp": "BiatecTokensApi_NetworkEnforcementMetrics.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.NetworkRetentionStatus", "rp": "BiatecTokensApi_NetworkRetentionStatus.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary", "rp": "BiatecTokensApi_RegulatoryComplianceSummary.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.RegulatoryReportingAnalyticsResponse", "rp": "BiatecTokensApi_RegulatoryReportingAnalyticsResponse.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ReportingPeriod", "rp": "BiatecTokensApi_ReportingPeriod.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo", "rp": "BiatecTokensApi_ReportSubscriptionInfo.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.RestrictionReasonCount", "rp": "BiatecTokensApi_RestrictionReasonCount.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.RetentionStatusResponse", "rp": "BiatecTokensApi_RetentionStatusResponse.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.SignatureMetadata", "rp": "BiatecTokensApi_SignatureMetadata.html", "cl": 2, "ucl": 2, "cal": 4, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TokenComplianceIndicators", "rp": "BiatecTokensApi_TokenComplianceIndicators.html", "cl": 16, "ucl": 0, "cal": 16, "tl": 124, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TokenComplianceIndicatorsResponse", "rp": "BiatecTokensApi_TokenComplianceIndicatorsResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 124, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse", "rp": "BiatecTokensApi_TokenComplianceReportResponse.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TokenComplianceStatus", "rp": "BiatecTokensApi_TokenComplianceStatus.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TokenJurisdiction", "rp": "BiatecTokensApi_TokenJurisdiction.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 387, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TokenMetadata", "rp": "BiatecTokensApi_TokenMetadata.html", "cl": 1, "ucl": 9, "cal": 10, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TokenStandardCapability", "rp": "BiatecTokensApi_TokenStandardCapability.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.TransferValidationResponse", "rp": "BiatecTokensApi_TransferValidationResponse.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest", "rp": "BiatecTokensApi_UpsertComplianceMetadataRequest.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest", "rp": "BiatecTokensApi_UpsertIssuerProfileRequest.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest", "rp": "BiatecTokensApi_ValidateComplianceTransferRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest", "rp": "BiatecTokensApi_ValidateTokenPresetRequest.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 517, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ValidateTokenPresetResponse", "rp": "BiatecTokensApi_ValidateTokenPresetResponse.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ValidationCheck", "rp": "BiatecTokensApi_ValidationCheck.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.ValidationIssue", "rp": "BiatecTokensApi_ValidationIssue.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 469, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.WalletTypeCapability", "rp": "BiatecTokensApi_WalletTypeCapability.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 267, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.WhitelistAdoptionTrend", "rp": "BiatecTokensApi_WhitelistAdoptionTrend.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 541, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics", "rp": "BiatecTokensApi_WhitelistEnforcementMetrics.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 355, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.WhitelistPolicyInfo", "rp": "BiatecTokensApi_WhitelistPolicyInfo.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 610, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics", "rp": "BiatecTokensApi_WhitelistStatusMetrics.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 360, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Compliance.WhitelistSummary", "rp": "BiatecTokensApi_WhitelistSummary.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 301, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ComplianceCheckResult", "rp": "BiatecTokensApi_ComplianceCheckResult.html", "cl": 0, "ucl": 5, "cal": 5, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ComponentStatus", "rp": "BiatecTokensApi_ComponentStatus.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 64, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.DeploymentAuditTrail", "rp": "BiatecTokensApi_DeploymentAuditTrail.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 195, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.DeploymentError", "rp": "BiatecTokensApi_DeploymentError.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 299, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.DeploymentErrorFactory", "rp": "BiatecTokensApi_DeploymentErrorFactory.html", "cl": 86, "ucl": 0, "cal": 86, "tl": 299, "cb": 3, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.DeploymentMetrics", "rp": "BiatecTokensApi_DeploymentMetrics.html", "cl": 20, "ucl": 0, "cal": 20, "tl": 164, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.DeploymentMetricsResponse", "rp": "BiatecTokensApi_DeploymentMetricsResponse.html", "cl": 0, "ucl": 3, "cal": 3, "tl": 164, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.DeploymentStatusEntry", "rp": "BiatecTokensApi_DeploymentStatusEntry.html", "cl": 14, "ucl": 0, "cal": 14, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.DeploymentStatusResponse", "rp": "BiatecTokensApi_DeploymentStatusResponse.html", "cl": 0, "ucl": 3, "cal": 3, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.EnrichedTokenMetadata", "rp": "BiatecTokensApi_EnrichedTokenMetadata.html", "cl": 20, "ucl": 1, "cal": 21, "tl": 334, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.EnterpriseAuditLogEntry", "rp": "BiatecTokensApi_EnterpriseAuditLogEntry.html", "cl": 22, "ucl": 0, "cal": 22, "tl": 332, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.EnterpriseAuditLogResponse", "rp": "BiatecTokensApi_EnterpriseAuditLogResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 332, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest", "rp": "BiatecTokensApi_ERC20MintableTokenDeploymentRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 24, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest", "rp": "BiatecTokensApi_ERC20PremintedTokenDeploymentRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 13, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest", "rp": "BiatecTokensApi_ERC20TokenDeploymentRequest.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 49, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest", "rp": "BiatecTokensApi_ERC20TokenDeploymentRequest.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 54, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse", "rp": "BiatecTokensApi_ERC20TokenDeploymentResponse.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 17, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse", "rp": "BiatecTokensApi_EVMTokenDeploymentResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 17, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ExportAuditTrailRequest", "rp": "BiatecTokensApi_ExportAuditTrailRequest.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ExportAuditTrailResponse", "rp": "BiatecTokensApi_ExportAuditTrailResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ExportQuota", "rp": "BiatecTokensApi_ExportQuota.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetDeploymentMetricsRequest", "rp": "BiatecTokensApi_GetDeploymentMetricsRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 164, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetDeploymentStatusRequest", "rp": "BiatecTokensApi_GetDeploymentStatusRequest.html", "cl": 0, "ucl": 1, "cal": 1, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetEnterpriseAuditLogRequest", "rp": "BiatecTokensApi_GetEnterpriseAuditLogRequest.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 332, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetSecurityActivityRequest", "rp": "BiatecTokensApi_GetSecurityActivityRequest.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest", "rp": "BiatecTokensApi_GetTokenIssuanceAuditLogRequest.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 238, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetTokenMetadataRequest", "rp": "BiatecTokensApi_GetTokenMetadataRequest.html", "cl": 0, "ucl": 3, "cal": 3, "tl": 334, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetTokenMetadataResponse", "rp": "BiatecTokensApi_GetTokenMetadataResponse.html", "cl": 0, "ucl": 2, "cal": 2, "tl": 334, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.GetTransactionHistoryRequest", "rp": "BiatecTokensApi_GetTransactionHistoryRequest.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.IPFSContentInfo", "rp": "BiatecTokensApi_IPFSContentInfo.html", "cl": 4, "ucl": 2, "cal": 6, "tl": 145, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.IPFSRetrieveResponse", "rp": "BiatecTokensApi_IPFSRetrieveResponse.html", "cl": 4, "ucl": 2, "cal": 6, "tl": 145, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.IPFSUploadRequest", "rp": "BiatecTokensApi_IPFSUploadRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 145, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "BiatecTokensApi.Models.IPFSUploadResponse", "rp": "BiatecTokensApi_IPFSUploadResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 145, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Program", "rp": "BiatecTokensApi_Program.html", "cl": 69, "ucl": 0, "cal": 69, "tl": 122, "cb": 7, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Repositories.IPFSRepository", "rp": "BiatecTokensApi_IPFSRepository.html", "cl": 205, "ucl": 108, "cal": 313, "tl": 505, "cb": 39, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ARC1400TokenService", "rp": "BiatecTokensApi_ARC1400TokenService.html", "cl": 0, "ucl": 126, "cal": 126, "tl": 265, "cb": 0, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ARC200TokenService", "rp": "BiatecTokensApi_ARC200TokenService.html", "cl": 69, "ucl": 61, "cal": 130, "tl": 268, "cb": 38, "tb": 48, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ARC3TokenService", "rp": "BiatecTokensApi_ARC3TokenService.html", "cl": 0, "ucl": 358, "cal": 358, "tl": 580, "cb": 0, "tb": 134, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ASATokenService", "rp": "BiatecTokensApi_ASATokenService.html", "cl": 0, "ucl": 221, "cal": 221, "tl": 389, "cb": 0, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "BiatecTokensApi.Services.ERC20TokenService", "rp": "BiatecTokensApi_ERC20TokenService.html", "cl": 70, "ucl": 68, "cal": 138, "tl": 277, "cb": 37, "tb": 66, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ListDeploymentsRequest", "rp": "BiatecTokensApi_ListDeploymentsRequest.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.ListDeploymentsResponse", "rp": "BiatecTokensApi_ListDeploymentsResponse.html", "cl": 6, "ucl": 1, "cal": 7, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent", "rp": "BiatecTokensApi_SubscriptionMeteringEvent.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 119, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Metrics.ApiMetrics", "rp": "BiatecTokensApi_ApiMetrics.html", "cl": 33, "ucl": 4, "cal": 37, "tl": 157, "cb": 7, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Metrics.HistogramStats", "rp": "BiatecTokensApi_HistogramStats.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 157, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.NetworkMetadata", "rp": "BiatecTokensApi_NetworkMetadata.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 84, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.NetworkMetadataResponse", "rp": "BiatecTokensApi_NetworkMetadataResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 84, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.RecoveryGuidanceResponse", "rp": "BiatecTokensApi_RecoveryGuidanceResponse.html", "cl": 4, "ucl": 1, "cal": 5, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.RecoveryStep", "rp": "BiatecTokensApi_RecoveryStep.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.SecurityActivityEvent", "rp": "BiatecTokensApi_SecurityActivityEvent.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.SecurityActivityResponse", "rp": "BiatecTokensApi_SecurityActivityResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.SimulateBurnRequest", "rp": "BiatecTokensApi_SimulateBurnRequest.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 29, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.SimulateMintRequest", "rp": "BiatecTokensApi_SimulateMintRequest.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 29, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.SimulateTransferRequest", "rp": "BiatecTokensApi_SimulateTransferRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 34, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionRequest", "rp": "BiatecTokensApi_CreateBillingPortalSessionRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 280, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionResponse", "rp": "BiatecTokensApi_CreateBillingPortalSessionResponse.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 280, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.CreateCheckoutSessionRequest", "rp": "BiatecTokensApi_CreateCheckoutSessionRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 280, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.CreateCheckoutSessionResponse", "rp": "BiatecTokensApi_CreateCheckoutSessionResponse.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 280, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.SubscriptionEntitlements", "rp": "BiatecTokensApi_SubscriptionEntitlements.html", "cl": 14, "ucl": 0, "cal": 14, "tl": 99, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.SubscriptionEntitlementsResponse", "rp": "BiatecTokensApi_SubscriptionEntitlementsResponse.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 99, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.SubscriptionState", "rp": "BiatecTokensApi_SubscriptionState.html", "cl": 16, "ucl": 0, "cal": 16, "tl": 280, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.SubscriptionStatusResponse", "rp": "BiatecTokensApi_SubscriptionStatusResponse.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 280, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration", "rp": "BiatecTokensApi_SubscriptionTierConfiguration.html", "cl": 74, "ucl": 0, "cal": 74, "tl": 219, "cb": 5, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.SubscriptionTierLimits", "rp": "BiatecTokensApi_SubscriptionTierLimits.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 219, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent", "rp": "BiatecTokensApi_SubscriptionWebhookEvent.html", "cl": 8, "ucl": 1, "cal": 9, "tl": 280, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenDeployment", "rp": "BiatecTokensApi_TokenDeployment.html", "cl": 14, "ucl": 0, "cal": 14, "tl": 390, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenDeploymentComplianceMetadata", "rp": "BiatecTokensApi_TokenDeploymentComplianceMetadata.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 79, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenDeploymentTransaction", "rp": "BiatecTokensApi_TokenDeploymentTransaction.html", "cl": 6, "ucl": 5, "cal": 11, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenIssuanceAuditLogEntry", "rp": "BiatecTokensApi_TokenIssuanceAuditLogEntry.html", "cl": 14, "ucl": 20, "cal": 34, "tl": 238, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenMetadataValidationIssue", "rp": "BiatecTokensApi_TokenMetadataValidationIssue.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 334, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.AuditReference", "rp": "BiatecTokensApi_AuditReference.html", "cl": 0, "ucl": 7, "cal": 7, "tl": 393, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.ComplianceScoring", "rp": "BiatecTokensApi_ComplianceScoring.html", "cl": 6, "ucl": 6, "cal": 12, "tl": 393, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryRequest", "rp": "BiatecTokensApi_GetTokenRegistryRequest.html", "cl": 0, "ucl": 2, "cal": 2, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryResponse", "rp": "BiatecTokensApi_GetTokenRegistryResponse.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest", "rp": "BiatecTokensApi_IngestRegistryRequest.html", "cl": 0, "ucl": 4, "cal": 4, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse", "rp": "BiatecTokensApi_IngestRegistryResponse.html", "cl": 0, "ucl": 11, "cal": 11, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.IssuerIdentity", "rp": "BiatecTokensApi_IssuerIdentity.html", "cl": 0, "ucl": 10, "cal": 10, "tl": 393, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest", "rp": "BiatecTokensApi_ListTokenRegistryRequest.html", "cl": 14, "ucl": 0, "cal": 14, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse", "rp": "BiatecTokensApi_ListTokenRegistryResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.OperationalReadiness", "rp": "BiatecTokensApi_OperationalReadiness.html", "cl": 5, "ucl": 7, "cal": 12, "tl": 393, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry", "rp": "BiatecTokensApi_TokenRegistryEntry.html", "cl": 22, "ucl": 0, "cal": 22, "tl": 393, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest", "rp": "BiatecTokensApi_UpsertTokenRegistryRequest.html", "cl": 18, "ucl": 0, "cal": 18, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse", "rp": "BiatecTokensApi_UpsertTokenRegistryResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 413, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.GetTokenStandardsRequest", "rp": "BiatecTokensApi_GetTokenStandardsRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 106, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.GetTokenStandardsResponse", "rp": "BiatecTokensApi_GetTokenStandardsResponse.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 106, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition", "rp": "BiatecTokensApi_StandardFieldDefinition.html", "cl": 8, "ucl": 1, "cal": 9, "tl": 202, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.TokenStandardProfile", "rp": "BiatecTokensApi_TokenStandardProfile.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 202, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.TokenValidationResult", "rp": "BiatecTokensApi_TokenValidationResult.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 141, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata", "rp": "BiatecTokensApi_ValidatedTokenMetadata.html", "cl": 0, "ucl": 6, "cal": 6, "tl": 141, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest", "rp": "BiatecTokensApi_ValidateTokenMetadataRequest.html", "cl": 5, "ucl": 2, "cal": 7, "tl": 106, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse", "rp": "BiatecTokensApi_ValidateTokenMetadataResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 106, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.ValidationError", "rp": "BiatecTokensApi_ValidationError.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 141, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TokenStandards.ValidationRule", "rp": "BiatecTokensApi_ValidationRule.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 202, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.TransactionHistoryResponse", "rp": "BiatecTokensApi_TransactionHistoryResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 601, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.UpdateTokenMetadataRequest", "rp": "BiatecTokensApi_UpdateTokenMetadataRequest.html", "cl": 0, "ucl": 8, "cal": 8, "tl": 334, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.UpdateTokenMetadataResponse", "rp": "BiatecTokensApi_UpdateTokenMetadataResponse.html", "cl": 0, "ucl": 2, "cal": 2, "tl": 334, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest", "rp": "BiatecTokensApi_CreateWebhookSubscriptionRequest.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest", "rp": "BiatecTokensApi_GetWebhookDeliveryHistoryRequest.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest", "rp": "BiatecTokensApi_UpdateWebhookSubscriptionRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse", "rp": "BiatecTokensApi_WebhookDeliveryHistoryResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.WebhookDeliveryResult", "rp": "BiatecTokensApi_WebhookDeliveryResult.html", "cl": 8, "ucl": 3, "cal": 11, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.WebhookEvent", "rp": "BiatecTokensApi_WebhookEvent.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.WebhookSubscription", "rp": "BiatecTokensApi_WebhookSubscription.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.WebhookSubscriptionListResponse", "rp": "BiatecTokensApi_WebhookSubscriptionListResponse.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Webhook.WebhookSubscriptionResponse", "rp": "BiatecTokensApi_WebhookSubscriptionResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 395, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest", "rp": "BiatecTokensApi_AddWhitelistEntryRequest.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 226, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata", "rp": "BiatecTokensApi_AllowlistAuditMetadata.html", "cl": 4, "ucl": 1, "cal": 5, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus", "rp": "BiatecTokensApi_AllowlistParticipantStatus.html", "cl": 6, "ucl": 2, "cal": 8, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest", "rp": "BiatecTokensApi_ApplyWhitelistRuleRequest.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 174, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleResponse", "rp": "BiatecTokensApi_ApplyWhitelistRuleResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 66, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest", "rp": "BiatecTokensApi_BulkAddWhitelistRequest.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 226, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse", "rp": "BiatecTokensApi_BulkWhitelistResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest", "rp": "BiatecTokensApi_CreateWhitelistRuleRequest.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 174, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.DeleteWhitelistRuleRequest", "rp": "BiatecTokensApi_DeleteWhitelistRuleRequest.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 174, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.DeleteWhitelistRuleResponse", "rp": "BiatecTokensApi_DeleteWhitelistRuleResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 66, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.EnforcementDateRange", "rp": "BiatecTokensApi_EnforcementDateRange.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 372, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics", "rp": "BiatecTokensApi_EnforcementSummaryStatistics.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 372, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest", "rp": "BiatecTokensApi_GetWhitelistAuditLogRequest.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 372, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest", "rp": "BiatecTokensApi_GetWhitelistEnforcementReportRequest.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 372, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.ListWhitelistRequest", "rp": "BiatecTokensApi_ListWhitelistRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 226, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest", "rp": "BiatecTokensApi_ListWhitelistRulesRequest.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 174, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure", "rp": "BiatecTokensApi_MicaComplianceDisclosure.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest", "rp": "BiatecTokensApi_RemoveWhitelistEntryRequest.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 226, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.RuleApplicationResult", "rp": "BiatecTokensApi_RuleApplicationResult.html", "cl": 6, "ucl": 1, "cal": 7, "tl": 180, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.TransferParticipantStatus", "rp": "BiatecTokensApi_TransferParticipantStatus.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest", "rp": "BiatecTokensApi_UpdateWhitelistRuleRequest.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 174, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.ValidateTransferRequest", "rp": "BiatecTokensApi_ValidateTransferRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 226, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.ValidateTransferResponse", "rp": "BiatecTokensApi_ValidateTransferResponse.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest", "rp": "BiatecTokensApi_VerifyAllowlistStatusRequest.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 226, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse", "rp": "BiatecTokensApi_VerifyAllowlistStatusResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry", "rp": "BiatecTokensApi_WhitelistAuditLogEntry.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 372, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse", "rp": "BiatecTokensApi_WhitelistAuditLogResponse.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 372, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse", "rp": "BiatecTokensApi_WhitelistEnforcementReportResponse.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 372, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistEntry", "rp": "BiatecTokensApi_WhitelistEntry.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 120, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistListResponse", "rp": "BiatecTokensApi_WhitelistListResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistResponse", "rp": "BiatecTokensApi_WhitelistResponse.html", "cl": 1, "ucl": 1, "cal": 2, "tl": 343, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistRule", "rp": "BiatecTokensApi_WhitelistRule.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 180, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog", "rp": "BiatecTokensApi_WhitelistRuleAuditLog.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 108, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistRuleResponse", "rp": "BiatecTokensApi_WhitelistRuleResponse.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 66, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse", "rp": "BiatecTokensApi_WhitelistRulesListResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 66, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Program", "rp": "BiatecTokensApi_Program.html", "cl": 208, "ucl": 0, "cal": 208, "tl": 309, "cb": 17, "tb": 28, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.ComplianceReportRepository", "rp": "BiatecTokensApi_ComplianceReportRepository.html", "cl": 59, "ucl": 5, "cal": 64, "tl": 178, "cb": 32, "tb": 40, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.ComplianceRepository", "rp": "BiatecTokensApi_ComplianceRepository.html", "cl": 98, "ucl": 177, "cal": 275, "tl": 661, "cb": 47, "tb": 168, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.DeploymentStatusRepository", "rp": "BiatecTokensApi_DeploymentStatusRepository.html", "cl": 76, "ucl": 21, "cal": 97, "tl": 248, "cb": 36, "tb": 54, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.EnterpriseAuditRepository", "rp": "BiatecTokensApi_EnterpriseAuditRepository.html", "cl": 289, "ucl": 4, "cal": 293, "tl": 483, "cb": 75, "tb": 82, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.IPFSRepository", "rp": "BiatecTokensApi_IPFSRepository.html", "cl": 154, "ucl": 77, "cal": 231, "tl": 505, "cb": 42, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.JurisdictionRulesRepository", "rp": "BiatecTokensApi_JurisdictionRulesRepository.html", "cl": 188, "ucl": 13, "cal": 201, "tl": 340, "cb": 20, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.SecurityActivityRepository", "rp": "BiatecTokensApi_SecurityActivityRepository.html", "cl": 88, "ucl": 13, "cal": 101, "tl": 297, "cb": 51, "tb": 72, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.SubscriptionRepository", "rp": "BiatecTokensApi_SubscriptionRepository.html", "cl": 47, "ucl": 14, "cal": 61, "tl": 168, "cb": 16, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.TokenIssuanceRepository", "rp": "BiatecTokensApi_TokenIssuanceRepository.html", "cl": 42, "ucl": 14, "cal": 56, "tl": 129, "cb": 24, "tb": 40, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.TokenRegistryRepository", "rp": "BiatecTokensApi_TokenRegistryRepository.html", "cl": 139, "ucl": 99, "cal": 238, "tl": 439, "cb": 55, "tb": 152, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.UserRepository", "rp": "BiatecTokensApi_UserRepository.html", "cl": 74, "ucl": 27, "cal": 101, "tl": 238, "cb": 31, "tb": 66, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.WebhookRepository", "rp": "BiatecTokensApi_WebhookRepository.html", "cl": 56, "ucl": 20, "cal": 76, "tl": 206, "cb": 17, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.WhitelistRepository", "rp": "BiatecTokensApi_WhitelistRepository.html", "cl": 80, "ucl": 3, "cal": 83, "tl": 264, "cb": 29, "tb": 30, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Repositories.WhitelistRulesRepository", "rp": "BiatecTokensApi_WhitelistRulesRepository.html", "cl": 38, "ucl": 1, "cal": 39, "tl": 178, "cb": 19, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ARC1400TokenService", "rp": "BiatecTokensApi_ARC1400TokenService.html", "cl": 50, "ucl": 107, "cal": 157, "tl": 345, "cb": 26, "tb": 38, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ARC200TokenService", "rp": "BiatecTokensApi_ARC200TokenService.html", "cl": 65, "ucl": 125, "cal": 190, "tl": 407, "cb": 41, "tb": 56, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ARC3TokenService", "rp": "BiatecTokensApi_ARC3TokenService.html", "cl": 77, "ucl": 275, "cal": 352, "tl": 723, "cb": 68, "tb": 144, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ASATokenService", "rp": "BiatecTokensApi_ASATokenService.html", "cl": 58, "ucl": 136, "cal": 194, "tl": 449, "cb": 49, "tb": 80, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.AuthenticationService", "rp": "BiatecTokensApi_AuthenticationService.html", "cl": 242, "ucl": 121, "cal": 363, "tl": 649, "cb": 27, "tb": 42, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.BaseObservableService", "rp": "BiatecTokensApi_BaseObservableService.html", "cl": 0, "ucl": 65, "cal": 65, "tl": 179, "cb": 0, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.BillingService", "rp": "BiatecTokensApi_BillingService.html", "cl": 204, "ucl": 22, "cal": 226, "tl": 436, "cb": 58, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.CapabilityMatrixService", "rp": "BiatecTokensApi_CapabilityMatrixService.html", "cl": 237, "ucl": 78, "cal": 315, "tl": 587, "cb": 77, "tb": 102, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ComplianceReportService", "rp": "BiatecTokensApi_ComplianceReportService.html", "cl": 358, "ucl": 47, "cal": 405, "tl": 701, "cb": 64, "tb": 98, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ComplianceService", "rp": "BiatecTokensApi_ComplianceService.html", "cl": 2277, "ucl": 515, "cal": 2792, "tl": 4675, "cb": 838, "tb": 1002, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ComplianceValidator", "rp": "BiatecTokensApi_ComplianceValidator.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 101, "cb": 24, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.DeploymentAuditService", "rp": "BiatecTokensApi_DeploymentAuditService.html", "cl": 217, "ucl": 6, "cal": 223, "tl": 386, "cb": 52, "tb": 60, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.DeploymentStatusService", "rp": "BiatecTokensApi_DeploymentStatusService.html", "cl": 290, "ucl": 23, "cal": 313, "tl": 597, "cb": 82, "tb": 105, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.EnterpriseAuditService", "rp": "BiatecTokensApi_EnterpriseAuditService.html", "cl": 141, "ucl": 15, "cal": 156, "tl": 268, "cb": 42, "tb": 52, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.ERC20TokenService", "rp": "BiatecTokensApi_ERC20TokenService.html", "cl": 67, "ucl": 184, "cal": 251, "tl": 517, "cb": 42, "tb": 88, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.Interface.RegistryValidationResult", "rp": "BiatecTokensApi_RegistryValidationResult.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 118, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult", "rp": "BiatecTokensApi_SubscriptionTierValidationResult.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 117, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.Interface.WhitelistRuleAuditLogResponse", "rp": "BiatecTokensApi_WhitelistRuleAuditLogResponse.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 101, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.JurisdictionRulesService", "rp": "BiatecTokensApi_JurisdictionRulesService.html", "cl": 236, "ucl": 75, "cal": 311, "tl": 551, "cb": 69, "tb": 88, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.MetricsService", "rp": "BiatecTokensApi_MetricsService.html", "cl": 60, "ucl": 0, "cal": 60, "tl": 150, "cb": 18, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.RegistryIngestionService", "rp": "BiatecTokensApi_RegistryIngestionService.html", "cl": 0, "ucl": 216, "cal": 216, "tl": 373, "cb": 0, "tb": 174, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.SecurityActivityService", "rp": "BiatecTokensApi_SecurityActivityService.html", "cl": 214, "ucl": 48, "cal": 262, "tl": 450, "cb": 33, "tb": 48, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.StripeService", "rp": "BiatecTokensApi_StripeService.html", "cl": 97, "ucl": 456, "cal": 553, "tl": 857, "cb": 8, "tb": 209, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.SubscriptionMeteringService", "rp": "BiatecTokensApi_SubscriptionMeteringService.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 59, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.SubscriptionTierService", "rp": "BiatecTokensApi_SubscriptionTierService.html", "cl": 58, "ucl": 52, "cal": 110, "tl": 249, "cb": 5, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.TokenMetadataService", "rp": "BiatecTokensApi_TokenMetadataService.html", "cl": 172, "ucl": 79, "cal": 251, "tl": 483, "cb": 75, "tb": 104, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.TokenRegistryService", "rp": "BiatecTokensApi_TokenRegistryService.html", "cl": 99, "ucl": 57, "cal": 156, "tl": 325, "cb": 48, "tb": 76, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.TokenStandardRegistry", "rp": "BiatecTokensApi_TokenStandardRegistry.html", "cl": 398, "ucl": 0, "cal": 398, "tl": 489, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.TokenStandardValidator", "rp": "BiatecTokensApi_TokenStandardValidator.html", "cl": 210, "ucl": 62, "cal": 272, "tl": 552, "cb": 158, "tb": 206, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.WebhookService", "rp": "BiatecTokensApi_WebhookService.html", "cl": 161, "ucl": 158, "cal": 319, "tl": 541, "cb": 39, "tb": 62, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.WhitelistRulesService", "rp": "BiatecTokensApi_WhitelistRulesService.html", "cl": 238, "ucl": 129, "cal": 367, "tl": 691, "cb": 55, "tb": 106, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Services.WhitelistService", "rp": "BiatecTokensApi_WhitelistService.html", "cl": 611, "ucl": 320, "cal": 931, "tl": 1511, "cb": 183, "tb": 255, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "BiatecTokensApi.Workers.TransactionMonitorWorker", "rp": "BiatecTokensApi_TransactionMonitorWorker.html", "cl": 10, "ucl": 34, "cal": 44, "tl": 125, "cb": 0, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
@@ -273,331 +639,643 @@ var riskHotspotMetrics = [
 
 var riskHotspots = [
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "System.Boolean BiatecTokensApi.Services.ARC3TokenService::ValidateARC3Request(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateARC3Request(...)", "fileIndex": 0, "line": 412,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GenerateComplianceEvidenceBundleAsync()", "methodShortName": "GenerateComplianceEvidenceBundleAsync()", "fileIndex": 0, "line": 2523,
+    "metrics": [
+      { "value": 82, "exceeded": true },
+      { "value": 82, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenStandardValidator", "reportPath": "BiatecTokensApi_TokenStandardValidator.html", "methodName": "BiatecTokensApi.Models.TokenStandards.ValidationError BiatecTokensApi.Services.TokenStandardValidator::ApplyCustomRule(BiatecTokensApi.Models.TokenStandards.ValidationRule,BiatecTokensApi.Models.TokenStandards.TokenStandardProfile,System.Collections.Generic.Dictionary`2<System.String,System.Object>)", "methodShortName": "ApplyCustomRule(...)", "fileIndex": 0, "line": 333,
+    "metrics": [
+      { "value": 80, "exceeded": true },
+      { "value": 80, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.WhitelistController", "reportPath": "BiatecTokensApi_WhitelistController.html", "methodName": "ImportWhitelistCsv()", "methodShortName": "ImportWhitelistCsv()", "fileIndex": 0, "line": 1421,
+    "metrics": [
+      { "value": 78, "exceeded": true },
+      { "value": 78, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.RegistryIngestionService", "reportPath": "BiatecTokensApi_RegistryIngestionService.html", "methodName": "System.String BiatecTokensApi.Services.RegistryIngestionService::NormalizeChainName(System.String)", "methodShortName": "NormalizeChainName(...)", "fileIndex": 0, "line": 237,
+    "metrics": [
+      { "value": 64, "exceeded": true },
+      { "value": 64, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.NetworkController", "reportPath": "BiatecTokensApi_NetworkController.html", "methodName": "Microsoft.AspNetCore.Mvc.IActionResult BiatecTokensApi.Controllers.NetworkController::GetNetworks()", "methodShortName": "GetNetworks()", "fileIndex": 0, "line": 86,
+    "metrics": [
+      { "value": 62, "exceeded": true },
+      { "value": 62, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "System.Boolean BiatecTokensApi.Services.ARC3TokenService::ValidateARC3Request(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateARC3Request(...)", "fileIndex": 0, "line": 507,
     "metrics": [
       { "value": 60, "exceeded": true },
       { "value": 60, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ASATokenService", "reportPath": "BiatecTokensApi_ASATokenService.html", "methodName": "System.Boolean BiatecTokensApi.Services.ASATokenService::ValidateASARequest(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateASARequest(...)", "fileIndex": 0, "line": 145,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "EmitComplianceWebhookEventsAsync()", "methodShortName": "EmitComplianceWebhookEventsAsync()", "fileIndex": 0, "line": 4078,
+    "metrics": [
+      { "value": 58, "exceeded": true },
+      { "value": 58, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ASATokenService", "reportPath": "BiatecTokensApi_ASATokenService.html", "methodName": "System.Boolean BiatecTokensApi.Services.ASATokenService::ValidateASARequest(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateASARequest(...)", "fileIndex": 0, "line": 153,
+    "metrics": [
+      { "value": 48, "exceeded": true },
+      { "value": 48, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GetComplianceIndicatorsAsync()", "methodShortName": "GetComplianceIndicatorsAsync()", "fileIndex": 0, "line": 1620,
+    "metrics": [
+      { "value": 48, "exceeded": true },
+      { "value": 48, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GetMicaComplianceChecklistAsync()", "methodShortName": "GetMicaComplianceChecklistAsync()", "fileIndex": 0, "line": 2239,
+    "metrics": [
+      { "value": 48, "exceeded": true },
+      { "value": 48, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.JurisdictionRulesService", "reportPath": "BiatecTokensApi_JurisdictionRulesService.html", "methodName": "BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck BiatecTokensApi.Services.JurisdictionRulesService::EvaluateRequirement(BiatecTokensApi.Models.Compliance.ComplianceRequirement,BiatecTokensApi.Models.Compliance.ComplianceMetadata,System.UInt64,System.String)", "methodShortName": "EvaluateRequirement(...)", "fileIndex": 0, "line": 489,
+    "metrics": [
+      { "value": 48, "exceeded": true },
+      { "value": 48, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "ExportDashboardAggregationCsvAsync()", "methodShortName": "ExportDashboardAggregationCsvAsync()", "fileIndex": 0, "line": 3058,
+    "metrics": [
+      { "value": 46, "exceeded": true },
+      { "value": 46, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.WhitelistService", "reportPath": "BiatecTokensApi_WhitelistService.html", "methodName": "ValidateTransferAsync()", "methodShortName": "ValidateTransferAsync()", "fileIndex": 0, "line": 836,
+    "metrics": [
+      { "value": 44, "exceeded": true },
+      { "value": 44, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.WhitelistService", "reportPath": "BiatecTokensApi_WhitelistService.html", "methodName": "BulkAddEntriesAsync()", "methodShortName": "BulkAddEntriesAsync()", "fileIndex": 0, "line": 387,
     "metrics": [
       { "value": 42, "exceeded": true },
       { "value": 42, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerTransferEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerTransferEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 1278,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.StripeService", "reportPath": "BiatecTokensApi_StripeService.html", "methodName": "BiatecTokensApi.Models.Subscription.SubscriptionStatus BiatecTokensApi.Services.StripeService::MapStripeStatus(System.String)", "methodShortName": "MapStripeStatus(...)", "fileIndex": 0, "line": 562,
+    "metrics": [
+      { "value": 40, "exceeded": true },
+      { "value": 40, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.HealthChecks.StripeHealthCheck", "reportPath": "BiatecTokensApi_StripeHealthCheck.html", "methodName": "CheckHealthAsync()", "methodShortName": "CheckHealthAsync()", "fileIndex": 0, "line": 39,
+    "metrics": [
+      { "value": 38, "exceeded": true },
+      { "value": 38, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.TokenRegistryRepository", "reportPath": "BiatecTokensApi_TokenRegistryRepository.html", "methodName": "System.Threading.Tasks.Task`1<BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse> BiatecTokensApi.Repositories.TokenRegistryRepository::UpsertTokenAsync(BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest,System.String)", "methodShortName": "UpsertTokenAsync(...)", "fileIndex": 0, "line": 196,
+    "metrics": [
+      { "value": 38, "exceeded": true },
+      { "value": 38, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.DeploymentStatusService", "reportPath": "BiatecTokensApi_DeploymentStatusService.html", "methodName": "GetDeploymentMetricsAsync()", "methodShortName": "GetDeploymentMetricsAsync()", "fileIndex": 0, "line": 369,
+    "metrics": [
+      { "value": 38, "exceeded": true },
+      { "value": 38, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenMetadataService", "reportPath": "BiatecTokensApi_TokenMetadataService.html", "methodName": "System.String BiatecTokensApi.Services.TokenMetadataService::GenerateExplorerUrl(System.String,System.String)", "methodShortName": "GenerateExplorerUrl(...)", "fileIndex": 0, "line": 275,
+    "metrics": [
+      { "value": 38, "exceeded": true },
+      { "value": 38, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenRegistryService", "reportPath": "BiatecTokensApi_TokenRegistryService.html", "methodName": "System.Threading.Tasks.Task`1<BiatecTokensApi.Services.Interface.RegistryValidationResult> BiatecTokensApi.Services.TokenRegistryService::ValidateTokenAsync(BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry)", "methodShortName": "ValidateTokenAsync(...)", "fileIndex": 0, "line": 163,
+    "metrics": [
+      { "value": 38, "exceeded": true },
+      { "value": 38, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "BiatecTokensApi.Models.Compliance.NetworkComplianceStatus BiatecTokensApi.Services.ComplianceService::EvaluateNetworkSpecificCompliance(BiatecTokensApi.Models.Compliance.ComplianceMetadata)", "methodShortName": "EvaluateNetworkSpecificCompliance(...)", "fileIndex": 0, "line": 1290,
+    "metrics": [
+      { "value": 36, "exceeded": true },
+      { "value": 36, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.RegistryIngestionService", "reportPath": "BiatecTokensApi_RegistryIngestionService.html", "methodName": "System.Collections.Generic.List`1<System.String> BiatecTokensApi.Services.RegistryIngestionService::DetermineStandards(BiatecTokensApi.Models.TokenIssuanceAuditLogEntry)", "methodShortName": "DetermineStandards(...)", "fileIndex": 0, "line": 252,
+    "metrics": [
+      { "value": 36, "exceeded": true },
+      { "value": 36, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.StripeService", "reportPath": "BiatecTokensApi_StripeService.html", "methodName": "ProcessWebhookEventAsync()", "methodShortName": "ProcessWebhookEventAsync()", "fileIndex": 0, "line": 248,
+    "metrics": [
+      { "value": 36, "exceeded": true },
+      { "value": 36, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.TokenRegistryRepository", "reportPath": "BiatecTokensApi_TokenRegistryRepository.html", "methodName": "System.Threading.Tasks.Task`1<BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse> BiatecTokensApi.Repositories.TokenRegistryRepository::ListTokensAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)", "methodShortName": "ListTokensAsync(...)", "fileIndex": 0, "line": 34,
     "metrics": [
       { "value": 34, "exceeded": true },
       { "value": 34, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC200TokenService", "reportPath": "BiatecTokensApi_ARC200TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ARC200TokenService::ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 114,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.TokenRegistryRepository", "reportPath": "BiatecTokensApi_TokenRegistryRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Int32> BiatecTokensApi.Repositories.TokenRegistryRepository::GetTokenCountAsync(BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest)", "methodShortName": "GetTokenCountAsync(...)", "fileIndex": 0, "line": 353,
+    "metrics": [
+      { "value": 34, "exceeded": true },
+      { "value": 34, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC200TokenService", "reportPath": "BiatecTokensApi_ARC200TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ARC200TokenService::ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 126,
+    "metrics": [
+      { "value": 34, "exceeded": true },
+      { "value": 34, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GetComplianceHealthAsync()", "methodShortName": "GetComplianceHealthAsync()", "fileIndex": 0, "line": 2372,
+    "metrics": [
+      { "value": 34, "exceeded": true },
+      { "value": 34, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ERC20TokenService", "reportPath": "BiatecTokensApi_ERC20TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ERC20TokenService::ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 125,
+    "metrics": [
+      { "value": 34, "exceeded": true },
+      { "value": 34, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck", "reportPath": "BiatecTokensApi_AlgorandNetworkHealthCheck.html", "methodName": "CheckHealthAsync()", "methodShortName": "CheckHealthAsync()", "fileIndex": 0, "line": 38,
     "metrics": [
       { "value": 32, "exceeded": true },
       { "value": 32, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ERC20TokenService", "reportPath": "BiatecTokensApi_ERC20TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ERC20TokenService::ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 100,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.CapabilityMatrixService", "reportPath": "BiatecTokensApi_CapabilityMatrixService.html", "methodName": "BiatecTokensApi.Models.Compliance.CapabilityMatrix BiatecTokensApi.Services.CapabilityMatrixService::ApplyFilters(BiatecTokensApi.Models.Compliance.CapabilityMatrix,BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest)", "methodShortName": "ApplyFilters(...)", "fileIndex": 0, "line": 499,
     "metrics": [
       { "value": 32, "exceeded": true },
       { "value": 32, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerRedeemEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1644ControllerRedeemEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 1159,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.String BiatecTokensApi.Services.ComplianceService::InferTokenStandard(BiatecTokensApi.Models.Compliance.ComplianceMetadata)", "methodShortName": "InferTokenStandard(...)", "fileIndex": 0, "line": 3482,
+    "metrics": [
+      { "value": 32, "exceeded": true },
+      { "value": 32, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GetIssuerVerificationAsync()", "methodShortName": "GetIssuerVerificationAsync()", "fileIndex": 0, "line": 1866,
+    "metrics": [
+      { "value": 32, "exceeded": true },
+      { "value": 32, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.RegistryIngestionService", "reportPath": "BiatecTokensApi_RegistryIngestionService.html", "methodName": "IngestInternalTokensAsync()", "methodShortName": "IngestInternalTokensAsync()", "fileIndex": 0, "line": 108,
+    "metrics": [
+      { "value": 32, "exceeded": true },
+      { "value": 32, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Filters.WhitelistEnforcementAttribute", "reportPath": "BiatecTokensApi_WhitelistEnforcementAttribute.html", "methodName": "OnActionExecutionAsync()", "methodShortName": "OnActionExecutionAsync()", "fileIndex": 0, "line": 65,
+    "metrics": [
+      { "value": 30, "exceeded": true },
+      { "value": 30, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.ComplianceRepository", "reportPath": "BiatecTokensApi_ComplianceRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ComplianceAttestation>> BiatecTokensApi.Repositories.ComplianceRepository::ListAttestationsAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)", "methodShortName": "ListAttestationsAsync(...)", "fileIndex": 0, "line": 285,
+    "metrics": [
+      { "value": 30, "exceeded": true },
+      { "value": 30, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.ComplianceRepository", "reportPath": "BiatecTokensApi_ComplianceRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Int32> BiatecTokensApi.Repositories.ComplianceRepository::GetAttestationCountAsync(BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest)", "methodShortName": "GetAttestationCountAsync(...)", "fileIndex": 0, "line": 355,
+    "metrics": [
+      { "value": 30, "exceeded": true },
+      { "value": 30, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceReportService", "reportPath": "BiatecTokensApi_ComplianceReportService.html", "methodName": "System.String BiatecTokensApi.Services.ComplianceReportService::ConvertReportToCsv(BiatecTokensApi.Models.Compliance.ComplianceReport)", "methodShortName": "ConvertReportToCsv(...)", "fileIndex": 0, "line": 609,
+    "metrics": [
+      { "value": 30, "exceeded": true },
+      { "value": 30, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GetComplianceTrendsAsync()", "methodShortName": "GetComplianceTrendsAsync()", "fileIndex": 0, "line": 4463,
+    "metrics": [
+      { "value": 30, "exceeded": true },
+      { "value": 30, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ERC20TokenService", "reportPath": "BiatecTokensApi_ERC20TokenService.html", "methodName": "DeployERC20TokenAsync()", "methodShortName": "DeployERC20TokenAsync()", "fileIndex": 0, "line": 210,
+    "metrics": [
+      { "value": 30, "exceeded": true },
+      { "value": 30, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.WhitelistService", "reportPath": "BiatecTokensApi_WhitelistService.html", "methodName": "AddEntryAsync()", "methodShortName": "AddEntryAsync()", "fileIndex": 0, "line": 55,
+    "metrics": [
+      { "value": 30, "exceeded": true },
+      { "value": 30, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Filters.IdempotencyKeyAttribute", "reportPath": "BiatecTokensApi_IdempotencyKeyAttribute.html", "methodName": "OnActionExecutionAsync()", "methodShortName": "OnActionExecutionAsync()", "fileIndex": 0, "line": 51,
+    "metrics": [
+      { "value": 28, "exceeded": true },
+      { "value": 28, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Program", "reportPath": "BiatecTokensApi_Program.html", "methodName": "System.Void BiatecTokensApi.Program::Main(System.String[])", "methodShortName": "Main(...)", "fileIndex": 0, "line": 34,
+    "metrics": [
+      { "value": 28, "exceeded": true },
+      { "value": 28, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GenerateAttestationPackageAsync()", "methodShortName": "GenerateAttestationPackageAsync()", "fileIndex": 0, "line": 1421,
+    "metrics": [
+      { "value": 28, "exceeded": true },
+      { "value": 28, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenStandardValidator", "reportPath": "BiatecTokensApi_TokenStandardValidator.html", "methodName": "System.Collections.Generic.List`1<BiatecTokensApi.Models.TokenStandards.ValidationError> BiatecTokensApi.Services.TokenStandardValidator::ValidateFieldValue(BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition,System.Object)", "methodShortName": "ValidateFieldValue(...)", "fileIndex": 0, "line": 215,
+    "metrics": [
+      { "value": 28, "exceeded": true },
+      { "value": 28, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.HealthChecks.EVMChainHealthCheck", "reportPath": "BiatecTokensApi_EVMChainHealthCheck.html", "methodName": "CheckHealthAsync()", "methodShortName": "CheckHealthAsync()", "fileIndex": 0, "line": 38,
     "metrics": [
       { "value": 26, "exceeded": true },
       { "value": 26, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionTransfer BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionTransfer::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 792,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.TokenRegistryRepository", "reportPath": "BiatecTokensApi_TokenRegistryRepository.html", "methodName": "System.Collections.Generic.IEnumerable`1<BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry> BiatecTokensApi.Repositories.TokenRegistryRepository::ApplySorting(System.Collections.Generic.IEnumerable`1<BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry>,System.String,System.String)", "methodShortName": "ApplySorting(...)", "fileIndex": 0, "line": 425,
+    "metrics": [
+      { "value": 26, "exceeded": true },
+      { "value": 26, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.Void BiatecTokensApi.Services.ComplianceService::ValidateTokenControls(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest,System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ValidationIssue>,System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ValidationIssue>)", "methodShortName": "ValidateTokenControls(...)", "fileIndex": 0, "line": 748,
+    "metrics": [
+      { "value": 26, "exceeded": true },
+      { "value": 26, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "UpsertMetadataAsync()", "methodShortName": "UpsertMetadataAsync()", "fileIndex": 0, "line": 86,
+    "metrics": [
+      { "value": 26, "exceeded": true },
+      { "value": 26, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "ValidateTransferAsync()", "methodShortName": "ValidateTransferAsync()", "fileIndex": 0, "line": 2125,
+    "metrics": [
+      { "value": 26, "exceeded": true },
+      { "value": 26, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenStandardValidator", "reportPath": "BiatecTokensApi_TokenStandardValidator.html", "methodName": "System.Boolean BiatecTokensApi.Services.TokenStandardValidator::IsTypeCompatible(System.String,System.String,System.Object)", "methodShortName": "IsTypeCompatible(...)", "fileIndex": 0, "line": 528,
+    "metrics": [
+      { "value": 26, "exceeded": true },
+      { "value": 26, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.WhitelistService", "reportPath": "BiatecTokensApi_WhitelistService.html", "methodName": "System.String BiatecTokensApi.Services.WhitelistService::ValidateNetworkRules(BiatecTokensApi.Models.Whitelist.WhitelistEntry)", "methodShortName": "ValidateNetworkRules(...)", "fileIndex": 0, "line": 666,
+    "metrics": [
+      { "value": 26, "exceeded": true },
+      { "value": 26, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.BillingService", "reportPath": "BiatecTokensApi_BillingService.html", "methodName": "System.Void BiatecTokensApi.Services.BillingService::CheckLimitViolations(BiatecTokensApi.Models.Billing.UsageSummary,BiatecTokensApi.Models.Billing.PlanLimits)", "methodShortName": "CheckLimitViolations(...)", "fileIndex": 0, "line": 329,
     "metrics": [
       { "value": 24, "exceeded": true },
       { "value": 24, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.IPFSRepository", "reportPath": "BiatecTokensApi_IPFSRepository.html", "methodName": "BiatecTokensApi.Repositories.IPFSRepository/IPFSApiResponse BiatecTokensApi.Repositories.IPFSRepository::ParseNDJsonResponse(System.String)", "methodShortName": "ParseNDJsonResponse(...)", "fileIndex": 0, "line": 140,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.DeploymentAuditService", "reportPath": "BiatecTokensApi_DeploymentAuditService.html", "methodName": "System.Boolean BiatecTokensApi.Services.DeploymentAuditService::AreRequestsEquivalent(BiatecTokensApi.Models.AuditExportRequest,BiatecTokensApi.Models.AuditExportRequest)", "methodShortName": "AreRequestsEquivalent(...)", "fileIndex": 0, "line": 365,
+    "metrics": [
+      { "value": 24, "exceeded": true },
+      { "value": 24, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.SecurityActivityService", "reportPath": "BiatecTokensApi_SecurityActivityService.html", "methodName": "ExportAuditTrailAsync()", "methodShortName": "ExportAuditTrailAsync()", "fileIndex": 0, "line": 164,
+    "metrics": [
+      { "value": 24, "exceeded": true },
+      { "value": 24, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.DeploymentStatusService", "reportPath": "BiatecTokensApi_DeploymentStatusService.html", "methodName": "SendDeploymentWebhookAsync()", "methodShortName": "SendDeploymentWebhookAsync()", "fileIndex": 0, "line": 545,
+    "metrics": [
+      { "value": 23, "exceeded": true },
+      { "value": 23, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.MetadataController", "reportPath": "BiatecTokensApi_MetadataController.html", "methodName": "UpdateTokenMetadata()", "methodShortName": "UpdateTokenMetadata()", "fileIndex": 0, "line": 211,
     "metrics": [
       { "value": 22, "exceeded": true },
       { "value": 22, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionIssue BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionIssue::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 589,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.WhitelistController", "reportPath": "BiatecTokensApi_WhitelistController.html", "methodName": "ExportAuditLogCsv()", "methodShortName": "ExportAuditLogCsv()", "fileIndex": 0, "line": 507,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware", "reportPath": "BiatecTokensApi_GlobalExceptionHandlerMiddleware.html", "methodName": "HandleExceptionAsync()", "methodShortName": "HandleExceptionAsync()", "fileIndex": 0, "line": 114,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Middleware.MetricsMiddleware", "reportPath": "BiatecTokensApi_MetricsMiddleware.html", "methodName": "System.String BiatecTokensApi.Middleware.MetricsMiddleware::DetermineErrorCode(System.Int32)", "methodShortName": "DetermineErrorCode(...)", "fileIndex": 0, "line": 66,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.IPFSRepository", "reportPath": "BiatecTokensApi_IPFSRepository.html", "methodName": "BiatecTokensApi.Repositories.IPFSRepository/IPFSApiResponse BiatecTokensApi.Repositories.IPFSRepository::ParseNDJsonResponse(System.String)", "methodShortName": "ParseNDJsonResponse(...)", "fileIndex": 0, "line": 143,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.String BiatecTokensApi.Services.ComplianceService::ValidateNetworkRules(System.String,BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest)", "methodShortName": "ValidateNetworkRules(...)", "fileIndex": 0, "line": 466,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.Void BiatecTokensApi.Services.ComplianceService::ValidateMICACompliance(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest,System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ValidationIssue>,System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ValidationIssue>)", "methodShortName": "ValidateMICACompliance(...)", "fileIndex": 0, "line": 573,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.JurisdictionRulesService", "reportPath": "BiatecTokensApi_JurisdictionRulesService.html", "methodName": "EvaluateTokenComplianceAsync()", "methodShortName": "EvaluateTokenComplianceAsync()", "fileIndex": 0, "line": 261,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.WhitelistRulesService", "reportPath": "BiatecTokensApi_WhitelistRulesService.html", "methodName": "ApplyRuleAsync()", "methodShortName": "ApplyRuleAsync()", "fileIndex": 0, "line": 271,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.WhitelistRulesService", "reportPath": "BiatecTokensApi_WhitelistRulesService.html", "methodName": "UpdateRuleAsync()", "methodShortName": "UpdateRuleAsync()", "fileIndex": 0, "line": 119,
+    "metrics": [
+      { "value": 22, "exceeded": true },
+      { "value": 22, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.BillingController", "reportPath": "BiatecTokensApi_BillingController.html", "methodName": "RecordUsage()", "methodShortName": "RecordUsage()", "fileIndex": 0, "line": 429,
+    "metrics": [
+      { "value": 21, "exceeded": true },
+      { "value": 21, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.ComplianceController", "reportPath": "BiatecTokensApi_ComplianceController.html", "methodName": "ExportAttestationsCsv()", "methodShortName": "ExportAttestationsCsv()", "fileIndex": 0, "line": 1025,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionRedeem BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410PartitionRedeem::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 688,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.TokenController", "reportPath": "BiatecTokensApi_TokenController.html", "methodName": "Microsoft.AspNetCore.Mvc.IActionResult BiatecTokensApi.Controllers.TokenController::HandleTokenOperationException(System.Exception,System.String)", "methodShortName": "HandleTokenOperationException(...)", "fileIndex": 0, "line": 923,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410BalanceOfPartition()", "methodShortName": "Arc1410BalanceOfPartition()", "fileIndex": 0, "line": 1811,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Filters.WhitelistEnforcementAttribute", "reportPath": "BiatecTokensApi_WhitelistEnforcementAttribute.html", "methodName": "System.Boolean BiatecTokensApi.Filters.WhitelistEnforcementAttribute::TryGetAssetId(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,System.UInt64&)", "methodShortName": "TryGetAssetId(...)", "fileIndex": 0, "line": 205,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410IsOperator()", "methodShortName": "Arc1410IsOperator()", "fileIndex": 0, "line": 1957,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.EnterpriseAuditRepository", "reportPath": "BiatecTokensApi_EnterpriseAuditRepository.html", "methodName": "GetAuditLogAsync()", "methodShortName": "GetAuditLogAsync()", "fileIndex": 0, "line": 49,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410IsOperatorByPortion()", "methodShortName": "Arc1410IsOperatorByPortion()", "fileIndex": 0, "line": 2183,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.TokenIssuanceRepository", "reportPath": "BiatecTokensApi_TokenIssuanceRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Collections.Generic.List`1<BiatecTokensApi.Models.TokenIssuanceAuditLogEntry>> BiatecTokensApi.Repositories.TokenIssuanceRepository::GetAuditLogAsync(BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest)", "methodShortName": "GetAuditLogAsync(...)", "fileIndex": 0, "line": 51,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410OperatorTransferByPartition()", "methodShortName": "Arc1410OperatorTransferByPartition()", "fileIndex": 0, "line": 2067,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "System.ValueTuple`2<System.Boolean,System.String> BiatecTokensApi.Services.ARC3TokenService::ValidateMetadata(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)", "methodShortName": "ValidateMetadata(...)", "fileIndex": 0, "line": 451,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1410TransferByPartition()", "methodShortName": "Arc1410TransferByPartition()", "fileIndex": 0, "line": 1885,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceReportService", "reportPath": "BiatecTokensApi_ComplianceReportService.html", "methodName": "GenerateComplianceBadgeReportAsync()", "methodShortName": "GenerateComplianceBadgeReportAsync()", "fileIndex": 0, "line": 505,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594IsIssuable()", "methodShortName": "Arc1594IsIssuable()", "fileIndex": 0, "line": 1779,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.Void BiatecTokensApi.Services.ComplianceService::ValidateNetworkSpecificRules(BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest,System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ValidationIssue>,System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ValidationIssue>)", "methodShortName": "ValidateNetworkSpecificRules(...)", "fileIndex": 0, "line": 664,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594TransferFromWithData()", "methodShortName": "Arc1594TransferFromWithData()", "fileIndex": 0, "line": 1742,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.Int32 BiatecTokensApi.Services.ComplianceService::CalculateComplianceHealthScore(BiatecTokensApi.Models.Compliance.TokenComplianceStatus)", "methodShortName": "CalculateComplianceHealthScore(...)", "fileIndex": 0, "line": 1236,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1594TransferWithData()", "methodShortName": "Arc1594TransferWithData()", "fileIndex": 0, "line": 1703,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "UpsertIssuerProfileAsync()", "methodShortName": "UpsertIssuerProfileAsync()", "fileIndex": 0, "line": 1786,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644ControllerRedeem()", "methodShortName": "Arc1644ControllerRedeem()", "fileIndex": 0, "line": 1546,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.StripeService", "reportPath": "BiatecTokensApi_StripeService.html", "methodName": "HandleInvoicePaymentFailedAsync()", "methodShortName": "HandleInvoicePaymentFailedAsync()", "fileIndex": 0, "line": 654,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644ControllerTransfer()", "methodShortName": "Arc1644ControllerTransfer()", "fileIndex": 0, "line": 1504,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenStandardValidator", "reportPath": "BiatecTokensApi_TokenStandardValidator.html", "methodName": "System.Boolean BiatecTokensApi.Services.TokenStandardValidator::IsNumeric(System.Object)", "methodShortName": "IsNumeric(...)", "fileIndex": 0, "line": 515,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc1644IsControllable()", "methodShortName": "Arc1644IsControllable()", "fileIndex": 0, "line": 1469,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.WhitelistService", "reportPath": "BiatecTokensApi_WhitelistService.html", "methodName": "RemoveEntryAsync()", "methodShortName": "RemoveEntryAsync()", "fileIndex": 0, "line": 285,
     "metrics": [
       { "value": 20, "exceeded": true },
       { "value": 20, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Allowance()", "methodShortName": "Arc200Allowance()", "fileIndex": 0, "line": 2591,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Approve()", "methodShortName": "Arc200Approve()", "fileIndex": 0, "line": 2556,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200BalanceOf()", "methodShortName": "Arc200BalanceOf()", "fileIndex": 0, "line": 2483,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Decimals()", "methodShortName": "Arc200Decimals()", "fileIndex": 0, "line": 2422,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Name()", "methodShortName": "Arc200Name()", "fileIndex": 0, "line": 2362,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Symbol()", "methodShortName": "Arc200Symbol()", "fileIndex": 0, "line": 2392,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200TotalSupply()", "methodShortName": "Arc200TotalSupply()", "fileIndex": 0, "line": 2452,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200Transfer()", "methodShortName": "Arc200Transfer()", "fileIndex": 0, "line": 1848,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc200TransferFrom()", "methodShortName": "Arc200TransferFrom()", "fileIndex": 0, "line": 2519,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88IsOwner()", "methodShortName": "Arc88IsOwner()", "fileIndex": 0, "line": 2657,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Arc88Owner()", "methodShortName": "Arc88Owner()", "fileIndex": 0, "line": 2626,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "Bootstrap()", "methodShortName": "Bootstrap()", "fileIndex": 0, "line": 2326,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Allowance()", "methodShortName": "Arc200Allowance()", "fileIndex": 0, "line": 433,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Approve()", "methodShortName": "Arc200Approve()", "fileIndex": 0, "line": 398,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200BalanceOf()", "methodShortName": "Arc200BalanceOf()", "fileIndex": 0, "line": 290,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Decimals()", "methodShortName": "Arc200Decimals()", "fileIndex": 0, "line": 229,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Name()", "methodShortName": "Arc200Name()", "fileIndex": 0, "line": 169,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Symbol()", "methodShortName": "Arc200Symbol()", "fileIndex": 0, "line": 199,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200TotalSupply()", "methodShortName": "Arc200TotalSupply()", "fileIndex": 0, "line": 259,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200Transfer()", "methodShortName": "Arc200Transfer()", "fileIndex": 0, "line": 325,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Arc200TransferFrom()", "methodShortName": "Arc200TransferFrom()", "fileIndex": 0, "line": 361,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "Bootstrap()", "methodShortName": "Bootstrap()", "fileIndex": 0, "line": 133,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC3TokenService", "reportPath": "BiatecTokensApi_ARC3TokenService.html", "methodName": "System.ValueTuple`2<System.Boolean,System.String> BiatecTokensApi.Services.ARC3TokenService::ValidateMetadata(BiatecTokensApi.Models.ARC3.ARC3TokenMetadata)", "methodShortName": "ValidateMetadata(...)", "fileIndex": 0, "line": 358,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ERC20TokenService", "reportPath": "BiatecTokensApi_ERC20TokenService.html", "methodName": "DeployERC20TokenAsync()", "methodShortName": "DeployERC20TokenAsync()", "fileIndex": 0, "line": 178,
-    "metrics": [
-      { "value": 20, "exceeded": true },
-      { "value": 20, "exceeded": false },
-    ]},
-  {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorKey BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorKey::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 233,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.ComplianceController", "reportPath": "BiatecTokensApi_ComplianceController.html", "methodName": "GenerateComplianceEvidenceBundle()", "methodShortName": "GenerateComplianceEvidenceBundle()", "fileIndex": 0, "line": 1808,
     "metrics": [
       { "value": 18, "exceeded": true },
       { "value": 18, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorPortionKey BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410OperatorPortionKey::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 323,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.StatusController", "reportPath": "BiatecTokensApi_StatusController.html", "methodName": "GetStatus()", "methodShortName": "GetStatus()", "fileIndex": 0, "line": 61,
     "metrics": [
       { "value": 18, "exceeded": true },
       { "value": 18, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410CanTransferByPartitionReturn BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410CanTransferByPartitionReturn::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 494,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.ComplianceReportRepository", "reportPath": "BiatecTokensApi_ComplianceReportRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ComplianceReport>> BiatecTokensApi.Repositories.ComplianceReportRepository::ListReportsAsync(System.String,BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest)", "methodShortName": "ListReportsAsync(...)", "fileIndex": 0, "line": 87,
     "metrics": [
       { "value": 18, "exceeded": true },
       { "value": 18, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.IPFSRepository", "reportPath": "BiatecTokensApi_IPFSRepository.html", "methodName": "UploadAsync()", "methodShortName": "UploadAsync()", "fileIndex": 0, "line": 52,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.ComplianceRepository", "reportPath": "BiatecTokensApi_ComplianceRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Collections.Generic.List`1<BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry>> BiatecTokensApi.Repositories.ComplianceRepository::GetAuditLogAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)", "methodShortName": "GetAuditLogAsync(...)", "fileIndex": 0, "line": 153,
     "metrics": [
       { "value": 18, "exceeded": true },
       { "value": 18, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC1400TokenService", "reportPath": "BiatecTokensApi_ARC1400TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ARC1400TokenService::ValidateRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 116,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.ComplianceRepository", "reportPath": "BiatecTokensApi_ComplianceRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Int32> BiatecTokensApi.Repositories.ComplianceRepository::GetAuditLogCountAsync(BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest)", "methodShortName": "GetAuditLogCountAsync(...)", "fileIndex": 0, "line": 208,
     "metrics": [
       { "value": 18, "exceeded": true },
       { "value": 18, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/ApprovalStruct BiatecTokensApi.Generated.Arc1644Proxy/Structs/ApprovalStruct::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 64,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.EnterpriseAuditRepository", "reportPath": "BiatecTokensApi_EnterpriseAuditRepository.html", "methodName": "GetAuditLogSummaryAsync()", "methodShortName": "GetAuditLogSummaryAsync()", "fileIndex": 0, "line": 217,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.IPFSRepository", "reportPath": "BiatecTokensApi_IPFSRepository.html", "methodName": "UploadAsync()", "methodShortName": "UploadAsync()", "fileIndex": 0, "line": 53,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.SecurityActivityRepository", "reportPath": "BiatecTokensApi_SecurityActivityRepository.html", "methodName": "System.Boolean BiatecTokensApi.Repositories.SecurityActivityRepository::RequestsMatch(BiatecTokensApi.Models.ExportAuditTrailRequest,BiatecTokensApi.Models.ExportAuditTrailRequest)", "methodShortName": "RequestsMatch(...)", "fileIndex": 0, "line": 289,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.TokenIssuanceRepository", "reportPath": "BiatecTokensApi_TokenIssuanceRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Int32> BiatecTokensApi.Repositories.TokenIssuanceRepository::GetAuditLogCountAsync(BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest)", "methodShortName": "GetAuditLogCountAsync(...)", "fileIndex": 0, "line": 96,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.WhitelistRepository", "reportPath": "BiatecTokensApi_WhitelistRepository.html", "methodName": "System.Threading.Tasks.Task`1<System.Collections.Generic.List`1<BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry>> BiatecTokensApi.Repositories.WhitelistRepository::GetAuditLogAsync(BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest)", "methodShortName": "GetAuditLogAsync(...)", "fileIndex": 0, "line": 194,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ARC1400TokenService", "reportPath": "BiatecTokensApi_ARC1400TokenService.html", "methodName": "System.Void BiatecTokensApi.Services.ARC1400TokenService::ValidateRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)", "methodShortName": "ValidateRequest(...)", "fileIndex": 0, "line": 125,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.Collections.Generic.List`1<System.String> BiatecTokensApi.Services.ComplianceService::IdentifyComplianceWarnings(BiatecTokensApi.Models.Compliance.TokenComplianceStatus)", "methodShortName": "IdentifyComplianceWarnings(...)", "fileIndex": 0, "line": 1368,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "System.String BiatecTokensApi.Services.ComplianceService::GenerateReadme(BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata)", "methodShortName": "GenerateReadme(...)", "fileIndex": 0, "line": 2882,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GetRetentionStatusAsync()", "methodShortName": "GetRetentionStatusAsync()", "fileIndex": 0, "line": 3714,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenMetadataService", "reportPath": "BiatecTokensApi_TokenMetadataService.html", "methodName": "ValidateMetadataAsync()", "methodShortName": "ValidateMetadataAsync()", "fileIndex": 0, "line": 113,
+    "metrics": [
+      { "value": 18, "exceeded": true },
+      { "value": 18, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Controllers.ComplianceController", "reportPath": "BiatecTokensApi_ComplianceController.html", "methodName": "System.Collections.Generic.Dictionary`2<System.String,System.String> BiatecTokensApi.Controllers.ComplianceController::CreateAttestationExportMetadata(System.String,System.Int32,System.Nullable`1<System.DateTime>,System.Nullable`1<System.DateTime>,System.String,System.Nullable`1<BiatecTokensApi.Models.Compliance.AttestationVerificationStatus>,System.String)", "methodShortName": "CreateAttestationExportMetadata(...)", "fileIndex": 0, "line": 1168,
     "metrics": [
       { "value": 16, "exceeded": true },
       { "value": 16, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410HoldingPartitionsPaginatedKey BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1410HoldingPartitionsPaginatedKey::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 148,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Filters.TokenDeploymentSubscriptionAttribute", "reportPath": "BiatecTokensApi_TokenDeploymentSubscriptionAttribute.html", "methodName": "OnActionExecutionAsync()", "methodShortName": "OnActionExecutionAsync()", "fileIndex": 0, "line": 39,
     "metrics": [
       { "value": 16, "exceeded": true },
       { "value": 16, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594IssueEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594IssueEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 891,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Filters.WhitelistEnforcementAttribute", "reportPath": "BiatecTokensApi_WhitelistEnforcementAttribute.html", "methodName": "System.Boolean BiatecTokensApi.Filters.WhitelistEnforcementAttribute::TryGetAddress(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext,System.String,System.String&)", "methodShortName": "TryGetAddress(...)", "fileIndex": 0, "line": 258,
     "metrics": [
       { "value": 16, "exceeded": true },
       { "value": 16, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc1644Proxy", "reportPath": "BiatecTokensApi_Arc1644Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594RedeemEvent BiatecTokensApi.Generated.Arc1644Proxy/Structs/Arc1594RedeemEvent::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 980,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Repositories.EnterpriseAuditRepository", "reportPath": "BiatecTokensApi_EnterpriseAuditRepository.html", "methodName": "GetAuditLogCountAsync()", "methodShortName": "GetAuditLogCountAsync()", "fileIndex": 0, "line": 140,
     "metrics": [
       { "value": 16, "exceeded": true },
       { "value": 16, "exceeded": false },
     ]},
   {
-    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Generated.Arc200Proxy", "reportPath": "BiatecTokensApi_Arc200Proxy.html", "methodName": "BiatecTokensApi.Generated.Arc200Proxy/Structs/ApprovalStruct BiatecTokensApi.Generated.Arc200Proxy/Structs/ApprovalStruct::Parse(System.Byte[])", "methodShortName": "Parse(...)", "fileIndex": 0, "line": 67,
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ASATokenService", "reportPath": "BiatecTokensApi_ASATokenService.html", "methodName": "CreateFTAsync()", "methodShortName": "CreateFTAsync()", "fileIndex": 0, "line": 279,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.CapabilityMatrixService", "reportPath": "BiatecTokensApi_CapabilityMatrixService.html", "methodName": "GetCapabilityMatrixAsync()", "methodShortName": "GetCapabilityMatrixAsync()", "fileIndex": 0, "line": 48,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "CalculateWhitelistStatusMetricsAsync()", "methodShortName": "CalculateWhitelistStatusMetricsAsync()", "fileIndex": 0, "line": 3275,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.ComplianceService", "reportPath": "BiatecTokensApi_ComplianceService.html", "methodName": "GetAuditSummaryAggregatesAsync()", "methodShortName": "GetAuditSummaryAggregatesAsync()", "fileIndex": 0, "line": 4332,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.DeploymentAuditService", "reportPath": "BiatecTokensApi_DeploymentAuditService.html", "methodName": "ExportAuditTrailsAsync()", "methodShortName": "ExportAuditTrailsAsync()", "fileIndex": 0, "line": 142,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.StripeService", "reportPath": "BiatecTokensApi_StripeService.html", "methodName": "System.Void BiatecTokensApi.Services.StripeService::UpdateSubscriptionFromStripe(BiatecTokensApi.Models.Subscription.SubscriptionState,Stripe.Subscription)", "methodShortName": "UpdateSubscriptionFromStripe(...)", "fileIndex": 0, "line": 529,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.StripeService", "reportPath": "BiatecTokensApi_StripeService.html", "methodName": "HandleInvoicePaymentSucceededAsync()", "methodShortName": "HandleInvoicePaymentSucceededAsync()", "fileIndex": 0, "line": 601,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenRegistryService", "reportPath": "BiatecTokensApi_TokenRegistryService.html", "methodName": "ValidateUpsertRequestAsync()", "methodShortName": "ValidateUpsertRequestAsync()", "fileIndex": 0, "line": 249,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
+  {
+    "assembly": "BiatecTokensApi", "class": "BiatecTokensApi.Services.TokenStandardValidator", "reportPath": "BiatecTokensApi_TokenStandardValidator.html", "methodName": "System.String BiatecTokensApi.Services.TokenStandardValidator::GetValueType(System.Object)", "methodShortName": "GetValueType(...)", "fileIndex": 0, "line": 501,
     "metrics": [
       { "value": 16, "exceeded": true },
       { "value": 16, "exceeded": false },

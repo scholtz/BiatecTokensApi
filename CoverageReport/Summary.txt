@@ -1,30 +1,75 @@
 Summary
-  Generated on: 01/21/2026 - 11:34:53
+  Generated on: 02/09/2026 - 10:44:36
   Parser: OpenCover
   Assemblies: 1
-  Classes: 46
-  Files: 43
-  Line coverage: 15.1%
-  Covered lines: 605
-  Uncovered lines: 3397
-  Coverable lines: 4002
-  Total lines: 7451
-  Branch coverage: 8% (139 of 1728)
-  Covered branches: 139
-  Total branches: 1728
-  Method coverage: 27.4% (135 of 491)
-  Full method coverage: 23% (113 of 491)
-  Covered methods: 135
-  Fully covered methods: 113
-  Total methods: 491
+  Classes: 412
+  Files: 180
+  Line coverage: 65.2%
+  Covered lines: 13032
+  Uncovered lines: 6926
+  Coverable lines: 19958
+  Total lines: 53340
+  Branch coverage: 59% (3399 of 5760)
+  Covered branches: 3399
+  Total branches: 5760
+  Method coverage: 86% (2508 of 2916)
+  Full method coverage: 75.4% (2200 of 2916)
+  Covered methods: 2508
+  Fully covered methods: 2200
+  Total methods: 2916
 
-BiatecTokensApi                                                                         15.1%
+BiatecTokensApi                                                                         65.2%
+  BiatecTokensApi.Configuration.CapabilityMatrixConfig                                   100%
   BiatecTokensApi.Configuration.EVMBlockchainConfig                                      100%
   BiatecTokensApi.Configuration.EVMChains                                                100%
   BiatecTokensApi.Configuration.IPFSConfig                                               100%
-  BiatecTokensApi.Controllers.TokenController                                           33.9%
-  BiatecTokensApi.Generated.Arc1644Proxy                                                   0%
-  BiatecTokensApi.Generated.Arc200Proxy                                                    0%
+  BiatecTokensApi.Configuration.JwtConfig                                                100%
+  BiatecTokensApi.Configuration.StripeConfig                                             100%
+  BiatecTokensApi.Controllers.AuthController                                            41.2%
+  BiatecTokensApi.Controllers.AuthInfoResponse                                           100%
+  BiatecTokensApi.Controllers.AuthRequirements                                           100%
+  BiatecTokensApi.Controllers.AuthV2Controller                                          83.3%
+  BiatecTokensApi.Controllers.AuthVerificationResponse                                     0%
+  BiatecTokensApi.Controllers.BillingController                                            0%
+  BiatecTokensApi.Controllers.CapabilityMatrixController                                 100%
+  BiatecTokensApi.Controllers.ComplianceController                                      48.5%
+  BiatecTokensApi.Controllers.ComplianceReportController                                92.9%
+  BiatecTokensApi.Controllers.DeploymentStatusController                                   0%
+  BiatecTokensApi.Controllers.EnterpriseAuditController                                    0%
+  BiatecTokensApi.Controllers.IssuerController                                          64.8%
+  BiatecTokensApi.Controllers.JurisdictionRulesController                                  0%
+  BiatecTokensApi.Controllers.MetadataController                                           0%
+  BiatecTokensApi.Controllers.MetricsController                                           50%
+  BiatecTokensApi.Controllers.NetworkController                                         70.3%
+  BiatecTokensApi.Controllers.SecurityActivityController                                  78%
+  BiatecTokensApi.Controllers.StatusController                                          57.6%
+  BiatecTokensApi.Controllers.SubscriptionController                                    80.1%
+  BiatecTokensApi.Controllers.TokenController                                           40.1%
+  BiatecTokensApi.Controllers.TokenRegistryController                                      0%
+  BiatecTokensApi.Controllers.TokenStandardsController                                  73.8%
+  BiatecTokensApi.Controllers.WebhookController                                            0%
+  BiatecTokensApi.Controllers.WhitelistController                                       49.1%
+  BiatecTokensApi.Controllers.WhitelistRulesController                                  67.2%
+  BiatecTokensApi.Filters.IdempotencyKeyAttribute                                       80.4%
+  BiatecTokensApi.Filters.SubscriptionTierValidationAttribute                           94.4%
+  BiatecTokensApi.Filters.TokenDeploymentSubscriptionAttribute                          94.9%
+  BiatecTokensApi.Filters.WhitelistEnforcementAttribute                                 78.6%
+  BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck                                 50%
+  BiatecTokensApi.HealthChecks.EVMChainHealthCheck                                       8.1%
+  BiatecTokensApi.HealthChecks.IPFSHealthCheck                                          48.8%
+  BiatecTokensApi.HealthChecks.StripeHealthCheck                                        34.6%
+  BiatecTokensApi.Helpers.ErrorResponseBuilder                                          12.7%
+  BiatecTokensApi.Helpers.LoggingHelper                                                 90.9%
+  BiatecTokensApi.Middleware.CorrelationIdMiddleware                                     100%
+  BiatecTokensApi.Middleware.CorrelationIdMiddlewareExtensions                           100%
+  BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddleware                           71.2%
+  BiatecTokensApi.Middleware.GlobalExceptionHandlerMiddlewareExtensions                  100%
+  BiatecTokensApi.Middleware.MetricsMiddleware                                          62.8%
+  BiatecTokensApi.Middleware.MetricsMiddlewareExtensions                                 100%
+  BiatecTokensApi.Middleware.RequestResponseLoggingMiddleware                           95.1%
+  BiatecTokensApi.Middleware.RequestResponseLoggingMiddlewareExtensions                  100%
+  BiatecTokensApi.Models.ApiErrorResponse                                                100%
+  BiatecTokensApi.Models.ApiStatusResponse                                               100%
   BiatecTokensApi.Models.AppConfiguration                                                100%
   BiatecTokensApi.Models.ARC1400.Request.ARC1400MintableTokenDeploymentRequest           100%
   BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest                   100%
@@ -34,7 +79,7 @@ BiatecTokensApi                                                                 
   BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest                     100%
   BiatecTokensApi.Models.ARC200.Response.ARC200TokenDeploymentResponse                     0%
   BiatecTokensApi.Models.ARC3.ARC3TokenInfo                                                0%
-  BiatecTokensApi.Models.ARC3.ARC3TokenLocalization                                        0%
+  BiatecTokensApi.Models.ARC3.ARC3TokenLocalization                                       75%
   BiatecTokensApi.Models.ARC3.ARC3TokenMetadata                                          100%
   BiatecTokensApi.Models.ARC3.Request.ARC3FractionalNonFungibleTokenDeploymentRequest    100%
   BiatecTokensApi.Models.ARC3.Request.ARC3FungibleTokenDeploymentRequest                 100%
@@ -43,25 +88,346 @@ BiatecTokensApi                                                                 
   BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse                          0%
   BiatecTokensApi.Models.ASA.ASATokenInfo                                                  0%
   BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest                       100%
-  BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample               16.6%
+  BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample               13.3%
   BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest      100%
   BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest                   100%
   BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample            100%
+  BiatecTokensApi.Models.AuditDateRange                                                  100%
+  BiatecTokensApi.Models.AuditExportRequest                                              100%
+  BiatecTokensApi.Models.AuditExportResult                                               100%
+  BiatecTokensApi.Models.AuditLogSummary                                                 100%
+  BiatecTokensApi.Models.Auth.LoginRequest                                               100%
+  BiatecTokensApi.Models.Auth.LoginResponse                                              100%
+  BiatecTokensApi.Models.Auth.LogoutResponse                                             100%
+  BiatecTokensApi.Models.Auth.RefreshToken                                               100%
+  BiatecTokensApi.Models.Auth.RefreshTokenRequest                                        100%
+  BiatecTokensApi.Models.Auth.RefreshTokenResponse                                       100%
+  BiatecTokensApi.Models.Auth.RegisterRequest                                            100%
+  BiatecTokensApi.Models.Auth.RegisterResponse                                           100%
+  BiatecTokensApi.Models.Auth.User                                                       100%
   BiatecTokensApi.Models.AVM.AVMTokenDeploymentResponse                                    0%
   BiatecTokensApi.Models.BaseResponse                                                    100%
+  BiatecTokensApi.Models.Billing.LimitCheckRequest                                       100%
+  BiatecTokensApi.Models.Billing.LimitCheckResponse                                      100%
+  BiatecTokensApi.Models.Billing.PlanLimits                                              100%
+  BiatecTokensApi.Models.Billing.PlanLimitsResponse                                      100%
+  BiatecTokensApi.Models.Billing.RecordUsageRequest                                        0%
+  BiatecTokensApi.Models.Billing.RecordUsageResponse                                       0%
+  BiatecTokensApi.Models.Billing.UpdatePlanLimitsRequest                                 100%
+  BiatecTokensApi.Models.Billing.UsageSummary                                            100%
+  BiatecTokensApi.Models.Billing.UsageSummaryResponse                                      0%
+  BiatecTokensApi.Models.CancelDeploymentRequest                                           0%
+  BiatecTokensApi.Models.Compliance.AddBlacklistEntryRequest                             100%
+  BiatecTokensApi.Models.Compliance.AssetComplianceSummary                               100%
+  BiatecTokensApi.Models.Compliance.AssetRegulatoryMetrics                                 0%
+  BiatecTokensApi.Models.Compliance.AttestationPackage                                   100%
+  BiatecTokensApi.Models.Compliance.AttestationPackageResponse                           100%
+  BiatecTokensApi.Models.Compliance.AuditAggregateFilters                                100%
+  BiatecTokensApi.Models.Compliance.AuditHealthResponse                                  100%
+  BiatecTokensApi.Models.Compliance.AuditLogHealth                                       100%
+  BiatecTokensApi.Models.Compliance.AuditRetentionPolicy                                 100%
+  BiatecTokensApi.Models.Compliance.AuditSummaryAggregatesResponse                       100%
+  BiatecTokensApi.Models.Compliance.AuditSummaryStatistics                               100%
+  BiatecTokensApi.Models.Compliance.AuditTimeSeriesDataPoint                             100%
+  BiatecTokensApi.Models.Compliance.AuditTrailReportContent                              100%
+  BiatecTokensApi.Models.Compliance.AuditTrailReportMetadata                             100%
+  BiatecTokensApi.Models.Compliance.BlacklistCheckResponse                               100%
+  BiatecTokensApi.Models.Compliance.BlacklistEntry                                      88.2%
+  BiatecTokensApi.Models.Compliance.BlacklistListResponse                                100%
+  BiatecTokensApi.Models.Compliance.BlacklistResponse                                    100%
+  BiatecTokensApi.Models.Compliance.BundleFile                                           100%
+  BiatecTokensApi.Models.Compliance.BundleSummary                                        100%
+  BiatecTokensApi.Models.Compliance.CapabilityCheckRequest                               100%
+  BiatecTokensApi.Models.Compliance.CapabilityCheckResponse                              100%
+  BiatecTokensApi.Models.Compliance.CapabilityErrorDetails                               100%
+  BiatecTokensApi.Models.Compliance.CapabilityMatrix                                     100%
+  BiatecTokensApi.Models.Compliance.CapabilityMatrixResponse                             100%
+  BiatecTokensApi.Models.Compliance.CheckBlacklistRequest                                100%
+  BiatecTokensApi.Models.Compliance.ComplianceAlert                                      100%
+  BiatecTokensApi.Models.Compliance.ComplianceAttestation                                100%
+  BiatecTokensApi.Models.Compliance.ComplianceAttestationListResponse                    100%
+  BiatecTokensApi.Models.Compliance.ComplianceAttestationResponse                        100%
+  BiatecTokensApi.Models.Compliance.ComplianceAuditLogEntry                              100%
+  BiatecTokensApi.Models.Compliance.ComplianceAuditLogResponse                           100%
+  BiatecTokensApi.Models.Compliance.ComplianceBadgeReportContent                         100%
+  BiatecTokensApi.Models.Compliance.ComplianceBadgeReportMetadata                        100%
+  BiatecTokensApi.Models.Compliance.ComplianceCountMetrics                               100%
+  BiatecTokensApi.Models.Compliance.ComplianceDashboardAggregationResponse               100%
+  BiatecTokensApi.Models.Compliance.ComplianceDashboardMetrics                           100%
+  BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleMetadata                     100%
+  BiatecTokensApi.Models.Compliance.ComplianceEvidenceBundleResponse                     100%
+  BiatecTokensApi.Models.Compliance.ComplianceEvidenceItem                               100%
+  BiatecTokensApi.Models.Compliance.ComplianceHealthResponse                             100%
+  BiatecTokensApi.Models.Compliance.ComplianceMetadata                                   100%
+  BiatecTokensApi.Models.Compliance.ComplianceMetadataListResponse                       100%
+  BiatecTokensApi.Models.Compliance.ComplianceMetadataResponse                           100%
+  BiatecTokensApi.Models.Compliance.ComplianceMonitoringMetricsResponse                  100%
+  BiatecTokensApi.Models.Compliance.ComplianceReport                                     100%
+  BiatecTokensApi.Models.Compliance.ComplianceReportSummary                              100%
+  BiatecTokensApi.Models.Compliance.ComplianceRequirement                               88.8%
+  BiatecTokensApi.Models.Compliance.ComplianceStatusInfo                                 100%
+  BiatecTokensApi.Models.Compliance.ComplianceStatusTrend                                100%
+  BiatecTokensApi.Models.Compliance.ComplianceTrendsResponse                             100%
+  BiatecTokensApi.Models.Compliance.CreateComplianceAttestationRequest                   100%
+  BiatecTokensApi.Models.Compliance.CreateComplianceReportRequest                        100%
+  BiatecTokensApi.Models.Compliance.CreateComplianceReportResponse                       100%
+  BiatecTokensApi.Models.Compliance.CreateJurisdictionRuleRequest                        100%
+  BiatecTokensApi.Models.Compliance.DateRangeInfo                                        100%
+  BiatecTokensApi.Models.Compliance.DeleteComplianceMetadataRequest                        0%
+  BiatecTokensApi.Models.Compliance.DenialReasonCount                                    100%
+  BiatecTokensApi.Models.Compliance.GenerateAttestationPackageRequest                    100%
+  BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest              100%
+  BiatecTokensApi.Models.Compliance.GetAuditHealthRequest                                100%
+  BiatecTokensApi.Models.Compliance.GetAuditSummaryAggregatesRequest                     100%
+  BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest                           100%
+  BiatecTokensApi.Models.Compliance.GetComplianceAuditLogRequest                         100%
+  BiatecTokensApi.Models.Compliance.GetComplianceDashboardAggregationRequest             100%
+  BiatecTokensApi.Models.Compliance.GetComplianceMetadataRequest                           0%
+  BiatecTokensApi.Models.Compliance.GetComplianceMonitoringMetricsRequest                100%
+  BiatecTokensApi.Models.Compliance.GetComplianceReportResponse                          100%
+  BiatecTokensApi.Models.Compliance.GetComplianceTrendsRequest                           100%
+  BiatecTokensApi.Models.Compliance.GetRegulatoryReportingAnalyticsRequest               100%
+  BiatecTokensApi.Models.Compliance.GetRetentionStatusRequest                            100%
+  BiatecTokensApi.Models.Compliance.GetTokenComplianceReportRequest                      100%
+  BiatecTokensApi.Models.Compliance.IssuerAddress                                       66.6%
+  BiatecTokensApi.Models.Compliance.IssuerAssetsResponse                                 100%
+  BiatecTokensApi.Models.Compliance.IssuerContact                                         50%
+  BiatecTokensApi.Models.Compliance.IssuerProfile                                       95.8%
+  BiatecTokensApi.Models.Compliance.IssuerProfileResponse                                100%
+  BiatecTokensApi.Models.Compliance.IssuerVerificationResponse                           100%
+  BiatecTokensApi.Models.Compliance.JurisdictionCapability                               100%
+  BiatecTokensApi.Models.Compliance.JurisdictionComplianceCheck                          100%
+  BiatecTokensApi.Models.Compliance.JurisdictionEvaluationResult                         100%
+  BiatecTokensApi.Models.Compliance.JurisdictionMetrics                                  100%
+  BiatecTokensApi.Models.Compliance.JurisdictionRule                                     100%
+  BiatecTokensApi.Models.Compliance.JurisdictionRuleResponse                             100%
+  BiatecTokensApi.Models.Compliance.KycTierCapability                                    100%
+  BiatecTokensApi.Models.Compliance.ListBlacklistEntriesRequest                         57.1%
+  BiatecTokensApi.Models.Compliance.ListComplianceAttestationsRequest                    100%
+  BiatecTokensApi.Models.Compliance.ListComplianceMetadataRequest                        100%
+  BiatecTokensApi.Models.Compliance.ListComplianceReportsRequest                         100%
+  BiatecTokensApi.Models.Compliance.ListComplianceReportsResponse                        100%
+  BiatecTokensApi.Models.Compliance.ListIssuerAssetsRequest                              100%
+  BiatecTokensApi.Models.Compliance.ListJurisdictionRulesRequest                         100%
+  BiatecTokensApi.Models.Compliance.ListJurisdictionRulesResponse                        100%
+  BiatecTokensApi.Models.Compliance.MicaComplianceCheck                                  100%
+  BiatecTokensApi.Models.Compliance.MicaComplianceChecklist                              100%
+  BiatecTokensApi.Models.Compliance.MicaComplianceChecklistResponse                      100%
+  BiatecTokensApi.Models.Compliance.MicaReadinessMetrics                                 100%
+  BiatecTokensApi.Models.Compliance.MicaReadinessReportContent                           100%
+  BiatecTokensApi.Models.Compliance.MicaReadinessReportMetadata                          100%
+  BiatecTokensApi.Models.Compliance.MicaReadinessTrend                                   100%
+  BiatecTokensApi.Models.Compliance.MicaRequirement                                      100%
+  BiatecTokensApi.Models.Compliance.NetworkComplianceMetadata                            100%
+  BiatecTokensApi.Models.Compliance.NetworkComplianceMetadataResponse                    100%
+  BiatecTokensApi.Models.Compliance.NetworkComplianceStatus                              100%
+  BiatecTokensApi.Models.Compliance.NetworkEnforcementMetrics                            100%
+  BiatecTokensApi.Models.Compliance.NetworkRetentionStatus                               100%
+  BiatecTokensApi.Models.Compliance.RegulatoryComplianceSummary                          100%
+  BiatecTokensApi.Models.Compliance.RegulatoryReportingAnalyticsResponse                 100%
+  BiatecTokensApi.Models.Compliance.ReportingPeriod                                      100%
+  BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo                               100%
+  BiatecTokensApi.Models.Compliance.RestrictionReasonCount                               100%
+  BiatecTokensApi.Models.Compliance.RetentionStatusResponse                              100%
+  BiatecTokensApi.Models.Compliance.SignatureMetadata                                     50%
+  BiatecTokensApi.Models.Compliance.TokenComplianceIndicators                            100%
+  BiatecTokensApi.Models.Compliance.TokenComplianceIndicatorsResponse                    100%
+  BiatecTokensApi.Models.Compliance.TokenComplianceReportResponse                        100%
+  BiatecTokensApi.Models.Compliance.TokenComplianceStatus                                100%
+  BiatecTokensApi.Models.Compliance.TokenJurisdiction                                    100%
+  BiatecTokensApi.Models.Compliance.TokenMetadata                                         10%
+  BiatecTokensApi.Models.Compliance.TokenStandardCapability                              100%
+  BiatecTokensApi.Models.Compliance.TransferValidationResponse                           100%
+  BiatecTokensApi.Models.Compliance.UpsertComplianceMetadataRequest                      100%
+  BiatecTokensApi.Models.Compliance.UpsertIssuerProfileRequest                           100%
+  BiatecTokensApi.Models.Compliance.ValidateComplianceTransferRequest                    100%
+  BiatecTokensApi.Models.Compliance.ValidateTokenPresetRequest                           100%
+  BiatecTokensApi.Models.Compliance.ValidateTokenPresetResponse                          100%
+  BiatecTokensApi.Models.Compliance.ValidationCheck                                      100%
+  BiatecTokensApi.Models.Compliance.ValidationIssue                                      100%
+  BiatecTokensApi.Models.Compliance.WalletTypeCapability                                 100%
+  BiatecTokensApi.Models.Compliance.WhitelistAdoptionTrend                               100%
+  BiatecTokensApi.Models.Compliance.WhitelistEnforcementMetrics                          100%
+  BiatecTokensApi.Models.Compliance.WhitelistPolicyInfo                                  100%
+  BiatecTokensApi.Models.Compliance.WhitelistStatusMetrics                               100%
+  BiatecTokensApi.Models.Compliance.WhitelistSummary                                     100%
+  BiatecTokensApi.Models.ComplianceCheckResult                                             0%
+  BiatecTokensApi.Models.ComponentStatus                                                 100%
+  BiatecTokensApi.Models.DeploymentAuditTrail                                            100%
+  BiatecTokensApi.Models.DeploymentError                                                 100%
+  BiatecTokensApi.Models.DeploymentErrorFactory                                          100%
+  BiatecTokensApi.Models.DeploymentMetrics                                               100%
+  BiatecTokensApi.Models.DeploymentMetricsResponse                                         0%
+  BiatecTokensApi.Models.DeploymentStatusEntry                                           100%
+  BiatecTokensApi.Models.DeploymentStatusResponse                                          0%
+  BiatecTokensApi.Models.EnrichedTokenMetadata                                          95.2%
+  BiatecTokensApi.Models.EnterpriseAuditLogEntry                                         100%
+  BiatecTokensApi.Models.EnterpriseAuditLogResponse                                      100%
   BiatecTokensApi.Models.ERC20.Request.ERC20MintableTokenDeploymentRequest               100%
   BiatecTokensApi.Models.ERC20.Request.ERC20PremintedTokenDeploymentRequest              100%
   BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest                       100%
   BiatecTokensApi.Models.ERC20.Response.ERC20TokenDeploymentResponse                       0%
   BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse                                  100%
+  BiatecTokensApi.Models.ExportAuditTrailRequest                                         100%
+  BiatecTokensApi.Models.ExportAuditTrailResponse                                        100%
+  BiatecTokensApi.Models.ExportQuota                                                     100%
+  BiatecTokensApi.Models.GetDeploymentMetricsRequest                                     100%
+  BiatecTokensApi.Models.GetDeploymentStatusRequest                                        0%
+  BiatecTokensApi.Models.GetEnterpriseAuditLogRequest                                    100%
+  BiatecTokensApi.Models.GetSecurityActivityRequest                                      100%
+  BiatecTokensApi.Models.GetTokenIssuanceAuditLogRequest                                 100%
+  BiatecTokensApi.Models.GetTokenMetadataRequest                                           0%
+  BiatecTokensApi.Models.GetTokenMetadataResponse                                          0%
+  BiatecTokensApi.Models.GetTransactionHistoryRequest                                    100%
   BiatecTokensApi.Models.IPFSContentInfo                                                66.6%
   BiatecTokensApi.Models.IPFSRetrieveResponse                                           66.6%
   BiatecTokensApi.Models.IPFSUploadRequest                                               100%
   BiatecTokensApi.Models.IPFSUploadResponse                                              100%
+  BiatecTokensApi.Models.ListDeploymentsRequest                                          100%
+  BiatecTokensApi.Models.ListDeploymentsResponse                                        85.7%
+  BiatecTokensApi.Models.Metering.SubscriptionMeteringEvent                              100%
+  BiatecTokensApi.Models.Metrics.ApiMetrics                                             89.1%
+  BiatecTokensApi.Models.Metrics.HistogramStats                                          100%
+  BiatecTokensApi.Models.NetworkMetadata                                                 100%
+  BiatecTokensApi.Models.NetworkMetadataResponse                                         100%
+  BiatecTokensApi.Models.RecoveryGuidanceResponse                                         80%
+  BiatecTokensApi.Models.RecoveryStep                                                    100%
+  BiatecTokensApi.Models.SecurityActivityEvent                                           100%
+  BiatecTokensApi.Models.SecurityActivityResponse                                        100%
+  BiatecTokensApi.Models.SimulateBurnRequest                                             100%
+  BiatecTokensApi.Models.SimulateMintRequest                                             100%
+  BiatecTokensApi.Models.SimulateTransferRequest                                         100%
+  BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionRequest                  100%
+  BiatecTokensApi.Models.Subscription.CreateBillingPortalSessionResponse                 100%
+  BiatecTokensApi.Models.Subscription.CreateCheckoutSessionRequest                       100%
+  BiatecTokensApi.Models.Subscription.CreateCheckoutSessionResponse                      100%
+  BiatecTokensApi.Models.Subscription.SubscriptionEntitlements                           100%
+  BiatecTokensApi.Models.Subscription.SubscriptionEntitlementsResponse                   100%
+  BiatecTokensApi.Models.Subscription.SubscriptionState                                  100%
+  BiatecTokensApi.Models.Subscription.SubscriptionStatusResponse                         100%
+  BiatecTokensApi.Models.Subscription.SubscriptionTierConfiguration                      100%
+  BiatecTokensApi.Models.Subscription.SubscriptionTierLimits                             100%
+  BiatecTokensApi.Models.Subscription.SubscriptionWebhookEvent                          88.8%
+  BiatecTokensApi.Models.TokenDeployment                                                 100%
+  BiatecTokensApi.Models.TokenDeploymentComplianceMetadata                               100%
+  BiatecTokensApi.Models.TokenDeploymentTransaction                                     54.5%
+  BiatecTokensApi.Models.TokenIssuanceAuditLogEntry                                     41.1%
+  BiatecTokensApi.Models.TokenMetadataValidationIssue                                    100%
+  BiatecTokensApi.Models.TokenRegistry.AuditReference                                      0%
+  BiatecTokensApi.Models.TokenRegistry.ComplianceScoring                                  50%
+  BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryRequest                             0%
+  BiatecTokensApi.Models.TokenRegistry.GetTokenRegistryResponse                          100%
+  BiatecTokensApi.Models.TokenRegistry.IngestRegistryRequest                               0%
+  BiatecTokensApi.Models.TokenRegistry.IngestRegistryResponse                              0%
+  BiatecTokensApi.Models.TokenRegistry.IssuerIdentity                                      0%
+  BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest                          100%
+  BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryResponse                         100%
+  BiatecTokensApi.Models.TokenRegistry.OperationalReadiness                             41.6%
+  BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry                                100%
+  BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryRequest                        100%
+  BiatecTokensApi.Models.TokenRegistry.UpsertTokenRegistryResponse                       100%
+  BiatecTokensApi.Models.TokenStandards.GetTokenStandardsRequest                         100%
+  BiatecTokensApi.Models.TokenStandards.GetTokenStandardsResponse                        100%
+  BiatecTokensApi.Models.TokenStandards.StandardFieldDefinition                         88.8%
+  BiatecTokensApi.Models.TokenStandards.TokenStandardProfile                             100%
+  BiatecTokensApi.Models.TokenStandards.TokenValidationResult                            100%
+  BiatecTokensApi.Models.TokenStandards.ValidatedTokenMetadata                             0%
+  BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataRequest                    71.4%
+  BiatecTokensApi.Models.TokenStandards.ValidateTokenMetadataResponse                    100%
+  BiatecTokensApi.Models.TokenStandards.ValidationError                                  100%
+  BiatecTokensApi.Models.TokenStandards.ValidationRule                                   100%
+  BiatecTokensApi.Models.TransactionHistoryResponse                                      100%
+  BiatecTokensApi.Models.UpdateTokenMetadataRequest                                        0%
+  BiatecTokensApi.Models.UpdateTokenMetadataResponse                                       0%
+  BiatecTokensApi.Models.Webhook.CreateWebhookSubscriptionRequest                        100%
+  BiatecTokensApi.Models.Webhook.GetWebhookDeliveryHistoryRequest                        100%
+  BiatecTokensApi.Models.Webhook.UpdateWebhookSubscriptionRequest                        100%
+  BiatecTokensApi.Models.Webhook.WebhookDeliveryHistoryResponse                          100%
+  BiatecTokensApi.Models.Webhook.WebhookDeliveryResult                                  72.7%
+  BiatecTokensApi.Models.Webhook.WebhookEvent                                            100%
+  BiatecTokensApi.Models.Webhook.WebhookSubscription                                     100%
+  BiatecTokensApi.Models.Webhook.WebhookSubscriptionListResponse                         100%
+  BiatecTokensApi.Models.Webhook.WebhookSubscriptionResponse                             100%
+  BiatecTokensApi.Models.Whitelist.AddWhitelistEntryRequest                              100%
+  BiatecTokensApi.Models.Whitelist.AllowlistAuditMetadata                                 80%
+  BiatecTokensApi.Models.Whitelist.AllowlistParticipantStatus                             75%
+  BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleRequest                             100%
+  BiatecTokensApi.Models.Whitelist.ApplyWhitelistRuleResponse                            100%
+  BiatecTokensApi.Models.Whitelist.BulkAddWhitelistRequest                               100%
+  BiatecTokensApi.Models.Whitelist.BulkWhitelistResponse                                 100%
+  BiatecTokensApi.Models.Whitelist.CreateWhitelistRuleRequest                            100%
+  BiatecTokensApi.Models.Whitelist.DeleteWhitelistRuleRequest                            100%
+  BiatecTokensApi.Models.Whitelist.DeleteWhitelistRuleResponse                           100%
+  BiatecTokensApi.Models.Whitelist.EnforcementDateRange                                  100%
+  BiatecTokensApi.Models.Whitelist.EnforcementSummaryStatistics                          100%
+  BiatecTokensApi.Models.Whitelist.GetWhitelistAuditLogRequest                           100%
+  BiatecTokensApi.Models.Whitelist.GetWhitelistEnforcementReportRequest                  100%
+  BiatecTokensApi.Models.Whitelist.ListWhitelistRequest                                  100%
+  BiatecTokensApi.Models.Whitelist.ListWhitelistRulesRequest                             100%
+  BiatecTokensApi.Models.Whitelist.MicaComplianceDisclosure                              100%
+  BiatecTokensApi.Models.Whitelist.RemoveWhitelistEntryRequest                           100%
+  BiatecTokensApi.Models.Whitelist.RuleApplicationResult                                85.7%
+  BiatecTokensApi.Models.Whitelist.TransferParticipantStatus                             100%
+  BiatecTokensApi.Models.Whitelist.UpdateWhitelistRuleRequest                            100%
+  BiatecTokensApi.Models.Whitelist.ValidateTransferRequest                               100%
+  BiatecTokensApi.Models.Whitelist.ValidateTransferResponse                              100%
+  BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusRequest                          100%
+  BiatecTokensApi.Models.Whitelist.VerifyAllowlistStatusResponse                         100%
+  BiatecTokensApi.Models.Whitelist.WhitelistAuditLogEntry                                100%
+  BiatecTokensApi.Models.Whitelist.WhitelistAuditLogResponse                             100%
+  BiatecTokensApi.Models.Whitelist.WhitelistEnforcementReportResponse                    100%
+  BiatecTokensApi.Models.Whitelist.WhitelistEntry                                        100%
+  BiatecTokensApi.Models.Whitelist.WhitelistListResponse                                 100%
+  BiatecTokensApi.Models.Whitelist.WhitelistResponse                                      50%
+  BiatecTokensApi.Models.Whitelist.WhitelistRule                                         100%
+  BiatecTokensApi.Models.Whitelist.WhitelistRuleAuditLog                                 100%
+  BiatecTokensApi.Models.Whitelist.WhitelistRuleResponse                                 100%
+  BiatecTokensApi.Models.Whitelist.WhitelistRulesListResponse                            100%
   BiatecTokensApi.Program                                                                100%
-  BiatecTokensApi.Repositories.IPFSRepository                                           65.4%
-  BiatecTokensApi.Services.ARC1400TokenService                                             0%
-  BiatecTokensApi.Services.ARC200TokenService                                             53%
-  BiatecTokensApi.Services.ARC3TokenService                                                0%
-  BiatecTokensApi.Services.ASATokenService                                                 0%
-  BiatecTokensApi.Services.ERC20TokenService                                            50.7%
+  BiatecTokensApi.Repositories.ComplianceReportRepository                               92.1%
+  BiatecTokensApi.Repositories.ComplianceRepository                                     35.6%
+  BiatecTokensApi.Repositories.DeploymentStatusRepository                               78.3%
+  BiatecTokensApi.Repositories.EnterpriseAuditRepository                                98.6%
+  BiatecTokensApi.Repositories.IPFSRepository                                           66.6%
+  BiatecTokensApi.Repositories.JurisdictionRulesRepository                              93.5%
+  BiatecTokensApi.Repositories.SecurityActivityRepository                               87.1%
+  BiatecTokensApi.Repositories.SubscriptionRepository                                     77%
+  BiatecTokensApi.Repositories.TokenIssuanceRepository                                    75%
+  BiatecTokensApi.Repositories.TokenRegistryRepository                                  58.4%
+  BiatecTokensApi.Repositories.UserRepository                                           73.2%
+  BiatecTokensApi.Repositories.WebhookRepository                                        73.6%
+  BiatecTokensApi.Repositories.WhitelistRepository                                      96.3%
+  BiatecTokensApi.Repositories.WhitelistRulesRepository                                 97.4%
+  BiatecTokensApi.Services.ARC1400TokenService                                          31.8%
+  BiatecTokensApi.Services.ARC200TokenService                                           34.2%
+  BiatecTokensApi.Services.ARC3TokenService                                             21.8%
+  BiatecTokensApi.Services.ASATokenService                                              29.8%
+  BiatecTokensApi.Services.AuthenticationService                                        66.6%
+  BiatecTokensApi.Services.BaseObservableService                                           0%
+  BiatecTokensApi.Services.BillingService                                               90.2%
+  BiatecTokensApi.Services.CapabilityMatrixService                                      75.2%
+  BiatecTokensApi.Services.ComplianceReportService                                      88.3%
+  BiatecTokensApi.Services.ComplianceService                                            81.5%
+  BiatecTokensApi.Services.ComplianceValidator                                           100%
+  BiatecTokensApi.Services.DeploymentAuditService                                       97.3%
+  BiatecTokensApi.Services.DeploymentStatusService                                      92.6%
+  BiatecTokensApi.Services.EnterpriseAuditService                                       90.3%
+  BiatecTokensApi.Services.ERC20TokenService                                            26.6%
+  BiatecTokensApi.Services.Interface.RegistryValidationResult                            100%
+  BiatecTokensApi.Services.Interface.SubscriptionTierValidationResult                    100%
+  BiatecTokensApi.Services.Interface.WhitelistRuleAuditLogResponse                       100%
+  BiatecTokensApi.Services.JurisdictionRulesService                                     75.8%
+  BiatecTokensApi.Services.MetricsService                                                100%
+  BiatecTokensApi.Services.RegistryIngestionService                                        0%
+  BiatecTokensApi.Services.SecurityActivityService                                      81.6%
+  BiatecTokensApi.Services.StripeService                                                17.5%
+  BiatecTokensApi.Services.SubscriptionMeteringService                                   100%
+  BiatecTokensApi.Services.SubscriptionTierService                                      52.7%
+  BiatecTokensApi.Services.TokenMetadataService                                         68.5%
+  BiatecTokensApi.Services.TokenRegistryService                                         63.4%
+  BiatecTokensApi.Services.TokenStandardRegistry                                         100%
+  BiatecTokensApi.Services.TokenStandardValidator                                       77.2%
+  BiatecTokensApi.Services.WebhookService                                               50.4%
+  BiatecTokensApi.Services.WhitelistRulesService                                        64.8%
+  BiatecTokensApi.Services.WhitelistService                                             65.6%
+  BiatecTokensApi.Workers.TransactionMonitorWorker                                      22.7%
