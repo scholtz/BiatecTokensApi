@@ -98,6 +98,9 @@ namespace BiatecTokensApi
             builder.Services.Configure<BiatecTokensApi.Configuration.JwtConfig>(
                 builder.Configuration.GetSection("JwtConfig"));
 
+            builder.Services.Configure<BiatecTokensApi.Configuration.KeyManagementConfig>(
+                builder.Configuration.GetSection("KeyManagementConfig"));
+
             // Register HTTP client for API calls with resilience policies
             builder.Services.AddHttpClient("default")
                 .AddStandardResilienceHandler(options =>
@@ -153,6 +156,14 @@ namespace BiatecTokensApi
 
             // Register the token services
             builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+            
+            // Register key management providers
+            builder.Services.AddSingleton<EnvironmentKeyProvider>();
+            builder.Services.AddSingleton<HardcodedKeyProvider>();
+            builder.Services.AddSingleton<AzureKeyVaultProvider>();
+            builder.Services.AddSingleton<AwsKmsProvider>();
+            builder.Services.AddSingleton<KeyProviderFactory>();
+            
             builder.Services.AddSingleton<IERC20TokenService, ERC20TokenService>();
             builder.Services.AddSingleton<IARC3TokenService, ARC3TokenService>();
             builder.Services.AddSingleton<IASATokenService, ASATokenService>();
