@@ -6,15 +6,15 @@ BiatecTokensApi is a comprehensive .NET 8.0 Web API for deploying and managing v
 
 ## Technology Stack
 
-- **Framework**: .NET 8.0 (C#)
+- **Framework**: .NET 10.0 (C#)
 - **IDE**: Visual Studio 2022 or Visual Studio Code
 - **Package Manager**: NuGet
-- **Testing Framework**: xUnit
+- **Testing Framework**: NUnit
 - **API Documentation**: Swagger/OpenAPI (Swashbuckle)
 - **Blockchain Libraries**:
-  - Algorand4 (v4.0.3.2025051817) - Algorand blockchain integration
-  - Nethereum.Web3 (v5.0.0) - Ethereum/EVM blockchain integration
-  - AlgorandAuthentication (v2.0.1) - ARC-0014 authentication
+  - Algorand4 (v4.4.1) - Algorand blockchain integration
+  - Nethereum.Web3 (v5.8.0) - Ethereum/EVM blockchain integration
+  - AlgorandAuthentication (v2.1.1) - ARC-0014 authentication
   - AlgorandARC76Account (v1.1.0) - ARC-76 account management
 - **Containerization**: Docker
 
@@ -406,3 +406,163 @@ If you encounter ambiguous requirements or need to make architectural decisions:
 3. Maintain consistency with existing code style
 4. Prioritize security and data integrity
 5. Ask the user if uncertain about blockchain-specific requirements
+
+## Dependency Updates and Dependabot PRs
+
+### Understanding Dependabot CI "Failures"
+
+**CRITICAL: Dependabot PRs often show "failed" CI status, but this is NOT an actual test or build failure.**
+
+#### Root Cause
+- Dependabot PRs run with **read-only GitHub token permissions** by default
+- Workflow steps that post comments or create checks will fail with **HTTP 403 "Resource not accessible by integration"**
+- This is a **GitHub Actions permission limitation**, not a code problem
+- The actual tests and build typically **pass successfully** before the permission error occurs
+
+#### How to Verify Dependency Updates
+
+When investigating a "failed" Dependabot PR CI run:
+
+1. **Check the workflow logs carefully**:
+   - Look for "Publishing success results" or similar success messages
+   - Identify where the failure actually occurs (usually at comment/publish steps)
+   - Verify tests passed before the 403 error
+
+2. **Verify locally** (this is the source of truth):
+   ```bash
+   # Standard verification workflow
+   dotnet restore
+   dotnet build --configuration Release --no-restore
+   dotnet test --configuration Release --no-build --filter "FullyQualifiedName!~RealEndpoint"
+   ```
+
+3. **Check test baseline**:
+   - Expected: ~1397/1401 tests passing (99.7%)
+   - If local tests pass, the dependency update is safe
+
+4. **Review dependency changes**:
+   - Check release notes for security fixes (e.g., log sanitization, CVE fixes)
+   - Verify compatibility with current .NET version
+   - Look for breaking changes or deprecations
+   - Document security impact and business value
+
+### Workflow Best Practices for Dependabot
+
+#### Required Permissions
+All workflows that comment on PRs or create checks MUST include explicit permissions:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  issues: write
+```
+
+#### Handling Dependabot PRs in Workflows
+
+For steps that comment on PRs or publish results:
+
+```yaml
+- name: Publish test results
+  uses: EnricoMi/publish-unit-test-result-action@v2
+  if: always() && github.actor != 'dependabot[bot]'
+  continue-on-error: true  # Prevent workflow failure if step is skipped
+  with:
+    files: '**/test-results.trx'
+
+- name: Comment PR with results
+  if: github.event_name == 'pull_request' && always() && github.actor != 'dependabot[bot]'
+  continue-on-error: true  # Gracefully handle permission errors
+  uses: actions/github-script@v8
+  with:
+    script: |
+      # Comment logic here
+```
+
+**Key Pattern Elements**:
+1. `github.actor != 'dependabot[bot]'` - Skip steps for Dependabot
+2. `continue-on-error: true` - Don't fail workflow if step fails
+3. Explicit permissions at workflow level
+4. Keep test execution steps without Dependabot conditions (tests should always run)
+
+#### Common Mistakes to Avoid
+
+❌ **DON'T**:
+- Assume CI failure means tests failed
+- Skip local verification for "failed" Dependabot PRs
+- Remove the actual test execution steps
+- Add Dependabot conditions to build/test steps
+- Merge without verifying tests pass locally
+
+✅ **DO**:
+- Always verify tests locally for Dependabot PRs
+- Check workflow logs to identify the actual failure point
+- Add Dependabot conditions only to comment/publish steps
+- Document security impact of dependency updates
+- Verify compatibility and breaking changes
+
+### Dependency Update Verification Checklist
+
+When reviewing Dependabot PRs:
+
+- [ ] Verify tests pass locally (run full test suite)
+- [ ] Check workflow logs for actual failure location
+- [ ] Review dependency release notes for:
+  - [ ] Security fixes (CVEs, vulnerabilities)
+  - [ ] Breaking changes
+  - [ ] Deprecations
+  - [ ] New features
+- [ ] Document business value:
+  - [ ] Security posture improvement
+  - [ ] Compliance requirements
+  - [ ] Bug fixes
+  - [ ] Performance improvements
+- [ ] Check compatibility:
+  - [ ] .NET version compatibility
+  - [ ] Other dependency conflicts
+  - [ ] API surface changes
+- [ ] Update documentation if API changes
+- [ ] Verify no regression in test coverage
+
+### Example Dependency Update PR Review
+
+```markdown
+## Dependency Update Verification
+
+### Changes
+- System.IdentityModel.Tokens.Jwt: 8.3.1 → 8.15.0
+- Swashbuckle.AspNetCore: 10.1.1 → 10.1.2
+
+### Security Impact
+✅ **CRITICAL**: System.IdentityModel.Tokens.Jwt 8.15.0 includes log sanitization (PR #3316)
+   - Prevents sensitive data leaks in logs
+   - Addresses potential security vulnerability
+
+✅ Swashbuckle.AspNetCore 10.1.2 fixes browser caching and URL serialization issues
+
+### Verification Results
+✅ Local tests: 1397/1401 passing (99.7%)
+✅ Build: 0 errors, 97 warnings (existing)
+✅ No breaking changes detected
+✅ All API endpoints functional
+
+### Business Value
+- **Security**: P0 - Prevents log injection attacks
+- **Compliance**: Required for production deployment
+- **Risk**: Low - No breaking changes
+
+### Recommendation
+✅ **APPROVED** - Safe to merge after CI workflow fix
+```
+
+### When to Update Copilot Instructions
+
+Update these instructions if:
+1. GitHub Actions permission model changes
+2. New patterns emerge for handling Dependabot PRs
+3. Test baseline thresholds change
+4. New security requirements are added
+5. Dependency verification process changes
+
+---
