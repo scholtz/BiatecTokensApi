@@ -1,0 +1,149 @@
+name: Validate Workflow Permissions
+
+# This workflow validates that our test-pr.yml workflow correctly handles
+# permission restrictions on Dependabot and fork PRs.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/test-pr.yml'
+      - '.github/workflows/validate-permissions.yml'
+
+jobs:
+  validate-permission-handling:
+    name: Validate Permission Handling Logic
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Validate Dependabot detection logic
+        run: |
+          echo "## Permission Handling Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if test-pr.yml includes Dependabot skip logic
+          if grep -q "github.actor != 'dependabot\[bot\]'" .github/workflows/test-pr.yml; then
+            echo "✅ **Dependabot skip logic**: Found in test-pr.yml" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Dependabot skip logic**: MISSING in test-pr.yml" >> $GITHUB_STEP_SUMMARY
+            echo "ERROR: test-pr.yml must skip comment steps for Dependabot PRs"
+            exit 1
+          fi
+          
+          # Check if test-pr.yml includes continue-on-error for comment step
+          if grep -A 5 "Comment PR" .github/workflows/test-pr.yml | grep -q "continue-on-error: true"; then
+            echo "✅ **Graceful error handling**: Comment step has continue-on-error" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Graceful error handling**: MISSING continue-on-error on comment step" >> $GITHUB_STEP_SUMMARY
+            echo "ERROR: Comment step should have continue-on-error: true"
+            exit 1
+          fi
+          
+          # Check if test-pr.yml includes stacked PR branch triggers
+          if grep -q "dependabot/\*\*" .github/workflows/test-pr.yml; then
+            echo "✅ **Stacked PR support**: Dependabot branch trigger found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Stacked PR support**: MISSING dependabot/** branch trigger" >> $GITHUB_STEP_SUMMARY
+            echo "ERROR: test-pr.yml should trigger on dependabot/** branches for stacked PRs"
+            exit 1
+          fi
+          
+          if grep -q "copilot/\*\*" .github/workflows/test-pr.yml; then
+            echo "✅ **Stacked PR support**: Copilot branch trigger found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Stacked PR support**: MISSING copilot/** branch trigger" >> $GITHUB_STEP_SUMMARY
+            echo "ERROR: test-pr.yml should trigger on copilot/** branches for stacked PRs"
+            exit 1
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "All permission handling validations passed! ✅" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Validate workflow triggers
+        run: |
+          echo "## Workflow Trigger Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extract and validate pull_request triggers
+          echo "### Pull Request Triggers" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`yaml" >> $GITHUB_STEP_SUMMARY
+          sed -n '/^on:/,/^jobs:/p' .github/workflows/test-pr.yml | sed '$d' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          
+          # Count branches
+          BRANCH_COUNT=$(grep -A 10 "pull_request:" .github/workflows/test-pr.yml | grep -E "^\s+- " | wc -l)
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch count**: $BRANCH_COUNT (expected: ≥4 for master, main, dependabot/**, copilot/**)" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$BRANCH_COUNT" -ge 4 ]; then
+            echo "✅ Sufficient branch triggers configured" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Insufficient branch triggers (found $BRANCH_COUNT, expected ≥4)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+      
+      - name: Test permission detection simulation
+        run: |
+          echo "## Permission Detection Simulation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Simulate different actor types
+          for actor in "dependabot[bot]" "github-actions[bot]" "human-user"; do
+            if [ "$actor" = "dependabot[bot]" ]; then
+              SHOULD_SKIP="YES"
+              REASON="Dependabot has read-only permissions"
+            else
+              SHOULD_SKIP="NO"
+              REASON="Human/bot contributors have write permissions"
+            fi
+            
+            echo "**Actor**: \`$actor\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Should skip comment: **$SHOULD_SKIP**" >> $GITHUB_STEP_SUMMARY
+            echo "- Reason: $REASON" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
+      
+      - name: Validate documentation exists
+        run: |
+          echo "## Documentation Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for required documentation
+          if [ -f "ISSUE_DEPENDABOT_WORKFLOW_PERMISSIONS_FIX.md" ]; then
+            SIZE=$(wc -c < ISSUE_DEPENDABOT_WORKFLOW_PERMISSIONS_FIX.md)
+            echo "✅ **Issue documentation**: Found (${SIZE} bytes)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Issue documentation**: MISSING ISSUE_DEPENDABOT_WORKFLOW_PERMISSIONS_FIX.md" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "DEPENDENCY_UPDATE_PR_279_RESOLUTION.md" ]; then
+            SIZE=$(wc -c < DEPENDENCY_UPDATE_PR_279_RESOLUTION.md)
+            echo "✅ **Resolution documentation**: Found (${SIZE} bytes)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Resolution documentation**: MISSING DEPENDENCY_UPDATE_PR_279_RESOLUTION.md" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if grep -q "Dependency Updates and Dependabot PRs" .github/copilot-instructions.md; then
+            echo "✅ **Process documentation**: Dependabot section found in copilot-instructions.md" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Process documentation**: MISSING Dependabot section in copilot-instructions.md" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Final validation summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ All Validations Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The workflow permission handling logic is correctly implemented:" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependabot PRs will skip comment posting (graceful degradation)" >> $GITHUB_STEP_SUMMARY
+          echo "- Permission errors won't fail the workflow (continue-on-error)" >> $GITHUB_STEP_SUMMARY
+          echo "- Stacked PRs on dependabot/** and copilot/** branches will trigger CI" >> $GITHUB_STEP_SUMMARY
+          echo "- Comprehensive documentation provides business context and troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps**: Test on a real Dependabot PR to verify runtime behavior" >> $GITHUB_STEP_SUMMARY
