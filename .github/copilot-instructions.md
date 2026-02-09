@@ -12,7 +12,7 @@ BiatecTokensApi is a comprehensive .NET 8.0 Web API for deploying and managing v
 - **Testing Framework**: NUnit
 - **API Documentation**: Swagger/OpenAPI (Swashbuckle)
 - **Blockchain Libraries**:
-  - Algorand4 (v4.4.1) - Algorand blockchain integration
+  - Algorand4 (v4.4.1.2026010317) - Algorand blockchain integration
   - Nethereum.Web3 (v5.8.0) - Ethereum/EVM blockchain integration
   - AlgorandAuthentication (v2.1.1) - ARC-0014 authentication
   - AlgorandARC76Account (v1.1.0) - ARC-76 account management
