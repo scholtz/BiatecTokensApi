@@ -24,15 +24,18 @@ namespace BiatecTokensApi.Services
         private readonly IUserRepository _userRepository;
         private readonly ILogger<AuthenticationService> _logger;
         private readonly JwtConfig _jwtConfig;
+        private readonly KeyProviderFactory _keyProviderFactory;
 
         public AuthenticationService(
             IUserRepository userRepository,
             ILogger<AuthenticationService> logger,
-            IOptions<JwtConfig> jwtConfig)
+            IOptions<JwtConfig> jwtConfig,
+            KeyProviderFactory keyProviderFactory)
         {
             _userRepository = userRepository;
             _logger = logger;
             _jwtConfig = jwtConfig.Value;
+            _keyProviderFactory = keyProviderFactory;
         }
 
         public async Task<RegisterResponse> RegisterAsync(RegisterRequest request, string? ipAddress, string? userAgent)
@@ -69,8 +72,9 @@ namespace BiatecTokensApi.Services
                 var passwordHash = HashPassword(request.Password);
 
                 // Encrypt mnemonic with system password (so it can be decrypted for signing operations)
-                // In production, use proper key management (HSM, Azure Key Vault, AWS KMS, etc.)
-                var systemPassword = "SYSTEM_KEY_FOR_MVP_REPLACE_IN_PRODUCTION";
+                // Use configured key provider (Azure Key Vault, AWS KMS, or Environment Variable)
+                var keyProvider = _keyProviderFactory.CreateProvider();
+                var systemPassword = await keyProvider.GetEncryptionKeyAsync();
                 var encryptedMnemonic = EncryptMnemonic(mnemonic, systemPassword);
 
                 // Create user
@@ -401,8 +405,8 @@ namespace BiatecTokensApi.Services
                 if (user == null) return null;
 
                 // Return the decrypted mnemonic for signing operations
-                // In production, consider using a hardware security module or key management service
-                var mnemonic = DecryptMnemonicForSigning(user.EncryptedMnemonic);
+                // Uses configured key provider (Azure Key Vault, AWS KMS, or Environment Variable)
+                var mnemonic = await DecryptMnemonicForSigning(user.EncryptedMnemonic);
 
                 return mnemonic;
             }
@@ -632,11 +636,11 @@ namespace BiatecTokensApi.Services
             }
         }
 
-        private string DecryptMnemonicForSigning(string encryptedMnemonic)
+        private async Task<string> DecryptMnemonicForSigning(string encryptedMnemonic)
         {
-            // For MVP, use a system-wide key for decryption during signing operations
-            // In production, use proper key management (HSM, Azure Key Vault, AWS KMS, etc.)
-            var systemPassword = "SYSTEM_KEY_FOR_MVP_REPLACE_IN_PRODUCTION";
+            // Use configured key provider (Azure Key Vault, AWS KMS, or Environment Variable)
+            var keyProvider = _keyProviderFactory.CreateProvider();
+            var systemPassword = await keyProvider.GetEncryptionKeyAsync();
             return DecryptMnemonic(encryptedMnemonic, systemPassword);
         }
 

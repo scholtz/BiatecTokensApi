@@ -135,6 +135,52 @@ public async Task<TokenCreationResponse> CreateERC20MintableAsync(CreateERC20Min
 - Controller tests for API endpoints
 - Use `TestHelper` class for common test utilities
 
+### Integration Test Configuration
+**CRITICAL**: When adding new required configuration to core services (e.g., new DI services, required configuration sections), **ALWAYS** update integration test setups.
+
+Integration tests use `WebApplicationFactory` to instantiate the full application stack, requiring complete configuration.
+
+**Common Integration Test Files Requiring Updates**:
+- `JwtAuthTokenDeploymentIntegrationTests.cs`
+- `ARC76CredentialDerivationTests.cs`
+- `ARC76EdgeCaseAndNegativeTests.cs`
+- Any test file that creates `WebApplicationFactory<Program>`
+
+**Example: Adding New Configuration**
+```csharp
+[SetUp]
+public void Setup()
+{
+    var configuration = new Dictionary<string, string?>
+    {
+        // Existing configs...
+        ["JwtConfig:SecretKey"] = "test-secret-key...",
+        
+        // NEW: Add your required configuration here
+        ["KeyManagementConfig:Provider"] = "Hardcoded",
+        ["KeyManagementConfig:HardcodedKey"] = "TestKeyForIntegrationTests32CharactersMinimumRequired"
+    };
+    
+    _factory = new WebApplicationFactory<Program>()
+        .WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(configuration);
+            });
+        });
+}
+```
+
+**Integration Test Best Practices**:
+- Use `Hardcoded` provider for test-specific configuration (e.g., KeyManagementConfig)
+- Ensure test keys/secrets meet minimum requirements (e.g., 32+ characters)
+- Never use production keys in test configurations
+- Always run full test suite after adding new required services: `dotnet test --configuration Release --no-build`
+- Check for test failures related to missing configuration (BadRequest errors often indicate config issues)
+
+**Lesson Learned (2026-02-09)**: Adding KeyManagementConfig to AuthenticationService caused 18 integration test failures because test setups didn't include the new required configuration. Always audit integration test configs when adding new required services.
+
 ## Authentication and Security
 
 ### ARC-0014 Algorand Authentication
