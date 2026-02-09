@@ -86,7 +86,7 @@ namespace BiatecTokensApi.Services
                     return new ComplianceDecisionResponse
                     {
                         Success = true,
-                        Message = "Decision already exists (idempotent response)",
+                        ErrorMessage = "Decision already exists (idempotent response)",
                         Decision = duplicate
                     };
                 }
@@ -153,7 +153,7 @@ namespace BiatecTokensApi.Services
                 return new ComplianceDecisionResponse
                 {
                     Success = true,
-                    Message = "Compliance decision created successfully",
+                    ErrorMessage = null,
                     Decision = decision,
                     EvaluationResult = evaluationResult
                 };
@@ -388,29 +388,27 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Emits metrics for decision operations
         /// </summary>
-        private async Task EmitDecisionMetricsAsync(ComplianceDecision decision, double durationMs, string operation)
+        private Task EmitDecisionMetricsAsync(ComplianceDecision decision, double durationMs, string operation)
         {
             try
             {
-                await _metricsService.RecordMetricAsync("compliance_decision", new Dictionary<string, object>
-                {
-                    { "operation", operation },
-                    { "organization_id", decision.OrganizationId },
-                    { "step", decision.Step.ToString() },
-                    { "outcome", decision.Outcome.ToString() },
-                    { "policy_version", decision.PolicyVersion },
-                    { "duration_ms", durationMs },
-                    { "evidence_count", decision.EvidenceReferences.Count },
-                    { "policy_rule_count", decision.PolicyRuleIds.Count },
-                    { "requires_review", decision.RequiresReview },
-                    { "timestamp", DateTime.UtcNow.ToString("O") }
-                });
+                // Record decision creation as a counter
+                _metricsService.IncrementCounter($"compliance_decision_{operation}");
+                _metricsService.IncrementCounter($"compliance_decision_{operation}_{decision.Outcome.ToString().ToLower()}");
+                
+                // Record decision duration
+                _metricsService.RecordHistogram($"compliance_decision_{operation}_duration_ms", durationMs);
+                
+                // Record by step
+                _metricsService.IncrementCounter($"compliance_decision_step_{decision.Step.ToString().ToLower()}");
             }
             catch (Exception ex)
             {
                 // Don't fail the operation if metrics fail
                 _logger.LogWarning(ex, "Failed to emit decision metrics");
             }
+            
+            return Task.CompletedTask;
         }
     }
 }

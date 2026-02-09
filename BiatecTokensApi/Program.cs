@@ -141,6 +141,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ISecurityActivityRepository, BiatecTokensApi.Repositories.SecurityActivityRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository, BiatecTokensApi.Repositories.TokenRegistryRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository, BiatecTokensApi.Repositories.JurisdictionRulesRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository, BiatecTokensApi.Repositories.ComplianceDecisionRepository>();
 
             // Also register non-interface repositories for ingestion service
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.TokenIssuanceRepository>();
@@ -188,6 +189,8 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IJurisdictionRulesService, JurisdictionRulesService>();
             builder.Services.AddSingleton<ICapabilityMatrixService, CapabilityMatrixService>();
             builder.Services.AddSingleton<ITokenMetadataService, TokenMetadataService>();
+            builder.Services.AddSingleton<IPolicyEvaluator, PolicyEvaluator>();
+            builder.Services.AddSingleton<IComplianceDecisionService, ComplianceDecisionService>();
 
             // Register metrics service for observability
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
