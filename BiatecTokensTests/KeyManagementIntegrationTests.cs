@@ -36,7 +36,21 @@ namespace BiatecTokensTests
                             ["KeyManagementConfig:Provider"] = "Hardcoded",
                             ["KeyManagementConfig:HardcodedKey"] = "TestKeyForIntegrationTests32CharactersMinimum",
                             ["AlgorandAuthentication:Realm"] = "BiatecTokens#ARC14",
-                            ["AlgorandAuthentication:CheckExpiration"] = "false"
+                            ["AlgorandAuthentication:CheckExpiration"] = "false",
+                            ["AlgorandAuthentication:Debug"] = "true",
+                            ["AlgorandAuthentication:EmptySuccessOnFailure"] = "true",
+                            ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Server"] = "https://mainnet-api.4160.nodely.dev",
+                            ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Token"] = "",
+                            ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Header"] = "",
+                            ["IPFSConfig:ApiUrl"] = "https://ipfs-api.biatec.io",
+                            ["IPFSConfig:GatewayUrl"] = "https://ipfs.biatec.io/ipfs",
+                            ["IPFSConfig:TimeoutSeconds"] = "30",
+                            ["IPFSConfig:MaxFileSizeBytes"] = "10485760",
+                            ["IPFSConfig:ValidateContentHash"] = "true",
+                            ["EVMChains:0:RpcUrl"] = "https://mainnet.base.org",
+                            ["EVMChains:0:ChainId"] = "8453",
+                            ["EVMChains:0:GasLimit"] = "4500000",
+                            ["Cors:0"] = "https://tokens.biatec.io"
                         });
                     });
                 });
@@ -76,7 +90,21 @@ namespace BiatecTokensTests
                             ["KeyManagementConfig:Provider"] = "EnvironmentVariable",
                             ["KeyManagementConfig:EnvironmentVariableName"] = "TEST_KMS_INTEGRATION_KEY",
                             ["AlgorandAuthentication:Realm"] = "BiatecTokens#ARC14",
-                            ["AlgorandAuthentication:CheckExpiration"] = "false"
+                            ["AlgorandAuthentication:CheckExpiration"] = "false",
+                            ["AlgorandAuthentication:Debug"] = "true",
+                            ["AlgorandAuthentication:EmptySuccessOnFailure"] = "true",
+                            ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Server"] = "https://mainnet-api.4160.nodely.dev",
+                            ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Token"] = "",
+                            ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Header"] = "",
+                            ["IPFSConfig:ApiUrl"] = "https://ipfs-api.biatec.io",
+                            ["IPFSConfig:GatewayUrl"] = "https://ipfs.biatec.io/ipfs",
+                            ["IPFSConfig:TimeoutSeconds"] = "30",
+                            ["IPFSConfig:MaxFileSizeBytes"] = "10485760",
+                            ["IPFSConfig:ValidateContentHash"] = "true",
+                            ["EVMChains:0:RpcUrl"] = "https://mainnet.base.org",
+                            ["EVMChains:0:ChainId"] = "8453",
+                            ["EVMChains:0:GasLimit"] = "4500000",
+                            ["Cors:0"] = "https://tokens.biatec.io"
                         });
                     });
                 });
