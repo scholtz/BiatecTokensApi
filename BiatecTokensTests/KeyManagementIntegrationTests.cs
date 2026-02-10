@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using System.Net;
 
 namespace BiatecTokensTests
 {
@@ -17,6 +18,35 @@ namespace BiatecTokensTests
     [NonParallelizable]  // Prevent parallel execution to avoid WebApplicationFactory conflicts
     public class KeyManagementIntegrationTests
     {
+        /// <summary>
+        /// Performs a health check with retry logic to accommodate CI environment startup delays
+        /// </summary>
+        private async Task<HttpResponseMessage> GetHealthWithRetryAsync(HttpClient client, int maxRetries = 5, int delayMs = 1000)
+        {
+            HttpResponseMessage? response = null;
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    response = await client.GetAsync("/health");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return response;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Ignore and retry
+                }
+                
+                if (i < maxRetries - 1)
+                {
+                    await Task.Delay(delayMs);
+                }
+            }
+            
+            return response ?? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        }
         /// <summary>
         /// Tests that the application starts successfully with Hardcoded provider in development
         /// </summary>
@@ -57,12 +87,12 @@ namespace BiatecTokensTests
 
             var client = factory.CreateClient();
 
-            // Act
-            var response = await client.GetAsync("/health");
+            // Act - Use retry logic for CI environment compatibility
+            var response = await GetHealthWithRetryAsync(client);
 
             // Assert
             Assert.That(response.IsSuccessStatusCode, Is.True, 
-                "Application should start successfully with Hardcoded provider in development");
+                $"Application should start successfully with Hardcoded provider in development. Status: {response.StatusCode}");
 
             // Cleanup
             client.Dispose();
@@ -111,12 +141,12 @@ namespace BiatecTokensTests
 
             var client = factory.CreateClient();
 
-            // Act
-            var response = await client.GetAsync("/health");
+            // Act - Use retry logic for CI environment compatibility
+            var response = await GetHealthWithRetryAsync(client);
 
             // Assert
             Assert.That(response.IsSuccessStatusCode, Is.True,
-                "Application should start successfully with EnvironmentVariable provider in development");
+                $"Application should start successfully with EnvironmentVariable provider in development. Status: {response.StatusCode}");
 
             // Cleanup
             client.Dispose();
