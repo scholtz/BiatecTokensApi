@@ -526,6 +526,41 @@ Before approving dependency updates, always check:
 
 Use the `gh-advisory-database` tool for supported ecosystems before adding new dependencies.
 
+## CI/CD Configuration Requirements
+
+### Critical: Adding New Required Services
+
+**ALWAYS update CI workflows when adding new required configuration sections.**
+
+When adding new services or configuration that are required for application startup:
+
+1. **Update `.github/workflows/test-pr.yml`** - Add configuration to the OpenAPI generation appsettings (lines 134-161)
+2. **Update integration test setups** - Add configuration to WebApplicationFactory setups
+3. **Test locally first** - Verify builds and tests pass with new configuration
+
+#### Example: KeyManagementConfig Added
+
+When KeyManagementConfig was added as a required service:
+- ❌ **Initial mistake**: Forgot to add to CI workflow appsettings
+- ✅ **Fix**: Added KeyManagementConfig to test-pr.yml appsettings.OpenAPI.json:
+  ```json
+  "KeyManagementConfig": {
+    "Provider": "Hardcoded",
+    "HardcodedKey": "TestKeyForCIOpenAPIGenerationOnly32CharactersMinimum"
+  }
+  ```
+
+#### CI Configuration Checklist
+
+When adding new required configuration:
+- [ ] Update `.github/workflows/test-pr.yml` OpenAPI appsettings
+- [ ] Update integration test WebApplicationFactory configs
+- [ ] Verify `dotnet build --configuration Release` succeeds locally
+- [ ] Verify `dotnet test --filter "FullyQualifiedName!~RealEndpoint"` passes
+- [ ] Check OpenAPI generation doesn't fail: `swagger tofile --output ./openapi.json BiatecTokensApi/bin/Release/net10.0/BiatecTokensApi.dll v1`
+
+**Lesson Learned**: Missing required configuration in CI causes build failures that are hard to debug. Always add new required config to ALL test and CI configurations immediately when introducing the requirement.
+
 ## Questions and Clarifications
 
 If you encounter ambiguous requirements or need to make architectural decisions:
