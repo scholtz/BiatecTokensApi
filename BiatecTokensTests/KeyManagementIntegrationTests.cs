@@ -14,6 +14,7 @@ namespace BiatecTokensTests
     /// Tests verify configuration validation, fail-closed behavior, and provider selection.
     /// </summary>
     [TestFixture]
+    [NonParallelizable]  // Prevent parallel execution to avoid WebApplicationFactory conflicts
     public class KeyManagementIntegrationTests
     {
         /// <summary>
