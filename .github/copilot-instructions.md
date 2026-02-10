@@ -561,6 +561,85 @@ When adding new required configuration:
 
 **Lesson Learned**: Missing required configuration in CI causes build failures that are hard to debug. Always add new required config to ALL test and CI configurations immediately when introducing the requirement.
 
+### WebApplicationFactory Integration Test Reliability
+
+**CRITICAL: Integration tests using WebApplicationFactory require multiple reliability measures for CI environments.**
+
+CI environments have resource constraints that don't affect local development. Apply ALL of these patterns:
+
+#### Required Patterns (ALL must be used):
+
+1. **NonParallelizable Attribute**
+   ```csharp
+   [NonParallelizable]
+   public class MyIntegrationTests
+   ```
+   Prevents port conflicts and resource contention between WebApplicationFactory instances.
+
+2. **Complete Configuration**
+   - Include ALL required config sections even if test focuses on specific feature
+   - Copy template from existing integration tests (e.g., `HealthCheckIntegrationTests.cs`)
+   - Must include: AlgorandAuthentication, IPFS, EVM chains, CORS, Debug flags
+
+3. **Retry Logic for Health Checks**
+   ```csharp
+   private async Task<HttpResponseMessage> GetHealthWithRetryAsync(
+       HttpClient client, 
+       int maxRetries = 10,  // Increased for CI robustness
+       int delayMs = 2000)   // Longer delays for resource-constrained environments
+   {
+       // Implementation with exception tracking and detailed error messages
+   }
+   ```
+   - Minimum 10 retries with 2-second delays
+   - Total max wait: ~20 seconds
+   - Capture and report last exception for debugging
+
+4. **Test Configuration Template**
+   ```csharp
+   var configuration = new Dictionary<string, string?>
+   {
+       ["KeyManagementConfig:Provider"] = "Hardcoded",
+       ["KeyManagementConfig:HardcodedKey"] = "TestKey32CharactersMinimumLength",
+       ["AlgorandAuthentication:Realm"] = "Test#ARC14",
+       ["AlgorandAuthentication:CheckExpiration"] = "false",
+       ["AlgorandAuthentication:AllowedNetworks:0:Name"] = "mainnet",
+       ["AlgorandAuthentication:AllowedNetworks:0:AlgodApiUrl"] = "https://mainnet-api.4160.nodely.dev",
+       ["IPFSConfig:ApiUrl"] = "https://ipfs.infura.io:5001",
+       ["IPFSConfig:GatewayUrl"] = "https://ipfs.io/ipfs/",
+       ["EVMChains:0:ChainId"] = "8453",
+       ["EVMChains:0:Name"] = "Base",
+       ["EVMChains:0:RpcUrl"] = "https://mainnet.base.org",
+       ["Debug:EmptySuccessOnFailure"] = "false",
+       ["CorsSettings:AllowedOrigins:0"] = "*"
+   };
+   ```
+
+#### Common Issues and Solutions
+
+**Issue**: Tests pass locally but fail in CI with timing errors
+**Solution**: Increase retry count and delays. CI needs 2-4x more time than local.
+
+**Issue**: Tests fail with "Address already in use" errors
+**Solution**: Add `[NonParallelizable]` to test class.
+
+**Issue**: Tests fail with "Required service not configured" errors
+**Solution**: Add ALL config sections to WebApplicationFactory configuration dictionary.
+
+**Issue**: Tests intermittently timeout
+**Solution**: Implement retry logic with exponential backoff for health endpoint calls.
+
+#### Verification Checklist for New Integration Tests
+
+- [ ] Test class has `[NonParallelizable]` attribute
+- [ ] Configuration includes ALL required sections (use template above)
+- [ ] Health checks use retry logic (10+ retries, 2s+ delays)
+- [ ] Tests pass locally 10+ times consecutively
+- [ ] Tests pass in CI (wait for CI run before merging)
+- [ ] No port conflicts with other test classes
+
+**Lesson Learned (2026-02-10)**: Even with all mitigations (NonParallelizable, complete config, retry logic), CI resource constraints can cause intermittent failures. Always err on the side of MORE retries and LONGER delays for CI environments. Local success does NOT guarantee CI success.
+
 ## Questions and Clarifications
 
 If you encounter ambiguous requirements or need to make architectural decisions:
