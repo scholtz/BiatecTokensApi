@@ -239,27 +239,25 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public void AzureKeyVaultProvider_ThrowsNotImplemented()
+        public void AzureKeyVaultProvider_ThrowsException_WhenConfigMissing()
         {
-            // Arrange
+            // Arrange - Missing configuration should throw immediately
             var config = new KeyManagementConfig
             {
                 Provider = "AzureKeyVault",
-                AzureKeyVault = new AzureKeyVaultConfig
-                {
-                    VaultUrl = "https://test-vault.vault.azure.net/",
-                    SecretName = "test-secret",
-                    UseManagedIdentity = true
-                }
+                AzureKeyVault = null  // Missing config
             };
 
             var provider = new AzureKeyVaultProvider(
                 Options.Create(config),
-                _azureLogger);
+                _azureLogger,
+                null!);
 
-            // Act & Assert
-            Assert.ThrowsAsync<NotImplementedException>(async () => 
+            // Act & Assert - Should throw InvalidOperationException for missing config
+            var ex = Assert.ThrowsAsync<InvalidOperationException>(async () => 
                 await provider.GetEncryptionKeyAsync());
+            
+            Assert.That(ex!.Message, Does.Contain("Azure Key Vault configuration is missing"));
         }
 
         [Test]
@@ -274,7 +272,8 @@ namespace BiatecTokensTests
 
             var provider = new AzureKeyVaultProvider(
                 Options.Create(config),
-                _azureLogger);
+                _azureLogger,
+                null!);
 
             // Act
             var isValid = await provider.ValidateConfigurationAsync();
@@ -300,7 +299,8 @@ namespace BiatecTokensTests
 
             var provider = new AzureKeyVaultProvider(
                 Options.Create(config),
-                _azureLogger);
+                _azureLogger,
+                null!);
 
             // Act
             var isValid = await provider.ValidateConfigurationAsync();
@@ -310,27 +310,25 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public void AwsKmsProvider_ThrowsNotImplemented()
+        public void AwsKmsProvider_ThrowsException_WhenConfigMissing()
         {
-            // Arrange
+            // Arrange - Missing configuration should throw immediately
             var config = new KeyManagementConfig
             {
                 Provider = "AwsKms",
-                AwsKms = new AwsKmsConfig
-                {
-                    Region = "us-east-1",
-                    KeyId = "test-key-id",
-                    UseIamRole = true
-                }
+                AwsKms = null  // Missing config
             };
 
             var provider = new AwsKmsProvider(
                 Options.Create(config),
-                _awsLogger);
+                _awsLogger,
+                null!);
 
-            // Act & Assert
-            Assert.ThrowsAsync<NotImplementedException>(async () => 
+            // Act & Assert - Should throw InvalidOperationException for missing config
+            var ex = Assert.ThrowsAsync<InvalidOperationException>(async () => 
                 await provider.GetEncryptionKeyAsync());
+            
+            Assert.That(ex!.Message, Does.Contain("AWS KMS configuration is missing"));
         }
 
         [Test]
@@ -345,7 +343,8 @@ namespace BiatecTokensTests
 
             var provider = new AwsKmsProvider(
                 Options.Create(config),
-                _awsLogger);
+                _awsLogger,
+                null!);
 
             // Act
             var isValid = await provider.ValidateConfigurationAsync();
@@ -371,7 +370,8 @@ namespace BiatecTokensTests
 
             var provider = new AwsKmsProvider(
                 Options.Create(config),
-                _awsLogger);
+                _awsLogger,
+                null!);
 
             // Act
             var isValid = await provider.ValidateConfigurationAsync();
@@ -389,9 +389,9 @@ namespace BiatecTokensTests
             var hardcodedProvider = new HardcodedKeyProvider(
                 Options.Create(new KeyManagementConfig()), _hardcodedLogger);
             var azureProvider = new AzureKeyVaultProvider(
-                Options.Create(new KeyManagementConfig()), _azureLogger);
+                Options.Create(new KeyManagementConfig()), _azureLogger, null!);
             var awsProvider = new AwsKmsProvider(
-                Options.Create(new KeyManagementConfig()), _awsLogger);
+                Options.Create(new KeyManagementConfig()), _awsLogger, null!);
 
             // Assert
             Assert.That(envProvider.ProviderType, Is.EqualTo("EnvironmentVariable"));

@@ -12,6 +12,9 @@
 		<PackageReference Include="Algorand4" Version="4.4.1.2026010317" />
 		<PackageReference Include="AlgorandARC76Account" Version="1.1.0" />
 		<PackageReference Include="AlgorandAuthentication" Version="2.1.1" />
+		<PackageReference Include="AWSSDK.SecretsManager" Version="3.7.402.10" />
+		<PackageReference Include="Azure.Identity" Version="1.13.1" />
+		<PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.7.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.2.0" />
 		<PackageReference Include="Microsoft.OpenApi" Version="2.6.1" />

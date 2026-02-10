@@ -1,26 +1,32 @@
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Services.Interface;
+using BiatecTokensApi.Helpers;
 using Microsoft.Extensions.Options;
 
 namespace BiatecTokensApi.Services
 {
     /// <summary>
     /// Azure Key Vault key provider for production encryption key management
-    /// Requires Azure.Security.KeyVault.Secrets NuGet package
+    /// Uses Azure.Security.KeyVault.Secrets SDK for secure key retrieval
     /// </summary>
     public class AzureKeyVaultProvider : IKeyProvider
     {
         private readonly KeyManagementConfig _config;
         private readonly ILogger<AzureKeyVaultProvider> _logger;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public string ProviderType => "AzureKeyVault";
 
         public AzureKeyVaultProvider(
             IOptions<KeyManagementConfig> config,
-            ILogger<AzureKeyVaultProvider> logger)
+            ILogger<AzureKeyVaultProvider> logger,
+            IHttpContextAccessor httpContextAccessor)
         {
             _config = config.Value;
             _logger = logger;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<string> GetEncryptionKeyAsync()
@@ -30,42 +36,55 @@ namespace BiatecTokensApi.Services
                 throw new InvalidOperationException("Azure Key Vault configuration is missing");
             }
 
+            var correlationId = _httpContextAccessor?.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
-                _logger.LogInformation("Retrieving encryption key from Azure Key Vault: {VaultUrl}", 
-                    _config.AzureKeyVault.VaultUrl);
+                _logger.LogInformation("Retrieving encryption key from Azure Key Vault: VaultUrl={VaultUrl}, SecretName={SecretName}, CorrelationId={CorrelationId}", 
+                    LoggingHelper.SanitizeLogInput(_config.AzureKeyVault.VaultUrl),
+                    LoggingHelper.SanitizeLogInput(_config.AzureKeyVault.SecretName),
+                    correlationId);
 
-                // TODO: Implement Azure Key Vault integration
-                // To implement this, add the following NuGet package:
-                // Azure.Security.KeyVault.Secrets
-                // 
-                // Example implementation:
-                // var credential = _config.AzureKeyVault.UseManagedIdentity 
-                //     ? new DefaultAzureCredential() 
-                //     : new ClientSecretCredential(_config.AzureKeyVault.TenantId, 
-                //                                   _config.AzureKeyVault.ClientId, 
-                //                                   _config.AzureKeyVault.ClientSecret);
-                // var client = new SecretClient(new Uri(_config.AzureKeyVault.VaultUrl), credential);
-                // var secret = await client.GetSecretAsync(_config.AzureKeyVault.SecretName);
-                // return secret.Value.Value;
+                Azure.Core.TokenCredential credential;
+                if (_config.AzureKeyVault.UseManagedIdentity)
+                {
+                    credential = new DefaultAzureCredential();
+                }
+                else
+                {
+                    credential = new ClientSecretCredential(
+                        _config.AzureKeyVault.TenantId, 
+                        _config.AzureKeyVault.ClientId, 
+                        _config.AzureKeyVault.ClientSecret);
+                }
 
-                throw new NotImplementedException(
-                    "Azure Key Vault provider requires Azure.Security.KeyVault.Secrets NuGet package. " +
-                    "To enable this provider: " +
-                    "1. Install Azure.Security.KeyVault.Secrets NuGet package " +
-                    "2. Uncomment and complete the implementation in AzureKeyVaultProvider.cs " +
-                    "3. Ensure Azure credentials are configured (Managed Identity or Client Secret)");
-            }
-            catch (NotImplementedException)
-            {
-                throw;
+                var client = new SecretClient(new Uri(_config.AzureKeyVault.VaultUrl), credential);
+                var secret = await client.GetSecretAsync(_config.AzureKeyVault.SecretName);
+
+                if (string.IsNullOrEmpty(secret.Value.Value))
+                {
+                    _logger.LogError("Azure Key Vault returned empty secret value: CorrelationId={CorrelationId}", correlationId);
+                    throw new InvalidOperationException("Azure Key Vault returned an empty secret value");
+                }
+
+                if (secret.Value.Value.Length < 32)
+                {
+                    _logger.LogError("Azure Key Vault secret is too short (minimum 32 characters required): CorrelationId={CorrelationId}", correlationId);
+                    throw new InvalidOperationException("Encryption key must be at least 32 characters long for AES-256 encryption");
+                }
+
+                _logger.LogInformation("Successfully retrieved encryption key from Azure Key Vault: CorrelationId={CorrelationId}", correlationId);
+                return secret.Value.Value;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to retrieve encryption key from Azure Key Vault");
+                _logger.LogError(ex, "Failed to retrieve encryption key from Azure Key Vault: VaultUrl={VaultUrl}, SecretName={SecretName}, CorrelationId={CorrelationId}, ErrorCode=KMS_AZURE_RETRIEVAL_FAILED", 
+                    LoggingHelper.SanitizeLogInput(_config.AzureKeyVault.VaultUrl),
+                    LoggingHelper.SanitizeLogInput(_config.AzureKeyVault.SecretName),
+                    correlationId);
                 throw new InvalidOperationException(
-                    "Failed to retrieve encryption key from Azure Key Vault. " +
-                    "Check configuration and ensure the application has access to the Key Vault.", ex);
+                    $"Failed to retrieve encryption key from Azure Key Vault. ErrorCode: KMS_AZURE_RETRIEVAL_FAILED. CorrelationId: {correlationId}. " +
+                    "Verify: (1) VaultUrl is correct, (2) SecretName exists, (3) Application has 'Get' permission, (4) Network connectivity to Azure.", ex);
             }
         }
 
