@@ -415,12 +415,11 @@ aws iam create-access-key --user-name biatec-tokens-api
 
 ⚠️ **Security Note**: Never commit credentials to source control. Use environment variables or AWS Secrets Manager for AccessKeyId and SecretAccessKey.
 
-### Option 4: Environment Variable (Lightweight Production) 
-};
+### Option 4: Environment Variable (Lightweight Production)
 
-var response = await client.GetSecretValueAsync(request);
-return response.SecretString;
-```
+⚠️ **Note**: Environment Variable provider is automatically **blocked in non-development environments** by the health check. To use in production, you must explicitly set `ASPNETCORE_ENVIRONMENT=Production` and accept the security implications.
+
+For complete setup instructions, see Option 1 in the production configuration section above.
 
 ## Development Configuration
 
@@ -546,17 +545,21 @@ az keyvault secret purge \
 # Generate new encryption key
 NEW_KEY=$(openssl rand -base64 48)
 
-# Create new secret with versioning
+# Store current key version ID for reference
+CURRENT_VERSION=$(aws secretsmanager describe-secret \
+  --secret-id biatec/encryption-key \
+  --query 'VersionIdsToStages' \
+  --output json | jq -r 'to_entries[] | select(.value[] == "AWSCURRENT") | .key')
+
+# Create new secret version (automatically gets AWSCURRENT stage)
 aws secretsmanager put-secret-value \
   --secret-id biatec/encryption-key \
-  --secret-string "$NEW_KEY" \
-  --version-stages AWSCURRENT
+  --secret-string "$NEW_KEY"
 
-# Store old key with different version stage
-aws secretsmanager put-secret-value \
-  --secret-id biatec/encryption-key-old \
-  --secret-string "$(aws secretsmanager get-secret-value --secret-id biatec/encryption-key --version-stage AWSPREVIOUS --query SecretString --output text)" \
-  --version-stages AWSPREVIOUS
+# Previous version is automatically available via version ID
+# (AWS does not automatically assign AWSPREVIOUS stage)
+echo "Previous version ID: $CURRENT_VERSION"
+echo "Store this for potential rollback"
 ```
 
 #### Step 2: Configure Rotation Lambda (Optional)
@@ -620,12 +623,29 @@ az keyvault secret set \
 #### AWS Secrets Manager
 
 ```bash
-# Revert to AWSPREVIOUS version
+# Step 1: Get current and previous version IDs
+CURRENT_VERSION=$(aws secretsmanager describe-secret \
+  --secret-id biatec/encryption-key \
+  --query 'VersionIdsToStages' \
+  --output json | jq -r 'to_entries[] | select(.value[] == "AWSCURRENT") | .key')
+
+PREVIOUS_VERSION=$(aws secretsmanager list-secret-version-ids \
+  --secret-id biatec/encryption-key \
+  --include-deprecated \
+  --query 'Versions[1].VersionId' \
+  --output text)
+
+# Step 2: Revert to previous version
 aws secretsmanager update-secret-version-stage \
   --secret-id biatec/encryption-key \
   --version-stage AWSCURRENT \
-  --remove-from-version-id $(aws secretsmanager describe-secret --secret-id biatec/encryption-key --query VersionIdsToStages --output json | jq -r 'to_entries[] | select(.value[] == "AWSCURRENT") | .key') \
-  --move-to-version-id $(aws secretsmanager describe-secret --secret-id biatec/encryption-key --query VersionIdsToStages --output json | jq -r 'to_entries[] | select(.value[] == "AWSPREVIOUS") | .key')
+  --remove-from-version-id "$CURRENT_VERSION" \
+  --move-to-version-id "$PREVIOUS_VERSION"
+
+# Step 3: Verify rollback
+aws secretsmanager get-secret-value \
+  --secret-id biatec/encryption-key \
+  --version-stage AWSCURRENT
 ```
 
 ### Future Enhancement: Automated Re-encryption

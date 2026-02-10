@@ -1,3 +1,4 @@
+using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using BiatecTokensApi.Configuration;
@@ -16,6 +17,7 @@ namespace BiatecTokensApi.Services
         private readonly KeyManagementConfig _config;
         private readonly ILogger<AzureKeyVaultProvider> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly Lazy<SecretClient> _lazyClient;
 
         public string ProviderType => "AzureKeyVault";
 
@@ -27,6 +29,32 @@ namespace BiatecTokensApi.Services
             _config = config.Value;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
+            
+            // Lazy initialization of client for connection pooling and token caching
+            _lazyClient = new Lazy<SecretClient>(() => CreateClient());
+        }
+
+        private SecretClient CreateClient()
+        {
+            if (_config.AzureKeyVault == null)
+            {
+                throw new InvalidOperationException("Azure Key Vault configuration is missing");
+            }
+
+            TokenCredential credential;
+            if (_config.AzureKeyVault.UseManagedIdentity)
+            {
+                credential = new DefaultAzureCredential();
+            }
+            else
+            {
+                credential = new ClientSecretCredential(
+                    _config.AzureKeyVault.TenantId, 
+                    _config.AzureKeyVault.ClientId, 
+                    _config.AzureKeyVault.ClientSecret);
+            }
+
+            return new SecretClient(new Uri(_config.AzureKeyVault.VaultUrl), credential);
         }
 
         public async Task<string> GetEncryptionKeyAsync()
@@ -45,21 +73,7 @@ namespace BiatecTokensApi.Services
                     LoggingHelper.SanitizeLogInput(_config.AzureKeyVault.SecretName),
                     correlationId);
 
-                Azure.Core.TokenCredential credential;
-                if (_config.AzureKeyVault.UseManagedIdentity)
-                {
-                    credential = new DefaultAzureCredential();
-                }
-                else
-                {
-                    credential = new ClientSecretCredential(
-                        _config.AzureKeyVault.TenantId, 
-                        _config.AzureKeyVault.ClientId, 
-                        _config.AzureKeyVault.ClientSecret);
-                }
-
-                var client = new SecretClient(new Uri(_config.AzureKeyVault.VaultUrl), credential);
-                var secret = await client.GetSecretAsync(_config.AzureKeyVault.SecretName);
+                var secret = await _lazyClient.Value.GetSecretAsync(_config.AzureKeyVault.SecretName);
 
                 if (string.IsNullOrEmpty(secret.Value.Value))
                 {

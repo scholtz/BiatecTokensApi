@@ -87,17 +87,26 @@ namespace BiatecTokensApi.HealthChecks
                         });
                 }
 
-                // For production KMS providers, test connectivity by attempting to retrieve the key
+                // For production KMS providers, test connectivity and key validity
+                // Note: We retrieve the actual key to ensure the system can function.
+                // While this increases attack surface slightly, it's necessary because:
+                // 1. Invalid or inaccessible keys would prevent all user operations
+                // 2. Early detection of key issues is critical for system availability
+                // 3. The key is not logged and is immediately discarded
+                // 4. Health checks run infrequently (startup + periodic checks)
                 if (!_environment.IsDevelopment() && (providerType == "AzureKeyVault" || providerType == "AwsKms"))
                 {
                     try
                     {
                         var key = await provider.GetEncryptionKeyAsync();
+                        
+                        // Validate key without logging it
                         if (string.IsNullOrEmpty(key) || key.Length < 32)
                         {
-                            _logger.LogError("Key provider returned invalid key: ProviderType={ProviderType}", providerType);
+                            _logger.LogError("Key provider returned invalid key: ProviderType={ProviderType}, KeyLength={KeyLength}", 
+                                providerType, key?.Length ?? 0);
                             return HealthCheckResult.Unhealthy(
-                                $"Key provider '{providerType}' returned invalid encryption key",
+                                $"Key provider '{providerType}' returned invalid encryption key (length: {key?.Length ?? 0}, required: ≥32)",
                                 null,
                                 new Dictionary<string, object>
                                 {
@@ -107,6 +116,9 @@ namespace BiatecTokensApi.HealthChecks
                                     { "errorCode", "KMS_INVALID_KEY" }
                                 });
                         }
+
+                        // Clear key from memory immediately
+                        key = null;
 
                         responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
                         _logger.LogInformation("Key provider health check passed: ProviderType={ProviderType}, ResponseTimeMs={ResponseTime}", 

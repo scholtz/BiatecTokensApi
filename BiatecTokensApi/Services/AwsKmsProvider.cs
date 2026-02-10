@@ -17,6 +17,7 @@ namespace BiatecTokensApi.Services
         private readonly KeyManagementConfig _config;
         private readonly ILogger<AwsKmsProvider> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly Lazy<IAmazonSecretsManager> _lazyClient;
 
         public string ProviderType => "AwsKms";
 
@@ -28,6 +29,34 @@ namespace BiatecTokensApi.Services
             _config = config.Value;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
+            
+            // Lazy initialization of client for connection pooling
+            _lazyClient = new Lazy<IAmazonSecretsManager>(() => CreateClient());
+        }
+
+        private IAmazonSecretsManager CreateClient()
+        {
+            if (_config.AwsKms == null)
+            {
+                throw new InvalidOperationException("AWS KMS configuration is missing");
+            }
+
+            var config = new AmazonSecretsManagerConfig 
+            { 
+                RegionEndpoint = RegionEndpoint.GetBySystemName(_config.AwsKms.Region) 
+            };
+
+            if (_config.AwsKms.UseIamRole)
+            {
+                return new AmazonSecretsManagerClient(config);
+            }
+            else
+            {
+                return new AmazonSecretsManagerClient(
+                    _config.AwsKms.AccessKeyId,
+                    _config.AwsKms.SecretAccessKey,
+                    config);
+            }
         }
 
         public async Task<string> GetEncryptionKeyAsync()
@@ -46,30 +75,12 @@ namespace BiatecTokensApi.Services
                     LoggingHelper.SanitizeLogInput(_config.AwsKms.KeyId),
                     correlationId);
 
-                var config = new AmazonSecretsManagerConfig 
-                { 
-                    RegionEndpoint = RegionEndpoint.GetBySystemName(_config.AwsKms.Region) 
-                };
-
-                AmazonSecretsManagerClient client;
-                if (_config.AwsKms.UseIamRole)
-                {
-                    client = new AmazonSecretsManagerClient(config);
-                }
-                else
-                {
-                    client = new AmazonSecretsManagerClient(
-                        _config.AwsKms.AccessKeyId,
-                        _config.AwsKms.SecretAccessKey,
-                        config);
-                }
-
                 var request = new GetSecretValueRequest 
                 { 
                     SecretId = _config.AwsKms.KeyId 
                 };
 
-                var response = await client.GetSecretValueAsync(request);
+                var response = await _lazyClient.Value.GetSecretValueAsync(request);
 
                 if (string.IsNullOrEmpty(response.SecretString))
                 {
