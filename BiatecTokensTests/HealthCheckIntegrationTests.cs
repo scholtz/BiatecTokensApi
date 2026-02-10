@@ -48,6 +48,8 @@ namespace BiatecTokensTests
                     config.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["App:Account"] = "test mnemonic phrase for testing purposes only not real",
+                        ["KeyManagementConfig:Provider"] = "Hardcoded",
+                        ["KeyManagementConfig:HardcodedKey"] = "TestKeyForHealthCheckIntegrationTests32CharMinimum",
                         ["AlgorandAuthentication:Realm"] = "BiatecTokens#ARC14",
                         ["AlgorandAuthentication:CheckExpiration"] = "false",
                         ["AlgorandAuthentication:Debug"] = "true",
