@@ -20,10 +20,13 @@ namespace BiatecTokensTests
     {
         /// <summary>
         /// Performs a health check with retry logic to accommodate CI environment startup delays
+        /// Increased retries (10) and delay (2s) for better CI robustness
         /// </summary>
-        private async Task<HttpResponseMessage> GetHealthWithRetryAsync(HttpClient client, int maxRetries = 5, int delayMs = 1000)
+        private async Task<HttpResponseMessage> GetHealthWithRetryAsync(HttpClient client, int maxRetries = 10, int delayMs = 2000)
         {
             HttpResponseMessage? response = null;
+            Exception? lastException = null;
+            
             for (int i = 0; i < maxRetries; i++)
             {
                 try
@@ -34,8 +37,9 @@ namespace BiatecTokensTests
                         return response;
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    lastException = ex;
                     // Ignore and retry
                 }
                 
@@ -43,6 +47,12 @@ namespace BiatecTokensTests
                 {
                     await Task.Delay(delayMs);
                 }
+            }
+            
+            // If we get here, all retries failed
+            if (lastException != null)
+            {
+                throw new Exception($"Health endpoint failed after {maxRetries} retries over {(maxRetries * delayMs) / 1000}s", lastException);
             }
             
             return response ?? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
