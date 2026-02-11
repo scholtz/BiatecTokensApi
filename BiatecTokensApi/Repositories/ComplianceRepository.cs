@@ -16,6 +16,7 @@ namespace BiatecTokensApi.Repositories
         private readonly ConcurrentDictionary<ulong, ComplianceMetadata> _metadata = new();
         private readonly ConcurrentBag<ComplianceAuditLogEntry> _auditLog = new();
         private readonly ConcurrentDictionary<string, ComplianceAttestation> _attestations = new();
+        private readonly ConcurrentDictionary<string, ValidationEvidence> _validationEvidence = new();
         private readonly ILogger<ComplianceRepository> _logger;
 
         /// <summary>
@@ -656,6 +657,134 @@ namespace BiatecTokensApi.Repositories
             }
 
             return Task.FromResult(query.ToList());
+        }
+
+        // Validation Evidence Management
+
+        /// <inheritdoc/>
+        public Task<bool> StoreValidationEvidenceAsync(ValidationEvidence evidence)
+        {
+            try
+            {
+                _validationEvidence.AddOrUpdate(evidence.EvidenceId, evidence, (key, existing) => evidence);
+                _logger.LogDebug("Stored validation evidence {EvidenceId}", evidence.EvidenceId);
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error storing validation evidence {EvidenceId}", evidence.EvidenceId);
+                return Task.FromResult(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<ValidationEvidence?> GetValidationEvidenceByIdAsync(string evidenceId)
+        {
+            _validationEvidence.TryGetValue(evidenceId, out var evidence);
+            return Task.FromResult(evidence);
+        }
+
+        /// <inheritdoc/>
+        public Task<List<ValidationEvidence>> ListValidationEvidenceAsync(ListValidationEvidenceRequest request)
+        {
+            var query = _validationEvidence.Values.AsEnumerable();
+
+            // Apply filters
+            if (request.TokenId.HasValue)
+            {
+                query = query.Where(e => e.TokenId == request.TokenId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.PreIssuanceId))
+            {
+                query = query.Where(e =>
+                    !string.IsNullOrEmpty(e.PreIssuanceId) &&
+                    e.PreIssuanceId.Equals(request.PreIssuanceId, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.Passed.HasValue)
+            {
+                query = query.Where(e => e.Passed == request.Passed.Value);
+            }
+
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(e => e.ValidationTimestamp >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(e => e.ValidationTimestamp <= request.ToDate.Value);
+            }
+
+            // Order by validation timestamp descending
+            query = query.OrderByDescending(e => e.ValidationTimestamp);
+
+            // Apply pagination
+            var skip = (request.Page - 1) * request.PageSize;
+            var results = query.Skip(skip).Take(request.PageSize).ToList();
+
+            return Task.FromResult(results);
+        }
+
+        /// <inheritdoc/>
+        public Task<int> GetValidationEvidenceCountAsync(ListValidationEvidenceRequest request)
+        {
+            var query = _validationEvidence.Values.AsEnumerable();
+
+            // Apply same filters as ListValidationEvidenceAsync
+            if (request.TokenId.HasValue)
+            {
+                query = query.Where(e => e.TokenId == request.TokenId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.PreIssuanceId))
+            {
+                query = query.Where(e =>
+                    !string.IsNullOrEmpty(e.PreIssuanceId) &&
+                    e.PreIssuanceId.Equals(request.PreIssuanceId, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.Passed.HasValue)
+            {
+                query = query.Where(e => e.Passed == request.Passed.Value);
+            }
+
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(e => e.ValidationTimestamp >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(e => e.ValidationTimestamp <= request.ToDate.Value);
+            }
+
+            return Task.FromResult(query.Count());
+        }
+
+        /// <inheritdoc/>
+        public Task<ValidationEvidence?> GetMostRecentPassingValidationAsync(ulong? tokenId, string? preIssuanceId)
+        {
+            var query = _validationEvidence.Values
+                .Where(e => e.Passed)
+                .OrderByDescending(e => e.ValidationTimestamp);
+
+            if (tokenId.HasValue)
+            {
+                query = query.Where(e => e.TokenId == tokenId.Value)
+                    .OrderByDescending(e => e.ValidationTimestamp);
+            }
+            else if (!string.IsNullOrWhiteSpace(preIssuanceId))
+            {
+                query = query.Where(e =>
+                    !string.IsNullOrEmpty(e.PreIssuanceId) &&
+                    e.PreIssuanceId.Equals(preIssuanceId, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(e => e.ValidationTimestamp);
+            }
+
+            var evidence = query.FirstOrDefault();
+            return Task.FromResult(evidence);
         }
     }
 }
