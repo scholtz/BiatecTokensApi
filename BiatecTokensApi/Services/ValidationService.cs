@@ -81,9 +81,10 @@ namespace BiatecTokensApi.Services
                 // Calculate statistics
                 int totalRules = ruleEvaluations.Count;
                 int passedRules = ruleEvaluations.Count(r => r.Passed && !r.Skipped);
-                int failedRules = ruleEvaluations.Count(r => !r.Passed && !r.Skipped);
+                int failedRules = ruleEvaluations.Count(r => !r.Passed && !r.Skipped && r.Severity == ValidationSeverity.Error);
                 int skippedRules = ruleEvaluations.Count(r => r.Skipped);
 
+                // Only errors cause overall failure, not warnings
                 bool overallPassed = failedRules == 0;
 
                 // Create evidence

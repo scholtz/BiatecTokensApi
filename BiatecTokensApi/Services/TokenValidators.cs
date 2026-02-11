@@ -8,7 +8,7 @@ namespace BiatecTokensApi.Services
     /// </summary>
     internal class AsaValidator : ITokenValidator
     {
-        public List<RuleEvaluation> Validate(object metadata, ValidationContext context)
+        public virtual List<RuleEvaluation> Validate(object metadata, ValidationContext context)
         {
             var evaluations = new List<RuleEvaluation>();
 
@@ -404,7 +404,7 @@ namespace BiatecTokensApi.Services
     /// </summary>
     internal class Arc3Validator : AsaValidator
     {
-        public new List<RuleEvaluation> Validate(object metadata, ValidationContext context)
+        public override List<RuleEvaluation> Validate(object metadata, ValidationContext context)
         {
             // Start with base ASA validation
             var evaluations = base.Validate(metadata, context);
@@ -412,7 +412,7 @@ namespace BiatecTokensApi.Services
             // Add ARC3-specific rules
             var metadataDict = ConvertToDictionary(metadata);
 
-            // Rule: ARC3 requires metadata URL
+            // Rule: ARC3 requires metadata URL with IPFS
             evaluations.Add(ValidateArc3MetadataRequired(metadataDict));
 
             return evaluations;
@@ -440,7 +440,11 @@ namespace BiatecTokensApi.Services
             }
 
             var url = urlObj.ToString() ?? "";
-            if (!url.StartsWith("ipfs://", StringComparison.OrdinalIgnoreCase))
+            
+            // For ARC3, ipfs:// scheme is strongly recommended but not strictly required
+            // since the URL could also be an IPFS gateway URL
+            if (!url.StartsWith("ipfs://", StringComparison.OrdinalIgnoreCase) &&
+                !url.Contains("ipfs", StringComparison.OrdinalIgnoreCase))
             {
                 return new RuleEvaluation
                 {
@@ -450,8 +454,8 @@ namespace BiatecTokensApi.Services
                     Passed = false,
                     Category = "Metadata",
                     Severity = ValidationSeverity.Warning,
-                    ErrorMessage = "ARC3 metadata URL should use ipfs:// scheme",
-                    RemediationSteps = "Use an IPFS URL with ipfs:// scheme for ARC3 compliance"
+                    ErrorMessage = "ARC3 metadata URL should reference IPFS",
+                    RemediationSteps = "Use an IPFS URL with ipfs:// scheme or IPFS gateway for ARC3 compliance"
                 };
             }
 
@@ -490,7 +494,7 @@ namespace BiatecTokensApi.Services
     /// </summary>
     internal class Arc200Validator : AsaValidator
     {
-        public new List<RuleEvaluation> Validate(object metadata, ValidationContext context)
+        public override List<RuleEvaluation> Validate(object metadata, ValidationContext context)
         {
             // Start with base ASA validation
             var evaluations = base.Validate(metadata, context);
