@@ -767,23 +767,23 @@ namespace BiatecTokensApi.Repositories
         public Task<ValidationEvidence?> GetMostRecentPassingValidationAsync(ulong? tokenId, string? preIssuanceId)
         {
             var query = _validationEvidence.Values
-                .Where(e => e.Passed)
-                .OrderByDescending(e => e.ValidationTimestamp);
+                .Where(e => e.Passed);
 
             if (tokenId.HasValue)
             {
-                query = query.Where(e => e.TokenId == tokenId.Value)
-                    .OrderByDescending(e => e.ValidationTimestamp);
+                query = query.Where(e => e.TokenId == tokenId.Value);
             }
             else if (!string.IsNullOrWhiteSpace(preIssuanceId))
             {
                 query = query.Where(e =>
                     !string.IsNullOrEmpty(e.PreIssuanceId) &&
-                    e.PreIssuanceId.Equals(preIssuanceId, StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(e => e.ValidationTimestamp);
+                    e.PreIssuanceId.Equals(preIssuanceId, StringComparison.OrdinalIgnoreCase));
             }
 
-            var evidence = query.FirstOrDefault();
+            var evidence = query
+                .OrderByDescending(e => e.ValidationTimestamp)
+                .FirstOrDefault();
+            
             return Task.FromResult(evidence);
         }
     }

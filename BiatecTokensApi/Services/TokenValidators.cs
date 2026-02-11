@@ -4,9 +4,37 @@ using System.Text.Json;
 namespace BiatecTokensApi.Services
 {
     /// <summary>
+    /// Base validator with shared utility methods
+    /// </summary>
+    internal abstract class BaseTokenValidator
+    {
+        /// <summary>
+        /// Converts metadata object to dictionary for validation
+        /// </summary>
+        protected Dictionary<string, object?> ConvertToDictionary(object metadata)
+        {
+            if (metadata is Dictionary<string, object?> dict)
+            {
+                return dict;
+            }
+
+            // Try to convert via JSON serialization
+            try
+            {
+                var json = JsonSerializer.Serialize(metadata);
+                return JsonSerializer.Deserialize<Dictionary<string, object?>>(json) ?? new Dictionary<string, object?>();
+            }
+            catch
+            {
+                return new Dictionary<string, object?>();
+            }
+        }
+    }
+
+    /// <summary>
     /// Validator for Algorand Standard Assets (ASA)
     /// </summary>
-    internal class AsaValidator : ITokenValidator
+    internal class AsaValidator : BaseTokenValidator, ITokenValidator
     {
         public virtual List<RuleEvaluation> Validate(object metadata, ValidationContext context)
         {
@@ -379,24 +407,6 @@ namespace BiatecTokensApi.Services
             };
         }
 
-        private Dictionary<string, object?> ConvertToDictionary(object metadata)
-        {
-            if (metadata is Dictionary<string, object?> dict)
-            {
-                return dict;
-            }
-
-            // Try to convert via JSON serialization
-            try
-            {
-                var json = JsonSerializer.Serialize(metadata);
-                return JsonSerializer.Deserialize<Dictionary<string, object?>>(json) ?? new Dictionary<string, object?>();
-            }
-            catch
-            {
-                return new Dictionary<string, object?>();
-            }
-        }
     }
 
     /// <summary>
@@ -470,23 +480,6 @@ namespace BiatecTokensApi.Services
             };
         }
 
-        private Dictionary<string, object?> ConvertToDictionary(object metadata)
-        {
-            if (metadata is Dictionary<string, object?> dict)
-            {
-                return dict;
-            }
-
-            try
-            {
-                var json = JsonSerializer.Serialize(metadata);
-                return JsonSerializer.Deserialize<Dictionary<string, object?>>(json) ?? new Dictionary<string, object?>();
-            }
-            catch
-            {
-                return new Dictionary<string, object?>();
-            }
-        }
     }
 
     /// <summary>
@@ -541,29 +534,12 @@ namespace BiatecTokensApi.Services
             };
         }
 
-        private Dictionary<string, object?> ConvertToDictionary(object metadata)
-        {
-            if (metadata is Dictionary<string, object?> dict)
-            {
-                return dict;
-            }
-
-            try
-            {
-                var json = JsonSerializer.Serialize(metadata);
-                return JsonSerializer.Deserialize<Dictionary<string, object?>>(json) ?? new Dictionary<string, object?>();
-            }
-            catch
-            {
-                return new Dictionary<string, object?>();
-            }
-        }
     }
 
     /// <summary>
     /// Validator for ERC20 tokens (Ethereum-compatible tokens)
     /// </summary>
-    internal class Erc20Validator : ITokenValidator
+    internal class Erc20Validator : BaseTokenValidator, ITokenValidator
     {
         public List<RuleEvaluation> Validate(object metadata, ValidationContext context)
         {
@@ -744,24 +720,6 @@ namespace BiatecTokensApi.Services
                 Category = "Network",
                 Severity = ValidationSeverity.Error
             };
-        }
-
-        private Dictionary<string, object?> ConvertToDictionary(object metadata)
-        {
-            if (metadata is Dictionary<string, object?> dict)
-            {
-                return dict;
-            }
-
-            try
-            {
-                var json = JsonSerializer.Serialize(metadata);
-                return JsonSerializer.Deserialize<Dictionary<string, object?>>(json) ?? new Dictionary<string, object?>();
-            }
-            catch
-            {
-                return new Dictionary<string, object?>();
-            }
         }
     }
 }
