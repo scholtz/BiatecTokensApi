@@ -192,8 +192,10 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IPolicyEvaluator, PolicyEvaluator>();
             builder.Services.AddSingleton<IComplianceDecisionService, ComplianceDecisionService>();
 
-            // Register metrics service for observability
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
+
+            // Register validation service
+            builder.Services.AddSingleton<IValidationService, ValidationService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
