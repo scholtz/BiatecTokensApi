@@ -175,5 +175,43 @@ namespace BiatecTokensApi.Repositories.Interface
         /// <param name="network">Optional network filter</param>
         /// <returns>List of active blacklist entries for the address</returns>
         Task<List<BlacklistEntry>> CheckBlacklistAsync(string address, ulong? assetId, string? network);
+
+        // Validation Evidence Management
+
+        /// <summary>
+        /// Stores validation evidence for audit trails
+        /// </summary>
+        /// <param name="evidence">The validation evidence to store</param>
+        /// <returns>True if successful, false otherwise</returns>
+        Task<bool> StoreValidationEvidenceAsync(ValidationEvidence evidence);
+
+        /// <summary>
+        /// Gets validation evidence by evidence ID
+        /// </summary>
+        /// <param name="evidenceId">The evidence identifier</param>
+        /// <returns>The validation evidence or null if not found</returns>
+        Task<ValidationEvidence?> GetValidationEvidenceByIdAsync(string evidenceId);
+
+        /// <summary>
+        /// Lists validation evidence with optional filtering
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>List of validation evidence entries</returns>
+        Task<List<ValidationEvidence>> ListValidationEvidenceAsync(ListValidationEvidenceRequest request);
+
+        /// <summary>
+        /// Gets the total count of validation evidence entries matching the filter
+        /// </summary>
+        /// <param name="request">The list request with filters</param>
+        /// <returns>Total count</returns>
+        Task<int> GetValidationEvidenceCountAsync(ListValidationEvidenceRequest request);
+
+        /// <summary>
+        /// Gets the most recent passing validation for a token or pre-issuance ID
+        /// </summary>
+        /// <param name="tokenId">The token ID</param>
+        /// <param name="preIssuanceId">Optional pre-issuance identifier</param>
+        /// <returns>The most recent passing validation evidence or null</returns>
+        Task<ValidationEvidence?> GetMostRecentPassingValidationAsync(ulong? tokenId, string? preIssuanceId);
     }
 }

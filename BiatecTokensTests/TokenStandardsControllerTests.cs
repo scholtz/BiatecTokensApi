@@ -204,8 +204,8 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result, Is.TypeOf<OkObjectResult>());
             var okResult = (OkObjectResult)result;
-            Assert.That(okResult.Value, Is.TypeOf<ValidateTokenMetadataResponse>());
-            var response = (ValidateTokenMetadataResponse)okResult.Value;
+            Assert.That(okResult.Value, Is.TypeOf<ValidationResponse>());
+            var response = (ValidationResponse)okResult.Value;
             Assert.That(response.IsValid, Is.True);
             Assert.That(response.CorrelationId, Is.Not.Null);
         }
@@ -229,8 +229,8 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
             var badRequestResult = (BadRequestObjectResult)result;
-            Assert.That(badRequestResult.Value, Is.TypeOf<ValidateTokenMetadataResponse>());
-            var response = (ValidateTokenMetadataResponse)badRequestResult.Value;
+            Assert.That(badRequestResult.Value, Is.TypeOf<ValidationResponse>());
+            var response = (ValidationResponse)badRequestResult.Value;
             Assert.That(response.IsValid, Is.False);
         }
 
@@ -276,8 +276,8 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result, Is.TypeOf<OkObjectResult>());
             var okResult = (OkObjectResult)result;
-            Assert.That(okResult.Value, Is.TypeOf<ValidateTokenMetadataResponse>());
-            var response = (ValidateTokenMetadataResponse)okResult.Value;
+            Assert.That(okResult.Value, Is.TypeOf<ValidationResponse>());
+            var response = (ValidationResponse)okResult.Value;
             Assert.That(response.IsValid, Is.False);
             Assert.That(response.ValidationResult, Is.Not.Null);
             Assert.That(response.ValidationResult.Errors, Is.Not.Empty);
@@ -315,8 +315,8 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result, Is.TypeOf<OkObjectResult>());
             var okResult = (OkObjectResult)result;
-            Assert.That(okResult.Value, Is.TypeOf<ValidateTokenMetadataResponse>());
-            var response = (ValidateTokenMetadataResponse)okResult.Value;
+            Assert.That(okResult.Value, Is.TypeOf<ValidationResponse>());
+            var response = (ValidationResponse)okResult.Value;
             Assert.That(response.CorrelationId, Is.Not.Null);
             Assert.That(response.CorrelationId, Is.Not.Empty);
         }
@@ -399,8 +399,8 @@ namespace BiatecTokensTests
             // Assert
             Assert.That(result, Is.TypeOf<OkObjectResult>());
             var okResult = (OkObjectResult)result;
-            Assert.That(okResult.Value, Is.TypeOf<ValidateTokenMetadataResponse>());
-            var response = (ValidateTokenMetadataResponse)okResult.Value;
+            Assert.That(okResult.Value, Is.TypeOf<ValidationResponse>());
+            var response = (ValidationResponse)okResult.Value;
             Assert.That(response.IsValid, Is.True);
             Assert.That(response.ValidationResult!.Warnings, Is.Not.Empty);
         }

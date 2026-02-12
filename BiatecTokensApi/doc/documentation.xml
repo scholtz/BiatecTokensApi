@@ -166,6 +166,101 @@
             Clock skew in minutes (tolerance for time differences)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Configuration.KeyManagementConfig">
+            <summary>
+            Configuration for key management system used for mnemonic encryption
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.KeyManagementConfig.Provider">
+            <summary>
+            Key provider type: "AzureKeyVault", "AwsKms", "EnvironmentVariable", or "Hardcoded" (dev only)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.KeyManagementConfig.AzureKeyVault">
+            <summary>
+            Azure Key Vault configuration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.KeyManagementConfig.AwsKms">
+            <summary>
+            AWS KMS configuration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.KeyManagementConfig.EnvironmentVariableName">
+            <summary>
+            Environment variable name for encryption key (fallback option)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.KeyManagementConfig.HardcodedKey">
+            <summary>
+            For development only - hardcoded key (NEVER use in production)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Configuration.AzureKeyVaultConfig">
+            <summary>
+            Azure Key Vault configuration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AzureKeyVaultConfig.VaultUrl">
+            <summary>
+            Key Vault URL (e.g., "https://myvault.vault.azure.net/")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AzureKeyVaultConfig.SecretName">
+            <summary>
+            Name of the secret containing the encryption key
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AzureKeyVaultConfig.UseManagedIdentity">
+            <summary>
+            Use managed identity for authentication (recommended for production)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AzureKeyVaultConfig.TenantId">
+            <summary>
+            Tenant ID (required if not using managed identity)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AzureKeyVaultConfig.ClientId">
+            <summary>
+            Client ID (required if not using managed identity)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AzureKeyVaultConfig.ClientSecret">
+            <summary>
+            Client secret (required if not using managed identity)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Configuration.AwsKmsConfig">
+            <summary>
+            AWS KMS configuration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AwsKmsConfig.Region">
+            <summary>
+            AWS region (e.g., "us-east-1")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AwsKmsConfig.KeyId">
+            <summary>
+            KMS key ID or ARN
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AwsKmsConfig.UseIamRole">
+            <summary>
+            Use IAM role for authentication (recommended for production)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AwsKmsConfig.AccessKeyId">
+            <summary>
+            AWS access key ID (required if not using IAM role)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Configuration.AwsKmsConfig.SecretAccessKey">
+            <summary>
+            AWS secret access key (required if not using IAM role)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Configuration.StripeConfig">
             <summary>
             Configuration for Stripe API integration
@@ -1746,6 +1841,370 @@
             
             **Authorization:**
             Requires ARC-0014 authentication. Recommended for compliance officers and executives.
+            </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.ComplianceDecisionController">
+            <summary>
+            Provides endpoints for managing compliance decisions in wallet-free enterprise onboarding
+            </summary>
+            <remarks>
+            This controller implements the policy-driven compliance audit trail and decision API.
+            It enables creating, querying, and managing compliance decisions with full audit logging.
+            All endpoints require ARC-0014 authentication to ensure decision maker identity is tracked.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.#ctor(BiatecTokensApi.Services.Interface.IComplianceDecisionService,BiatecTokensApi.Services.Interface.IPolicyEvaluator,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ComplianceDecisionController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.ComplianceDecisionController"/> class.
+            </summary>
+            <param name="decisionService">The compliance decision service</param>
+            <param name="policyEvaluator">The policy evaluator service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.CreateDecision(BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest)">
+            <summary>
+            Creates a new compliance decision for an onboarding step
+            </summary>
+            <param name="request">The decision creation request</param>
+            <returns>The created decision with policy evaluation results</returns>
+            <remarks>
+            Creates a compliance decision after evaluating the provided evidence against policy rules.
+            
+            **Decision Process:**
+            1. Validates required evidence is provided
+            2. Evaluates evidence against policy rules for the specified step
+            3. Determines outcome (Approved, Rejected, RequiresManualReview, ConditionalApproval)
+            4. Creates immutable audit record with decision details
+            5. Returns decision with evaluation results and required actions
+            
+            **Idempotency:**
+            Creating the same decision within 1 hour (same organization, step, policy version, and evidence)
+            will return the existing decision instead of creating a duplicate.
+            
+            **Authorization:**
+            Requires ARC-0014 authentication. The authenticated address is recorded as the decision maker.
+            
+            **Example Request:**
+            ```json
+            {
+              "organizationId": "org-123",
+              "onboardingSessionId": "session-456",
+              "step": "KycKybVerification",
+              "evidenceReferences": [
+                {
+                  "evidenceType": "KYC_REPORT",
+                  "referenceId": "doc-789",
+                  "verificationStatus": "Verified",
+                  "dataHash": "sha256:abc123..."
+                }
+              ],
+              "expirationDays": 365,
+              "requiresReview": true,
+              "reviewIntervalDays": 180
+            }
+            ```
+            
+            **Example Response:**
+            ```json
+            {
+              "success": true,
+              "message": "Compliance decision created successfully",
+              "decision": {
+                "id": "dec-001",
+                "organizationId": "org-123",
+                "step": "KycKybVerification",
+                "outcome": "Approved",
+                "policyRuleIds": ["KYC_DOC_001"],
+                "decisionMaker": "ADDR123...",
+                "decisionTimestamp": "2026-02-09T20:00:00Z",
+                "reason": "All compliance requirements met for KycKybVerification"
+              },
+              "evaluationResult": {
+                "outcome": "Approved",
+                "ruleEvaluations": [
+                  {
+                    "ruleId": "KYC_DOC_001",
+                    "ruleName": "KYC Documentation Complete",
+                    "passed": true,
+                    "message": "KYC documentation complete and verified"
+                  }
+                ],
+                "reason": "All compliance requirements met for KycKybVerification",
+                "requiredActions": []
+              }
+            }
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.GetDecisionById(System.String)">
+            <summary>
+            Gets a compliance decision by ID
+            </summary>
+            <param name="decisionId">The decision ID</param>
+            <returns>The compliance decision</returns>
+            <remarks>
+            Retrieves a specific compliance decision by its unique identifier.
+            Returns the complete decision record including all evidence references,
+            policy rules evaluated, and decision metadata.
+            
+            **Example Response:**
+            ```json
+            {
+              "id": "dec-001",
+              "organizationId": "org-123",
+              "onboardingSessionId": "session-456",
+              "step": "KycKybVerification",
+              "outcome": "Approved",
+              "policyRuleIds": ["KYC_DOC_001"],
+              "decisionMaker": "ADDR123...",
+              "decisionTimestamp": "2026-02-09T20:00:00Z",
+              "evidenceReferences": [...],
+              "reason": "All compliance requirements met",
+              "policyVersion": "1.0.0",
+              "expiresAt": "2027-02-09T20:00:00Z"
+            }
+            ```
+            </remarks>
+        </member>
+        <!-- Badly formed XML comment ignored for member "M:BiatecTokensApi.Controllers.ComplianceDecisionController.QueryDecisions(BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest)" -->
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.GetActiveDecision(System.String,BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets the most recent active decision for an organization and step
+            </summary>
+            <param name="organizationId">The organization ID</param>
+            <param name="step">The onboarding step</param>
+            <returns>The most recent active decision</returns>
+            <remarks>
+            Retrieves the latest active (not superseded, not expired) compliance decision
+            for a specific organization and onboarding step.
+            
+            **Use Cases:**
+            - Check current compliance status for an organization
+            - Verify if a step has been approved
+            - Determine if re-evaluation is needed
+            
+            **Example Request:**
+            ```
+            GET /api/v1/compliance/decisions/active/org-123/KycKybVerification
+            ```
+            
+            Returns 404 if no active decision exists for the specified organization and step.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.UpdateDecision(System.String,BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest)">
+            <summary>
+            Updates an existing compliance decision by creating a new one
+            </summary>
+            <param name="previousDecisionId">ID of the decision to update</param>
+            <param name="request">The new decision request</param>
+            <returns>The new decision that supersedes the previous one</returns>
+            <remarks>
+            Updates a compliance decision by creating a new immutable record that supersedes the previous one.
+            The previous decision is marked as superseded and linked to the new decision.
+            
+            **Immutability:**
+            Decisions are immutable - updates create a new decision record rather than modifying the existing one.
+            This maintains a complete audit trail showing the history of decisions and changes.
+            
+            **Use Cases:**
+            - Re-evaluation after new evidence is submitted
+            - Correction of erroneous decisions
+            - Periodic review updates
+            - Policy version upgrades
+            
+            **Example Request:**
+            ```
+            PUT /api/v1/compliance/decisions/dec-001
+            {
+              "organizationId": "org-123",
+              "step": "KycKybVerification",
+              "evidenceReferences": [...]
+            }
+            ```
+            
+            The new decision will have `previousDecisionId` set to "dec-001",
+            and the old decision will be marked with `isSuperseded: true`.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.GetDecisionsRequiringReview(System.Nullable{System.DateTime})">
+            <summary>
+            Gets compliance decisions requiring periodic review
+            </summary>
+            <param name="beforeDate">Optional date filter (ISO 8601). Returns decisions with review date before this date. Defaults to current time.</param>
+            <returns>List of decisions requiring review</returns>
+            <remarks>
+            Retrieves compliance decisions that are flagged for periodic review
+            and have a review date that has passed or is approaching.
+            
+            **Use Cases:**
+            - Compliance team dashboard showing pending reviews
+            - Automated notifications for upcoming reviews
+            - Risk management monitoring
+            
+            **Example Request:**
+            ```
+            GET /api/v1/compliance/decisions/review-required?beforeDate=2026-03-01T00:00:00Z
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.GetExpiredDecisions">
+            <summary>
+            Gets expired compliance decisions
+            </summary>
+            <returns>List of expired decisions</returns>
+            <remarks>
+            Retrieves compliance decisions that have expired and may need renewal.
+            
+            **Use Cases:**
+            - Identify organizations requiring re-evaluation
+            - Compliance monitoring and alerts
+            - Automated renewal workflows
+            
+            **Example Response:**
+            Returns decisions where `expiresAt` is in the past and `isSuperseded` is false.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.GetPolicyRules(BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets policy rules applicable to a specific onboarding step
+            </summary>
+            <param name="step">The onboarding step</param>
+            <returns>List of policy rules</returns>
+            <remarks>
+            Retrieves the policy rules that will be evaluated for a specific onboarding step.
+            Useful for understanding requirements before submitting evidence.
+            
+            **Use Cases:**
+            - Display requirements to users before they submit evidence
+            - Frontend validation and guidance
+            - Compliance documentation and training
+            
+            **Example Response:**
+            ```json
+            [
+              {
+                "ruleId": "KYC_DOC_001",
+                "ruleName": "KYC Documentation Complete",
+                "description": "Know Your Customer documentation must be complete",
+                "requiredEvidenceTypes": ["KYC_REPORT"],
+                "severity": "Error",
+                "isRequired": true,
+                "remediationActions": ["Complete KYC verification process"],
+                "estimatedRemediationHours": 48
+              }
+            ]
+            ```
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.GetPolicyConfiguration">
+            <summary>
+            Gets the current policy configuration
+            </summary>
+            <returns>Policy configuration including all rules and settings</returns>
+            <remarks>
+            Retrieves the complete policy configuration including all rules, defaults, and metadata.
+            
+            **Contains:**
+            - Policy version
+            - Rules organized by onboarding step
+            - Default expiration and review settings
+            - Configuration metadata
+            
+            **Use Cases:**
+            - Administrative oversight of compliance policies
+            - Documentation generation
+            - Policy audit and review
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceDecisionController.GetPolicyMetrics">
+            <summary>
+            Gets policy evaluation metrics
+            </summary>
+            <returns>Policy metrics including evaluation counts and performance data</returns>
+            <remarks>
+            Retrieves metrics about policy evaluations for monitoring and reporting.
+            
+            **Metrics Include:**
+            - Total evaluations performed
+            - Automatic approval/rejection counts
+            - Manual review requirements
+            - Average evaluation time
+            - Most frequently failed rules
+            
+            **Use Cases:**
+            - Operational dashboards
+            - Performance monitoring
+            - Policy effectiveness analysis
+            - Identifying common failure points
+            </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.ComplianceProfileController">
+            <summary>
+            Provides endpoints for managing compliance profiles for wallet-free enterprise onboarding
+            </summary>
+            <remarks>
+            This controller supports backend-first compliance metadata management for regulated token issuance.
+            All endpoints use SaaS terminology (account-based) and avoid wallet language.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceProfileController.CreateOrUpdateProfile(BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest)">
+            <summary>
+            Creates or updates the compliance profile for the authenticated account
+            </summary>
+            <param name="request">Compliance profile data</param>
+            <returns>The created or updated compliance profile</returns>
+            <remarks>
+            This endpoint supports wallet-free enterprise onboarding by capturing regulatory metadata
+            upfront. The compliance profile includes issuing entity details, jurisdiction, and issuance
+            intent to support MICA readiness and compliance reporting.
+            
+            All changes are logged in the audit trail with timestamp and actor information.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceProfileController.GetProfile">
+            <summary>
+            Gets the compliance profile for the authenticated account
+            </summary>
+            <returns>The compliance profile if it exists</returns>
+            <remarks>
+            Returns the current compliance profile including onboarding completion status.
+            The profile includes all regulatory metadata and readiness indicators.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceProfileController.GetAuditLog(System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets the audit log for the authenticated account's compliance profile
+            </summary>
+            <param name="startDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="endDate">Optional end date filter (ISO 8601 format)</param>
+            <returns>List of audit log entries</returns>
+            <remarks>
+            Returns all compliance profile changes with timestamp, actor, and changed fields.
+            Supports date range filtering for compliance reporting and audit purposes.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceProfileController.ExportAuditLogJson(System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports the audit log as JSON for the authenticated account
+            </summary>
+            <param name="startDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="endDate">Optional end date filter (ISO 8601 format)</param>
+            <returns>JSON export of audit log entries</returns>
+            <remarks>
+            Returns audit log entries in JSON format suitable for compliance reporting
+            and data archival. Supports date range filtering.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceProfileController.ExportAuditLogCsv(System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports the audit log as CSV for the authenticated account
+            </summary>
+            <param name="startDate">Optional start date filter (ISO 8601 format)</param>
+            <param name="endDate">Optional end date filter (ISO 8601 format)</param>
+            <returns>CSV export of audit log entries</returns>
+            <remarks>
+            Returns audit log entries in CSV format suitable for spreadsheet analysis
+            and enterprise reporting systems. Supports date range filtering.
             </remarks>
         </member>
         <member name="T:BiatecTokensApi.Controllers.ComplianceReportController">
@@ -3960,6 +4419,114 @@
             
             **Performance:** Target p95 latency is under 200ms for typical payloads.
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.ValidationController">
+            <summary>
+            Provides endpoints for token metadata validation and evidence management
+            </summary>
+            <remarks>
+            This controller manages validation operations for token issuances including
+            pre-issuance validation, evidence retrieval, and validation history.
+            All endpoints require ARC-0014 authentication.
+            Supports deterministic validation with versioned rule sets and immutable audit trails.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ValidationController.#ctor(BiatecTokensApi.Services.Interface.IValidationService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ValidationController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.ValidationController"/> class.
+            </summary>
+            <param name="validationService">The validation service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ValidationController.ValidateTokenMetadata(BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest)">
+            <summary>
+            Validates token metadata before issuance
+            </summary>
+            <param name="request">The validation request containing metadata and context</param>
+            <returns>Validation result with evidence and rule evaluations</returns>
+            <remarks>
+            This endpoint performs deterministic validation of token metadata against versioned rule sets.
+            
+            **Validation Process**:
+            1. Metadata is validated against token standard rules (ASA, ARC3, ARC200, ERC20)
+            2. Network-specific constraints are enforced
+            3. Jurisdiction-specific toggles are applied
+            4. Complete rule evaluations are generated with pass/fail/skip status
+            5. Evidence is stored with SHA256 checksum for tamper detection
+            
+            **Dry-Run Mode**: Set `DryRun: true` to validate without persisting evidence.
+            Useful for early validation during token configuration.
+            
+            **Evidence Storage**: If `DryRun: false`, validation evidence is persisted
+            with a unique evidence ID for future retrieval. Evidence includes complete
+            rule evaluations, timestamps, validator versions, and checksums.
+            
+            **Use Cases**:
+            - Pre-issuance validation during token configuration
+            - Compliance checking before submitting transactions
+            - Testing metadata against multiple networks or jurisdictions
+            
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ValidationController.GetValidationEvidence(System.String)">
+            <summary>
+            Retrieves validation evidence by evidence ID
+            </summary>
+            <param name="evidenceId">The unique evidence identifier</param>
+            <returns>Validation evidence with complete rule evaluations</returns>
+            <remarks>
+            This endpoint retrieves immutable validation evidence by its unique identifier.
+            Evidence includes:
+            - Complete rule evaluations with pass/fail/skip status
+            - Validation context (network, standard, flags, versions)
+            - Timestamp and requester information
+            - SHA256 checksum for tamper detection
+            
+            **Use Cases**:
+            - Retrieving evidence for compliance audits
+            - Verifying validation results before issuance
+            - Displaying validation history to users
+            
+            Evidence is immutable and retained for at least 12 months.
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ValidationController.ListValidationEvidence(System.Nullable{System.UInt64},System.String,System.Nullable{System.Boolean},System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.Int32,System.Int32)">
+            <summary>
+            Lists validation evidence for a token or pre-issuance identifier
+            </summary>
+            <param name="tokenId">Optional filter by token ID</param>
+            <param name="preIssuanceId">Optional filter by pre-issuance identifier</param>
+            <param name="passed">Optional filter by validation result (true/false)</param>
+            <param name="fromDate">Optional start date filter (ISO 8601)</param>
+            <param name="toDate">Optional end date filter (ISO 8601)</param>
+            <param name="page">Page number (default: 1)</param>
+            <param name="pageSize">Page size (default: 20, max: 100)</param>
+            <returns>List of validation evidence entries with pagination</returns>
+            <remarks>
+            This endpoint lists validation evidence with optional filtering and pagination.
+            
+            **Filtering Options**:
+            - By token ID: List all validations for a deployed token
+            - By pre-issuance ID: List all validations during token configuration
+            - By result: Show only passing or failing validations
+            - By date range: Filter validations within a time period
+            
+            **Use Cases**:
+            - Displaying validation history for a token
+            - Tracking validation attempts during configuration
+            - Compliance reporting and audit trails
+            - Analyzing validation patterns and failures
+            
+            Evidence is ordered by timestamp descending (most recent first).
+            Requires ARC-0014 authentication.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ValidationController.GetUserAddress">
+            <summary>
+            Gets the user's address from the authentication context
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Controllers.WebhookController">
             <summary>
@@ -9331,6 +9898,566 @@
             Last compliance review date
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceDecision">
+            <summary>
+            Represents a compliance decision for an onboarding step or token issuance operation
+            </summary>
+            <remarks>
+            This model captures policy-driven compliance decisions for wallet-free enterprise onboarding.
+            Each decision is immutable and forms an audit trail of who approved what, when, and why.
+            Decisions are linked to specific policy rules that drove the approval or rejection.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.Id">
+            <summary>
+            Unique identifier for the compliance decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.OrganizationId">
+            <summary>
+            Organization identifier for the entity being evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.OnboardingSessionId">
+            <summary>
+            Onboarding session identifier (unique per onboarding flow)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.Step">
+            <summary>
+            The onboarding step this decision applies to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.Outcome">
+            <summary>
+            The decision outcome
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.PolicyRuleIds">
+            <summary>
+            The policy rule identifiers that drove this decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.DecisionMaker">
+            <summary>
+            Address of the actor who made or approved this decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.DecisionTimestamp">
+            <summary>
+            Timestamp when the decision was made (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.EvidenceReferences">
+            <summary>
+            References to evidence documents or data that support this decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.Reason">
+            <summary>
+            Human-readable reason for the decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.PolicyVersion">
+            <summary>
+            Policy version identifier to track which rules were used
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.CorrelationId">
+            <summary>
+            Correlation ID for linking related decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.Metadata">
+            <summary>
+            Additional metadata about this decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.PreviousDecisionId">
+            <summary>
+            Reference to the previous decision if this is an update
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.IsSuperseded">
+            <summary>
+            Whether this decision has been superseded by a newer decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.SupersededAt">
+            <summary>
+            Timestamp when this decision was superseded (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.SupersededById">
+            <summary>
+            ID of the decision that superseded this one (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.ExpiresAt">
+            <summary>
+            Expiration timestamp for time-limited approvals (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.RequiresReview">
+            <summary>
+            Whether this decision requires periodic review
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecision.NextReviewDate">
+            <summary>
+            Next review date if periodic review is required
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.OnboardingStep">
+            <summary>
+            Onboarding steps that require compliance decisions
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.OrganizationIdentityVerification">
+            <summary>
+            Organization identity verification
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.BusinessRegistrationVerification">
+            <summary>
+            Business registration documentation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.BeneficialOwnershipVerification">
+            <summary>
+            Beneficial ownership disclosure
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.KycKybVerification">
+            <summary>
+            KYC/KYB compliance check
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.AmlScreening">
+            <summary>
+            AML screening and sanctions check
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.JurisdictionalCompliance">
+            <summary>
+            Jurisdictional compliance verification
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.TokenIssuanceAuthorization">
+            <summary>
+            Token issuance authorization
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.WalletCustodyVerification">
+            <summary>
+            Wallet custody arrangement verification
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.TermsAcceptance">
+            <summary>
+            Terms and conditions acceptance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.OnboardingStep.FinalApproval">
+            <summary>
+            Final onboarding approval
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.DecisionOutcome">
+            <summary>
+            Outcome of a compliance decision
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.DecisionOutcome.Pending">
+            <summary>
+            Decision is pending evaluation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.DecisionOutcome.Approved">
+            <summary>
+            Decision approved - step passed compliance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.DecisionOutcome.Rejected">
+            <summary>
+            Decision rejected - step failed compliance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.DecisionOutcome.RequiresManualReview">
+            <summary>
+            Decision requires manual review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.DecisionOutcome.ConditionalApproval">
+            <summary>
+            Decision approved with conditions
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.DecisionOutcome.Expired">
+            <summary>
+            Decision expired and needs renewal
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.EvidenceReference">
+            <summary>
+            Reference to evidence supporting a compliance decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.EvidenceReference.EvidenceType">
+            <summary>
+            Type of evidence (e.g., "ID_DOCUMENT", "BUSINESS_LICENSE", "BANK_STATEMENT")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.EvidenceReference.ReferenceId">
+            <summary>
+            Reference identifier (e.g., file ID, URL, document number)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.EvidenceReference.SubmittedAt">
+            <summary>
+            Timestamp when evidence was submitted (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.EvidenceReference.VerificationStatus">
+            <summary>
+            Verification status of this evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.EvidenceReference.DataHash">
+            <summary>
+            Hash of the evidence data for integrity verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.EvidenceReference.Metadata">
+            <summary>
+            Additional metadata about the evidence
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.EvidenceVerificationStatus">
+            <summary>
+            Verification status of evidence
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.EvidenceVerificationStatus.Submitted">
+            <summary>
+            Evidence has been submitted but not yet verified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.EvidenceVerificationStatus.InReview">
+            <summary>
+            Evidence is currently being verified
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.EvidenceVerificationStatus.Verified">
+            <summary>
+            Evidence has been verified and accepted
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.EvidenceVerificationStatus.Rejected">
+            <summary>
+            Evidence verification failed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.EvidenceVerificationStatus.Expired">
+            <summary>
+            Evidence has expired and needs renewal
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest">
+            <summary>
+            Request to create a new compliance decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.OrganizationId">
+            <summary>
+            Organization identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.OnboardingSessionId">
+            <summary>
+            Onboarding session identifier (optional, for session-specific decisions)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.Step">
+            <summary>
+            The onboarding step being evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.EvidenceReferences">
+            <summary>
+            References to evidence documents supporting this decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.EvaluationContext">
+            <summary>
+            Additional context for policy evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.CorrelationId">
+            <summary>
+            Correlation ID for linking related operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.ExpirationDays">
+            <summary>
+            Expiration duration in days for time-limited approvals (optional)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.RequiresReview">
+            <summary>
+            Whether this decision requires periodic review
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest.ReviewIntervalDays">
+            <summary>
+            Review interval in days if periodic review is required
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceDecisionResponse">
+            <summary>
+            Response after creating or updating a compliance decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecisionResponse.Decision">
+            <summary>
+            The compliance decision that was created or updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceDecisionResponse.EvaluationResult">
+            <summary>
+            Detailed evaluation results from the policy engine
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.PolicyEvaluationResult">
+            <summary>
+            Result of policy evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationResult.Outcome">
+            <summary>
+            Overall outcome of the evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationResult.RuleEvaluations">
+            <summary>
+            Policy rules that were evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationResult.Reason">
+            <summary>
+            Overall reason for the decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationResult.RequiredActions">
+            <summary>
+            Actions required if decision is rejected or conditional
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationResult.EstimatedResolutionTime">
+            <summary>
+            Estimated time to resolution if rejected
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation">
+            <summary>
+            Evaluation result for a single policy rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation.RuleId">
+            <summary>
+            Policy rule identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation.RuleName">
+            <summary>
+            Human-readable rule name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation.Passed">
+            <summary>
+            Whether this rule passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation.Message">
+            <summary>
+            Detailed message explaining the evaluation result
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation.Severity">
+            <summary>
+            Severity level if rule failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation.EvidenceIds">
+            <summary>
+            Evidence used in this rule evaluation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RuleSeverity">
+            <summary>
+            Severity level for policy rule failures
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RuleSeverity.Info">
+            <summary>
+            Informational - does not block progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RuleSeverity.Warning">
+            <summary>
+            Warning - should be addressed but not blocking
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RuleSeverity.Error">
+            <summary>
+            Error - blocks progress, must be resolved
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Compliance.RuleSeverity.Critical">
+            <summary>
+            Critical - immediate attention required
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest">
+            <summary>
+            Request to query compliance decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.OrganizationId">
+            <summary>
+            Optional filter by organization ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.OnboardingSessionId">
+            <summary>
+            Optional filter by onboarding session ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.Step">
+            <summary>
+            Optional filter by onboarding step
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.Outcome">
+            <summary>
+            Optional filter by decision outcome
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.DecisionMaker">
+            <summary>
+            Optional filter by decision maker
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.FromDate">
+            <summary>
+            Optional start date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.ToDate">
+            <summary>
+            Optional end date filter (ISO 8601)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.IncludeSuperseded">
+            <summary>
+            Include superseded decisions in results
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.IncludeExpired">
+            <summary>
+            Include expired decisions in results
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest.PageSize">
+            <summary>
+            Page size for pagination (default: 50, max: 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsResponse">
+            <summary>
+            Response containing queried compliance decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsResponse.Decisions">
+            <summary>
+            List of compliance decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsResponse.TotalCount">
+            <summary>
+            Total number of decisions matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsResponse.Summary">
+            <summary>
+            Summary statistics for the queried decisions
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.DecisionSummary">
+            <summary>
+            Summary statistics for compliance decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.ApprovedCount">
+            <summary>
+            Number of approved decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.RejectedCount">
+            <summary>
+            Number of rejected decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.RequiresReviewCount">
+            <summary>
+            Number of decisions requiring manual review
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.PendingCount">
+            <summary>
+            Number of pending decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.ConditionalApprovalCount">
+            <summary>
+            Number of conditional approvals
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.ExpiredCount">
+            <summary>
+            Number of expired decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.AverageDecisionTimeHours">
+            <summary>
+            Average time to decision in hours
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.DecisionSummary.CommonRejectionReasons">
+            <summary>
+            Most common rejection reasons
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.GenerateComplianceEvidenceBundleRequest">
             <summary>
             Request to generate a compliance evidence bundle (ZIP) for auditors
@@ -12367,6 +13494,270 @@
             Cache duration in seconds (recommended client-side cache time)
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.PolicyRule">
+            <summary>
+            Represents a policy rule used for compliance decision evaluation
+            </summary>
+            <remarks>
+            Policy rules define the compliance requirements for onboarding steps.
+            Rules can be code-based or configuration-based and support versioning.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.RuleId">
+            <summary>
+            Unique identifier for the policy rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.RuleName">
+            <summary>
+            Human-readable rule name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.Description">
+            <summary>
+            Detailed description of what this rule checks
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.ApplicableStep">
+            <summary>
+            The onboarding step this rule applies to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.Category">
+            <summary>
+            Category of the rule (e.g., "IDENTITY", "AML", "KYC", "JURISDICTION")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.Severity">
+            <summary>
+            Severity level if this rule fails
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.IsRequired">
+            <summary>
+            Whether this rule is required or optional
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.Version">
+            <summary>
+            Version of this rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.IsActive">
+            <summary>
+            Whether this rule is currently active
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.EffectiveFrom">
+            <summary>
+            Effective date for this rule (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.EffectiveTo">
+            <summary>
+            Expiration date for this rule (UTC, null if no expiration)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.RequiredEvidenceTypes">
+            <summary>
+            Required evidence types for this rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.Configuration">
+            <summary>
+            Configuration parameters for this rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.PassMessage">
+            <summary>
+            User-friendly message when rule passes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.FailMessage">
+            <summary>
+            User-friendly message when rule fails
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.RemediationActions">
+            <summary>
+            Actions required to remediate if rule fails
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.EstimatedRemediationHours">
+            <summary>
+            Estimated time to remediate in hours
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.Tags">
+            <summary>
+            Tags for organizing and filtering rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyRule.RegulatoryFrameworks">
+            <summary>
+            Regulatory frameworks this rule helps satisfy (e.g., "MICA", "AML5", "FATF")
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext">
+            <summary>
+            Context information for policy evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.OrganizationId">
+            <summary>
+            Organization being evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.OnboardingSessionId">
+            <summary>
+            Onboarding session identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.Step">
+            <summary>
+            Onboarding step being evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.Evidence">
+            <summary>
+            Evidence references provided for evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.AdditionalData">
+            <summary>
+            Additional contextual data for evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.Initiator">
+            <summary>
+            User who initiated this evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.Jurisdiction">
+            <summary>
+            Jurisdiction information (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.TokenType">
+            <summary>
+            Token type being issued (if step is TokenIssuanceAuthorization)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.Network">
+            <summary>
+            Network for token deployment (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.EvaluationTimestamp">
+            <summary>
+            Timestamp when evaluation was initiated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyEvaluationContext.CorrelationId">
+            <summary>
+            Correlation ID for tracking related operations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.PolicyConfiguration">
+            <summary>
+            Configuration for policy rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.Version">
+            <summary>
+            Version of the policy configuration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.RulesByStep">
+            <summary>
+            All policy rules organized by step
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.DefaultExpirationDays">
+            <summary>
+            Default expiration days for decisions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.DefaultRequiresReview">
+            <summary>
+            Whether decisions require periodic review by default
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.DefaultReviewIntervalDays">
+            <summary>
+            Default review interval in days
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.AllowConditionalApprovals">
+            <summary>
+            Whether to allow conditional approvals
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.MaxEvidencePerDecision">
+            <summary>
+            Maximum number of evidence items per decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.EnableAutomaticEvaluation">
+            <summary>
+            Whether to enable automatic policy rule matching
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyConfiguration.Metadata">
+            <summary>
+            Metadata about this policy configuration
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.StandardPolicyRuleIds">
+            <summary>
+            Standard policy rule identifiers for common compliance checks
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.PolicyMetrics">
+            <summary>
+            Policy metrics for monitoring and reporting
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.TotalEvaluations">
+            <summary>
+            Total number of evaluations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.AutomaticApprovals">
+            <summary>
+            Number of automatic approvals
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.AutomaticRejections">
+            <summary>
+            Number of automatic rejections
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.ManualReviewRequired">
+            <summary>
+            Number requiring manual review
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.AverageEvaluationTimeMs">
+            <summary>
+            Average evaluation time in milliseconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.RuleFailureCounts">
+            <summary>
+            Most failed rules
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.PolicyVersion">
+            <summary>
+            Policy version in use
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.PolicyMetrics.LastUpdated">
+            <summary>
+            Last updated timestamp (UTC)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Compliance.TokenComplianceIndicators">
             <summary>
             Represents simplified compliance indicators for a token, designed for frontend display
@@ -12778,6 +14169,567 @@
         <member name="P:BiatecTokensApi.Models.Compliance.ReportSubscriptionInfo.Metered">
             <summary>
             Whether this report was metered for billing
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidationContext">
+            <summary>
+            Represents the context in which a validation is performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationContext.Network">
+            <summary>
+            The blockchain network (e.g., "voimain-v1.0", "aramidmain-v1.0", "mainnet")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationContext.TokenStandard">
+            <summary>
+            The token standard (e.g., "ASA", "ARC3", "ARC200", "ERC20")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationContext.IssuerRole">
+            <summary>
+            The role of the issuer (e.g., "Individual", "Corporation", "GovernmentEntity")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationContext.ComplianceFlags">
+            <summary>
+            Compliance flags that are active for this validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationContext.JurisdictionToggles">
+            <summary>
+            Jurisdiction-specific toggles and their reasons
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationContext.ValidatorVersion">
+            <summary>
+            The validator version used for this validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationContext.RuleSetVersion">
+            <summary>
+            The rule set version used for this validation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ComplianceFlag">
+            <summary>
+            Represents a compliance flag that is active for a validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceFlag.FlagId">
+            <summary>
+            The flag identifier (e.g., "EU_MICA_ENABLED", "RWA_WHITELIST_REQUIRED")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceFlag.Description">
+            <summary>
+            Description of the flag
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ComplianceFlag.Reason">
+            <summary>
+            Reason why this flag is active
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.RuleEvaluation">
+            <summary>
+            Represents a single rule evaluation in the validation process
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.RuleId">
+            <summary>
+            Unique identifier for the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.RuleName">
+            <summary>
+            Human-readable name of the rule
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.Description">
+            <summary>
+            Description of what the rule checks
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.Passed">
+            <summary>
+            Whether the rule passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.Skipped">
+            <summary>
+            Whether the rule was skipped
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.SkipReason">
+            <summary>
+            Reason why the rule was skipped (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.ErrorMessage">
+            <summary>
+            Error message if the rule failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.RemediationSteps">
+            <summary>
+            Suggested remediation steps if the rule failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.Category">
+            <summary>
+            Category of the rule (e.g., "Metadata", "Network", "Security", "Compliance")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.RuleEvaluation.Severity">
+            <summary>
+            Severity level if the rule fails
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidationEvidence">
+            <summary>
+            Represents the complete validation evidence for a token issuance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.EvidenceId">
+            <summary>
+            Unique identifier for this evidence record
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.TokenId">
+            <summary>
+            The token ID this validation was performed for (null for pre-issuance)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.PreIssuanceId">
+            <summary>
+            Temporary identifier for pre-issuance validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.Context">
+            <summary>
+            The validation context used
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.Passed">
+            <summary>
+            Overall validation result
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.RuleEvaluations">
+            <summary>
+            List of all rule evaluations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.ValidationTimestamp">
+            <summary>
+            Timestamp when the validation was performed (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.RequestedBy">
+            <summary>
+            Address of the user who requested the validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.Checksum">
+            <summary>
+            SHA256 checksum of the evidence record for tamper detection
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.IsDryRun">
+            <summary>
+            Whether this was a dry-run validation (not persisted)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.Summary">
+            <summary>
+            Summary of the validation outcome
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.TotalRules">
+            <summary>
+            Total number of rules evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.PassedRules">
+            <summary>
+            Number of rules that passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.FailedRules">
+            <summary>
+            Number of rules that failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidationEvidence.SkippedRules">
+            <summary>
+            Number of rules that were skipped
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest">
+            <summary>
+            Request to validate token metadata before issuance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest.Context">
+            <summary>
+            The validation context
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest.TokenMetadata">
+            <summary>
+            The token metadata to validate
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest.DryRun">
+            <summary>
+            Whether this is a dry-run validation (does not persist evidence)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest.PreIssuanceId">
+            <summary>
+            Temporary identifier for tracking pre-issuance validation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataResponse">
+            <summary>
+            Response from token metadata validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataResponse.Evidence">
+            <summary>
+            The validation evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataResponse.Passed">
+            <summary>
+            Whether the validation passed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ValidateTokenMetadataResponse.EvidenceId">
+            <summary>
+            Evidence identifier (null for dry-run)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetValidationEvidenceRequest">
+            <summary>
+            Request to retrieve validation evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetValidationEvidenceRequest.EvidenceId">
+            <summary>
+            The evidence ID to retrieve
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.GetValidationEvidenceResponse">
+            <summary>
+            Response containing validation evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.GetValidationEvidenceResponse.Evidence">
+            <summary>
+            The validation evidence
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest">
+            <summary>
+            Request to list validation evidence for a token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest.TokenId">
+            <summary>
+            The token ID to list evidence for
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest.PreIssuanceId">
+            <summary>
+            Pre-issuance identifier to list evidence for
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest.Passed">
+            <summary>
+            Optional filter by validation result
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest.FromDate">
+            <summary>
+            Optional start date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest.ToDate">
+            <summary>
+            Optional end date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest.Page">
+            <summary>
+            Page number for pagination (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest.PageSize">
+            <summary>
+            Page size for pagination
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Compliance.ListValidationEvidenceResponse">
+            <summary>
+            Response containing list of validation evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceResponse.Evidence">
+            <summary>
+            List of validation evidence entries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceResponse.TotalCount">
+            <summary>
+            Total number of entries matching the filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile">
+            <summary>
+            Represents a user's compliance profile for wallet-free enterprise onboarding
+            </summary>
+            <remarks>
+            This model stores regulatory and compliance metadata associated with a user account,
+            supporting MICA readiness and enterprise-grade compliance for regulated token issuance.
+            Uses SaaS terminology (account-based) instead of wallet terminology.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Id">
+            <summary>
+            Unique identifier for the compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UserId">
+            <summary>
+            User ID this profile belongs to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuanceIntent">
+            <summary>
+            Issuance intent category (e.g., "equity", "debt", "asset-backed", "utility")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Onboarding readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.CreatedAt">
+            <summary>
+            Timestamp when the profile was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedAt">
+            <summary>
+            Timestamp when the profile was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedBy">
+            <summary>
+            User ID of who last updated the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Metadata">
+            <summary>
+            Optional additional metadata for extensibility
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IsOnboardingComplete">
+            <summary>
+            Determines if onboarding is complete based on profile completeness
+            </summary>
+            <returns>True if all required fields are filled and status is Complete or Active</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Readiness status for compliance profile
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.NotStarted">
+            <summary>
+            Profile has not been started
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.InProgress">
+            <summary>
+            Profile is in progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.PendingReview">
+            <summary>
+            Profile needs review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Complete">
+            <summary>
+            Profile is complete but not yet active
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Active">
+            <summary>
+            Profile is active and ready for token issuance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Suspended">
+            <summary>
+            Profile has been suspended
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry">
+            <summary>
+            Audit log entry for compliance profile changes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Id">
+            <summary>
+            Unique identifier for the audit entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ProfileId">
+            <summary>
+            Compliance profile ID that was changed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserId">
+            <summary>
+            User ID who owns the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Action">
+            <summary>
+            Action performed (Created, Updated, Deleted)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Timestamp">
+            <summary>
+            Timestamp when the action occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PerformedBy">
+            <summary>
+            User ID who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ChangedFields">
+            <summary>
+            Fields that were changed (field name -> new value)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PreviousValues">
+            <summary>
+            Previous values of changed fields (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.IpAddress">
+            <summary>
+            IP address of the request (if available)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserAgent">
+            <summary>
+            User agent of the request (if available)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest">
+            <summary>
+            Request to create or update a compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2, e.g., "US", "GB", "DE")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuanceIntent">
+            <summary>
+            Issuance intent category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.ReadinessStatus">
+            <summary>
+            Readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Metadata">
+            <summary>
+            Optional additional metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest">
+            <summary>
+            Request to get compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest.UserId">
+            <summary>
+            User ID to get profile for (optional, defaults to authenticated user)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse">
+            <summary>
+            Response for compliance profile operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.Profile">
+            <summary>
+            The compliance profile data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.IsOnboardingComplete">
+            <summary>
+            Indicates if onboarding is complete
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError">
+            <summary>
+            Response for compliance profile validation errors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Field">
+            <summary>
+            Field name that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Message">
+            <summary>
+            Error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Code">
+            <summary>
+            Error code
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.DeploymentErrorCategory">
@@ -14228,6 +16180,26 @@
         <member name="F:BiatecTokensApi.Models.ErrorCodes.USER_NOT_FOUND">
             <summary>
             User not found
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.COMPLIANCE_PROFILE_NOT_FOUND">
+            <summary>
+            Compliance profile not found
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_JURISDICTION">
+            <summary>
+            Invalid jurisdiction code
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_ISSUANCE_INTENT">
+            <summary>
+            Invalid issuance intent
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.COMPLIANCE_PROFILE_VALIDATION_FAILED">
+            <summary>
+            Compliance profile validation failed
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
@@ -19575,6 +21547,66 @@
             <param name="args">The command-line arguments used to configure the application.</param>
             <exception cref="T:System.Exception"></exception>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.ComplianceDecisionRepository">
+            <summary>
+            In-memory repository for compliance decisions
+            </summary>
+            <remarks>
+            This implementation uses in-memory storage with immutable event logging.
+            For production, this should be replaced with a persistent database implementation.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Repositories.ComplianceDecisionRepository})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Repositories.ComplianceDecisionRepository"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.CreateDecisionAsync(BiatecTokensApi.Models.Compliance.ComplianceDecision)">
+            <summary>
+            Creates a new compliance decision
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.GetDecisionByIdAsync(System.String)">
+            <summary>
+            Gets a compliance decision by ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.QueryDecisionsAsync(BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest)">
+            <summary>
+            Queries compliance decisions with filtering and pagination
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.GetActiveDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets the most recent active decision for an organization and step
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.SupersedeDecisionAsync(System.String,System.String)">
+            <summary>
+            Marks a decision as superseded
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.GetDecisionsRequiringReviewAsync(System.Nullable{System.DateTime})">
+            <summary>
+            Gets decisions requiring review
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.GetExpiredDecisionsAsync">
+            <summary>
+            Gets expired decisions
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceDecisionRepository.FindDuplicateDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.OnboardingStep,System.String,System.Collections.Generic.List{System.String})">
+            <summary>
+            Checks if a decision with the same parameters already exists (for idempotency)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.ComplianceProfileRepository">
+            <summary>
+            In-memory repository for compliance profile management
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.ComplianceReportRepository">
             <summary>
             In-memory repository implementation for compliance reports
@@ -19687,6 +21719,21 @@
             <inheritdoc/>
         </member>
         <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.CheckBlacklistAsync(System.String,System.Nullable{System.UInt64},System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.StoreValidationEvidenceAsync(BiatecTokensApi.Models.Compliance.ValidationEvidence)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetValidationEvidenceByIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.ListValidationEvidenceAsync(BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetValidationEvidenceCountAsync(BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.ComplianceRepository.GetMostRecentPassingValidationAsync(System.Nullable{System.UInt64},System.String)">
             <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Repositories.DeploymentStatusRepository">
@@ -19891,6 +21938,106 @@
             </summary>
             <param name="cid">Content Identifier</param>
             <returns>True if unpinning was successful</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository">
+            <summary>
+            Interface for compliance decision repository operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.CreateDecisionAsync(BiatecTokensApi.Models.Compliance.ComplianceDecision)">
+            <summary>
+            Creates a new compliance decision
+            </summary>
+            <param name="decision">The decision to create</param>
+            <returns>Task representing the asynchronous operation</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.GetDecisionByIdAsync(System.String)">
+            <summary>
+            Gets a compliance decision by ID
+            </summary>
+            <param name="decisionId">The decision ID</param>
+            <returns>The compliance decision, or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.QueryDecisionsAsync(BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest)">
+            <summary>
+            Queries compliance decisions with filtering and pagination
+            </summary>
+            <param name="request">The query request</param>
+            <returns>List of matching decisions and total count</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.GetActiveDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets the most recent active decision for an organization and step
+            </summary>
+            <param name="organizationId">The organization ID</param>
+            <param name="step">The onboarding step</param>
+            <returns>The most recent active decision, or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.SupersedeDecisionAsync(System.String,System.String)">
+            <summary>
+            Marks a decision as superseded
+            </summary>
+            <param name="decisionId">The decision ID to supersede</param>
+            <param name="supersededById">The ID of the new decision</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.GetDecisionsRequiringReviewAsync(System.Nullable{System.DateTime})">
+            <summary>
+            Gets decisions requiring review
+            </summary>
+            <param name="beforeDate">Optional date filter - decisions with review date before this</param>
+            <returns>List of decisions requiring review</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.GetExpiredDecisionsAsync">
+            <summary>
+            Gets expired decisions
+            </summary>
+            <returns>List of expired decisions</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository.FindDuplicateDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.OnboardingStep,System.String,System.Collections.Generic.List{System.String})">
+            <summary>
+            Checks if a decision with the same parameters already exists (for idempotency)
+            </summary>
+            <param name="organizationId">Organization ID</param>
+            <param name="step">Onboarding step</param>
+            <param name="policyVersion">Policy version</param>
+            <param name="evidenceReferenceIds">List of evidence reference IDs</param>
+            <returns>Existing decision if found, null otherwise</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IComplianceProfileRepository">
+            <summary>
+            Interface for compliance profile repository operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceProfileRepository.CreateProfileAsync(BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile)">
+            <summary>
+            Creates a new compliance profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceProfileRepository.GetProfileByUserIdAsync(System.String)">
+            <summary>
+            Gets a compliance profile by user ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceProfileRepository.GetProfileByIdAsync(System.String)">
+            <summary>
+            Gets a compliance profile by ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceProfileRepository.UpdateProfileAsync(BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile)">
+            <summary>
+            Updates an existing compliance profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceProfileRepository.DeleteProfileAsync(System.String)">
+            <summary>
+            Deletes a compliance profile
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceProfileRepository.ProfileExistsForUserAsync(System.String)">
+            <summary>
+            Checks if a profile exists for a user
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IComplianceReportRepository">
             <summary>
@@ -20104,6 +22251,42 @@
             <param name="assetId">Optional asset ID for asset-specific check</param>
             <param name="network">Optional network filter</param>
             <returns>List of active blacklist entries for the address</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.StoreValidationEvidenceAsync(BiatecTokensApi.Models.Compliance.ValidationEvidence)">
+            <summary>
+            Stores validation evidence for audit trails
+            </summary>
+            <param name="evidence">The validation evidence to store</param>
+            <returns>True if successful, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetValidationEvidenceByIdAsync(System.String)">
+            <summary>
+            Gets validation evidence by evidence ID
+            </summary>
+            <param name="evidenceId">The evidence identifier</param>
+            <returns>The validation evidence or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.ListValidationEvidenceAsync(BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest)">
+            <summary>
+            Lists validation evidence with optional filtering
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>List of validation evidence entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetValidationEvidenceCountAsync(BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest)">
+            <summary>
+            Gets the total count of validation evidence entries matching the filter
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Total count</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IComplianceRepository.GetMostRecentPassingValidationAsync(System.Nullable{System.UInt64},System.String)">
+            <summary>
+            Gets the most recent passing validation for a token or pre-issuance ID
+            </summary>
+            <param name="tokenId">The token ID</param>
+            <param name="preIssuanceId">Optional pre-issuance identifier</param>
+            <returns>The most recent passing validation evidence or null</returns>
         </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IDeploymentStatusRepository">
             <summary>
@@ -21508,6 +23691,18 @@
             Authentication service with ARC76 account derivation and JWT token management
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.AwsKmsProvider">
+            <summary>
+            AWS Secrets Manager provider for production encryption key management
+            Requires AWSSDK.SecretsManager NuGet package
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.AzureKeyVaultProvider">
+            <summary>
+            Azure Key Vault key provider for production encryption key management
+            Requires Azure.Security.KeyVault.Secrets NuGet package
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.BaseObservableService">
             <summary>
             Base class for services that provides automatic observability features
@@ -21674,6 +23869,69 @@
         <member name="M:BiatecTokensApi.Services.CapabilityMatrixService.ApplyFilters(BiatecTokensApi.Models.Compliance.CapabilityMatrix,BiatecTokensApi.Models.Compliance.GetCapabilityMatrixRequest)">
             <summary>
             Applies filters to the capability matrix
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ComplianceDecisionService">
+            <summary>
+            Service for managing compliance decisions
+            </summary>
+            <remarks>
+            Implements business logic for creating, querying, and managing compliance decisions.
+            Integrates with the policy evaluator to determine decision outcomes.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository,BiatecTokensApi.Services.Interface.IPolicyEvaluator,BiatecTokensApi.Services.Interface.IMetricsService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceDecisionService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ComplianceDecisionService"/> class.
+            </summary>
+            <param name="repository">The compliance decision repository</param>
+            <param name="policyEvaluator">The policy evaluator service</param>
+            <param name="metricsService">The metrics service</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.CreateDecisionAsync(BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest,System.String)">
+            <summary>
+            Creates a new compliance decision with policy evaluation
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.GetDecisionByIdAsync(System.String)">
+            <summary>
+            Gets a compliance decision by ID
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.QueryDecisionsAsync(BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest)">
+            <summary>
+            Queries compliance decisions with filtering and pagination
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.GetActiveDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets the most recent active decision for an organization and step
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.UpdateDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest,System.String)">
+            <summary>
+            Updates an existing decision by creating a new one that supersedes it
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.GetDecisionsRequiringReviewAsync(System.Nullable{System.DateTime})">
+            <summary>
+            Gets decisions requiring review
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.GetExpiredDecisionsAsync">
+            <summary>
+            Gets expired decisions
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceDecisionService.EmitDecisionMetricsAsync(BiatecTokensApi.Models.Compliance.ComplianceDecision,System.Double,System.String)">
+            <summary>
+            Emits metrics for decision operations
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ComplianceProfileService">
+            <summary>
+            Service for managing compliance profiles and audit logging
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.ComplianceReportService">
@@ -22207,6 +24465,11 @@
             <param name="value">The value to escape</param>
             <returns>Escaped CSV value</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.EnvironmentKeyProvider">
+            <summary>
+            Environment variable-based key provider for encryption keys
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ERC20TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -22276,6 +24539,12 @@
         <member name="M:BiatecTokensApi.Services.ERC20TokenService.PersistComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.String,System.String,System.String)">
             <summary>
             Persists compliance metadata for a deployed token
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.HardcodedKeyProvider">
+            <summary>
+            Hardcoded key provider for development and testing only
+            WARNING: NEVER use this in production!
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IARC1400TokenService">
@@ -22467,6 +24736,126 @@
             Gets the current configuration version
             </summary>
             <returns>The version string</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IComplianceDecisionService">
+            <summary>
+            Interface for compliance decision service operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceDecisionService.CreateDecisionAsync(BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest,System.String)">
+            <summary>
+            Creates a new compliance decision with policy evaluation
+            </summary>
+            <param name="request">The decision creation request</param>
+            <param name="actorAddress">Address of the actor making the decision</param>
+            <returns>Response containing the created decision and evaluation result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceDecisionService.GetDecisionByIdAsync(System.String)">
+            <summary>
+            Gets a compliance decision by ID
+            </summary>
+            <param name="decisionId">The decision ID</param>
+            <returns>The compliance decision, or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceDecisionService.QueryDecisionsAsync(BiatecTokensApi.Models.Compliance.QueryComplianceDecisionsRequest)">
+            <summary>
+            Queries compliance decisions with filtering and pagination
+            </summary>
+            <param name="request">The query request</param>
+            <returns>Response containing matching decisions and pagination info</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceDecisionService.GetActiveDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets the most recent active decision for an organization and step
+            </summary>
+            <param name="organizationId">The organization ID</param>
+            <param name="step">The onboarding step</param>
+            <returns>The most recent active decision, or null if not found</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceDecisionService.UpdateDecisionAsync(System.String,BiatecTokensApi.Models.Compliance.CreateComplianceDecisionRequest,System.String)">
+            <summary>
+            Updates an existing decision by creating a new one that supersedes it
+            </summary>
+            <param name="previousDecisionId">ID of the decision to supersede</param>
+            <param name="request">The new decision request</param>
+            <param name="actorAddress">Address of the actor making the update</param>
+            <returns>Response containing the new decision</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceDecisionService.GetDecisionsRequiringReviewAsync(System.Nullable{System.DateTime})">
+            <summary>
+            Gets decisions requiring review
+            </summary>
+            <param name="beforeDate">Optional date filter</param>
+            <returns>List of decisions requiring review</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceDecisionService.GetExpiredDecisionsAsync">
+            <summary>
+            Gets expired decisions
+            </summary>
+            <returns>List of expired decisions</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IComplianceProfileService">
+            <summary>
+            Service interface for managing compliance profiles
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceProfileService.UpsertProfileAsync(BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest,System.String,System.String,System.String)">
+            <summary>
+            Creates or updates a compliance profile for a user
+            </summary>
+            <param name="request">The profile creation/update request</param>
+            <param name="userId">The user ID</param>
+            <param name="ipAddress">Optional IP address for audit logging</param>
+            <param name="userAgent">Optional user agent for audit logging</param>
+            <returns>Response with the created/updated profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceProfileService.GetProfileAsync(System.String)">
+            <summary>
+            Gets a compliance profile for a user
+            </summary>
+            <param name="userId">The user ID</param>
+            <returns>Response with the profile</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceProfileService.GetAuditLogAsync(System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Gets audit log entries for a compliance profile
+            </summary>
+            <param name="userId">The user ID</param>
+            <param name="startDate">Optional start date filter</param>
+            <param name="endDate">Optional end date filter</param>
+            <returns>List of audit entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceProfileService.ExportAuditLogJsonAsync(System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports audit log entries as JSON
+            </summary>
+            <param name="userId">The user ID</param>
+            <param name="startDate">Optional start date filter</param>
+            <param name="endDate">Optional end date filter</param>
+            <returns>JSON string of audit entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceProfileService.ExportAuditLogCsvAsync(System.String,System.Nullable{System.DateTime},System.Nullable{System.DateTime})">
+            <summary>
+            Exports audit log entries as CSV
+            </summary>
+            <param name="userId">The user ID</param>
+            <param name="startDate">Optional start date filter</param>
+            <param name="endDate">Optional end date filter</param>
+            <returns>CSV string of audit entries</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceProfileService.IsValidJurisdiction(System.String)">
+            <summary>
+            Validates jurisdiction code against supported ISO codes
+            </summary>
+            <param name="jurisdiction">ISO 3166-1 alpha-2 country code</param>
+            <returns>True if valid, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceProfileService.IsValidIssuanceIntent(System.String)">
+            <summary>
+            Validates issuance intent category
+            </summary>
+            <param name="issuanceIntent">Issuance intent category</param>
+            <returns>True if valid, false otherwise</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IComplianceReportService">
             <summary>
@@ -23148,6 +25537,29 @@
             <param name="jurisdictionCode">The jurisdiction code</param>
             <returns>Response indicating success or failure</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IKeyProvider">
+            <summary>
+            Interface for encryption key providers supporting various key management systems
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IKeyProvider.GetEncryptionKeyAsync">
+            <summary>
+            Retrieves the encryption key for mnemonic encryption/decryption
+            </summary>
+            <returns>Encryption key as string</returns>
+            <exception cref="T:System.InvalidOperationException">Thrown when key cannot be retrieved</exception>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.IKeyProvider.ProviderType">
+            <summary>
+            Gets the provider type for logging and diagnostics
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IKeyProvider.ValidateConfigurationAsync">
+            <summary>
+            Validates that the provider is properly configured
+            </summary>
+            <returns>True if provider is ready, false otherwise</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IMetricsService">
             <summary>
             Service for collecting and exposing API metrics
@@ -23219,6 +25631,37 @@
             Gets all current metrics
             </summary>
             <returns>Dictionary of metric categories and their data</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IPolicyEvaluator">
+            <summary>
+            Interface for evaluating compliance policies
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IPolicyEvaluator.EvaluateAsync(BiatecTokensApi.Models.Compliance.PolicyEvaluationContext)">
+            <summary>
+            Evaluates compliance policies for a given context
+            </summary>
+            <param name="context">The evaluation context</param>
+            <returns>Policy evaluation result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IPolicyEvaluator.GetApplicableRulesAsync(BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets the policy rules applicable to a specific step
+            </summary>
+            <param name="step">The onboarding step</param>
+            <returns>List of applicable policy rules</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IPolicyEvaluator.GetPolicyConfigurationAsync">
+            <summary>
+            Gets the current policy configuration
+            </summary>
+            <returns>Policy configuration</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IPolicyEvaluator.GetMetricsAsync">
+            <summary>
+            Gets policy metrics for monitoring
+            </summary>
+            <returns>Policy metrics</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.ISecurityActivityService">
             <summary>
@@ -23661,6 +26104,57 @@
             <param name="standard">The token standard to check</param>
             <returns>True if supported, false otherwise</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IValidationService">
+            <summary>
+            Service interface for token metadata validation and evidence management
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IValidationService.ValidateTokenMetadataAsync(BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest,System.String)">
+            <summary>
+            Validates token metadata against standard schemas and network-specific rules
+            </summary>
+            <param name="request">The validation request containing metadata and context</param>
+            <param name="requestedBy">The address of the user requesting validation</param>
+            <returns>Validation response with evidence and rule evaluations</returns>
+            <remarks>
+            This method performs deterministic validation of token metadata against versioned rule sets.
+            If DryRun is false, validation evidence is persisted for audit trails.
+            Evidence includes complete rule evaluations, timestamps, and checksums for tamper detection.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IValidationService.GetValidationEvidenceAsync(System.String)">
+            <summary>
+            Retrieves validation evidence by evidence ID
+            </summary>
+            <param name="evidenceId">The unique evidence identifier</param>
+            <returns>Response containing the validation evidence</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IValidationService.ListValidationEvidenceAsync(BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest)">
+            <summary>
+            Lists validation evidence for a token or pre-issuance identifier
+            </summary>
+            <param name="request">The list request with filters</param>
+            <returns>Response containing list of validation evidence</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IValidationService.VerifyTokenHasPassingValidationAsync(System.Nullable{System.UInt64},System.String)">
+            <summary>
+            Verifies that a token has passing validation evidence
+            </summary>
+            <param name="tokenId">The token ID to verify</param>
+            <param name="preIssuanceId">Optional pre-issuance identifier</param>
+            <returns>True if the token has passing validation, false otherwise</returns>
+            <remarks>
+            This method is used by token issuance flows to ensure validation has passed
+            before allowing issuance to proceed.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IValidationService.ComputeEvidenceChecksum(BiatecTokensApi.Models.Compliance.ValidationEvidence)">
+            <summary>
+            Computes SHA256 checksum for validation evidence
+            </summary>
+            <param name="evidence">The validation evidence</param>
+            <returns>SHA256 checksum as hex string</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IWebhookService">
             <summary>
             Service interface for webhook operations
@@ -23924,6 +26418,18 @@
             Evaluates a single compliance requirement
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.KeyProviderFactory">
+            <summary>
+            Factory for creating key provider instances based on configuration
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.KeyProviderFactory.CreateProvider">
+            <summary>
+            Creates a key provider instance based on the configured provider type
+            </summary>
+            <returns>Key provider instance</returns>
+            <exception cref="T:System.InvalidOperationException">Thrown when provider type is invalid</exception>
+        </member>
         <member name="T:BiatecTokensApi.Services.MetricsService">
             <summary>
             Implementation of metrics collection service
@@ -23961,6 +26467,76 @@
         </member>
         <member name="M:BiatecTokensApi.Services.MetricsService.GetMetrics">
             <inheritdoc/>
+        </member>
+        <member name="T:BiatecTokensApi.Services.PolicyEvaluator">
+            <summary>
+            Service for evaluating compliance policies against onboarding steps
+            </summary>
+            <remarks>
+            Implements policy-driven compliance decision logic for wallet-free enterprise onboarding.
+            Evaluates policy rules and determines approval/rejection based on evidence and context.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.PolicyEvaluator})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.PolicyEvaluator"/> class.
+            </summary>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.EvaluateAsync(BiatecTokensApi.Models.Compliance.PolicyEvaluationContext)">
+            <summary>
+            Evaluates compliance policies for a given context
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.GetApplicableRulesAsync(BiatecTokensApi.Models.Compliance.OnboardingStep)">
+            <summary>
+            Gets the policy rules applicable to a specific step
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.GetPolicyConfigurationAsync">
+            <summary>
+            Gets the current policy configuration
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.GetMetricsAsync">
+            <summary>
+            Gets policy metrics for monitoring
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.EvaluateRuleAsync(BiatecTokensApi.Models.Compliance.PolicyRule,BiatecTokensApi.Models.Compliance.PolicyEvaluationContext)">
+            <summary>
+            Evaluates a single policy rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.ApplyRuleLogicAsync(BiatecTokensApi.Models.Compliance.PolicyRule,BiatecTokensApi.Models.Compliance.PolicyEvaluationContext)">
+            <summary>
+            Applies specific business logic for a policy rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.DetermineOutcome(System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation},System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation},System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation},BiatecTokensApi.Models.Compliance.PolicyEvaluationContext)">
+            <summary>
+            Determines the overall outcome based on rule evaluations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.GetRemediationActions(System.String)">
+            <summary>
+            Gets remediation actions for a failed rule
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.EstimateResolutionTime(System.Collections.Generic.List{BiatecTokensApi.Models.Compliance.PolicyRuleEvaluation})">
+            <summary>
+            Estimates resolution time based on failed rules
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.UpdateMetrics(BiatecTokensApi.Models.Compliance.PolicyEvaluationResult,System.DateTime)">
+            <summary>
+            Updates policy metrics
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PolicyEvaluator.InitializePolicyConfiguration">
+            <summary>
+            Initializes the policy configuration with default rules
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.RegistryIngestionService">
             <summary>
@@ -24363,6 +26939,81 @@
             <summary>
             Checks if actual type is compatible with expected type
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.AsaValidator">
+            <summary>
+            Validator for Algorand Standard Assets (ASA)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Arc3Validator">
+            <summary>
+            Validator for ARC3 tokens (NFTs with IPFS metadata)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Arc200Validator">
+            <summary>
+            Validator for ARC200 tokens (Smart contract tokens)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Erc20Validator">
+            <summary>
+            Validator for ERC20 tokens (Ethereum-compatible tokens)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ValidationService">
+            <summary>
+            Service for validating token metadata and managing validation evidence
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.ValidationService.ValidatorVersion">
+            <summary>
+            Current validator version
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.ValidationService.RuleSetVersion">
+            <summary>
+            Current rule set version
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ValidationService.#ctor(BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ValidationService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ValidationService"/> class.
+            </summary>
+            <param name="repository">The compliance repository</param>
+            <param name="logger">The logger instance</param>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ValidationService.ValidateTokenMetadataAsync(BiatecTokensApi.Models.Compliance.ValidateTokenMetadataRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ValidationService.GetValidationEvidenceAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ValidationService.ListValidationEvidenceAsync(BiatecTokensApi.Models.Compliance.ListValidationEvidenceRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ValidationService.VerifyTokenHasPassingValidationAsync(System.Nullable{System.UInt64},System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ValidationService.ComputeEvidenceChecksum(BiatecTokensApi.Models.Compliance.ValidationEvidence)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ValidationService.GenerateSummary(System.Boolean,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Generates a summary of validation results
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ITokenValidator">
+            <summary>
+            Interface for token-standard-specific validators
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ITokenValidator.Validate(System.Object,BiatecTokensApi.Models.Compliance.ValidationContext)">
+            <summary>
+            Validates token metadata against rules
+            </summary>
+            <param name="metadata">The token metadata</param>
+            <param name="context">The validation context</param>
+            <returns>List of rule evaluations</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.WebhookService">
             <summary>
