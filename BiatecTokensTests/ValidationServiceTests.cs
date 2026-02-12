@@ -42,7 +42,7 @@ namespace BiatecTokensTests
                 { "Decimals", 6U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -76,7 +76,7 @@ namespace BiatecTokensTests
                 { "Decimals", 6U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -114,7 +114,7 @@ namespace BiatecTokensTests
                 { "Decimals", 6U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -151,7 +151,7 @@ namespace BiatecTokensTests
                 { "Decimals", 6U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -192,7 +192,7 @@ namespace BiatecTokensTests
                 { "URL", "ipfs://QmTest..." }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -224,7 +224,7 @@ namespace BiatecTokensTests
                 { "Decimals", 0U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -269,7 +269,7 @@ namespace BiatecTokensTests
                 { "TotalSupply", 1000000UL }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -299,7 +299,7 @@ namespace BiatecTokensTests
                 { "TotalSupply", 1000000UL }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -338,7 +338,7 @@ namespace BiatecTokensTests
                 { "Decimals", 6U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -379,7 +379,7 @@ namespace BiatecTokensTests
                 { "Decimals", 6U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -521,7 +521,7 @@ namespace BiatecTokensTests
                 { "Decimals", 6U }
             };
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -568,7 +568,7 @@ namespace BiatecTokensTests
             // Arrange
             var metadata = new Dictionary<string, object?>();
 
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {

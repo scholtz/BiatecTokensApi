@@ -49,8 +49,8 @@ namespace BiatecTokensApi.Services
         }
 
         /// <inheritdoc/>
-        public async Task<ValidateTokenMetadataResponse> ValidateTokenMetadataAsync(
-            ValidateTokenMetadataRequest request, 
+        public async Task<ComplianceValidationResponse> ValidateTokenMetadataAsync(
+            ComplianceValidationRequest request, 
             string requestedBy)
         {
             try
@@ -68,7 +68,7 @@ namespace BiatecTokensApi.Services
                 // Get the appropriate validator
                 if (!_validators.TryGetValue(request.Context.TokenStandard, out var validator))
                 {
-                    return new ValidateTokenMetadataResponse
+                    return new ComplianceValidationResponse
                     {
                         Success = false,
                         ErrorMessage = $"No validator found for token standard: {request.Context.TokenStandard}"
@@ -129,7 +129,7 @@ namespace BiatecTokensApi.Services
                         overallPassed);
                 }
 
-                return new ValidateTokenMetadataResponse
+                return new ComplianceValidationResponse
                 {
                     Success = true,
                     Passed = overallPassed,
@@ -140,7 +140,7 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error validating token metadata");
-                return new ValidateTokenMetadataResponse
+                return new ComplianceValidationResponse
                 {
                     Success = false,
                     ErrorMessage = $"Validation error: {ex.Message}"

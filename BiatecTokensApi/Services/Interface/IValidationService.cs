@@ -18,8 +18,8 @@ namespace BiatecTokensApi.Services.Interface
         /// If DryRun is false, validation evidence is persisted for audit trails.
         /// Evidence includes complete rule evaluations, timestamps, and checksums for tamper detection.
         /// </remarks>
-        Task<ValidateTokenMetadataResponse> ValidateTokenMetadataAsync(
-            ValidateTokenMetadataRequest request, 
+        Task<ComplianceValidationResponse> ValidateTokenMetadataAsync(
+            ComplianceValidationRequest request, 
             string requestedBy);
 
         /// <summary>

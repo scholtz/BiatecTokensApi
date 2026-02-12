@@ -76,7 +76,7 @@ namespace BiatecTokensApi.Models.TokenStandards
     /// <summary>
     /// Response from metadata validation
     /// </summary>
-    public class ValidateTokenMetadataResponse
+    public class ValidationResponse
     {
         /// <summary>
         /// Whether validation passed

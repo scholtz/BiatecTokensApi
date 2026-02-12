@@ -152,7 +152,7 @@ namespace BiatecTokensApi.Controllers
         /// **Performance:** Target p95 latency is under 200ms for typical payloads.
         /// </remarks>
         [HttpPost("validate")]
-        [ProducesResponseType(typeof(ValidateTokenMetadataResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ValidationResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ValidateMetadata([FromBody] ValidateTokenMetadataRequest request)
@@ -171,7 +171,7 @@ namespace BiatecTokensApi.Controllers
                 var isSupported = await _registry.IsStandardSupportedAsync(request.Standard);
                 if (!isSupported)
                 {
-                    return BadRequest(new ValidateTokenMetadataResponse
+                    return BadRequest(new ValidationResponse
                     {
                         IsValid = false,
                         ErrorCode = ErrorCodes.INVALID_TOKEN_STANDARD,
@@ -188,7 +188,7 @@ namespace BiatecTokensApi.Controllers
                     request.Symbol,
                     request.Decimals);
 
-                var response = new ValidateTokenMetadataResponse
+                var response = new ValidationResponse
                 {
                     IsValid = validationResult.IsValid,
                     ValidationResult = validationResult,
@@ -222,7 +222,7 @@ namespace BiatecTokensApi.Controllers
                     duration,
                     LoggingHelper.SanitizeLogInput(correlationId));
 
-                return StatusCode(StatusCodes.Status500InternalServerError, new ValidateTokenMetadataResponse
+                return StatusCode(StatusCodes.Status500InternalServerError, new ValidationResponse
                 {
                     IsValid = false,
                     ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,

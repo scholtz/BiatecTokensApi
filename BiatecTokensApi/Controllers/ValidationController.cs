@@ -68,11 +68,11 @@ namespace BiatecTokensApi.Controllers
         /// Requires ARC-0014 authentication.
         /// </remarks>
         [HttpPost("validate")]
-        [ProducesResponseType(typeof(ValidateTokenMetadataResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ComplianceValidationResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ValidateTokenMetadata([FromBody] ValidateTokenMetadataRequest request)
+        public async Task<IActionResult> ValidateTokenMetadata([FromBody] ComplianceValidationRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -85,7 +85,7 @@ namespace BiatecTokensApi.Controllers
                 if (string.IsNullOrEmpty(userAddress))
                 {
                     _logger.LogWarning("Failed to get user address from authentication context");
-                    return Unauthorized(new ValidateTokenMetadataResponse
+                    return Unauthorized(new ComplianceValidationResponse
                     {
                         Success = false,
                         ErrorMessage = "User address not found in authentication context"
@@ -116,7 +116,7 @@ namespace BiatecTokensApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception during token metadata validation");
-                return StatusCode(StatusCodes.Status500InternalServerError, new ValidateTokenMetadataResponse
+                return StatusCode(StatusCodes.Status500InternalServerError, new ComplianceValidationResponse
                 {
                     Success = false,
                     ErrorMessage = $"Internal error: {ex.Message}"

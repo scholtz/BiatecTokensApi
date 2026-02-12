@@ -233,7 +233,7 @@ namespace BiatecTokensApi.Models.Compliance
     /// <summary>
     /// Request to validate token metadata before issuance
     /// </summary>
-    public class ValidateTokenMetadataRequest
+    public class ComplianceValidationRequest
     {
         /// <summary>
         /// The validation context
@@ -262,7 +262,7 @@ namespace BiatecTokensApi.Models.Compliance
     /// <summary>
     /// Response from token metadata validation
     /// </summary>
-    public class ValidateTokenMetadataResponse : BaseResponse
+    public class ComplianceValidationResponse : BaseResponse
     {
         /// <summary>
         /// The validation evidence

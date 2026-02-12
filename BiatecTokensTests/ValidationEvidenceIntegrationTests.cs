@@ -75,7 +75,7 @@ namespace BiatecTokensTests
         public async Task ValidateEndpoint_WithValidASAMetadata_ReturnsSuccess()
         {
             // Arrange
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -106,7 +106,7 @@ namespace BiatecTokensTests
         public async Task ValidateEndpoint_WithInvalidMetadata_ReturnsValidationErrors()
         {
             // Arrange
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -160,7 +160,7 @@ namespace BiatecTokensTests
         public async Task ValidateEndpoint_WithERC20Metadata_ReturnsSuccess()
         {
             // Arrange
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
@@ -190,7 +190,7 @@ namespace BiatecTokensTests
         public async Task ValidateEndpoint_WithARC3Metadata_ReturnsSuccess()
         {
             // Arrange
-            var request = new ValidateTokenMetadataRequest
+            var request = new ComplianceValidationRequest
             {
                 Context = new ValidationContext
                 {
