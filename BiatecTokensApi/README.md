@@ -6,6 +6,8 @@ A comprehensive, wallet-free API for deploying and managing various types of tok
 
 **Perfect for:** Traditional businesses, non-crypto-native users, and regulated financial institutions looking to issue compliant tokens without the complexity of wallet management.
 
+**📚 Documentation**: See [WALLETLESS_AUTHENTICATION_COMPLETE.md](../WALLETLESS_AUTHENTICATION_COMPLETE.md) for comprehensive verification and [WALLETLESS_AUTHENTICATION_EXECUTIVE_SUMMARY.md](../WALLETLESS_AUTHENTICATION_EXECUTIVE_SUMMARY.md) for executive overview.
+
 ## Features
 
 - **🔐 Wallet-Free Authentication**: Email/password authentication with automatic ARC76 account derivation - no wallet installation or blockchain knowledge required
