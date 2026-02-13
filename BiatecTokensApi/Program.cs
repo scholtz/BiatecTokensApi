@@ -101,6 +101,9 @@ namespace BiatecTokensApi
             builder.Services.Configure<BiatecTokensApi.Configuration.KeyManagementConfig>(
                 builder.Configuration.GetSection("KeyManagementConfig"));
 
+            builder.Services.Configure<BiatecTokensApi.Configuration.KycConfig>(
+                builder.Configuration.GetSection("KycConfig"));
+
             // Register HTTP client for API calls with resilience policies
             builder.Services.AddHttpClient("default")
                 .AddStandardResilienceHandler(options =>
@@ -142,6 +145,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenRegistryRepository, BiatecTokensApi.Repositories.TokenRegistryRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository, BiatecTokensApi.Repositories.JurisdictionRulesRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository, BiatecTokensApi.Repositories.ComplianceDecisionRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IKycRepository, BiatecTokensApi.Repositories.KycRepository>();
 
             // Also register non-interface repositories for ingestion service
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.TokenIssuanceRepository>();
@@ -191,6 +195,8 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<ITokenMetadataService, TokenMetadataService>();
             builder.Services.AddSingleton<IPolicyEvaluator, PolicyEvaluator>();
             builder.Services.AddSingleton<IComplianceDecisionService, ComplianceDecisionService>();
+            builder.Services.AddSingleton<IKycProvider, MockKycProvider>();
+            builder.Services.AddSingleton<IKycService, KycService>();
 
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
 

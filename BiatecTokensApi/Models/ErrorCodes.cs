@@ -348,5 +348,51 @@ namespace BiatecTokensApi.Models
         /// Compliance profile validation failed
         /// </summary>
         public const string COMPLIANCE_PROFILE_VALIDATION_FAILED = "COMPLIANCE_PROFILE_VALIDATION_FAILED";
+
+        // KYC errors
+        /// <summary>
+        /// KYC verification not started
+        /// </summary>
+        public const string KYC_NOT_STARTED = "KYC_NOT_STARTED";
+
+        /// <summary>
+        /// KYC verification is pending
+        /// </summary>
+        public const string KYC_PENDING = "KYC_PENDING";
+
+        /// <summary>
+        /// KYC verification was rejected
+        /// </summary>
+        public const string KYC_REJECTED = "KYC_REJECTED";
+
+        /// <summary>
+        /// KYC verification has expired
+        /// </summary>
+        public const string KYC_EXPIRED = "KYC_EXPIRED";
+
+        /// <summary>
+        /// KYC verification requires manual review
+        /// </summary>
+        public const string KYC_NEEDS_REVIEW = "KYC_NEEDS_REVIEW";
+
+        /// <summary>
+        /// User is not KYC verified
+        /// </summary>
+        public const string KYC_NOT_VERIFIED = "KYC_NOT_VERIFIED";
+
+        /// <summary>
+        /// KYC verification already pending
+        /// </summary>
+        public const string KYC_VERIFICATION_ALREADY_PENDING = "KYC_VERIFICATION_ALREADY_PENDING";
+
+        /// <summary>
+        /// KYC provider error
+        /// </summary>
+        public const string KYC_PROVIDER_ERROR = "KYC_PROVIDER_ERROR";
+
+        /// <summary>
+        /// KYC is required for this operation
+        /// </summary>
+        public const string KYC_REQUIRED = "KYC_REQUIRED";
     }
 }

@@ -32,6 +32,10 @@ namespace BiatecTokensTests
             _whitelistServiceMock = new Mock<IWhitelistService>();
             _loggerMock = new Mock<ILogger<TokenController>>();
             var envMock = new Mock<IHostEnvironment>();
+            var kycServiceMock = new Mock<IKycService>();
+            
+            // Setup KYC service to allow all operations (enforcement disabled)
+            kycServiceMock.Setup(s => s.IsEnforcementEnabled()).Returns(false);
 
             // Create controller with all required dependencies
             _controller = new TokenController(
@@ -41,6 +45,7 @@ namespace BiatecTokensTests
                 Mock.Of<BiatecTokensApi.Services.Interface.IARC200TokenService>(),
                 Mock.Of<BiatecTokensApi.Services.Interface.IARC1400TokenService>(),
                 Mock.Of<BiatecTokensApi.Services.Interface.IComplianceService>(),
+                kycServiceMock.Object,
                 _loggerMock.Object,
                 envMock.Object
             );
