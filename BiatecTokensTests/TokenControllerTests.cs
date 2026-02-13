@@ -37,9 +37,14 @@ namespace BiatecTokensTests
             _arc200TokenServiceMock = new Mock<IARC200TokenService>();
             _arc1400TokenServiceMock = new Mock<IARC1400TokenService>();
             var complianceServiceMock = new Mock<IComplianceService>();
+            var kycServiceMock = new Mock<IKycService>();
             _loggerMock = new Mock<ILogger<TokenController>>();
             var envMock = new Mock<IHostEnvironment>();
-            _controller = new TokenController(_tokenServiceMock.Object, _arc3TokenServiceMock.Object, _asaTokenServiceMock.Object, _arc200TokenServiceMock.Object, _arc1400TokenServiceMock.Object, complianceServiceMock.Object, _loggerMock.Object, envMock.Object);
+            
+            // Setup KYC service to allow all operations (enforcement disabled)
+            kycServiceMock.Setup(s => s.IsEnforcementEnabled()).Returns(false);
+            
+            _controller = new TokenController(_tokenServiceMock.Object, _arc3TokenServiceMock.Object, _asaTokenServiceMock.Object, _arc200TokenServiceMock.Object, _arc1400TokenServiceMock.Object, complianceServiceMock.Object, kycServiceMock.Object, _loggerMock.Object, envMock.Object);
 
             // Set up a valid token deployment request for testing
             _validDeploymentRequest = new ERC20MintableTokenDeploymentRequest
