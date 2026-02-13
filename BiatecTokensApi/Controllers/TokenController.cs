@@ -36,6 +36,7 @@ namespace BiatecTokensApi.Controllers
         private readonly IARC200TokenService _arc200TokenService;
         private readonly IARC1400TokenService _arc1400TokenService;
         private readonly IComplianceService _complianceService;
+        private readonly IKycService _kycService;
         private readonly ILogger<TokenController> _logger;
         private readonly IHostEnvironment _env;
         /// <summary>
@@ -47,6 +48,7 @@ namespace BiatecTokensApi.Controllers
         /// <param name="arc200TokenService">The service used to interact with ARC-200 tokens</param>
         /// <param name="arc1400TokenService">The service used to interact with ARC-1400 tokens</param>
         /// <param name="complianceService">The service used to interact with compliance metadata</param>
+        /// <param name="kycService">The service used to interact with KYC verification</param>
         /// <param name="logger">The logger instance used to log diagnostic and operational information.</param>
         /// <param name="env">The host environment for determining runtime environment.</param>
         public TokenController(
@@ -56,6 +58,7 @@ namespace BiatecTokensApi.Controllers
             IARC200TokenService arc200TokenService,
             IARC1400TokenService arc1400TokenService,
             IComplianceService complianceService,
+            IKycService kycService,
             ILogger<TokenController> logger,
             IHostEnvironment env)
         {
@@ -65,6 +68,7 @@ namespace BiatecTokensApi.Controllers
             _arc200TokenService = arc200TokenService;
             _arc1400TokenService = arc1400TokenService;
             _complianceService = complianceService;
+            _kycService = kycService;
             _logger = logger;
             _env = env;
         }
@@ -110,6 +114,13 @@ namespace BiatecTokensApi.Controllers
                 // Extract userId from JWT claims if present (JWT Bearer authentication)
                 // Falls back to null for ARC-0014 authentication
                 var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                // Validate KYC status if enforcement is enabled
+                var kycValidationResult = await ValidateKycAsync(userId, correlationId);
+                if (kycValidationResult != null)
+                {
+                    return kycValidationResult;
+                }
                 
                 var result = await _erc20TokenService.DeployERC20TokenAsync(request, TokenType.ERC20_Mintable, userId);
                 
@@ -908,6 +919,76 @@ namespace BiatecTokensApi.Controllers
             {
                 Success = true,
                 ErrorMessage = null
+            });
+        }
+
+        /// <summary>
+        /// Validates KYC status for the authenticated user before token deployment
+        /// </summary>
+        /// <param name="userId">The user ID to check</param>
+        /// <param name="correlationId">Correlation ID for logging</param>
+        /// <returns>Null if KYC is valid or not enforced, error response otherwise</returns>
+        private async Task<IActionResult?> ValidateKycAsync(string? userId, string correlationId)
+        {
+            // If KYC enforcement is not enabled, allow the operation
+            if (!_kycService.IsEnforcementEnabled())
+            {
+                return null;
+            }
+
+            // If userId is not available (ARC-0014 auth), skip KYC check
+            // KYC enforcement only applies to email/password authenticated users
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogInformation("Skipping KYC check for non-JWT authentication. CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(correlationId));
+                return null;
+            }
+
+            // Check if user is KYC verified
+            var isVerified = await _kycService.IsUserVerifiedAsync(userId);
+            if (isVerified)
+            {
+                return null;
+            }
+
+            // Get KYC status for detailed error message
+            var statusResponse = await _kycService.GetStatusAsync(userId);
+            var status = statusResponse.Status;
+
+            _logger.LogWarning("Token deployment blocked: User {UserId} is not KYC verified. Status={Status}, CorrelationId={CorrelationId}",
+                LoggingHelper.SanitizeLogInput(userId),
+                status,
+                LoggingHelper.SanitizeLogInput(correlationId));
+
+            // Return appropriate error based on KYC status
+            var errorMessage = status switch
+            {
+                Models.Kyc.KycStatus.NotStarted => "KYC verification is required before deploying tokens. Please complete KYC verification by calling POST /api/v1/kyc/start",
+                Models.Kyc.KycStatus.Pending => "Your KYC verification is still pending. Please wait for approval before deploying tokens. You can check your status at GET /api/v1/kyc/status",
+                Models.Kyc.KycStatus.NeedsReview => "Your KYC verification requires manual review. Please wait for approval before deploying tokens. You can check your status at GET /api/v1/kyc/status",
+                Models.Kyc.KycStatus.Rejected => $"Your KYC verification was rejected. Reason: {statusResponse.Reason ?? "No reason provided"}. Please contact support for assistance.",
+                Models.Kyc.KycStatus.Expired => "Your KYC verification has expired. Please restart the verification process by calling POST /api/v1/kyc/start",
+                _ => "KYC verification is required before deploying tokens. Please complete KYC verification."
+            };
+
+            var errorCode = status switch
+            {
+                Models.Kyc.KycStatus.NotStarted => ErrorCodes.KYC_NOT_STARTED,
+                Models.Kyc.KycStatus.Pending => ErrorCodes.KYC_PENDING,
+                Models.Kyc.KycStatus.NeedsReview => ErrorCodes.KYC_NEEDS_REVIEW,
+                Models.Kyc.KycStatus.Rejected => ErrorCodes.KYC_REJECTED,
+                Models.Kyc.KycStatus.Expired => ErrorCodes.KYC_EXPIRED,
+                _ => ErrorCodes.KYC_NOT_VERIFIED
+            };
+
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                Success = false,
+                ErrorCode = errorCode,
+                ErrorMessage = errorMessage,
+                KycStatus = status.ToString(),
+                CorrelationId = correlationId
             });
         }
 
