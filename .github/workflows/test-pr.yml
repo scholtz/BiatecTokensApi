@@ -156,7 +156,11 @@ jobs:
                 "ChainId": 8453,
                 "GasLimit": 4500000
               }
-            ]
+            ],
+            "KeyManagementConfig": {
+              "Provider": "Hardcoded",
+              "HardcodedKey": "TestKeyForCIOpenAPIGenerationOnly32CharactersMinimum"
+            }
           }
           EOF
           

@@ -45,7 +45,8 @@ namespace BiatecTokensApi
                 .AddCheck<BiatecTokensApi.HealthChecks.IPFSHealthCheck>("ipfs", tags: new[] { "ipfs", "external" })
                 .AddCheck<BiatecTokensApi.HealthChecks.AlgorandNetworkHealthCheck>("algorand", tags: new[] { "algorand", "blockchain", "external" })
                 .AddCheck<BiatecTokensApi.HealthChecks.EVMChainHealthCheck>("evm", tags: new[] { "evm", "blockchain", "external" })
-                .AddCheck<BiatecTokensApi.HealthChecks.StripeHealthCheck>("stripe", tags: new[] { "stripe", "payment", "external" });
+                .AddCheck<BiatecTokensApi.HealthChecks.StripeHealthCheck>("stripe", tags: new[] { "stripe", "payment", "external" })
+                .AddCheck<BiatecTokensApi.HealthChecks.KeyManagementHealthCheck>("keymanagement", tags: new[] { "keymanagement", "security", "critical" });
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo

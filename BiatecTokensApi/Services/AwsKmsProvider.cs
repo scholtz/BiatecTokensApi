@@ -1,26 +1,62 @@
+using Amazon;
+using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
 using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Services.Interface;
+using BiatecTokensApi.Helpers;
 using Microsoft.Extensions.Options;
 
 namespace BiatecTokensApi.Services
 {
     /// <summary>
     /// AWS Secrets Manager provider for production encryption key management
-    /// Requires AWSSDK.SecretsManager NuGet package
+    /// Uses AWSSDK.SecretsManager for secure key retrieval
     /// </summary>
     public class AwsKmsProvider : IKeyProvider
     {
         private readonly KeyManagementConfig _config;
         private readonly ILogger<AwsKmsProvider> _logger;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly Lazy<IAmazonSecretsManager> _lazyClient;
 
         public string ProviderType => "AwsKms";
 
         public AwsKmsProvider(
             IOptions<KeyManagementConfig> config,
-            ILogger<AwsKmsProvider> logger)
+            ILogger<AwsKmsProvider> logger,
+            IHttpContextAccessor httpContextAccessor)
         {
             _config = config.Value;
             _logger = logger;
+            _httpContextAccessor = httpContextAccessor;
+            
+            // Lazy initialization of client for connection pooling
+            _lazyClient = new Lazy<IAmazonSecretsManager>(() => CreateClient());
+        }
+
+        private IAmazonSecretsManager CreateClient()
+        {
+            if (_config.AwsKms == null)
+            {
+                throw new InvalidOperationException("AWS KMS configuration is missing");
+            }
+
+            var config = new AmazonSecretsManagerConfig 
+            { 
+                RegionEndpoint = RegionEndpoint.GetBySystemName(_config.AwsKms.Region) 
+            };
+
+            if (_config.AwsKms.UseIamRole)
+            {
+                return new AmazonSecretsManagerClient(config);
+            }
+            else
+            {
+                return new AmazonSecretsManagerClient(
+                    _config.AwsKms.AccessKeyId,
+                    _config.AwsKms.SecretAccessKey,
+                    config);
+            }
         }
 
         public async Task<string> GetEncryptionKeyAsync()
@@ -30,52 +66,46 @@ namespace BiatecTokensApi.Services
                 throw new InvalidOperationException("AWS KMS configuration is missing");
             }
 
+            var correlationId = _httpContextAccessor?.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
-                _logger.LogInformation("Retrieving encryption key from AWS Secrets Manager: Region={Region}, SecretId={SecretId}", 
-                    _config.AwsKms.Region, _config.AwsKms.KeyId);
+                _logger.LogInformation("Retrieving encryption key from AWS Secrets Manager: Region={Region}, SecretId={SecretId}, CorrelationId={CorrelationId}", 
+                    LoggingHelper.SanitizeLogInput(_config.AwsKms.Region),
+                    LoggingHelper.SanitizeLogInput(_config.AwsKms.KeyId),
+                    correlationId);
 
-                // TODO: Implement AWS Secrets Manager integration
-                // To implement this, add the following NuGet package:
-                // AWSSDK.SecretsManager
-                // 
-                // Example implementation:
-                // var config = new AmazonSecretsManagerConfig 
-                // { 
-                //     RegionEndpoint = RegionEndpoint.GetBySystemName(_config.AwsKms.Region) 
-                // };
-                // 
-                // var client = _config.AwsKms.UseIamRole 
-                //     ? new AmazonSecretsManagerClient(config)
-                //     : new AmazonSecretsManagerClient(
-                //         _config.AwsKms.AccessKeyId,
-                //         _config.AwsKms.SecretAccessKey,
-                //         config);
-                // 
-                // var request = new GetSecretValueRequest 
-                // { 
-                //     SecretId = _config.AwsKms.KeyId 
-                // };
-                // var response = await client.GetSecretValueAsync(request);
-                // return response.SecretString;
+                var request = new GetSecretValueRequest 
+                { 
+                    SecretId = _config.AwsKms.KeyId 
+                };
 
-                throw new NotImplementedException(
-                    "AWS Secrets Manager provider requires AWSSDK.SecretsManager NuGet package. " +
-                    "To enable this provider: " +
-                    "1. Install AWSSDK.SecretsManager NuGet package " +
-                    "2. Uncomment and complete the implementation in AwsKmsProvider.cs " +
-                    "3. Ensure AWS credentials are configured (IAM Role or Access Keys)");
-            }
-            catch (NotImplementedException)
-            {
-                throw;
+                var response = await _lazyClient.Value.GetSecretValueAsync(request);
+
+                if (string.IsNullOrEmpty(response.SecretString))
+                {
+                    _logger.LogError("AWS Secrets Manager returned empty secret value: CorrelationId={CorrelationId}", correlationId);
+                    throw new InvalidOperationException("AWS Secrets Manager returned an empty secret value");
+                }
+
+                if (response.SecretString.Length < 32)
+                {
+                    _logger.LogError("AWS Secrets Manager secret is too short (minimum 32 characters required): CorrelationId={CorrelationId}", correlationId);
+                    throw new InvalidOperationException("Encryption key must be at least 32 characters long for AES-256 encryption");
+                }
+
+                _logger.LogInformation("Successfully retrieved encryption key from AWS Secrets Manager: CorrelationId={CorrelationId}", correlationId);
+                return response.SecretString;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to retrieve encryption key from AWS Secrets Manager");
+                _logger.LogError(ex, "Failed to retrieve encryption key from AWS Secrets Manager: Region={Region}, SecretId={SecretId}, CorrelationId={CorrelationId}, ErrorCode=KMS_AWS_RETRIEVAL_FAILED", 
+                    LoggingHelper.SanitizeLogInput(_config.AwsKms.Region),
+                    LoggingHelper.SanitizeLogInput(_config.AwsKms.KeyId),
+                    correlationId);
                 throw new InvalidOperationException(
-                    "Failed to retrieve encryption key from AWS Secrets Manager. " +
-                    "Check configuration and ensure the application has access to the secret.", ex);
+                    $"Failed to retrieve encryption key from AWS Secrets Manager. ErrorCode: KMS_AWS_RETRIEVAL_FAILED. CorrelationId: {correlationId}. " +
+                    "Verify: (1) Region is correct, (2) SecretId exists, (3) IAM permissions include secretsmanager:GetSecretValue, (4) Network connectivity to AWS.", ex);
             }
         }
 

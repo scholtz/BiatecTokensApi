@@ -23,6 +23,9 @@ namespace BiatecTokensTests
             // Add logging
             services.AddLogging(builder => builder.AddConsole());
 
+            // Add HttpContextAccessor for key providers
+            services.AddHttpContextAccessor();
+
             // Register all key providers
             services.AddSingleton<EnvironmentKeyProvider>();
             services.AddSingleton<HardcodedKeyProvider>();
