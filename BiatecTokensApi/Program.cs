@@ -198,6 +198,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IComplianceDecisionService, ComplianceDecisionService>();
             builder.Services.AddSingleton<IKycProvider, MockKycProvider>();
             builder.Services.AddSingleton<IKycService, KycService>();
+            builder.Services.AddSingleton<IBalanceService, BalanceService>();
 
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
 
