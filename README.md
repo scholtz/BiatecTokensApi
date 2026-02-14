@@ -480,6 +480,84 @@ Validate token metadata against a specific standard.
 }
 ```
 
+### Token Balances
+
+**GET** `/api/v1/balance?tokenIdentifier={id}&address={address}&chain={chain}`
+
+Query token balance for a specific address.
+
+```bash
+# Algorand ASA
+curl -X GET "https://api.example.com/api/v1/balance?tokenIdentifier=123456&address=ADDR...&chain=algorand-mainnet"
+
+# Base ERC20
+curl -X GET "https://api.example.com/api/v1/balance?tokenIdentifier=0x...&address=0x...&chain=base-mainnet"
+```
+
+Response:
+```json
+{
+  "success": true,
+  "tokenIdentifier": "123456",
+  "address": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+  "chain": "algorand-mainnet",
+  "balance": "1000000000",
+  "decimals": 6,
+  "formattedBalance": "1000.0",
+  "symbol": "MTK",
+  "name": "MyToken",
+  "isOptedIn": true,
+  "isFrozen": false,
+  "timestamp": "2026-02-14T12:00:00Z"
+}
+```
+
+**POST** `/api/v1/balance/multi`
+
+Query multiple token balances for a single address.
+
+```json
+{
+  "address": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+  "chain": "algorand-mainnet",
+  "tokenIdentifiers": ["123456", "789012", "345678"],
+  "includeZeroBalances": false
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "address": "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+  "chain": "algorand-mainnet",
+  "balances": [
+    {
+      "tokenIdentifier": "123456",
+      "name": "MyToken",
+      "symbol": "MTK",
+      "decimals": 6,
+      "balance": "1000000000",
+      "formattedBalance": "1000.0",
+      "isOptedIn": true,
+      "isFrozen": false
+    },
+    {
+      "tokenIdentifier": "789012",
+      "name": "AnotherToken",
+      "symbol": "ATK",
+      "decimals": 0,
+      "balance": "500",
+      "formattedBalance": "500",
+      "isOptedIn": true,
+      "isFrozen": false
+    }
+  ],
+  "totalTokens": 2,
+  "timestamp": "2026-02-14T12:00:00Z"
+}
+```
+
 ### Token Registry
 
 **GET** `/api/v1/registry/tokens?page=1&pageSize=50&standard=ARC3&complianceStatus=Compliant`
