@@ -1,4 +1,5 @@
 using BiatecTokensApi.Helpers;
+using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.Balance;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -13,10 +14,11 @@ namespace BiatecTokensApi.Controllers
     /// <remarks>
     /// Provides endpoints for querying token balances for addresses on Algorand and EVM chains.
     /// Supports both single token and multi-token balance queries.
+    /// Single balance queries are publicly accessible for wallet integrations.
+    /// Multi-balance queries require authentication to prevent abuse.
     /// </remarks>
     [ApiController]
     [Route("api/v1/balance")]
-    [Authorize]
     public class BalanceController : ControllerBase
     {
         private readonly IBalanceService _balanceService;
@@ -132,7 +134,7 @@ namespace BiatecTokensApi.Controllers
                         LoggingHelper.SanitizeLogInput(response.ErrorMessage)
                     );
 
-                    if (response.ErrorCode == "INVALID_NETWORK" || response.ErrorCode == "INVALID_REQUEST")
+                    if (response.ErrorCode == ErrorCodes.INVALID_NETWORK || response.ErrorCode == ErrorCodes.INVALID_REQUEST)
                     {
                         return BadRequest(response);
                     }
@@ -183,7 +185,10 @@ namespace BiatecTokensApi.Controllers
         /// - Portfolio dashboards showing all token holdings
         /// - Bulk balance checks for multiple tokens
         /// - Wallet applications displaying user assets
+        /// 
+        /// **Authentication Required**: This endpoint requires authentication to prevent abuse.
         /// </remarks>
+        [Authorize]
         [HttpPost("multi")]
         [SwaggerOperation(
             Summary = "Get multiple token balances for address",
@@ -191,6 +196,7 @@ namespace BiatecTokensApi.Controllers
         )]
         [SwaggerResponse(200, "Successfully retrieved balances", typeof(MultiBalanceQueryResponse))]
         [SwaggerResponse(400, "Invalid request parameters", typeof(MultiBalanceQueryResponse))]
+        [SwaggerResponse(401, "Unauthorized - authentication required", typeof(MultiBalanceQueryResponse))]
         [SwaggerResponse(502, "Blockchain connection error", typeof(MultiBalanceQueryResponse))]
         public async Task<IActionResult> GetMultipleBalances([FromBody] MultiBalanceQueryRequest request)
         {
