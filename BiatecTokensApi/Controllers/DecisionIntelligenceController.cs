@@ -84,9 +84,9 @@ namespace BiatecTokensApi.Controllers
         /// - `data_completeness`: Percentage of expected data available
         /// 
         /// **Example Request:**
-        /// ```
-        /// GET /api/v1/decision-intelligence/metrics?assetId=1234567&amp;network=voimain-v1.0&amp;metrics=Adoption,Retention
-        /// ```
+        /// <![CDATA[
+        /// GET /api/v1/decision-intelligence/metrics?assetId=1234567&network=voimain-v1.0&metrics=Adoption,Retention
+        /// ]]>
         /// 
         /// **Cache Behavior:** Responses are cached for 24 hours per asset+network+timeframe combination for performance.
         /// </remarks>

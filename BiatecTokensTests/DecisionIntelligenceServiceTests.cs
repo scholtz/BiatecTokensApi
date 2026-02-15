@@ -261,7 +261,8 @@ namespace BiatecTokensTests
             Assert.That(result.ConcentrationRisk.Top10HoldersPercentage, Is.InRange(0, 100));
             Assert.That(result.ConcentrationRisk.GiniCoefficient, Is.InRange(0, 1));
             // Risk level can be any valid value including Low (which is default but still valid)
-            Assert.That(Enum.IsDefined(typeof(ConcentrationRisk), result.ConcentrationRisk.RiskLevel), Is.True);
+            Assert.That(Enum.IsDefined(typeof(ConcentrationRisk), result.ConcentrationRisk.RiskLevel), Is.True,
+                "RiskLevel should be a valid ConcentrationRisk enum value");
         }
 
         #endregion

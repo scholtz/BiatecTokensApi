@@ -27,6 +27,7 @@ namespace BiatecTokensApi.Services
         private const string CALCULATION_VERSION = "v1.0";
         private const int INSIGHT_CACHE_HOURS = 24;
         private const int BENCHMARK_CACHE_HOURS = 1;
+        private const double FLOATING_POINT_EPSILON = 0.001; // Precision threshold for floating-point comparisons
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DecisionIntelligenceService"/> class.
@@ -238,7 +239,7 @@ namespace BiatecTokensApi.Services
         {
             var start = request.StartTime?.ToString("yyyy-MM-dd") ?? "default";
             var end = request.EndTime?.ToString("yyyy-MM-dd") ?? "default";
-            var metrics = string.Join(",", request.RequestedMetrics.OrderBy(x => x));
+            var metrics = request.RequestedMetrics.Count == 0 ? "all" : string.Join(",", request.RequestedMetrics.OrderBy(x => x));
             return $"insight_{request.AssetId}_{request.Network}_{start}_{end}_{metrics}";
         }
 
@@ -301,7 +302,7 @@ namespace BiatecTokensApi.Services
         private AdoptionMetrics GenerateAdoptionMetrics(ulong assetId, DateTime startTime, DateTime endTime)
         {
             // Simulated data - in production, query blockchain/database
-            var random = new Random((int)assetId);
+            var random = new Random((int)(assetId % int.MaxValue));
             var durationDays = (endTime - startTime).TotalDays;
             
             var uniqueHolders = random.Next(100, 10000);
@@ -322,7 +323,7 @@ namespace BiatecTokensApi.Services
 
         private RetentionMetrics GenerateRetentionMetrics(ulong assetId, DateTime startTime, DateTime endTime)
         {
-            var random = new Random((int)assetId + 1);
+            var random = new Random((int)((assetId + 1) % int.MaxValue));
             var currentHolders = random.Next(100, 10000);
             var initialHolders = currentHolders + random.Next(-50, 100);
             var lostHolders = random.Next(0, initialHolders / 10);
@@ -614,7 +615,7 @@ namespace BiatecTokensApi.Services
         private double CalculatePercentileRank(double value, List<double> allValues)
         {
             var countBelow = allValues.Count(v => v < value);
-            var countEqual = allValues.Count(v => Math.Abs(v - value) < 0.001);
+            var countEqual = allValues.Count(v => Math.Abs(v - value) < FLOATING_POINT_EPSILON);
             
             return ((countBelow + (countEqual / 2.0)) / allValues.Count) * 100;
         }
@@ -856,7 +857,7 @@ namespace BiatecTokensApi.Services
                 $"Model assumes linear growth over {request.ProjectionDays} day projection period"
             };
 
-            if (request.Adjustments.ExternalEvents.Any())
+            if (request.Adjustments.ExternalEvents != null && request.Adjustments.ExternalEvents.Any())
             {
                 caveats.Add($"External events considered: {string.Join(", ", request.Adjustments.ExternalEvents)}");
             }
