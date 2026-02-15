@@ -46,7 +46,14 @@ namespace BiatecTokensTests
                 ["StripeConfig:WebhookSecret"] = "test_secret",
                 ["StripeConfig:BasicPriceId"] = "price_test_basic",
                 ["StripeConfig:ProPriceId"] = "price_test_pro",
-                ["StripeConfig:EnterprisePriceId"] = "price_test_enterprise"
+                ["StripeConfig:EnterprisePriceId"] = "price_test_enterprise",
+                ["KeyManagementConfig:Provider"] = "Hardcoded",
+                ["KeyManagementConfig:HardcodedKey"] = "TestKeyForIntegrationTests32CharactersMinimumRequired",
+                ["JwtConfig:SecretKey"] = "test-secret-key-at-least-32-characters-long-for-hs256",
+                ["JwtConfig:Issuer"] = "BiatecTokensApi",
+                ["JwtConfig:Audience"] = "BiatecTokensUsers",
+                ["JwtConfig:AccessTokenExpirationMinutes"] = "60",
+                ["JwtConfig:RefreshTokenExpirationDays"] = "30"
             };
 
             _factory = new WebApplicationFactory<BiatecTokensApi.Program>()
