@@ -200,6 +200,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IKycService, KycService>();
 
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
+            
+            // Register decision intelligence service
+            builder.Services.AddSingleton<IDecisionIntelligenceService, DecisionIntelligenceService>();
 
             // Register validation service
             builder.Services.AddSingleton<IValidationService, ValidationService>();
