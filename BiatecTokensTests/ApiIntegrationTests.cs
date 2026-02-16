@@ -58,18 +58,36 @@ namespace BiatecTokensTests
                     config.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["App:Account"] = "test mnemonic phrase for testing purposes only not real",
+                        ["KeyManagementConfig:Provider"] = "Hardcoded",
+                        ["KeyManagementConfig:HardcodedKey"] = "TestKeyForApiIntegrationTestsRequires32CharactersMin",
+                        ["JwtConfig:SecretKey"] = "TestJwtSecretKeyForIntegrationTestingPurposesOnly64ByteMinimumRequired",
+                        ["JwtConfig:Issuer"] = "BiatecTokensApi",
+                        ["JwtConfig:Audience"] = "BiatecTokensUsers",
+                        ["JwtConfig:AccessTokenExpirationMinutes"] = "60",
+                        ["JwtConfig:RefreshTokenExpirationDays"] = "30",
                         ["AlgorandAuthentication:Realm"] = "BiatecTokens#ARC14",
                         ["AlgorandAuthentication:CheckExpiration"] = "false",
                         ["AlgorandAuthentication:Debug"] = "true",
                         ["AlgorandAuthentication:EmptySuccessOnFailure"] = "true",
+                        ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Server"] = "https://mainnet-api.4160.nodely.dev",
+                        ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Token"] = "",
+                        ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Header"] = "",
                         ["IPFSConfig:ApiUrl"] = "https://ipfs-api.biatec.io",
                         ["IPFSConfig:GatewayUrl"] = "https://ipfs.biatec.io/ipfs",
                         ["IPFSConfig:TimeoutSeconds"] = "30",
                         ["IPFSConfig:MaxFileSizeBytes"] = "10485760",
                         ["IPFSConfig:ValidateContentHash"] = "true",
+                        ["IPFSConfig:Username"] = "",
+                        ["IPFSConfig:Password"] = "",
                         ["EVMChains:0:RpcUrl"] = "https://mainnet.base.org",
                         ["EVMChains:0:ChainId"] = "8453",
-                        ["EVMChains:0:GasLimit"] = "4500000"
+                        ["EVMChains:0:GasLimit"] = "4500000",
+                        ["Cors:0"] = "https://tokens.biatec.io",
+                        ["StripeConfig:SecretKey"] = "test_stripe_key",
+                        ["StripeConfig:PublishableKey"] = "test_publishable_key",
+                        ["StripeConfig:WebhookSecret"] = "test_webhook_secret",
+                        ["KycConfig:Provider"] = "Mock",
+                        ["KycConfig:Enabled"] = "false"
                     });
                 });
 
