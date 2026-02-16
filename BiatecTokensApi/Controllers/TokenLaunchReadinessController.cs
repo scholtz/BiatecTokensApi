@@ -19,6 +19,7 @@ namespace BiatecTokensApi.Controllers
     [Authorize]
     [ApiController]
     [Route("api/v1/token-launch")]
+    [ApiExplorerSettings(IgnoreApi = true)] // TODO: Fix JsonElement schema generation for Swagger - see https://github.com/domaindrivendev/Swashbuckle.AspNetCore/issues/2479
     public class TokenLaunchReadinessController : ControllerBase
     {
         private readonly ITokenLaunchReadinessService _readinessService;

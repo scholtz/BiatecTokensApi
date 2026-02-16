@@ -69,6 +69,7 @@ namespace BiatecTokensApi
 
                 c.SchemaFilter<BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequestExample>();
                 c.SchemaFilter<BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequestExample>();
+                c.SchemaFilter<BiatecTokensApi.Filters.JsonElementSchemaFilter>();
 
                 c.OperationFilter<Swashbuckle.AspNetCore.Filters.SecurityRequirementsOperationFilter>();
                 c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First()); //This line

@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace BiatecTokensApi.Models.TokenLaunch
 {
     /// <summary>
@@ -21,9 +23,9 @@ namespace BiatecTokensApi.Models.TokenLaunch
         public string? Network { get; set; }
 
         /// <summary>
-        /// Token deployment parameters for context
+        /// Token deployment parameters for context (as JSON object)
         /// </summary>
-        public Dictionary<string, object>? DeploymentContext { get; set; }
+        public JsonElement? DeploymentContext { get; set; }
 
         /// <summary>
         /// Correlation ID for tracking related operations
@@ -169,9 +171,9 @@ namespace BiatecTokensApi.Models.TokenLaunch
         public List<string> DependsOn { get; set; } = new();
 
         /// <summary>
-        /// Additional metadata
+        /// Additional metadata (as JSON object)
         /// </summary>
-        public Dictionary<string, object>? Metadata { get; set; }
+        public JsonElement? Metadata { get; set; }
     }
 
     /// <summary>
@@ -318,9 +320,9 @@ namespace BiatecTokensApi.Models.TokenLaunch
         public List<string> ReasonCodes { get; set; } = new();
 
         /// <summary>
-        /// Evaluation details
+        /// Evaluation details (as JSON object)
         /// </summary>
-        public Dictionary<string, object>? Details { get; set; }
+        public JsonElement? Details { get; set; }
 
         /// <summary>
         /// Evaluation timestamp

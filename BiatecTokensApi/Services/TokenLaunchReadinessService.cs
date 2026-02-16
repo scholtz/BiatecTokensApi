@@ -221,10 +221,9 @@ namespace BiatecTokensApi.Services
                 {
                     UserId = request.UserId,
                     Operation = EntitlementOperation.TokenDeployment,
-                    OperationContext = request.DeploymentContext ?? new Dictionary<string, object>
-                    {
-                        { "tokenType", request.TokenType }
-                    },
+                    OperationContext = request.DeploymentContext.HasValue 
+                        ? JsonSerializer.Deserialize<Dictionary<string, object>>(request.DeploymentContext.Value.GetRawText())
+                        : new Dictionary<string, object> { { "tokenType", request.TokenType } },
                     CorrelationId = request.CorrelationId
                 };
 
@@ -239,12 +238,12 @@ namespace BiatecTokensApi.Services
                     ReasonCodes = entitlementResult.IsAllowed
                         ? new List<string>()
                         : new List<string> { entitlementResult.DenialCode ?? ErrorCodes.ENTITLEMENT_LIMIT_EXCEEDED },
-                    Details = new Dictionary<string, object>
+                    Details = JsonSerializer.SerializeToElement(new Dictionary<string, object>
                     {
                         { "subscriptionTier", entitlementResult.SubscriptionTier },
                         { "isAllowed", entitlementResult.IsAllowed },
                         { "upgradeRecommendation", entitlementResult.UpgradeRecommendation?.RecommendedTier ?? string.Empty }
-                    }
+                    })
                 };
             }
             catch (Exception ex)
@@ -280,12 +279,12 @@ namespace BiatecTokensApi.Services
                     ReasonCodes = accountReadiness.IsReady
                         ? new List<string>()
                         : new List<string> { GetAccountReadinessErrorCode(accountReadiness.State) },
-                    Details = new Dictionary<string, object>
+                    Details = JsonSerializer.SerializeToElement(new Dictionary<string, object>
                     {
                         { "state", accountReadiness.State.ToString() },
                         { "accountAddress", accountReadiness.AccountAddress ?? string.Empty },
                         { "remediationSteps", accountReadiness.RemediationSteps ?? new List<string>() }
-                    }
+                    })
                 };
             }
             catch (Exception ex)
@@ -322,11 +321,11 @@ namespace BiatecTokensApi.Services
                     ReasonCodes = passed
                         ? new List<string>()
                         : new List<string> { ErrorCodes.KYC_REQUIRED },
-                    Details = new Dictionary<string, object>
+                    Details = JsonSerializer.SerializeToElement(new Dictionary<string, object>
                     {
                         { "status", kycStatus?.Status.ToString() ?? "NotStarted" },
                         { "updatedAt", kycStatus?.UpdatedAt?.ToString("O") ?? string.Empty }
-                    }
+                    })
                 };
             }
             catch (Exception ex)
@@ -340,11 +339,11 @@ namespace BiatecTokensApi.Services
                     Passed = true,
                     Message = "KYC/AML evaluation unavailable (advisory only)",
                     ReasonCodes = new List<string>(),
-                    Details = new Dictionary<string, object>
+                    Details = JsonSerializer.SerializeToElement(new Dictionary<string, object>
                     {
                         { "status", "Unavailable" },
                         { "note", "KYC/AML verification is recommended but not required" }
-                    }
+                    })
                 };
             }
         }
@@ -398,16 +397,23 @@ namespace BiatecTokensApi.Services
                     EstimatedResolutionHours = 1
                 };
 
-                if (response.Details.Entitlement.Details?.ContainsKey("upgradeRecommendation") == true)
+                if (response.Details.Entitlement.Details.HasValue)
                 {
-                    var upgradeRec = response.Details.Entitlement.Details["upgradeRecommendation"]?.ToString();
-                    if (!string.IsNullOrEmpty(upgradeRec))
+                    try
                     {
-                        entitlementTask.Metadata = new Dictionary<string, object>
+                        if (response.Details.Entitlement.Details.Value.TryGetProperty("upgradeRecommendation", out var upgradeRecElement))
                         {
-                            { "upgradeRecommendation", upgradeRec }
-                        };
+                            var upgradeRec = upgradeRecElement.GetString();
+                            if (!string.IsNullOrEmpty(upgradeRec))
+                            {
+                                entitlementTask.Metadata = JsonSerializer.SerializeToElement(new Dictionary<string, object>
+                                {
+                                    { "upgradeRecommendation", upgradeRec }
+                                });
+                            }
+                        }
                     }
+                    catch { /* Ignore JSON parsing errors */ }
                 }
 
                 tasks.Add(entitlementTask);
@@ -428,13 +434,20 @@ namespace BiatecTokensApi.Services
                 };
 
                 // Extract remediation steps from details
-                if (response.Details.AccountReadiness.Details?.ContainsKey("remediationSteps") == true)
+                if (response.Details.AccountReadiness.Details.HasValue)
                 {
-                    var steps = response.Details.AccountReadiness.Details["remediationSteps"];
-                    if (steps is List<string> stepsList)
+                    try
                     {
-                        accountTask.Actions.AddRange(stepsList);
+                        if (response.Details.AccountReadiness.Details.Value.TryGetProperty("remediationSteps", out var stepsElement))
+                        {
+                            var stepsList = JsonSerializer.Deserialize<List<string>>(stepsElement.GetRawText());
+                            if (stepsList != null)
+                            {
+                                accountTask.Actions.AddRange(stepsList);
+                            }
+                        }
                     }
+                    catch { /* Ignore JSON parsing errors */ }
                 }
 
                 if (accountTask.Actions.Count == 0)
