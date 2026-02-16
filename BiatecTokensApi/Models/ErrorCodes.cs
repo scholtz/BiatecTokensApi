@@ -394,5 +394,62 @@ namespace BiatecTokensApi.Models
         /// KYC is required for this operation
         /// </summary>
         public const string KYC_REQUIRED = "KYC_REQUIRED";
+
+        // Entitlement and Policy errors
+        /// <summary>
+        /// Entitlement limit exceeded for subscription tier
+        /// </summary>
+        public const string ENTITLEMENT_LIMIT_EXCEEDED = "ENTITLEMENT_LIMIT_EXCEEDED";
+
+        /// <summary>
+        /// Feature not included in current subscription tier
+        /// </summary>
+        public const string FEATURE_NOT_INCLUDED = "FEATURE_NOT_INCLUDED";
+
+        /// <summary>
+        /// Operation requires a higher subscription tier
+        /// </summary>
+        public const string TIER_UPGRADE_REQUIRED = "TIER_UPGRADE_REQUIRED";
+
+        /// <summary>
+        /// Monthly quota exceeded
+        /// </summary>
+        public const string MONTHLY_QUOTA_EXCEEDED = "MONTHLY_QUOTA_EXCEEDED";
+
+        /// <summary>
+        /// Concurrent operation limit exceeded
+        /// </summary>
+        public const string CONCURRENT_LIMIT_EXCEEDED = "CONCURRENT_LIMIT_EXCEEDED";
+
+        // ARC76 Account Readiness errors
+        /// <summary>
+        /// ARC76 account is not ready for operations
+        /// </summary>
+        public const string ACCOUNT_NOT_READY = "ACCOUNT_NOT_READY";
+
+        /// <summary>
+        /// ARC76 account is still initializing
+        /// </summary>
+        public const string ACCOUNT_INITIALIZING = "ACCOUNT_INITIALIZING";
+
+        /// <summary>
+        /// ARC76 account is in degraded state
+        /// </summary>
+        public const string ACCOUNT_DEGRADED = "ACCOUNT_DEGRADED";
+
+        /// <summary>
+        /// ARC76 account initialization failed
+        /// </summary>
+        public const string ACCOUNT_INITIALIZATION_FAILED = "ACCOUNT_INITIALIZATION_FAILED";
+
+        /// <summary>
+        /// ARC76 account key rotation required
+        /// </summary>
+        public const string ACCOUNT_KEY_ROTATION_REQUIRED = "ACCOUNT_KEY_ROTATION_REQUIRED";
+
+        /// <summary>
+        /// ARC76 account metadata invalid
+        /// </summary>
+        public const string ACCOUNT_METADATA_INVALID = "ACCOUNT_METADATA_INVALID";
     }
 }

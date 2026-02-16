@@ -207,6 +207,10 @@ namespace BiatecTokensApi
             // Register validation service
             builder.Services.AddSingleton<IValidationService, ValidationService>();
 
+            // Register entitlement and readiness services
+            builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
+            builder.Services.AddSingleton<IARC76AccountReadinessService, ARC76AccountReadinessService>();
+
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
 
