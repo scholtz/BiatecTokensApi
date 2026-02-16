@@ -776,10 +776,13 @@ namespace BiatecTokensApi.Services
                 _ => RiskSeverity.Info
             };
 
+            // Map retention trend to churn risk trend (inverse relationship)
+            // When retention improves (higher retention rate), churn is declining (lower churn rate) = Improving
+            // When retention declines (lower retention rate), churn is increasing (higher churn rate) = Worsening
             var trend = retention.Trend switch
             {
-                Models.DecisionIntelligence.TrendDirection.Declining => TrendDirection.Improving, // Declining churn is good
-                Models.DecisionIntelligence.TrendDirection.Improving => TrendDirection.Worsening, // Improving retention trend, but churn context
+                Models.DecisionIntelligence.TrendDirection.Improving => TrendDirection.Improving, // Higher retention = lower churn = Improving
+                Models.DecisionIntelligence.TrendDirection.Declining => TrendDirection.Worsening, // Lower retention = higher churn = Worsening
                 Models.DecisionIntelligence.TrendDirection.Stable => TrendDirection.Stable,
                 _ => TrendDirection.Unknown
             };
