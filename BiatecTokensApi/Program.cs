@@ -213,6 +213,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
             builder.Services.AddSingleton<IARC76AccountReadinessService, ARC76AccountReadinessService>();
             builder.Services.AddSingleton<ITokenLaunchReadinessService, TokenLaunchReadinessService>();
+            builder.Services.AddSingleton<ILifecycleIntelligenceService, LifecycleIntelligenceService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
