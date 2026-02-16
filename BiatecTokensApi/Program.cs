@@ -147,6 +147,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IJurisdictionRulesRepository, BiatecTokensApi.Repositories.JurisdictionRulesRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository, BiatecTokensApi.Repositories.ComplianceDecisionRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IKycRepository, BiatecTokensApi.Repositories.KycRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenLaunchReadinessRepository, BiatecTokensApi.Repositories.TokenLaunchReadinessRepository>();
 
             // Also register non-interface repositories for ingestion service
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.TokenIssuanceRepository>();
@@ -210,6 +211,7 @@ namespace BiatecTokensApi
             // Register entitlement and readiness services
             builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
             builder.Services.AddSingleton<IARC76AccountReadinessService, ARC76AccountReadinessService>();
+            builder.Services.AddSingleton<ITokenLaunchReadinessService, TokenLaunchReadinessService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
