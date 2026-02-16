@@ -859,7 +859,7 @@ namespace BiatecTokensApi.Services
             {
                 _metricsService.IncrementCounter("lifecycle_readiness_v2_evaluation");
                 _metricsService.IncrementCounter($"lifecycle_readiness_v2_status_{response.Status.ToString().ToLower()}");
-                _metricsService.RecordHistogram("lifecycle_readiness_v2_duration_ms", response.EvaluationTimeMs);
+                _metricsService.RecordHistogram("lifecycle_readiness_v2_duration_ms", (double)response.EvaluationTimeMs);
 
                 if (response.ReadinessScore != null)
                 {
