@@ -59,6 +59,21 @@ namespace BiatecTokensApi
                         "Metering events are emitted as structured logs for billing analytics. " +
                         "See SUBSCRIPTION_METERING.md for detailed documentation on the metering schema and integration.",
                 });
+                
+                // Custom schema IDs to handle enum name conflicts between namespaces
+                c.CustomSchemaIds(type => 
+                {
+                    // Use fully qualified name for ReadinessStatus enums to avoid conflicts
+                    if (type.Name == "ReadinessStatus")
+                    {
+                        if (type.Namespace == "BiatecTokensApi.Models.ComplianceProfile")
+                            return "ComplianceProfileReadinessStatus";
+                        if (type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
+                            return "TokenLaunchReadinessStatus";
+                    }
+                    return type.Name;
+                });
+                
                 c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
                 {
                     Description = "ARC-0014 Algorand authentication transaction",
