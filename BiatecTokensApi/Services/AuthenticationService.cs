@@ -402,18 +402,40 @@ namespace BiatecTokensApi.Services
             try
             {
                 var user = await _userRepository.GetUserByIdAsync(userId);
-                if (user == null) return null;
+                if (user == null)
+                {
+                    _logger.LogWarning("User not found when retrieving mnemonic: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                    return null;
+                }
+
+                // Validate that encrypted mnemonic exists
+                if (string.IsNullOrWhiteSpace(user.EncryptedMnemonic))
+                {
+                    _logger.LogError("Encrypted mnemonic is missing for user: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                    throw new InvalidOperationException("Account credentials are missing. Please contact support.");
+                }
 
                 // Return the decrypted mnemonic for signing operations
                 // Uses configured key provider (Azure Key Vault, AWS KMS, or Environment Variable)
                 var mnemonic = await DecryptMnemonicForSigning(user.EncryptedMnemonic);
 
+                _logger.LogDebug("Successfully retrieved mnemonic for signing: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
                 return mnemonic;
+            }
+            catch (InvalidOperationException)
+            {
+                // Re-throw key provider and configuration exceptions with clear messaging
+                throw;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Decryption failed for user mnemonic: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                throw new InvalidOperationException("Unable to decrypt account credentials. Please contact support.", ex);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting user mnemonic for signing: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
-                return null;
+                _logger.LogError(ex, "Unexpected error getting user mnemonic for signing: UserId={UserId}", LoggingHelper.SanitizeLogInput(userId));
+                throw new InvalidOperationException("An unexpected error occurred while accessing credentials. Please contact support.", ex);
             }
         }
 
@@ -639,9 +661,34 @@ namespace BiatecTokensApi.Services
         private async Task<string> DecryptMnemonicForSigning(string encryptedMnemonic)
         {
             // Use configured key provider (Azure Key Vault, AWS KMS, or Environment Variable)
-            var keyProvider = _keyProviderFactory.CreateProvider();
-            var systemPassword = await keyProvider.GetEncryptionKeyAsync();
-            return DecryptMnemonic(encryptedMnemonic, systemPassword);
+            try
+            {
+                var keyProvider = _keyProviderFactory.CreateProvider();
+                
+                // Validate provider configuration before attempting to retrieve key
+                var isConfigValid = await keyProvider.ValidateConfigurationAsync();
+                if (!isConfigValid)
+                {
+                    _logger.LogError("Key provider validation failed: ProviderType={ProviderType}", keyProvider.ProviderType);
+                    throw new InvalidOperationException(
+                        $"Key provider '{keyProvider.ProviderType}' is not properly configured. Please contact support.");
+                }
+                
+                var systemPassword = await keyProvider.GetEncryptionKeyAsync();
+                return DecryptMnemonic(encryptedMnemonic, systemPassword);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Key provider configuration error during mnemonic decryption");
+                throw new InvalidOperationException(
+                    "Unable to access encryption keys. This is a system configuration issue. Please contact support.", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during mnemonic decryption");
+                throw new InvalidOperationException(
+                    "An error occurred while accessing secure credentials. Please try again later or contact support.", ex);
+            }
         }
 
         private byte[] DeriveKeyFromPassword(string password)

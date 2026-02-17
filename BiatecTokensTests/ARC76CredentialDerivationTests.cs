@@ -170,16 +170,50 @@ namespace BiatecTokensTests
             // Arrange - Register and get initial address
             var email = $"test-{Guid.NewGuid()}@example.com";
             var oldPassword = "OldPassword123!";
+            var newPassword = "NewPassword456!";
+            
+            // Step 1: Register user
             await RegisterUserWithCredentialsAsync(email, oldPassword);
+            
+            // Step 2: Login and get initial address
             var addressBeforeChange = await LoginAndGetProfileAsync(email, oldPassword);
-
-            // TODO: Implement password change functionality test when endpoint is available
-            // For now, this documents the expected behavior:
-            // After password change, user should still have same Algorand address
-            // because the mnemonic is re-encrypted with new password, not regenerated
-
             Assert.That(addressBeforeChange, Is.Not.Null.And.Not.Empty,
                 "User should have valid address before password change");
+
+            // Step 3: Get access token for authenticated request
+            var loginResponse = await _client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest
+            {
+                Email = email,
+                Password = oldPassword
+            });
+            var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+            Assert.That(loginResult?.Success, Is.True);
+            Assert.That(loginResult?.AccessToken, Is.Not.Null);
+
+            // Step 4: Change password
+            _client.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResult!.AccessToken);
+            
+            var changePasswordResponse = await _client.PostAsJsonAsync("/api/v1/auth/change-password", new
+            {
+                currentPassword = oldPassword,
+                newPassword = newPassword
+            });
+
+            Assert.That(changePasswordResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "Password change should succeed");
+
+            var changeResult = await changePasswordResponse.Content.ReadAsStringAsync();
+            Assert.That(changeResult, Does.Contain("success"),
+                "Password change response should indicate success");
+
+            // Step 5: Login with new password and verify address is unchanged
+            var addressAfterChange = await LoginAndGetProfileAsync(email, newPassword);
+
+            Assert.That(addressAfterChange, Is.Not.Null.And.Not.Empty,
+                "User should have valid address after password change");
+            Assert.That(addressAfterChange, Is.EqualTo(addressBeforeChange),
+                "Algorand address must remain the same after password change");
         }
 
         #endregion
