@@ -71,6 +71,14 @@ namespace BiatecTokensApi
                         if (type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
                             return "TokenLaunchReadinessStatus";
                     }
+                    // Use fully qualified name for TrendDirection enums to avoid conflicts
+                    if (type.Name == "TrendDirection")
+                    {
+                        if (type.Namespace == "BiatecTokensApi.Models.DecisionIntelligence")
+                            return "DecisionIntelligenceTrendDirection";
+                        if (type.Namespace == "BiatecTokensApi.Models.LifecycleIntelligence")
+                            return "LifecycleIntelligenceTrendDirection";
+                    }
                     return type.Name;
                 });
                 
