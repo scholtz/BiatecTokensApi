@@ -79,6 +79,17 @@ namespace BiatecTokensApi
                         if (type.Namespace == "BiatecTokensApi.Models.LifecycleIntelligence")
                             return "LifecycleIntelligenceTrendDirection";
                     }
+                    // Handle potential ambiguity for severity enums
+                    if (type.Name == "RemediationSeverity" && type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
+                        return "RemediationSeverity";
+                    if (type.Name == "RiskSeverity" && type.Namespace == "BiatecTokensApi.Models.LifecycleIntelligence")
+                        return "RiskSeverity";
+                    // Use namespace-qualified names for all LifecycleIntelligence types to avoid potential conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.LifecycleIntelligence")
+                        return $"LifecycleIntelligence{type.Name}";
+                    // Use namespace-qualified names for all TokenLaunch types for consistency
+                    if (type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
+                        return $"TokenLaunch{type.Name}";
                     return type.Name;
                 });
                 
