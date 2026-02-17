@@ -341,5 +341,93 @@ namespace BiatecTokensApi.Controllers
                 correlationId
             });
         }
+
+        /// <summary>
+        /// Changes the password for the current authenticated user
+        /// </summary>
+        /// <param name="request">Password change request containing current and new passwords</param>
+        /// <returns>Password change response</returns>
+        /// <remarks>
+        /// Changes the user's password. The user must provide their current password for verification.
+        /// After password change, all refresh tokens are revoked for security.
+        /// **Note:** The Algorand address remains unchanged as it's derived from the mnemonic, not the password.
+        /// 
+        /// **Password Requirements:**
+        /// - Minimum 8 characters
+        /// - Must contain at least one uppercase letter
+        /// - Must contain at least one lowercase letter
+        /// - Must contain at least one number
+        /// - Must contain at least one special character
+        /// 
+        /// **Sample Request:**
+        /// ```json
+        /// {
+        ///   "currentPassword": "OldPassword123!",
+        ///   "newPassword": "NewPassword456!"
+        /// }
+        /// ```
+        /// 
+        /// **Sample Response:**
+        /// ```json
+        /// {
+        ///   "success": true,
+        ///   "message": "Password changed successfully. Please log in again."
+        /// }
+        /// ```
+        /// </remarks>
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        [HttpPost("change-password")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var correlationId = HttpContext.TraceIdentifier;
+
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("Invalid change password request. CorrelationId={CorrelationId}", correlationId);
+                return BadRequest(ErrorResponseHelper.CreateValidationError(
+                    "Invalid request parameters",
+                    correlationId: correlationId
+                ));
+            }
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _logger.LogWarning("Change password attempt without valid user ID. CorrelationId={CorrelationId}", correlationId);
+                return Unauthorized(ErrorResponseHelper.CreateAuthenticationError(
+                    Models.ErrorCodes.UNAUTHORIZED,
+                    "Invalid user session",
+                    correlationId
+                ));
+            }
+
+            var success = await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+
+            if (!success)
+            {
+                _logger.LogWarning("Password change failed for user: UserId={UserId}, CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(userId), correlationId);
+                return BadRequest(new
+                {
+                    success = false,
+                    errorCode = Models.ErrorCodes.INVALID_CREDENTIALS,
+                    errorMessage = "Password change failed. Please verify your current password and ensure the new password meets requirements.",
+                    correlationId
+                });
+            }
+
+            _logger.LogInformation("Password changed successfully: UserId={UserId}, CorrelationId={CorrelationId}",
+                LoggingHelper.SanitizeLogInput(userId), correlationId);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Password changed successfully. All sessions have been logged out for security. Please log in again.",
+                correlationId
+            });
+        }
     }
 }
