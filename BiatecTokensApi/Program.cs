@@ -59,6 +59,40 @@ namespace BiatecTokensApi
                         "Metering events are emitted as structured logs for billing analytics. " +
                         "See SUBSCRIPTION_METERING.md for detailed documentation on the metering schema and integration.",
                 });
+                
+                // Custom schema IDs to handle enum name conflicts between namespaces
+                c.CustomSchemaIds(type => 
+                {
+                    // Use fully qualified name for ReadinessStatus enums to avoid conflicts
+                    if (type.Name == "ReadinessStatus")
+                    {
+                        if (type.Namespace == "BiatecTokensApi.Models.ComplianceProfile")
+                            return "ComplianceProfileReadinessStatus";
+                        if (type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
+                            return "TokenLaunchReadinessStatus";
+                    }
+                    // Use fully qualified name for TrendDirection enums to avoid conflicts
+                    if (type.Name == "TrendDirection")
+                    {
+                        if (type.Namespace == "BiatecTokensApi.Models.DecisionIntelligence")
+                            return "DecisionIntelligenceTrendDirection";
+                        if (type.Namespace == "BiatecTokensApi.Models.LifecycleIntelligence")
+                            return "LifecycleIntelligenceTrendDirection";
+                    }
+                    // Handle potential ambiguity for severity enums
+                    if (type.Name == "RemediationSeverity" && type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
+                        return "RemediationSeverity";
+                    if (type.Name == "RiskSeverity" && type.Namespace == "BiatecTokensApi.Models.LifecycleIntelligence")
+                        return "RiskSeverity";
+                    // Use namespace-qualified names for all LifecycleIntelligence types to avoid potential conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.LifecycleIntelligence")
+                        return $"LifecycleIntelligence{type.Name}";
+                    // Use namespace-qualified names for all TokenLaunch types for consistency
+                    if (type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
+                        return $"TokenLaunch{type.Name}";
+                    return type.Name;
+                });
+                
                 c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
                 {
                     Description = "ARC-0014 Algorand authentication transaction",
@@ -213,6 +247,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
             builder.Services.AddSingleton<IARC76AccountReadinessService, ARC76AccountReadinessService>();
             builder.Services.AddSingleton<ITokenLaunchReadinessService, TokenLaunchReadinessService>();
+            builder.Services.AddSingleton<ILifecycleIntelligenceService, LifecycleIntelligenceService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
