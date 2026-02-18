@@ -243,6 +243,9 @@ namespace BiatecTokensApi
             // Register validation service
             builder.Services.AddSingleton<IValidationService, ValidationService>();
 
+            // Register token metadata validator
+            builder.Services.AddSingleton<ITokenMetadataValidator, TokenMetadataValidator>();
+
             // Register entitlement and readiness services
             builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
             builder.Services.AddSingleton<IARC76AccountReadinessService, ARC76AccountReadinessService>();
