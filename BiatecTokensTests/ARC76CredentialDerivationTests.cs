@@ -275,6 +275,65 @@ namespace BiatecTokensTests
                 "Concurrent registrations should generate unique addresses");
         }
 
+        [Test]
+        public async Task ConcurrentLogins_SameUser_ShouldReturnSameAddressWithIsolatedSessions()
+        {
+            // Arrange - Register user once
+            var email = $"concurrent-sessions-{Guid.NewGuid()}@example.com";
+            var password = "SecurePass123!";
+            
+            var registerRequest = new RegisterRequest
+            {
+                Email = email,
+                Password = password,
+                ConfirmPassword = password,
+                FullName = "Concurrent Test User"
+            };
+            
+            var registerResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", registerRequest);
+            var registerResult = await registerResponse.Content.ReadFromJsonAsync<RegisterResponse>();
+            
+            Assert.That(registerResult?.Success, Is.True, "Registration should succeed");
+            var expectedAddress = registerResult!.AlgorandAddress;
+
+            // Act - Login from 3 "devices" concurrently (simulating multi-device access)
+            var loginTasks = new List<Task<(string Address, string AccessToken, string RefreshToken)>>();
+            
+            for (int i = 0; i < 3; i++)
+            {
+                loginTasks.Add(Task.Run(async () =>
+                {
+                    var loginRequest = new LoginRequest { Email = email, Password = password };
+                    var loginResponse = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
+                    var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+                    
+                    return (
+                        Address: loginResult!.AlgorandAddress!,
+                        AccessToken: loginResult.AccessToken!,
+                        RefreshToken: loginResult.RefreshToken!
+                    );
+                }));
+            }
+            
+            var results = await Task.WhenAll(loginTasks);
+
+            // Assert - All sessions should have same ARC76 address (determinism)
+            var addresses = results.Select(r => r.Address).ToList();
+            Assert.That(addresses.Distinct().Count(), Is.EqualTo(1),
+                "All concurrent sessions for same user should return same ARC76 address");
+            Assert.That(addresses[0], Is.EqualTo(expectedAddress),
+                "Concurrent session addresses should match original registration address");
+
+            // Assert - Each session should have unique tokens (session isolation)
+            var accessTokens = results.Select(r => r.AccessToken).ToList();
+            var refreshTokens = results.Select(r => r.RefreshToken).ToList();
+            
+            Assert.That(accessTokens.Distinct().Count(), Is.EqualTo(3),
+                "Each concurrent session should have unique access token");
+            Assert.That(refreshTokens.Distinct().Count(), Is.EqualTo(3),
+                "Each concurrent session should have unique refresh token");
+        }
+
         #endregion
 
         #region Algorand Address Validation Tests
