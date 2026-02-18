@@ -42,6 +42,23 @@
 
 **Action Required**: Always create comprehensive CI evidence documentation BEFORE requesting review, even if all tests pass. Passing tests alone are insufficient for enterprise governance gates.
 
+## CRITICAL: Requirements vs Scope Section Priority
+
+**LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:
+
+1. **ALWAYS prioritize the "In Scope" section** - This defines the actual work requested
+2. **Requirements section may be supplementary** - KPI definitions, metrics, etc. are OUTCOMES of the implementation
+3. **Look for action verbs in "In Scope"**: "Harden", "Expand", "Improve", "Add", "Benchmark", "Optimize"
+4. **If "In Scope" requests implementation, deliver CODE + TESTS**, not just documentation
+
+**Example Misinterpretation**:
+- Issue had Requirements 1-30: "Define measurable KPI impact and instrumentation mapping"
+- BUT "In Scope" section said: "Harden transaction lifecycle", "Add failure-injection tests", "Benchmark and optimize latency"
+- **WRONG**: Created only KPI documentation
+- **CORRECT**: Implement hardening features + tests, THEN define KPIs based on implementation
+
+**Action Required**: When unclear, ask: "Does the 'In Scope' section request code changes?" If yes, implement code regardless of what Requirements section says.
+
 ## CRITICAL: Understanding "Vision-Driven" vs "Implementation" Issues
 
 **BEFORE starting any issue labeled "vision-driven" or containing extensive user stories:**
