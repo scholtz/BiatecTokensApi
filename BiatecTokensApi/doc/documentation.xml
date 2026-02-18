@@ -20280,6 +20280,123 @@
             Critical severity - system issue requires immediate attention
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.RetryPolicy">
+            <summary>
+            Classification of error retryability for provider resilience
+            </summary>
+            <remarks>
+            This enum enables deterministic retry behavior across the platform.
+            Frontend and backend can make consistent decisions about whether to retry,
+            wait, or fail terminal based on this classification.
+            
+            Business Value: Reduces user confusion and support burden by providing
+            clear guidance on error remediation. Improves conversion by retrying
+            transient failures automatically while failing fast on permanent errors.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RetryPolicy.NotRetryable">
+            <summary>
+            Error is not retryable - operation cannot succeed with same inputs
+            </summary>
+            <remarks>
+            Examples: Validation errors, insufficient permissions, user rejections.
+            User must change inputs or permissions before retry can succeed.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RetryPolicy.RetryableImmediate">
+            <summary>
+            Error is retryable immediately without delay
+            </summary>
+            <remarks>
+            Examples: Idempotent operations, state queries.
+            Safe to retry immediately as operation has no side effects.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RetryPolicy.RetryableWithDelay">
+            <summary>
+            Error is retryable after a short delay (5-30 seconds)
+            </summary>
+            <remarks>
+            Examples: Network timeouts, temporary RPC unavailability, IPFS delays.
+            Provider may recover quickly. Exponential backoff recommended.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RetryPolicy.RetryableWithCooldown">
+            <summary>
+            Error is retryable after a longer delay (1-5 minutes)
+            </summary>
+            <remarks>
+            Examples: Rate limiting, blockchain congestion, circuit breaker open.
+            Requires cooling period before retry can succeed.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RetryPolicy.RetryableAfterRemediation">
+            <summary>
+            Error is retryable only after user remediation
+            </summary>
+            <remarks>
+            Examples: Insufficient funds, KYC required, whitelist violation.
+            User must take action (add funds, complete KYC) before retry.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.RetryPolicy.RetryableAfterConfiguration">
+            <summary>
+            Error is retryable only after configuration change
+            </summary>
+            <remarks>
+            Examples: Missing API keys, invalid network config, service endpoint errors.
+            System administrator must fix configuration before retry can succeed.
+            </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Models.RetryPolicyDecision">
+            <summary>
+            Metadata about a retry policy decision
+            </summary>
+            <remarks>
+            Provides context for why a particular retry policy was assigned,
+            supporting debugging and operational visibility.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.Policy">
+            <summary>
+            The assigned retry policy
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.ReasonCode">
+            <summary>
+            Reason code for the policy assignment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.Explanation">
+            <summary>
+            Human-readable explanation of the decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.SuggestedDelaySeconds">
+            <summary>
+            Suggested delay in seconds before retry (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.MaxRetryAttempts">
+            <summary>
+            Maximum number of retry attempts recommended
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.UseExponentialBackoff">
+            <summary>
+            Whether exponential backoff is recommended
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.RemediationGuidance">
+            <summary>
+            User-facing remediation guidance (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.RetryPolicyDecision.DecisionTimestamp">
+            <summary>
+            Timestamp when decision was made (UTC)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.SecurityActivityEvent">
             <summary>
             Unified security activity event for audit trails and activity timelines
@@ -23663,6 +23780,979 @@
         <member name="F:BiatecTokensApi.Models.TokenType.ERC20_Preminted">
             <summary>
             Represents an ERC20 token which is fully preminted.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionSummary">
+            <summary>
+            User-friendly transaction summary with explicit retry and terminal state guidance
+            </summary>
+            <remarks>
+            Provides frontend-consumable transaction status information with clear
+            actionability signals and progress indicators.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.TransactionId">
+            <summary>
+            Unique transaction identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.DeploymentId">
+            <summary>
+            Deployment ID if this is a token deployment transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.TransactionHash">
+            <summary>
+            Transaction hash on blockchain
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.TransactionType">
+            <summary>
+            User-friendly transaction type (e.g., "Token Deployment", "Transfer", "Opt-In")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.Status">
+            <summary>
+            Current status with user-friendly display text
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.ProgressPercentage">
+            <summary>
+            Progress percentage (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.StatusMessage">
+            <summary>
+            User-friendly status message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.Description">
+            <summary>
+            Detailed description of current state
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.Network">
+            <summary>
+            Network where transaction was submitted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.IsRetryable">
+            <summary>
+            Whether this transaction can be retried
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.IsTerminal">
+            <summary>
+            Whether this is a terminal state (completed or permanently failed)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.RecommendedAction">
+            <summary>
+            Recommended action for the user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.EstimatedSecondsToCompletion">
+            <summary>
+            Expected time to completion (if pending)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.ExplorerUrl">
+            <summary>
+            Link to transaction on block explorer
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.InitiatedAt">
+            <summary>
+            Timestamp when transaction was initiated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.LastUpdated">
+            <summary>
+            Timestamp when status was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.CompletedAt">
+            <summary>
+            Timestamp when transaction completed (if completed)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.ElapsedSeconds">
+            <summary>
+            Total elapsed time in seconds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.Error">
+            <summary>
+            Error information if transaction failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.TokenDetails">
+            <summary>
+            Token details if this is a token-related transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.FeeInfo">
+            <summary>
+            Gas/fee information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.Parties">
+            <summary>
+            Addresses involved in the transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.Confirmations">
+            <summary>
+            Confirmation progress (blocks/rounds confirmed)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummary.Metadata">
+            <summary>
+            Additional metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionStatus">
+            <summary>
+            User-friendly transaction status enumeration
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Preparing">
+            <summary>
+            Transaction is being prepared
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Queued">
+            <summary>
+            Transaction is queued for submission
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Submitting">
+            <summary>
+            Transaction is being submitted to the network
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Pending">
+            <summary>
+            Transaction has been submitted and is pending confirmation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Confirming">
+            <summary>
+            Transaction is being confirmed by the network
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Indexing">
+            <summary>
+            Transaction is confirmed and being indexed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Completed">
+            <summary>
+            Transaction completed successfully
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Failed">
+            <summary>
+            Transaction failed with recoverable error (can be retried)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.PermanentlyFailed">
+            <summary>
+            Transaction failed permanently (cannot be retried)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.Cancelled">
+            <summary>
+            Transaction was cancelled by user
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.TransactionStatus.TimedOut">
+            <summary>
+            Transaction timed out waiting for confirmation
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionError">
+            <summary>
+            Error information for failed transactions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.ErrorCode">
+            <summary>
+            Error code for programmatic handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.UserMessage">
+            <summary>
+            User-friendly error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.TechnicalDetails">
+            <summary>
+            Technical error details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.Category">
+            <summary>
+            Error category for classification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.IsRetryable">
+            <summary>
+            Whether this error is retryable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.SuggestedFix">
+            <summary>
+            Suggested fix or remediation steps
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.DocumentationUrl">
+            <summary>
+            Link to documentation for this error
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionError.SupportCorrelationId">
+            <summary>
+            Support correlation ID for customer service
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionTokenDetails">
+            <summary>
+            Token-specific transaction details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionTokenDetails.Symbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionTokenDetails.Name">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionTokenDetails.AssetId">
+            <summary>
+            Asset ID or contract address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionTokenDetails.Standard">
+            <summary>
+            Token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionTokenDetails.Amount">
+            <summary>
+            Amount of tokens involved
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionTokenDetails.Decimals">
+            <summary>
+            Number of decimal places
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionFeeInfo">
+            <summary>
+            Transaction fee information
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionFeeInfo.EstimatedFee">
+            <summary>
+            Estimated fee in native currency
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionFeeInfo.ActualFee">
+            <summary>
+            Actual fee paid in native currency
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionFeeInfo.FeeUsd">
+            <summary>
+            Fee in USD equivalent
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionFeeInfo.CurrencySymbol">
+            <summary>
+            Native currency symbol (ALGO, ETH, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionFeeInfo.GasLimit">
+            <summary>
+            Gas limit (EVM chains)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionFeeInfo.GasPrice">
+            <summary>
+            Gas price (EVM chains)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionFeeInfo.GasUsed">
+            <summary>
+            Gas used (EVM chains)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionParties">
+            <summary>
+            Parties involved in the transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionParties.From">
+            <summary>
+            Sender address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionParties.To">
+            <summary>
+            Recipient address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionParties.Contract">
+            <summary>
+            Contract address (for smart contract interactions)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.ConfirmationProgress">
+            <summary>
+            Confirmation progress tracking
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ConfirmationProgress.Current">
+            <summary>
+            Current number of confirmations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ConfirmationProgress.Required">
+            <summary>
+            Required number of confirmations for finality
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ConfirmationProgress.BlockNumber">
+            <summary>
+            Block or round number where transaction was included
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ConfirmationProgress.LatestBlockNumber">
+            <summary>
+            Latest block or round number on the network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ConfirmationProgress.IsFinal">
+            <summary>
+            Whether transaction has reached finality
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.GetTransactionSummaryRequest">
+            <summary>
+            Request to get transaction summary
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetTransactionSummaryRequest.TransactionId">
+            <summary>
+            Transaction ID or deployment ID to query
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetTransactionSummaryRequest.IncludeMetadata">
+            <summary>
+            Whether to include detailed metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionSummaryResponse">
+            <summary>
+            Response containing transaction summary
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummaryResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummaryResponse.Transaction">
+            <summary>
+            Transaction summary data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummaryResponse.ErrorMessage">
+            <summary>
+            Error message if request failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionSummaryResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracking
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.ListTransactionsRequest">
+            <summary>
+            Request to list recent transactions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.Address">
+            <summary>
+            Optional filter by address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.TransactionType">
+            <summary>
+            Optional filter by transaction type
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.Status">
+            <summary>
+            Optional filter by status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.FromDate">
+            <summary>
+            Start date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.ToDate">
+            <summary>
+            End date filter
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.Page">
+            <summary>
+            Page number (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.ListTransactionsRequest.PageSize">
+            <summary>
+            Page size (max 100)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TransactionListResponse">
+            <summary>
+            Response containing transaction list
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.Transactions">
+            <summary>
+            List of transaction summaries
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.TotalCount">
+            <summary>
+            Total count of matching transactions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.Page">
+            <summary>
+            Current page number
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.PageSize">
+            <summary>
+            Page size
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.TotalPages">
+            <summary>
+            Total number of pages
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.ErrorMessage">
+            <summary>
+            Error message if request failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TransactionListResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracking
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.WalletBalance">
+            <summary>
+            Represents the balance of a single token in a wallet
+            </summary>
+            <remarks>
+            Provides frontend-consumable balance data with proper decimal handling
+            and chain-specific formatting for display purposes.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.AssetId">
+            <summary>
+            Token asset identifier (asset ID for Algorand, contract address for EVM)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.Symbol">
+            <summary>
+            Token symbol (e.g., "USDC", "BTC")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.Name">
+            <summary>
+            Token name (e.g., "USD Coin", "Bitcoin")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.Network">
+            <summary>
+            Network where the token exists (e.g., "algorand-mainnet", "ethereum-mainnet", "base")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.Standard">
+            <summary>
+            Token standard (e.g., "ASA", "ARC3", "ARC200", "ERC20", "ERC721")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.RawBalance">
+            <summary>
+            Raw balance in smallest unit (e.g., microAlgos, wei)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.DisplayBalance">
+            <summary>
+            Human-readable balance with proper decimal places
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.Decimals">
+            <summary>
+            Number of decimal places for this token
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.IsVerified">
+            <summary>
+            Whether the balance data is verified on-chain
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.LastUpdated">
+            <summary>
+            Timestamp when balance was last updated (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.IconUrl">
+            <summary>
+            Optional token icon/logo URL
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.UsdValue">
+            <summary>
+            Optional USD equivalent value
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.UsdPrice">
+            <summary>
+            Optional price per token in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.IsFrozen">
+            <summary>
+            Whether this is a frozen asset (Algorand-specific)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.MinimumBalance">
+            <summary>
+            Minimum balance required for this asset (Algorand opt-in requirement)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalance.Metadata">
+            <summary>
+            Additional metadata about the balance
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.TokenPosition">
+            <summary>
+            Represents a detailed token position including transaction history
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.AssetId">
+            <summary>
+            Token asset identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.Symbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.Name">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.Network">
+            <summary>
+            Network where the token exists
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.Standard">
+            <summary>
+            Token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.Balance">
+            <summary>
+            Current balance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.Decimals">
+            <summary>
+            Number of decimal places
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.AverageCost">
+            <summary>
+            Average purchase price (for cost basis calculation)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.MarketValue">
+            <summary>
+            Current market value in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.UnrealizedPnL">
+            <summary>
+            Unrealized profit/loss in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.PnLPercentage">
+            <summary>
+            Percentage gain/loss
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.TotalAcquired">
+            <summary>
+            Total tokens acquired
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.TotalSold">
+            <summary>
+            Total tokens sold
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.TransactionCount">
+            <summary>
+            Number of transactions for this position
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.FirstAcquired">
+            <summary>
+            Date when position was first acquired
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.LastActivity">
+            <summary>
+            Date of most recent transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.IsActive">
+            <summary>
+            Whether this position is actively traded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.RecentTransactions">
+            <summary>
+            Recent transactions (limited to last N)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.TokenPosition.AllocationPercentage">
+            <summary>
+            Position allocation as percentage of total portfolio
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.PositionTransaction">
+            <summary>
+            Represents a transaction within a token position
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.TransactionHash">
+            <summary>
+            Transaction hash
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.Type">
+            <summary>
+            Transaction type (buy, sell, transfer, mint, burn)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.Amount">
+            <summary>
+            Amount of tokens involved
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.Price">
+            <summary>
+            Price per token at time of transaction
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.TotalValue">
+            <summary>
+            Total value in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.Timestamp">
+            <summary>
+            Timestamp of transaction (UTC)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.CounterpartyAddress">
+            <summary>
+            Counterparty address (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.Fee">
+            <summary>
+            Transaction fee paid
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PositionTransaction.BlockNumber">
+            <summary>
+            Block number or round
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.PortfolioSummary">
+            <summary>
+            Aggregated portfolio summary across all chains and tokens
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.WalletAddress">
+            <summary>
+            Wallet address or user identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.TotalValueUsd">
+            <summary>
+            Total portfolio value in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.TotalTokens">
+            <summary>
+            Total number of different tokens held
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.ActiveNetworks">
+            <summary>
+            Number of networks/chains with balances
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.TotalUnrealizedPnL">
+            <summary>
+            Total unrealized profit/loss in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.TotalPnLPercentage">
+            <summary>
+            Overall portfolio percentage gain/loss
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.Change24hUsd">
+            <summary>
+            24-hour portfolio value change in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.Change24hPercentage">
+            <summary>
+            24-hour portfolio percentage change
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.NetworkBalances">
+            <summary>
+            Breakdown of balances by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.TopPositions">
+            <summary>
+            Top token positions by value
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.DiversificationScore">
+            <summary>
+            Portfolio diversification score (0-100)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.LastSynced">
+            <summary>
+            Timestamp when portfolio was last synced
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.IsFullySynced">
+            <summary>
+            Whether portfolio data is completely up-to-date
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioSummary.SyncingNetworks">
+            <summary>
+            Networks that are currently syncing
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.NetworkBalance">
+            <summary>
+            Balance summary for a specific network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.Network">
+            <summary>
+            Network identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.NetworkName">
+            <summary>
+            Display name for the network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.TotalValueUsd">
+            <summary>
+            Total value on this network in USD
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.TokenCount">
+            <summary>
+            Number of tokens on this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.NativeBalance">
+            <summary>
+            Native currency balance (ALGO, ETH, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.NativeCurrencySymbol">
+            <summary>
+            Native currency symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.Balances">
+            <summary>
+            Individual token balances on this network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.IsOnline">
+            <summary>
+            Whether this network is currently reachable
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkBalance.LastSynced">
+            <summary>
+            Last successful sync timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.GetWalletBalancesRequest">
+            <summary>
+            Request to get wallet balances
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetWalletBalancesRequest.Address">
+            <summary>
+            Wallet address to query
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetWalletBalancesRequest.Network">
+            <summary>
+            Optional filter by network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetWalletBalancesRequest.Standard">
+            <summary>
+            Optional filter by token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetWalletBalancesRequest.IncludeZeroBalances">
+            <summary>
+            Whether to include zero balances
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetWalletBalancesRequest.IncludeUsdValues">
+            <summary>
+            Whether to fetch current USD values
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.WalletBalancesResponse">
+            <summary>
+            Response containing wallet balances
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalancesResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalancesResponse.Address">
+            <summary>
+            Wallet address queried
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalancesResponse.Balances">
+            <summary>
+            List of token balances
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalancesResponse.TotalCount">
+            <summary>
+            Total balance count
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalancesResponse.Timestamp">
+            <summary>
+            Timestamp when balances were fetched
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalancesResponse.ErrorMessage">
+            <summary>
+            Error message if request failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletBalancesResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracking
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.GetPortfolioRequest">
+            <summary>
+            Request to get portfolio summary
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetPortfolioRequest.Address">
+            <summary>
+            Wallet address to query (optional if using authenticated session)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetPortfolioRequest.IncludePositions">
+            <summary>
+            Whether to include detailed positions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetPortfolioRequest.TopPositionsLimit">
+            <summary>
+            Maximum number of top positions to return
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.GetPortfolioRequest.ForceRefresh">
+            <summary>
+            Whether to force refresh from blockchain
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.PortfolioResponse">
+            <summary>
+            Response containing portfolio summary
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioResponse.Success">
+            <summary>
+            Whether the request was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioResponse.Portfolio">
+            <summary>
+            Portfolio summary data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioResponse.ErrorMessage">
+            <summary>
+            Error message if request failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.PortfolioResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracking
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Webhook.WebhookSubscription">
@@ -27863,6 +28953,29 @@
             Authentication service with ARC76 account derivation and JWT token management
             </summary>
         </member>
+        <member name="M:BiatecTokensApi.Services.AuthenticationService.CanonicalizeEmail(System.String)">
+            <summary>
+            Canonicalizes email address for deterministic ARC76 account derivation
+            </summary>
+            <param name="email">Raw email address from user input</param>
+            <returns>Canonicalized email (lowercase, trimmed)</returns>
+            <remarks>
+            Email canonicalization ensures:
+            - Deterministic ARC76 account derivation (same email -> same account)
+            - Prevents duplicate accounts from case/whitespace variations
+            - Consistent lookup behavior across registration/login
+            
+            Canonicalization rules:
+            1. Trim leading/trailing whitespace
+            2. Convert to lowercase (email addresses are case-insensitive per RFC 5321)
+            
+            Business Value: Eliminates support incidents from users unable to login
+            due to case mismatch between registration and login.
+            
+            Risk Mitigation: Prevents authorization drift and account access issues
+            that would undermine enterprise governance requirements.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Services.AwsKmsProvider">
             <summary>
             AWS Secrets Manager provider for production encryption key management
@@ -30081,6 +31194,38 @@
             </summary>
             <returns>Policy metrics</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IRetryPolicyClassifier">
+            <summary>
+            Service for classifying errors into retry policies
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IRetryPolicyClassifier.ClassifyError(System.String,System.Nullable{BiatecTokensApi.Models.DeploymentErrorCategory},System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Classifies an error code into a retry policy
+            </summary>
+            <param name="errorCode">The error code to classify</param>
+            <param name="errorCategory">The error category (optional)</param>
+            <param name="context">Additional context about the error (optional)</param>
+            <returns>A retry policy decision with guidance</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IRetryPolicyClassifier.ShouldRetry(BiatecTokensApi.Models.RetryPolicy,System.Int32,System.DateTime)">
+            <summary>
+            Determines if a retry should be attempted based on attempt history
+            </summary>
+            <param name="policy">The retry policy</param>
+            <param name="attemptCount">Number of retry attempts already made</param>
+            <param name="firstAttemptTime">Timestamp of first attempt</param>
+            <returns>True if retry should be attempted, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IRetryPolicyClassifier.CalculateRetryDelay(BiatecTokensApi.Models.RetryPolicy,System.Int32,System.Boolean)">
+            <summary>
+            Calculates the recommended delay before next retry
+            </summary>
+            <param name="policy">The retry policy</param>
+            <param name="attemptCount">Number of retry attempts already made</param>
+            <param name="useExponentialBackoff">Whether to use exponential backoff</param>
+            <returns>Delay in seconds before next retry</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.ISecurityActivityService">
             <summary>
             Service interface for security activity and audit operations
@@ -30121,6 +31266,72 @@
             </summary>
             <param name="accountId">Account ID requesting recovery guidance</param>
             <returns>Response containing recovery guidance and eligibility</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IStateTransitionGuard">
+            <summary>
+            Service for validating state transitions with business rule invariants
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStateTransitionGuard.ValidateTransition(BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.TokenDeployment)">
+            <summary>
+            Validates if a deployment status transition is allowed
+            </summary>
+            <param name="currentStatus">Current deployment status</param>
+            <param name="newStatus">Requested new status</param>
+            <param name="deployment">The deployment being transitioned (for context-aware validation)</param>
+            <returns>Validation result with allowed flag and reason code</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStateTransitionGuard.GetValidNextStates(BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Gets the list of valid next states from a given status
+            </summary>
+            <param name="currentStatus">Current status</param>
+            <returns>List of allowed next states</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStateTransitionGuard.IsTerminalState(BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Checks if a status represents a terminal state (no further transitions allowed)
+            </summary>
+            <param name="status">Status to check</param>
+            <returns>True if terminal state, false otherwise</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IStateTransitionGuard.GetTransitionReasonCode(BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Gets the reason code for a state transition
+            </summary>
+            <param name="fromStatus">Source status</param>
+            <param name="toStatus">Target status</param>
+            <returns>Standardized reason code</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.StateTransitionValidation">
+            <summary>
+            Result of a state transition validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.StateTransitionValidation.IsAllowed">
+            <summary>
+            Whether the transition is allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.StateTransitionValidation.ReasonCode">
+            <summary>
+            Reason code for the validation result
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.StateTransitionValidation.Explanation">
+            <summary>
+            Human-readable explanation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.StateTransitionValidation.ValidAlternatives">
+            <summary>
+            List of valid alternative states if transition is not allowed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.StateTransitionValidation.ViolatedInvariants">
+            <summary>
+            Invariants that were violated (if any)
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IStripeService">
             <summary>
@@ -30373,6 +31584,206 @@
             </summary>
             <param name="metadata">Metadata to apply fallbacks to</param>
             <returns>Metadata with fallback values applied</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ITokenMetadataValidator">
+            <summary>
+            Service interface for validating token metadata across different standards
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.ValidateARC3Metadata(System.Object)">
+            <summary>
+            Validates ARC3 token metadata
+            </summary>
+            <param name="metadata">Metadata to validate</param>
+            <returns>Validation result with warnings and errors</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.ValidateARC200Metadata(System.Object)">
+            <summary>
+            Validates ARC200 token metadata
+            </summary>
+            <param name="metadata">Metadata to validate</param>
+            <returns>Validation result with warnings and errors</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.ValidateERC20Metadata(System.Object)">
+            <summary>
+            Validates ERC20 token metadata
+            </summary>
+            <param name="metadata">Metadata to validate</param>
+            <returns>Validation result with warnings and errors</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.ValidateERC721Metadata(System.Object)">
+            <summary>
+            Validates ERC721 token metadata
+            </summary>
+            <param name="metadata">Metadata to validate</param>
+            <returns>Validation result with warnings and errors</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.NormalizeMetadata(System.Object,System.String)">
+            <summary>
+            Normalizes metadata with deterministic defaults for missing fields
+            </summary>
+            <param name="metadata">Raw metadata</param>
+            <param name="standard">Token standard</param>
+            <returns>Normalized metadata with default values applied</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.ValidateDecimalPrecision(System.Decimal,System.Int32)">
+            <summary>
+            Validates decimal precision for a token amount
+            </summary>
+            <param name="amount">Amount to validate</param>
+            <param name="decimals">Token decimals</param>
+            <returns>Validation result</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.ConvertRawToDisplayBalance(System.String,System.Int32)">
+            <summary>
+            Converts raw token balance to display balance
+            </summary>
+            <param name="rawBalance">Raw balance in smallest unit</param>
+            <param name="decimals">Token decimals</param>
+            <returns>Display balance with proper decimal places</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenMetadataValidator.ConvertDisplayToRawBalance(System.Decimal,System.Int32)">
+            <summary>
+            Converts display balance to raw balance
+            </summary>
+            <param name="displayBalance">Display balance</param>
+            <param name="decimals">Token decimals</param>
+            <returns>Raw balance in smallest unit</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.TokenMetadataValidationResult">
+            <summary>
+            Result of token metadata validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenMetadataValidationResult.IsValid">
+            <summary>
+            Whether metadata is valid
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenMetadataValidationResult.Errors">
+            <summary>
+            List of validation errors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenMetadataValidationResult.Warnings">
+            <summary>
+            List of validation warnings
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenMetadataValidationResult.DefaultedFields">
+            <summary>
+            Fields that were missing and assigned defaults
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenMetadataValidationResult.CorrectedFields">
+            <summary>
+            Fields that were malformed and corrected
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenMetadataValidationResult.Summary">
+            <summary>
+            Overall validation summary
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.TokenValidationIssue">
+            <summary>
+            Represents a validation issue (error or warning)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenValidationIssue.Field">
+            <summary>
+            Field name where issue occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenValidationIssue.Message">
+            <summary>
+            Issue description
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenValidationIssue.Severity">
+            <summary>
+            Issue severity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenValidationIssue.SuggestedFix">
+            <summary>
+            Suggested fix
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenValidationIssue.ExpectedFormat">
+            <summary>
+            Expected value or format
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.TokenValidationIssue.ActualValue">
+            <summary>
+            Actual value received
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.NormalizedMetadata">
+            <summary>
+            Normalized metadata with defaults applied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.NormalizedMetadata.Standard">
+            <summary>
+            Token standard
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.NormalizedMetadata.Metadata">
+            <summary>
+            Normalized metadata object
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.NormalizedMetadata.HasDefaults">
+            <summary>
+            Whether any defaults were applied
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.NormalizedMetadata.DefaultedFields">
+            <summary>
+            List of fields that received default values
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.NormalizedMetadata.WarningSignals">
+            <summary>
+            Warning signals for frontend display
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.DecimalValidationResult">
+            <summary>
+            Result of decimal precision validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.DecimalValidationResult.IsValid">
+            <summary>
+            Whether precision is valid
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.DecimalValidationResult.ErrorMessage">
+            <summary>
+            Error message if invalid
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.DecimalValidationResult.MaxPrecision">
+            <summary>
+            Maximum allowed precision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.DecimalValidationResult.ActualPrecision">
+            <summary>
+            Actual precision used
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.DecimalValidationResult.HasPrecisionLoss">
+            <summary>
+            Whether precision loss will occur
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Services.Interface.DecimalValidationResult.RecommendedValue">
+            <summary>
+            Recommended value with valid precision
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.ITokenRegistryService">
             <summary>
@@ -31072,6 +32483,37 @@
         <member name="M:BiatecTokensApi.Services.RegistryIngestionService.ValidateAndLogAnomaliesAsync(BiatecTokensApi.Models.TokenRegistry.TokenRegistryEntry)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Services.RetryPolicyClassifier">
+            <summary>
+            Service for classifying errors into retry policies with deterministic rules
+            </summary>
+            <remarks>
+            Implements enterprise-grade retry logic that classifies errors into categories
+            with explicit retry semantics. This enables:
+            1. Deterministic retry behavior across the platform
+            2. Clear user guidance on error remediation
+            3. Optimal balance between availability and avoiding cascade failures
+            
+            Business Value: Reduces user abandonment by automatically retrying transient
+            failures while providing clear guidance for permanent errors. Improves platform
+            reliability perception and reduces support burden.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RetryPolicyClassifier.ClassifyError(System.String,System.Nullable{BiatecTokensApi.Models.DeploymentErrorCategory},System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Classifies an error code into a retry policy
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RetryPolicyClassifier.ShouldRetry(BiatecTokensApi.Models.RetryPolicy,System.Int32,System.DateTime)">
+            <summary>
+            Determines if a retry should be attempted
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.RetryPolicyClassifier.CalculateRetryDelay(BiatecTokensApi.Models.RetryPolicy,System.Int32,System.Boolean)">
+            <summary>
+            Calculates the recommended delay before next retry
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.SecurityActivityService">
             <summary>
             Service implementation for security activity and audit operations
@@ -31133,6 +32575,55 @@
         <member name="M:BiatecTokensApi.Services.SecurityActivityService.GetExportQuota(System.String)">
             <summary>
             Gets export quota for the account (basic implementation)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.StateTransitionGuard">
+            <summary>
+            Service for validating deployment state transitions with business rule invariants
+            </summary>
+            <remarks>
+            Implements strict state machine validation with explicit invariant checks.
+            This ensures deployment lifecycle remains predictable and auditable.
+            
+            Business Invariants:
+            1. Terminal states (Completed, Cancelled) cannot transition to any state
+            2. Confirmed status requires ConfirmedRound to be set
+            3. Submitted status requires TransactionHash to be set
+            4. Failed state can only retry to Queued
+            5. Status history must be chronologically ordered
+            
+            Business Value: Prevents invalid state corruption that could lead to
+            lost deployment tracking, incorrect billing, or compliance violations.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Services.StateTransitionGuard.ValidTransitions">
+            <summary>
+            Valid status transitions in the deployment state machine
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.StateTransitionGuard.TransitionReasonCodes">
+            <summary>
+            Transition reason codes
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StateTransitionGuard.ValidateTransition(BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.TokenDeployment)">
+            <summary>
+            Validates if a deployment status transition is allowed
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StateTransitionGuard.GetValidNextStates(BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Gets the list of valid next states from a given status
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StateTransitionGuard.IsTerminalState(BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Checks if a status represents a terminal state
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.StateTransitionGuard.GetTransitionReasonCode(BiatecTokensApi.Models.DeploymentStatus,BiatecTokensApi.Models.DeploymentStatus)">
+            <summary>
+            Gets the reason code for a state transition
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.StripeService">
@@ -31303,6 +32794,35 @@
             <summary>
             Converts a TokenRegistryEntry to EnrichedTokenMetadata
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.TokenMetadataValidator">
+            <summary>
+            Service for validating and normalizing token metadata across different standards
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ValidateARC3Metadata(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ValidateARC200Metadata(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ValidateERC20Metadata(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ValidateERC721Metadata(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.NormalizeMetadata(System.Object,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ValidateDecimalPrecision(System.Decimal,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ConvertRawToDisplayBalance(System.String,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ConvertDisplayToRawBalance(System.Decimal,System.Int32)">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.TokenRegistryService">
             <summary>

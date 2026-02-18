@@ -355,6 +355,105 @@ namespace BiatecTokensTests
 
         #endregion
 
+        #region Email Normalization Edge Case Tests
+
+        [Test]
+        public async Task Login_WithMixedCaseEmail_AfterLowercaseRegistration_ShouldSucceed()
+        {
+            // Arrange - Register with lowercase email
+            var email = $"test-{Guid.NewGuid()}@example.com";
+            var password = "SecurePass123!";
+            var registrationResponse = await RegisterUserWithCredentialsAsync(email, password);
+            var expectedAddress = registrationResponse.AlgorandAddress;
+
+            // Act - Login with mixed case email
+            var mixedCaseEmail = email.ToUpper(); // "TEST-XXX@EXAMPLE.COM"
+            var loginRequest = new LoginRequest { Email = mixedCaseEmail, Password = password };
+            var loginResponse = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
+            var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+            // Assert - Login should succeed and return same address (determinism)
+            Assert.That(loginResult?.Success, Is.True, 
+                "Login with mixed case email should succeed after lowercase registration");
+            Assert.That(loginResult!.AlgorandAddress, Is.EqualTo(expectedAddress),
+                "Login should return same ARC76 address regardless of email case");
+        }
+
+        [Test]
+        public async Task Login_WithWhitespaceAroundEmail_AfterTrimmedRegistration_ShouldSucceed()
+        {
+            // Arrange - Register with trimmed email
+            var email = $"test-{Guid.NewGuid()}@example.com";
+            var password = "SecurePass123!";
+            var registrationResponse = await RegisterUserWithCredentialsAsync(email, password);
+            var expectedAddress = registrationResponse.AlgorandAddress;
+
+            // Act - Login with whitespace around email
+            var emailWithWhitespace = $"  {email}  ";
+            var loginRequest = new LoginRequest { Email = emailWithWhitespace, Password = password };
+            var loginResponse = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
+            var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+            // Assert - Login should succeed and return same address (determinism)
+            Assert.That(loginResult?.Success, Is.True,
+                "Login with whitespace around email should succeed");
+            Assert.That(loginResult!.AlgorandAddress, Is.EqualTo(expectedAddress),
+                "Login should return same ARC76 address regardless of whitespace");
+        }
+
+        [Test]
+        public async Task Register_WithMixedCaseEmail_ThenLoginWithDifferentCase_ShouldReturnSameAddress()
+        {
+            // Arrange - Register with mixed case
+            var baseEmail = $"test-{Guid.NewGuid()}@example.com";
+            var mixedCaseEmail = $"TeSt-{baseEmail.Split('-')[1]}"; // Mixed case version
+            var password = "SecurePass123!";
+            
+            var registerResponse = await RegisterUserWithCredentialsAsync(mixedCaseEmail, password);
+            var expectedAddress = registerResponse.AlgorandAddress;
+
+            // Act - Login with all lowercase
+            var lowercaseEmail = mixedCaseEmail.ToLowerInvariant();
+            var loginRequest = new LoginRequest { Email = lowercaseEmail, Password = password };
+            var loginResponse = await _client.PostAsJsonAsync("/api/v1/auth/login", loginRequest);
+            var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+            // Assert - Login should succeed with same deterministic address
+            Assert.That(loginResult?.Success, Is.True,
+                "Login should succeed with lowercase version of mixed-case registration email");
+            Assert.That(loginResult!.AlgorandAddress, Is.EqualTo(expectedAddress),
+                "ARC76 address should be deterministic regardless of email case variations");
+        }
+
+        [Test]
+        public async Task Register_WithWhitespaceEmail_ShouldNormalizeAndPreventDuplicates()
+        {
+            // Arrange - Register with trimmed email
+            var email = $"test-{Guid.NewGuid()}@example.com";
+            var password = "SecurePass123!";
+            await RegisterUserWithCredentialsAsync(email, password);
+
+            // Act - Try to register again with whitespace around same email
+            var emailWithWhitespace = $"  {email}  ";
+            var duplicateRequest = new RegisterRequest
+            {
+                Email = emailWithWhitespace,
+                Password = "DifferentPass123!",
+                ConfirmPassword = "DifferentPass123!",
+                FullName = "Duplicate User"
+            };
+            var duplicateResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", duplicateRequest);
+            var duplicateResult = await duplicateResponse.Content.ReadFromJsonAsync<RegisterResponse>();
+
+            // Assert - Second registration should fail (user already exists)
+            Assert.That(duplicateResult?.Success, Is.False,
+                "Registration with whitespace variation of existing email should fail");
+            Assert.That(duplicateResult!.ErrorCode, Is.EqualTo("USER_ALREADY_EXISTS"),
+                "Error should indicate user already exists due to email normalization");
+        }
+
+        #endregion
+
         #region Helper Methods
 
         private async Task<RegisterResponse> RegisterUserAsync()

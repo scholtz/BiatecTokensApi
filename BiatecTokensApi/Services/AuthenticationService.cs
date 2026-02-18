@@ -81,7 +81,7 @@ namespace BiatecTokensApi.Services
                 var user = new User
                 {
                     UserId = Guid.NewGuid().ToString(),
-                    Email = request.Email.ToLowerInvariant(),
+                    Email = CanonicalizeEmail(request.Email),
                     PasswordHash = passwordHash,
                     AlgorandAddress = account.Address.ToString(),
                     EncryptedMnemonic = encryptedMnemonic,
@@ -127,7 +127,7 @@ namespace BiatecTokensApi.Services
         {
             try
             {
-                var user = await _userRepository.GetUserByEmailAsync(request.Email);
+                var user = await _userRepository.GetUserByEmailAsync(CanonicalizeEmail(request.Email));
 
                 if (user == null)
                 {
@@ -551,6 +551,37 @@ namespace BiatecTokensApi.Services
             bool hasSpecial = password.Any(ch => !char.IsLetterOrDigit(ch));
 
             return hasUpper && hasLower && hasDigit && hasSpecial;
+        }
+
+        /// <summary>
+        /// Canonicalizes email address for deterministic ARC76 account derivation
+        /// </summary>
+        /// <param name="email">Raw email address from user input</param>
+        /// <returns>Canonicalized email (lowercase, trimmed)</returns>
+        /// <remarks>
+        /// Email canonicalization ensures:
+        /// - Deterministic ARC76 account derivation (same email -> same account)
+        /// - Prevents duplicate accounts from case/whitespace variations
+        /// - Consistent lookup behavior across registration/login
+        /// 
+        /// Canonicalization rules:
+        /// 1. Trim leading/trailing whitespace
+        /// 2. Convert to lowercase (email addresses are case-insensitive per RFC 5321)
+        /// 
+        /// Business Value: Eliminates support incidents from users unable to login
+        /// due to case mismatch between registration and login.
+        /// 
+        /// Risk Mitigation: Prevents authorization drift and account access issues
+        /// that would undermine enterprise governance requirements.
+        /// </remarks>
+        private static string CanonicalizeEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                throw new ArgumentException("Email cannot be null or whitespace", nameof(email));
+            }
+
+            return email.Trim().ToLowerInvariant();
         }
 
         private string GenerateMnemonic()
