@@ -2,6 +2,7 @@ using BiatecTokensApi.Models.Webhook;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
+using BiatecTokensTests.TestHelpers;
 using Microsoft.Extensions.Logging;
 using Moq;
 

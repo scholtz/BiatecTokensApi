@@ -3,6 +3,7 @@ using BiatecTokensApi.Models.Webhook;
 using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
+using BiatecTokensTests.TestHelpers;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -11,15 +12,19 @@ namespace BiatecTokensTests
     /// <summary>
     /// Integration tests for compliance webhook emission from ComplianceService.
     /// 
-    /// Note on test delays: These tests use Task.Delay to wait for async webhook processing.
-    /// Webhooks are emitted asynchronously via fire-and-forget Task.Run in WebhookService.EmitEventAsync,
-    /// and delivery occurs in background threads. The delays (100-400ms) allow sufficient time for:
-    /// - Webhook event emission
-    /// - Delivery attempt to webhook repository
-    /// - Storage of delivery results
+    /// Note on deterministic async testing: These tests use AsyncTestHelper.WaitForConditionAsync
+    /// instead of fixed Task.Delay calls to reduce flakiness. The helper polls for the expected
+    /// condition (webhook delivery records) with a maximum timeout, allowing tests to complete
+    /// as soon as the condition is met rather than waiting for an arbitrary fixed duration.
     /// 
-    /// This is a standard pattern for integration tests with async background operations.
-    /// Production code does not have these delays and processes webhooks immediately.
+    /// Webhooks are emitted asynchronously via fire-and-forget Task.Run in WebhookService.EmitEventAsync,
+    /// and delivery occurs in background threads. The condition-based waiting ensures:
+    /// - Tests complete faster when webhooks process quickly
+    /// - Tests don't fail spuriously due to timing variations in CI environments
+    /// - Maximum timeout provides clear failure indication if webhooks don't process
+    /// 
+    /// Business Value: Reduces CI flakiness and improves developer productivity by making
+    /// integration tests more reliable and faster.
     /// </summary>
     [TestFixture]
     public class ComplianceWebhookIntegrationTests
@@ -105,11 +110,26 @@ namespace BiatecTokensTests
 
             var result = await _complianceService.UpsertMetadataAsync(updateRequest, _testUserAddress);
 
-            // Give webhook service time to process
-            await Task.Delay(200);
-
             // Assert
             Assert.That(result.Success, Is.True);
+
+            // Wait for webhook delivery to be recorded (max 2 seconds)
+            var deliveryRecorded = await AsyncTestHelper.WaitForConditionAsync(
+                async () =>
+                {
+                    var history = await _webhookService.GetDeliveryHistoryAsync(
+                        new GetWebhookDeliveryHistoryRequest
+                        {
+                            SubscriptionId = subscription.Subscription!.Id
+                        },
+                        _testUserAddress);
+                    return history.Success && history.Deliveries.Count > 0;
+                },
+                timeout: TimeSpan.FromSeconds(2),
+                pollInterval: TimeSpan.FromMilliseconds(50));
+
+            Assert.That(deliveryRecorded, Is.True, 
+                "Webhook delivery should have been recorded within 2 seconds");
 
             // Verify webhook delivery was attempted
             var deliveryHistory = await _webhookService.GetDeliveryHistoryAsync(
@@ -166,11 +186,26 @@ namespace BiatecTokensTests
 
             var result = await _complianceService.UpsertMetadataAsync(updateRequest, _testUserAddress);
 
-            // Give webhook service time to process
-            await Task.Delay(200);
-
             // Assert
             Assert.That(result.Success, Is.True);
+
+            // Wait for webhook delivery to be recorded (max 2 seconds)
+            var deliveryRecorded = await AsyncTestHelper.WaitForConditionAsync(
+                async () =>
+                {
+                    var history = await _webhookService.GetDeliveryHistoryAsync(
+                        new GetWebhookDeliveryHistoryRequest
+                        {
+                            SubscriptionId = subscription.Subscription!.Id
+                        },
+                        _testUserAddress);
+                    return history.Success && history.Deliveries.Count > 0;
+                },
+                timeout: TimeSpan.FromSeconds(2),
+                pollInterval: TimeSpan.FromMilliseconds(50));
+
+            Assert.That(deliveryRecorded, Is.True,
+                "Webhook delivery should have been recorded within 2 seconds");
 
             // Verify webhook delivery was attempted
             var deliveryHistory = await _webhookService.GetDeliveryHistoryAsync(
@@ -220,11 +255,26 @@ namespace BiatecTokensTests
 
             var result = await _complianceService.UpsertMetadataAsync(request, _testUserAddress);
 
-            // Give webhook service time to process
-            await Task.Delay(300);
-
             // Assert
             Assert.That(result.Success, Is.True);
+
+            // Wait for webhook deliveries to be recorded (max 2 seconds)
+            var deliveriesRecorded = await AsyncTestHelper.WaitForConditionAsync(
+                async () =>
+                {
+                    var history = await _webhookService.GetDeliveryHistoryAsync(
+                        new GetWebhookDeliveryHistoryRequest
+                        {
+                            SubscriptionId = subscription.Subscription!.Id
+                        },
+                        _testUserAddress);
+                    return history.Success && history.Deliveries.Count > 0;
+                },
+                timeout: TimeSpan.FromSeconds(2),
+                pollInterval: TimeSpan.FromMilliseconds(50));
+
+            Assert.That(deliveriesRecorded, Is.True,
+                "Webhook deliveries should have been recorded within 2 seconds");
 
             // Verify webhook deliveries were attempted
             var deliveryHistory = await _webhookService.GetDeliveryHistoryAsync(
@@ -269,8 +319,20 @@ namespace BiatecTokensTests
 
             await _complianceService.UpsertMetadataAsync(initialRequest, _testUserAddress);
 
-            // Give webhook service time to process initial events
-            await Task.Delay(200);
+            // Wait for initial webhook processing (max 2 seconds)
+            await AsyncTestHelper.WaitForConditionAsync(
+                async () =>
+                {
+                    var history = await _webhookService.GetDeliveryHistoryAsync(
+                        new GetWebhookDeliveryHistoryRequest
+                        {
+                            SubscriptionId = subscription.Subscription!.Id
+                        },
+                        _testUserAddress);
+                    return history.Success && history.Deliveries.Count > 0;
+                },
+                timeout: TimeSpan.FromSeconds(2),
+                pollInterval: TimeSpan.FromMilliseconds(50));
 
             // Get initial delivery count
             var initialHistory = await _webhookService.GetDeliveryHistoryAsync(
@@ -295,8 +357,9 @@ namespace BiatecTokensTests
 
             await _complianceService.UpsertMetadataAsync(updateRequest, _testUserAddress);
 
-            // Give webhook service time to process
-            await Task.Delay(200);
+            // Wait a reasonable time to ensure no new webhooks are sent (max 1 second)
+            // We give it time to potentially send webhooks (if bug exists), then verify none were sent
+            await Task.Delay(1000);
 
             // Assert - No new webhooks should be sent
             var finalHistory = await _webhookService.GetDeliveryHistoryAsync(
@@ -347,8 +410,27 @@ namespace BiatecTokensTests
 
             await _complianceService.UpsertMetadataAsync(request, _testUserAddress);
 
-            // Give webhook service time to process
-            await Task.Delay(200);
+            // Wait for webhook deliveries to be recorded (max 2 seconds)
+            await AsyncTestHelper.WaitForConditionAsync(
+                async () =>
+                {
+                    var filtered = await _webhookService.GetDeliveryHistoryAsync(
+                        new GetWebhookDeliveryHistoryRequest
+                        {
+                            SubscriptionId = filteredSubscription.Subscription!.Id
+                        },
+                        _testUserAddress);
+                    var unfiltered = await _webhookService.GetDeliveryHistoryAsync(
+                        new GetWebhookDeliveryHistoryRequest
+                        {
+                            SubscriptionId = unfilteredSubscription.Subscription!.Id
+                        },
+                        _testUserAddress);
+                    return filtered.Success && filtered.Deliveries.Count > 0 &&
+                           unfiltered.Success && unfiltered.Deliveries.Count > 0;
+                },
+                timeout: TimeSpan.FromSeconds(2),
+                pollInterval: TimeSpan.FromMilliseconds(50));
 
             // Assert - Both should receive the webhook
             var filteredHistory = await _webhookService.GetDeliveryHistoryAsync(
