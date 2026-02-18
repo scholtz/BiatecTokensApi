@@ -731,6 +731,41 @@
             ```
             </remarks>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.ChangePassword(BiatecTokensApi.Models.Auth.ChangePasswordRequest)">
+            <summary>
+            Changes the password for the current authenticated user
+            </summary>
+            <param name="request">Password change request containing current and new passwords</param>
+            <returns>Password change response</returns>
+            <remarks>
+            Changes the user's password. The user must provide their current password for verification.
+            After password change, all refresh tokens are revoked for security.
+            **Note:** The Algorand address remains unchanged as it's derived from the mnemonic, not the password.
+            
+            **Password Requirements:**
+            - Minimum 8 characters
+            - Must contain at least one uppercase letter
+            - Must contain at least one lowercase letter
+            - Must contain at least one number
+            - Must contain at least one special character
+            
+            **Sample Request:**
+            ```json
+            {
+              "currentPassword": "OldPassword123!",
+              "newPassword": "NewPassword456!"
+            }
+            ```
+            
+            **Sample Response:**
+            ```json
+            {
+              "success": true,
+              "message": "Password changed successfully. Please log in again."
+            }
+            ```
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.BillingController">
             <summary>
             Provides endpoints for subscription usage metering and plan limit management
@@ -6672,6 +6707,61 @@
             <param name="correlationId">Optional correlation ID for request tracking</param>
             <returns>Response object with error information</returns>
         </member>
+        <member name="T:BiatecTokensApi.Helpers.ErrorResponseHelper">
+            <summary>
+            Helper class for creating standardized error responses with remediation hints
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateErrorResponse(System.String,System.String,System.String,System.String,System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a standardized error response with correlation ID and remediation hint
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateAuthenticationError(System.String,System.String,System.String)">
+            <summary>
+            Creates error response for authentication failures
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateKeyManagementError(System.String,System.String)">
+            <summary>
+            Creates error response for key management failures
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateAccountLockedError(System.Nullable{System.DateTime},System.String)">
+            <summary>
+            Creates error response for account lockout
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateAccountReadinessError(System.String,System.String,System.String)">
+            <summary>
+            Creates error response for ARC76 account readiness issues
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateNetworkError(System.String,System.Boolean,System.Nullable{System.Int32},System.String)">
+            <summary>
+            Creates error response for blockchain network issues
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateValidationError(System.String,System.Collections.Generic.Dictionary{System.String,System.String},System.String)">
+            <summary>
+            Creates error response for validation failures
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateInsufficientFundsError(System.String,System.String,System.String)">
+            <summary>
+            Creates error response for insufficient funds
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateRateLimitError(System.Int32,System.String)">
+            <summary>
+            Creates error response for rate limiting
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Helpers.ErrorResponseHelper.CreateInternalServerError(System.String,System.String)">
+            <summary>
+            Creates error response for internal server errors with safe messaging
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Helpers.LoggingHelper">
             <summary>
             Helper class for secure logging operations
@@ -7815,6 +7905,21 @@
         <member name="P:BiatecTokensApi.Models.AuditExportResult.ErrorMessage">
             <summary>
             Error message if the export failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.ChangePasswordRequest">
+            <summary>
+            Request model for changing user password
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ChangePasswordRequest.CurrentPassword">
+            <summary>
+            Current password for verification
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ChangePasswordRequest.NewPassword">
+            <summary>
+            New password to set
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Auth.LoginRequest">
