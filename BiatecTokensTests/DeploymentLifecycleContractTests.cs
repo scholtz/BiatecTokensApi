@@ -373,7 +373,9 @@ namespace BiatecTokensTests
             var deploymentId = await _service.CreateDeploymentAsync(
                 "ERC20_Mintable", "base-mainnet", "0xCreator", "Token", "TKN");
 
-            // Act - Update with all optional fields
+            // Act - Transition through proper states to reach Confirmed
+            await _service.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, "Submitted", transactionHash: "0xtxhash123");
+            await _service.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Pending, "Pending");
             await _service.UpdateDeploymentStatusAsync(
                 deploymentId,
                 DeploymentStatus.Confirmed,
