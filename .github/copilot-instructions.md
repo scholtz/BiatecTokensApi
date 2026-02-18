@@ -1,5 +1,40 @@
 # GitHub Copilot Instructions for BiatecTokensApi
 
+## CRITICAL: Understanding "Vision-Driven" vs "Implementation" Issues
+
+**BEFORE starting any issue labeled "vision-driven" or containing extensive user stories:**
+
+1. **Read the ENTIRE issue carefully** - Look for these key phrases that indicate IMPLEMENTATION work, not just verification:
+   - "Implement a hardening program"
+   - "Replace legacy or ambiguous behavior"
+   - "Add deterministic validation checks" 
+   - "Remove or refactor brittle test behaviors"
+   - "Add and stabilize automated tests"
+
+2. **Distinguish between two types of requests:**
+   - **Verification Request**: "Verify that X works", "Document that Y exists", "Confirm Z is implemented"
+     - Response: Run tests, document existing capabilities, create verification reports
+   - **Implementation Request**: "Implement X", "Add Y", "Replace Z with", "Refactor A"
+     - Response: Write new code, add new tests, modify existing code
+
+3. **When in doubt, check existing test coverage FIRST**:
+   ```bash
+   # Check if tests exist for the requested feature
+   find BiatecTokensTests -name "*FeatureName*"
+   dotnet test --list-tests | grep "FeatureName"
+   ```
+
+4. **If tests already exist and pass (100%), ask the product owner for clarification:**
+   - "The requested tests already exist in [file]. What additional coverage is needed?"
+   - Do NOT assume documentation-only is sufficient if the issue says "implement" or "add"
+
+5. **Product Roadmap Alignment**:
+   - Always check https://raw.githubusercontent.com/scholtz/biatec-tokens/refs/heads/main/business-owner-roadmap.md
+   - Understand if the feature is "Not Started" (needs implementation) vs "Partial" (needs completion)
+   - Align your work with the roadmap status percentages
+
+**Lesson Learned (2026-02-18)**: Issue titled "Vision-driven next step: harden deterministic ARC76 orchestration" was misinterpreted as a verification task when it explicitly requested implementation work ("Implement a hardening program", "Replace legacy behavior", "Add validation checks"). The issue had extensive user stories which made it appear like a documentation request, but the acceptance criteria required actual code changes and new tests. Always read the "In Scope" section carefully - it explicitly lists what needs to be implemented vs verified.
+
 ## Project Overview
 
 BiatecTokensApi is a comprehensive .NET 8.0 Web API for deploying and managing various types of tokens on different blockchain networks, including ERC20 tokens on EVM chains (Base blockchain) and multiple Algorand token standards (ASA, ARC3, ARC200).
