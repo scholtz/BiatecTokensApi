@@ -23,8 +23,28 @@ namespace BiatecTokensApi.Services
 
             try
             {
-                var json = JsonSerializer.Serialize(metadata);
-                var arc3Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                if (metadata == null)
+                {
+                    result.Errors.Add(new TokenValidationIssue
+                    {
+                        Field = "metadata",
+                        Message = "Metadata cannot be null",
+                        Severity = "Error"
+                    });
+                    return result;
+                }
+
+                // Convert to dictionary if it isn't already
+                Dictionary<string, object>? arc3Data;
+                if (metadata is Dictionary<string, object> dict)
+                {
+                    arc3Data = dict;
+                }
+                else
+                {
+                    var json = JsonSerializer.Serialize(metadata);
+                    arc3Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                }
 
                 if (arc3Data == null)
                 {
@@ -47,7 +67,7 @@ namespace BiatecTokensApi.Services
                 ValidateOptionalField(arc3Data, "image", result);
 
                 // Validate decimals range
-                if (arc3Data.ContainsKey("decimals"))
+                if (arc3Data.ContainsKey("decimals") && arc3Data["decimals"] != null)
                 {
                     var decimals = Convert.ToInt32(arc3Data["decimals"]);
                     if (decimals < 0 || decimals > 19)
@@ -89,8 +109,28 @@ namespace BiatecTokensApi.Services
 
             try
             {
-                var json = JsonSerializer.Serialize(metadata);
-                var arc200Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                if (metadata == null)
+                {
+                    result.Errors.Add(new TokenValidationIssue
+                    {
+                        Field = "metadata",
+                        Message = "Metadata cannot be null",
+                        Severity = "Error"
+                    });
+                    return result;
+                }
+
+                // Convert to dictionary if it isn't already
+                Dictionary<string, object>? arc200Data;
+                if (metadata is Dictionary<string, object> dict)
+                {
+                    arc200Data = dict;
+                }
+                else
+                {
+                    var json = JsonSerializer.Serialize(metadata);
+                    arc200Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                }
 
                 if (arc200Data == null)
                 {
@@ -109,7 +149,7 @@ namespace BiatecTokensApi.Services
                 ValidateRequiredField(arc200Data, "decimals", result);
 
                 // Validate decimals range for ARC200
-                if (arc200Data.ContainsKey("decimals"))
+                if (arc200Data.ContainsKey("decimals") && arc200Data["decimals"] != null)
                 {
                     var decimals = Convert.ToInt32(arc200Data["decimals"]);
                     if (decimals < 0 || decimals > 18)
@@ -151,8 +191,28 @@ namespace BiatecTokensApi.Services
 
             try
             {
-                var json = JsonSerializer.Serialize(metadata);
-                var erc20Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                if (metadata == null)
+                {
+                    result.Errors.Add(new TokenValidationIssue
+                    {
+                        Field = "metadata",
+                        Message = "Metadata cannot be null",
+                        Severity = "Error"
+                    });
+                    return result;
+                }
+
+                // Convert to dictionary if it isn't already
+                Dictionary<string, object>? erc20Data;
+                if (metadata is Dictionary<string, object> dict)
+                {
+                    erc20Data = dict;
+                }
+                else
+                {
+                    var json = JsonSerializer.Serialize(metadata);
+                    erc20Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                }
 
                 if (erc20Data == null)
                 {
@@ -171,7 +231,7 @@ namespace BiatecTokensApi.Services
                 ValidateRequiredField(erc20Data, "decimals", result);
 
                 // Validate decimals (ERC20 standard typically uses 18)
-                if (erc20Data.ContainsKey("decimals"))
+                if (erc20Data.ContainsKey("decimals") && erc20Data["decimals"] != null)
                 {
                     var decimals = Convert.ToInt32(erc20Data["decimals"]);
                     if (decimals < 0 || decimals > 18)
@@ -213,8 +273,28 @@ namespace BiatecTokensApi.Services
 
             try
             {
-                var json = JsonSerializer.Serialize(metadata);
-                var erc721Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                if (metadata == null)
+                {
+                    result.Errors.Add(new TokenValidationIssue
+                    {
+                        Field = "metadata",
+                        Message = "Metadata cannot be null",
+                        Severity = "Error"
+                    });
+                    return result;
+                }
+
+                // Convert to dictionary if it isn't already
+                Dictionary<string, object>? erc721Data;
+                if (metadata is Dictionary<string, object> dict)
+                {
+                    erc721Data = dict;
+                }
+                else
+                {
+                    var json = JsonSerializer.Serialize(metadata);
+                    erc721Data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                }
 
                 if (erc721Data == null)
                 {
