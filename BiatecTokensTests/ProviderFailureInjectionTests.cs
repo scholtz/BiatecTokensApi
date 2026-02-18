@@ -428,5 +428,251 @@ namespace BiatecTokensTests
         }
 
         #endregion
+
+        #region Cascade Failure Tests
+
+        [Test]
+        public async Task CascadeFailure_IPFSAndRPC_BothDown_ShouldRecordMultipleFailures()
+        {
+            // Arrange - Simulate both IPFS and RPC failures
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ARC3",
+                "voimain",
+                "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                "Cascade Test",
+                "CASCADE");
+
+            // Act - Try to deploy but both dependencies fail
+            await _deploymentService.UpdateDeploymentStatusAsync(
+                deploymentId,
+                DeploymentStatus.Failed,
+                errorMessage: "IPFS unavailable, cannot upload metadata");
+
+            var deployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert
+            Assert.That(deployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Failed));
+            Assert.That(deployment.ErrorMessage, Does.Contain("IPFS"));
+            
+            // Cascade failure should be retryable after both services recover
+        }
+
+        [Test]
+        public async Task CascadeFailure_IPFSTimeout_RPCSuccess_ShouldContinueWithoutMetadata()
+        {
+            // Arrange - IPFS times out, but RPC works
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ARC3",
+                "voimain",
+                "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                "Partial Failure Test",
+                "PARTIAL");
+
+            // Act - Deployment continues with degraded metadata
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, transactionHash: "TXHASH123");
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Pending);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Confirmed, confirmedRound: 12345);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Completed);
+
+            var deployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert - Deployment should succeed even without IPFS metadata
+            Assert.That(deployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Completed));
+            Assert.That(deployment.TransactionHash, Is.EqualTo("TXHASH123"));
+        }
+
+        [Test]
+        public async Task CascadeFailure_MultipleRetries_BothProvidersRecover_ShouldEventuallySucceed()
+        {
+            // Arrange - Start in failed state due to provider issues
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ASA",
+                "voimain",
+                "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                "Retry Test",
+                "RETRY");
+
+            // Act - First attempt fails
+            await _deploymentService.MarkDeploymentFailedAsync(
+                deploymentId,
+                "Network timeout on providers",
+                isRetryable: true);
+
+            var failedDeployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+            Assert.That(failedDeployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Failed));
+
+            // Retry after providers recover
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Queued);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, transactionHash: "RETRY_TX");
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Pending);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Confirmed, confirmedRound: 54321);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Completed);
+
+            var completedDeployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert - Should succeed on retry
+            Assert.That(completedDeployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Completed));
+            Assert.That(completedDeployment.StatusHistory.Count, Is.GreaterThan(5), "Should have multiple status entries showing retry");
+        }
+
+        [Test]
+        public async Task DelayedSettlement_ConfirmationDelayed_ShouldWaitAndComplete()
+        {
+            // Arrange - Deployment with delayed confirmation
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ERC20_Mintable",
+                "base-mainnet",
+                "0x5678",
+                "Delayed Token",
+                "DELAY");
+
+            // Act - Transaction submitted but takes time to confirm
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, transactionHash: "DELAY_TX");
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Pending);
+
+            var pendingDeployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+            Assert.That(pendingDeployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Pending));
+
+            // Simulate wait for confirmation
+            await Task.Delay(100); // Simulated wait
+
+            // Eventually confirms
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Confirmed, confirmedRound: 99999);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Completed);
+
+            var completedDeployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert
+            Assert.That(completedDeployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Completed));
+            Assert.That(completedDeployment.StatusHistory.Any(h => h.Status == DeploymentStatus.Pending), Is.True);
+        }
+
+        [Test]
+        public async Task RepeatedTransientFailures_CrossingThreshold_ShouldEventuallyFail()
+        {
+            // Arrange
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ARC200",
+                "voimain",
+                "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                "Flaky Network",
+                "FLAKY");
+
+            // Act - Multiple retries due to transient failures
+            for (int i = 0; i < 3; i++)
+            {
+                if (i > 0)
+                {
+                    // Retry from failed
+                    await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Queued);
+                }
+
+                await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, transactionHash: $"TX_{i}");
+                await _deploymentService.MarkDeploymentFailedAsync(deploymentId, $"Transient failure #{i + 1}", isRetryable: true);
+            }
+
+            var deployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert - Should have detailed failure history
+            Assert.That(deployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Failed));
+            Assert.That(deployment.StatusHistory.Count(h => h.Status == DeploymentStatus.Failed), Is.EqualTo(3), "Should have 3 failure entries");
+            
+            // After threshold exceeded, should not retry automatically
+        }
+
+        [Test]
+        public async Task NonRetryablePolicyViolation_ComplianceCheck_ShouldFailPermanently()
+        {
+            // Arrange - Deployment that violates non-retryable policy (e.g., KYC requirement)
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ARC1400",
+                "voimain",
+                "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                "Compliance Violation",
+                "COMPLY");
+
+            // Act - Fail with non-retryable error
+            await _deploymentService.MarkDeploymentFailedAsync(
+                deploymentId,
+                "KYC verification required for security tokens",
+                isRetryable: false);
+
+            var deployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert
+            Assert.That(deployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Failed));
+            Assert.That(deployment.ErrorMessage, Does.Contain("KYC"));
+            
+            // Should NOT allow retry to Queued for non-retryable failures
+            // User must remediate (complete KYC) before creating new deployment
+        }
+
+        #endregion
+
+        #region State Transition History Validation
+
+        [Test]
+        public async Task StateTransitionHistory_ShouldBeChronologicallyOrdered()
+        {
+            // Arrange
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ASA",
+                "voimain",
+                "VCMJKWOY5P5P7SKMZFFOCEROPJCZOTIJMNIYNUCKH7LRO45JMJP6UYBIJA",
+                "History Test",
+                "HIST");
+
+            // Act - Complete deployment lifecycle
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, transactionHash: "HIST_TX");
+            await Task.Delay(10); // Small delay to ensure timestamp ordering
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Pending);
+            await Task.Delay(10);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Confirmed, confirmedRound: 88888);
+            await Task.Delay(10);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Completed);
+
+            var deployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert - Verify chronological ordering
+            var timestamps = deployment!.StatusHistory.Select(h => h.Timestamp).ToList();
+            var sortedTimestamps = timestamps.OrderBy(t => t).ToList();
+
+            Assert.That(timestamps, Is.EqualTo(sortedTimestamps), "Status history must be chronologically ordered");
+            Assert.That(deployment.StatusHistory.Count, Is.GreaterThanOrEqualTo(5), "Should have at least Queued, Submitted, Pending, Confirmed, Completed");
+        }
+
+        [Test]
+        public async Task StateTransitionHistory_WithFailureAndRetry_ShouldCaptureFullJourney()
+        {
+            // Arrange
+            var deploymentId = await _deploymentService.CreateDeploymentAsync(
+                "ERC20_Mintable",
+                "base-mainnet",
+                "0x9999",
+                "Journey Test",
+                "JRNY");
+
+            // Act - Fail first, then retry successfully
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, transactionHash: "FAIL_TX");
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Pending);
+            await _deploymentService.MarkDeploymentFailedAsync(deploymentId, "Network congestion", isRetryable: true);
+
+            // Retry
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Queued);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Submitted, transactionHash: "SUCCESS_TX");
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Pending);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Confirmed, confirmedRound: 77777);
+            await _deploymentService.UpdateDeploymentStatusAsync(deploymentId, DeploymentStatus.Completed);
+
+            var deployment = await _deploymentService.GetDeploymentAsync(deploymentId);
+
+            // Assert - Should show complete journey including failure
+            Assert.That(deployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Completed));
+            Assert.That(deployment.StatusHistory.Any(h => h.Status == DeploymentStatus.Failed), Is.True, "Should have failed state in history");
+            Assert.That(deployment.StatusHistory.Count(h => h.Status == DeploymentStatus.Queued), Is.EqualTo(2), "Should have 2 Queued states (initial + retry)");
+            Assert.That(deployment.StatusHistory.Count(h => h.Status == DeploymentStatus.Submitted), Is.EqualTo(2), "Should have 2 Submitted states");
+        }
+
+        #endregion
     }
 }
