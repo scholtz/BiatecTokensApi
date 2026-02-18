@@ -1,5 +1,47 @@
 # GitHub Copilot Instructions for BiatecTokensApi
 
+## CRITICAL: Product Owner Quality Standards
+
+**MANDATORY QUALITY GATES before requesting PR review:**
+
+1. **CI Evidence Required**:
+   - Provide links to successful CI workflow runs
+   - Include repeatability matrix (minimum 3 successful runs)
+   - Document any flaky tests or timing dependencies
+   - Attach build logs and test artifacts
+
+2. **Traceability to Acceptance Criteria**:
+   - Explicitly map code changes to issue AC numbers
+   - Document which ACs are fully closed vs partially closed
+   - Quantify measurable risk reduction
+   - Include before/after comparison metrics
+
+3. **Failure Semantics Documentation**:
+   - Document timeout strategies and poll intervals
+   - Explain retry logic and exponential backoff
+   - Clarify false positive vs false negative prevention
+   - Provide error categorization tables
+
+4. **Negative-Path Test Coverage**:
+   - Add integration tests for delivery failures
+   - Test retry/timeout scenarios
+   - Test partial downstream availability
+   - Validate auditable logging of failures
+
+5. **Production-Ready Documentation**:
+   - CI repeatability evidence (with command outputs)
+   - Acceptance criteria traceability matrix
+   - Failure semantics and error handling guide
+   - Commands for verification from clean environment
+
+**Lesson Learned (2026-02-18)**: Product owner rejected PR with all tests passing because it lacked:
+- CI repeatability evidence (3+ successful runs)
+- Explicit AC traceability (what's closed, what's partial, risk reduction)
+- Failure semantics documentation (timeout/poll strategies)
+- Negative-path integration tests (delivery failures, retries, timeouts)
+
+**Action Required**: Always create comprehensive CI evidence documentation BEFORE requesting review, even if all tests pass. Passing tests alone are insufficient for enterprise governance gates.
+
 ## CRITICAL: Understanding "Vision-Driven" vs "Implementation" Issues
 
 **BEFORE starting any issue labeled "vision-driven" or containing extensive user stories:**
