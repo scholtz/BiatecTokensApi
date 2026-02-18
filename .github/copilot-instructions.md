@@ -4,43 +4,96 @@
 
 **MANDATORY QUALITY GATES before requesting PR review:**
 
-1. **CI Evidence Required**:
-   - Provide links to successful CI workflow runs
-   - Include repeatability matrix (minimum 3 successful runs)
-   - Document any flaky tests or timing dependencies
-   - Attach build logs and test artifacts
+### 1. Explicit Issue Linkage (FIRST LINE OF PR)
+- **MUST** use GitHub linking syntax: `Fixes #XXX` or `Closes #XXX` or `Resolves #XXX`
+- **NOT** "Related Issues: XXX" or "Addresses XXX" - use official GitHub syntax
+- Place on **first line** of PR description for automatic issue closure
+- Example:
+  ```markdown
+  Fixes #357
+  
+  ## Summary
+  ...
+  ```
 
-2. **Traceability to Acceptance Criteria**:
-   - Explicitly map code changes to issue AC numbers
-   - Document which ACs are fully closed vs partially closed
-   - Quantify measurable risk reduction
-   - Include before/after comparison metrics
+### 2. Wait for CI Completion
+- **DO NOT** request review until CI workflow shows green checkmark
+- Wait for GitHub Actions to complete (usually 2-5 minutes)
+- If CI hasn't triggered, manually trigger or investigate why
+- Include link to CI run in PR description:
+  ```markdown
+  CI Status: https://github.com/scholtz/BiatecTokensApi/actions/runs/XXXXX
+  ```
 
-3. **Failure Semantics Documentation**:
-   - Document timeout strategies and poll intervals
-   - Explain retry logic and exponential backoff
-   - Clarify false positive vs false negative prevention
-   - Provide error categorization tables
+### 3. Inline CI Evidence (IN PR DESCRIPTION, NOT JUST DOCS)
+- Paste **actual CI output** into PR description (not just link to docs)
+- Include 3 consecutive runs showing identical results:
+  ```markdown
+  ## CI Evidence
+  
+  ### Run 1 (Local)
+  ```
+  $ dotnet test --filter "FullyQualifiedName!~RealEndpoint"
+  Passed! - Failed: 0, Passed: 1665, Skipped: 4, Total: 1669, Duration: 2m 23s
+  ```
+  
+  ### Run 2 (Repeatability)
+  ```
+  Passed! - Failed: 0, Passed: 1665, Skipped: 4, Total: 1669, Duration: 2m 21s
+  ```
+  ```
+- Include sample test outputs showing deterministic behavior
+- Show test counts: X/X passed, 0 failed
 
-4. **Negative-Path Test Coverage**:
-   - Add integration tests for delivery failures
-   - Test retry/timeout scenarios
-   - Test partial downstream availability
-   - Validate auditable logging of failures
+### 4. Sample Logs/Outputs (CONCRETE EVIDENCE)
+- For audit logs: Include actual JSON structure example
+- For deterministic behavior: Show 3+ runs with identical results
+- For API contracts: Show request/response examples
+- Example:
+  ```markdown
+  ## Sample Audit Log
+  ```json
+  {
+    "assetId": 12345,
+    "tokenName": "Example Token",
+    "deployedBy": "user@example.com",
+    "success": true,
+    "issuedAt": "2026-02-18T20:00:00Z"
+  }
+  ```
+  ```
 
-5. **Production-Ready Documentation**:
-   - CI repeatability evidence (with command outputs)
-   - Acceptance criteria traceability matrix
-   - Failure semantics and error handling guide
-   - Commands for verification from clean environment
+### 5. Traceability to Acceptance Criteria
+- Explicitly map code changes to issue AC numbers
+- Document which ACs are fully closed vs partially closed
+- Quantify measurable risk reduction
+- Include before/after comparison metrics
 
-**Lesson Learned (2026-02-18)**: Product owner rejected PR with all tests passing because it lacked:
-- CI repeatability evidence (3+ successful runs)
-- Explicit AC traceability (what's closed, what's partial, risk reduction)
-- Failure semantics documentation (timeout/poll strategies)
-- Negative-path integration tests (delivery failures, retries, timeouts)
+### 6. Failure Semantics Documentation
+- Document timeout strategies and poll intervals
+- Explain retry logic and exponential backoff
+- Clarify false positive vs false negative prevention
+- Provide error categorization tables
 
-**Action Required**: Always create comprehensive CI evidence documentation BEFORE requesting review, even if all tests pass. Passing tests alone are insufficient for enterprise governance gates.
+### 7. Negative-Path Test Coverage
+- Add integration tests for delivery failures
+- Test retry/timeout scenarios
+- Test partial downstream availability
+- Validate auditable logging of failures
+
+### 8. Verification Commands
+- Exact commands to reproduce results
+- Expected output for each command
+- Pass/fail criteria
+
+**Lesson Learned (2026-02-18 - Issue #357)**: Product owner rejected PR despite comprehensive docs because:
+- ❌ No explicit "Fixes #357" syntax (used generic "Related Issues")
+- ❌ No inline CI evidence in PR description (only in separate 40KB doc)
+- ❌ No sample logs/outputs in PR (only in external verification doc)
+- ❌ Didn't wait for CI workflow to complete before requesting review
+- ✅ Comprehensive docs existed but were external, not inline
+
+**Action Required**: PR description MUST contain inline evidence, even if comprehensive docs exist separately. Product owner reviews PR description first, docs second.
 
 ## CRITICAL: Requirements vs Scope Section Priority
 
