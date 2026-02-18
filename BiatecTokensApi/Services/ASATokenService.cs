@@ -493,7 +493,7 @@ namespace BiatecTokensApi.Services
                     TokenName = request.Name,
                     TokenSymbol = request.UnitName,
                     TotalSupply = request.TotalSupply.ToString(),
-                    Decimals = request.Decimals,
+                    Decimals = (int)request.Decimals,
                     DeployedBy = deployedBy,
                     DeployedAt = DateTime.UtcNow,
                     Success = success,

@@ -40,6 +40,7 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<ARC200TokenService> _logger;
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
         private readonly IComplianceRepository _complianceRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -60,13 +61,15 @@ namespace BiatecTokensApi.Services
         /// <param name="logger">The logger used to log information and errors for this service.</param>
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         /// <param name="complianceRepository">The compliance metadata repository</param>
+        /// <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ARC200TokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             IOptionsMonitor<AppConfiguration> appConfig,
             ILogger<ARC200TokenService> logger,
             ITokenIssuanceRepository tokenIssuanceRepository,
-            IComplianceRepository complianceRepository
+            IComplianceRepository complianceRepository,
+            IHttpContextAccessor httpContextAccessor
             )
         {
             _config = config;
@@ -74,6 +77,7 @@ namespace BiatecTokensApi.Services
             _logger = logger;
             _tokenIssuanceRepository = tokenIssuanceRepository;
             _complianceRepository = complianceRepository;
+            _httpContextAccessor = httpContextAccessor;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -353,7 +357,8 @@ namespace BiatecTokensApi.Services
                     Success = success,
                     ErrorMessage = errorMessage,
                     TransactionHash = transactionId,
-                    ConfirmedRound = confirmedRound
+                    ConfirmedRound = confirmedRound,
+                    CorrelationId = _httpContextAccessor.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString()
                 };
 
                 await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);

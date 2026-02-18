@@ -6,6 +6,7 @@ using BiatecTokensApi.Repositories;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -730,12 +731,14 @@ namespace BiatecTokensTests
         {
             try
             {
+                var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
                 return new ARC3TokenService(
                     _configMock.Object,
                     _loggerMock.Object,
                     _ipfsRepositoryMock.Object,
                     _asaTokenServiceMock.Object,
-                    _tokenIssuanceRepositoryMock.Object
+                    _tokenIssuanceRepositoryMock.Object,
+                    mockHttpContextAccessor
                 );
             }
             catch

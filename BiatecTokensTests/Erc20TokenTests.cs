@@ -4,6 +4,7 @@ using BiatecTokensApi.Models.ERC20.Request;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -89,8 +90,9 @@ namespace BiatecTokensTests
             // Add mock authentication service and user repository for new dependencies
             var mockAuthService = Moq.Mock.Of<IAuthenticationService>();
             var mockUserRepo = Moq.Mock.Of<IUserRepository>();
+            var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
             
-            _tokenService = new ERC20TokenService(configMock.Object, appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object, mockAuthService, mockUserRepo);
+            _tokenService = new ERC20TokenService(configMock.Object, appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object, mockAuthService, mockUserRepo, mockHttpContextAccessor);
 
             // Setup accounts
             _ownerAccount = new Account(_accounts.Owner, 31337);

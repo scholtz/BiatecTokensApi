@@ -40,6 +40,7 @@ namespace BiatecTokensApi.Services
         private readonly IOptionsMonitor<AppConfiguration> _appConfig;
         private readonly ILogger<ARC1400TokenService> _logger;
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -59,18 +60,21 @@ namespace BiatecTokensApi.Services
         /// <param name="appConfig">The configuration monitor for application-specific settings.</param>
         /// <param name="logger">The logger used to log information and errors for this service.</param>
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+        /// <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ARC1400TokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             IOptionsMonitor<AppConfiguration> appConfig,
             ILogger<ARC1400TokenService> logger,
-            ITokenIssuanceRepository tokenIssuanceRepository
+            ITokenIssuanceRepository tokenIssuanceRepository,
+            IHttpContextAccessor httpContextAccessor
             )
         {
             _config = config;
             _appConfig = appConfig;
             _logger = logger;
             _tokenIssuanceRepository = tokenIssuanceRepository;
+            _httpContextAccessor = httpContextAccessor;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -331,7 +335,8 @@ namespace BiatecTokensApi.Services
                     Success = success,
                     ErrorMessage = errorMessage,
                     TransactionHash = transactionId,
-                    ConfirmedRound = confirmedRound
+                    ConfirmedRound = confirmedRound,
+                    CorrelationId = _httpContextAccessor.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString()
                 };
 
                 await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);

@@ -3,6 +3,7 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ARC1400.Request;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -459,7 +460,8 @@ namespace BiatecTokensTests
         {
             try
             {
-                return new ARC1400TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object);
+                var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
+                return new ARC1400TokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, mockHttpContextAccessor);
             }
             catch
             {

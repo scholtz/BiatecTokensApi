@@ -28681,7 +28681,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC1400TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
+        <member name="M:BiatecTokensApi.Services.ARC1400TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC1400TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC1400TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -28694,6 +28694,7 @@
             <param name="appConfig">The configuration monitor for application-specific settings.</param>
             <param name="logger">The logger used to log information and errors for this service.</param>
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+            <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ARC1400TokenService.ValidateRequest(BiatecTokensApi.Models.ARC1400.Request.ARC1400TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -28740,7 +28741,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC200TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC200TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository)">
+        <member name="M:BiatecTokensApi.Services.ARC200TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC200TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC200TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -28754,6 +28755,7 @@
             <param name="logger">The logger used to log information and errors for this service.</param>
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
             <param name="complianceRepository">The compliance metadata repository</param>
+            <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ARC200TokenService.ValidateRequest(BiatecTokensApi.Models.ARC200.Request.ARC200TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
@@ -28798,7 +28800,7 @@
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ARC3TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.IIPFSRepository,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository)">
+        <member name="M:BiatecTokensApi.Services.ARC3TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.IIPFSRepository,BiatecTokensApi.Services.Interface.IASATokenService,BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
             with Algorand nodes and IPFS repositories based on the provided options.
@@ -28815,6 +28817,7 @@
             file storage.</param>
             <param name="asaTokenService">Token service to create ASAs</param>
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+            <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
         </member>
         <member name="M:BiatecTokensApi.Services.ARC3TokenService.CreateARC3TokenAsync(BiatecTokensApi.Models.ARC3.Request.IARC3TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
@@ -28868,7 +28871,7 @@
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.Interface.IComplianceRepository)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
             with Algorand nodes and IPFS repositories based on the provided options.
@@ -28883,6 +28886,8 @@
             <param name="logger">An <see cref="T:Microsoft.Extensions.Logging.ILogger`1"/> instance used for logging information, warnings, and errors related
             to the service's operations.</param>
             <param name="complianceRepository">The compliance metadata repository</param>
+            <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+            <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
         </member>
         <member name="M:BiatecTokensApi.Services.ASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
             <summary>
@@ -28946,6 +28951,11 @@
         <member name="M:BiatecTokensApi.Services.ASATokenService.PersistComplianceMetadata(BiatecTokensApi.Models.TokenDeploymentComplianceMetadata,System.UInt64,System.String,System.String)">
             <summary>
             Persists compliance metadata for a deployed token
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ASATokenService.LogTokenIssuanceAudit(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest,System.Nullable{System.UInt64},System.String,System.String,System.Boolean,System.String,System.String)">
+            <summary>
+            Logs token issuance audit entry for ASA tokens
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.AuthenticationService">
@@ -29809,7 +29819,7 @@
             required ABI and bytecode file ("BiatecToken.json") is present in the "ABI" directory under the application's
             base directory.</remarks>
         </member>
-        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IDeploymentStatusService,BiatecTokensApi.Services.Interface.IAuthenticationService,BiatecTokensApi.Repositories.Interface.IUserRepository)">
+        <member name="M:BiatecTokensApi.Services.ERC20TokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Configuration.EVMChains},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ERC20TokenService},BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Services.Interface.IDeploymentStatusService,BiatecTokensApi.Services.Interface.IAuthenticationService,BiatecTokensApi.Repositories.Interface.IUserRepository,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ERC20TokenService"/> class,  loading the ABI and bytecode for
             the BiatecToken contract and configuring the service.
@@ -29826,6 +29836,7 @@
             <param name="deploymentStatusService">The deployment status tracking service</param>
             <param name="authenticationService">The authentication service for user account management</param>
             <param name="userRepository">The user repository for accessing user data</param>
+            <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
             <exception cref="T:System.InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         </member>
         <member name="M:BiatecTokensApi.Services.ERC20TokenService.ValidateRequest(BiatecTokensApi.Models.ERC20.Request.ERC20TokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">

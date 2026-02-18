@@ -34,6 +34,7 @@ namespace BiatecTokensApi.Services
         private readonly IIPFSRepository _ipfsRepository;
         private readonly IASATokenService _asaTokenService;
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         /// <summary>
         /// Initializes a new instance of the <see cref="ARC3TokenService"/> class, configuring it to interact
         /// with Algorand nodes and IPFS repositories based on the provided options.
@@ -50,18 +51,21 @@ namespace BiatecTokensApi.Services
         /// file storage.</param>
         /// <param name="asaTokenService">Token service to create ASAs</param>
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+        /// <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
         public ARC3TokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             ILogger<ARC3TokenService> logger,
             IIPFSRepository ipfsRepository,
             IASATokenService asaTokenService,
-            ITokenIssuanceRepository tokenIssuanceRepository)
+            ITokenIssuanceRepository tokenIssuanceRepository,
+            IHttpContextAccessor httpContextAccessor)
         {
             _config = config;
             _logger = logger;
             _ipfsRepository = ipfsRepository;
             _asaTokenService = asaTokenService;
             _tokenIssuanceRepository = tokenIssuanceRepository;
+            _httpContextAccessor = httpContextAccessor;
             foreach (var chain in _config.CurrentValue.AllowedNetworks)
             {
                 _logger.LogInformation("Allowed network: {Network}", chain);
@@ -709,7 +713,8 @@ namespace BiatecTokensApi.Services
                     ClawbackAddress = clawbackAddress,
                     MetadataUrl = metadataUrl,
                     IsMintable = !string.IsNullOrEmpty(managerAddress),
-                    IsBurnable = !string.IsNullOrEmpty(clawbackAddress)
+                    IsBurnable = !string.IsNullOrEmpty(clawbackAddress),
+                    CorrelationId = _httpContextAccessor.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString()
                 };
 
                 await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);

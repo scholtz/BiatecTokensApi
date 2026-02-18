@@ -3,6 +3,7 @@ using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ASA.Request;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -513,7 +514,9 @@ namespace BiatecTokensTests
         {
             try
             {
-                return new ASATokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _complianceRepositoryMock.Object);
+                var mockTokenIssuanceRepository = Mock.Of<ITokenIssuanceRepository>();
+                var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
+                return new ASATokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _complianceRepositoryMock.Object, mockTokenIssuanceRepository, mockHttpContextAccessor);
             }
             catch
             {
