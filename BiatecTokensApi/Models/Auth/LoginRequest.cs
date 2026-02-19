@@ -85,6 +85,12 @@ namespace BiatecTokensApi.Models.Auth
         /// Timestamp of the response
         /// </summary>
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Version of the ARC76 derivation contract used for this response.
+        /// Clients can use this to detect contract changes and adapt accordingly.
+        /// </summary>
+        public string DerivationContractVersion { get; set; } = string.Empty;
     }
 
     /// <summary>

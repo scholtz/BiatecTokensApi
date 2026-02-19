@@ -21,6 +21,12 @@ namespace BiatecTokensApi.Services
     /// </summary>
     public class AuthenticationService : IAuthenticationService
     {
+        /// <summary>
+        /// Version of the ARC76 derivation contract implemented by this service.
+        /// Increment when derivation rules change to allow clients to detect breaking changes.
+        /// </summary>
+        public const string DerivationContractVersion = "1.0";
+
         private readonly IUserRepository _userRepository;
         private readonly ILogger<AuthenticationService> _logger;
         private readonly JwtConfig _jwtConfig;
@@ -108,7 +114,8 @@ namespace BiatecTokensApi.Services
                     AlgorandAddress = user.AlgorandAddress,
                     AccessToken = accessToken,
                     RefreshToken = refreshToken.Token,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes)
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes),
+                    DerivationContractVersion = DerivationContractVersion
                 };
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("User with this email already exists"))
@@ -220,7 +227,8 @@ namespace BiatecTokensApi.Services
                     AlgorandAddress = user.AlgorandAddress,
                     AccessToken = accessToken,
                     RefreshToken = refreshToken.Token,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes)
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes),
+                    DerivationContractVersion = DerivationContractVersion
                 };
             }
             catch (Exception ex)
