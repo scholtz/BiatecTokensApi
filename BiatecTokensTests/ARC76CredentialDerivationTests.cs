@@ -405,8 +405,8 @@ namespace BiatecTokensTests
         public async Task Register_WithMixedCaseEmail_ThenLoginWithDifferentCase_ShouldReturnSameAddress()
         {
             // Arrange - Register with mixed case
-            var baseEmail = $"test-{Guid.NewGuid()}@example.com";
-            var mixedCaseEmail = $"TeSt-{baseEmail.Split('-')[1]}"; // Mixed case version
+            var guidPart = Guid.NewGuid().ToString("N"); // No dashes
+            var mixedCaseEmail = $"TeSt-{guidPart}@ExAmPlE.com"; // Mixed case in both parts
             var password = "SecurePass123!";
             
             var registerResponse = await RegisterUserWithCredentialsAsync(mixedCaseEmail, password);

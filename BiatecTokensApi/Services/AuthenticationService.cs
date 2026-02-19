@@ -111,6 +111,16 @@ namespace BiatecTokensApi.Services
                     ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtConfig.AccessTokenExpirationMinutes)
                 };
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("User with this email already exists"))
+            {
+                _logger.LogWarning("Duplicate registration attempt: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
+                return new RegisterResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.USER_ALREADY_EXISTS,
+                    ErrorMessage = "A user with this email address already exists"
+                };
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during user registration: {Email}", LoggingHelper.SanitizeLogInput(request.Email));
