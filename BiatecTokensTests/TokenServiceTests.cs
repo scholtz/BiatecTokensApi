@@ -4,6 +4,7 @@ using BiatecTokensApi.Models.ERC20.Request;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -69,8 +70,9 @@ namespace BiatecTokensTests
 
             var mockAuthService = Mock.Of<IAuthenticationService>();
             var mockUserRepo = Mock.Of<IUserRepository>();
+            var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
 
-            _tokenService = new ERC20TokenService(_blockchainConfigMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object, mockAuthService, mockUserRepo);
+            _tokenService = new ERC20TokenService(_blockchainConfigMock.Object, _appConfigMock.Object, _loggerMock.Object, _tokenIssuanceRepositoryMock.Object, _complianceRepositoryMock.Object, deploymentStatusServiceMock.Object, mockAuthService, mockUserRepo, mockHttpContextAccessor);
 
             // Create a valid deployment request for testing
             _validRequest = new ERC20MintableTokenDeploymentRequest

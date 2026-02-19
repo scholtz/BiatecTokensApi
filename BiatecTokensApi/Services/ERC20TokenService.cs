@@ -40,6 +40,7 @@ namespace BiatecTokensApi.Services
         private readonly IDeploymentStatusService _deploymentStatusService;
         private readonly IAuthenticationService _authenticationService;
         private readonly IUserRepository _userRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         // BiatecToken ABI loaded from the JSON file
         private readonly string _biatecTokenMintableAbi;
@@ -62,6 +63,7 @@ namespace BiatecTokensApi.Services
         /// <param name="deploymentStatusService">The deployment status tracking service</param>
         /// <param name="authenticationService">The authentication service for user account management</param>
         /// <param name="userRepository">The user repository for accessing user data</param>
+        /// <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
         /// <exception cref="InvalidOperationException">Thrown if the BiatecToken contract bytecode is not found in the ABI JSON file.</exception>
         public ERC20TokenService(
             IOptionsMonitor<EVMChains> config,
@@ -71,7 +73,8 @@ namespace BiatecTokensApi.Services
             IComplianceRepository complianceRepository,
             IDeploymentStatusService deploymentStatusService,
             IAuthenticationService authenticationService,
-            IUserRepository userRepository
+            IUserRepository userRepository,
+            IHttpContextAccessor httpContextAccessor
             )
         {
             _config = config;
@@ -82,6 +85,7 @@ namespace BiatecTokensApi.Services
             _deploymentStatusService = deploymentStatusService;
             _authenticationService = authenticationService;
             _userRepository = userRepository;
+            _httpContextAccessor = httpContextAccessor;
 
             // Load the BiatecToken ABI and bytecode from the JSON file
             var abiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ABI", "BiatecTokenMintable.json");
@@ -446,7 +450,8 @@ namespace BiatecTokensApi.Services
                     TransactionHash = transactionHash,
                     IsMintable = tokenType == TokenType.ERC20_Mintable,
                     IsPausable = true, // BiatecToken is pausable
-                    IsBurnable = true  // BiatecToken is burnable
+                    IsBurnable = true,  // BiatecToken is burnable
+                    CorrelationId = _httpContextAccessor.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString()
                 };
 
                 await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);

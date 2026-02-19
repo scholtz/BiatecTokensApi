@@ -95,6 +95,29 @@
 
 **Action Required**: PR description MUST contain inline evidence, even if comprehensive docs exist separately. Product owner reviews PR description first, docs second.
 
+**Lesson Learned (2026-02-19 - Issue #359, PR #360)**: Product owner requested rework despite:
+- ✅ All 10 acceptance criteria implemented and tested
+- ✅ 1669/1669 tests passing (100% pass rate, 3 runs)
+- ✅ Build: 0 errors
+- ✅ CodeQL: 0 vulnerabilities
+- ✅ Comprehensive verification doc (600+ lines)
+
+**Root cause**: Initial PR submission used "Related Issues: #359" instead of "Fixes #359" and lacked inline CI evidence in PR description.
+
+**Corrective actions taken**:
+1. ✅ Updated PR description to start with "Fixes #359" on first line
+2. ✅ Created `CI_INLINE_EVIDENCE_ISSUE_359_2026_02_18.md` with 3-run repeatability
+3. ✅ Included sample audit logs (correlation ID propagation) in PR description
+4. ✅ Included sample email normalization logs in PR description
+5. ✅ Created `ROOT_CAUSE_ANALYSIS_PR_360_ISSUE_359.md` documenting lessons learned
+6. ✅ Updated copilot instructions to prevent recurrence
+
+**CRITICAL REMINDERS**:
+- ⚠️ **"Fixes #XXX" is MANDATORY, not optional** - Never use "Related Issues" or other generic text
+- ⚠️ **Inline evidence is MANDATORY** - Sample logs, CI runs, verification commands MUST be in PR description
+- ⚠️ **External docs are supplementary** - Comprehensive docs don't replace inline evidence
+- ⚠️ **Product owner review order** - PR description reviewed first, external docs second
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:

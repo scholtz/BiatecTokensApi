@@ -8,6 +8,7 @@ using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services;
 using BiatecTokensApi.Services.Interface;
 using BiatecTokensApi.Configuration;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -71,6 +72,7 @@ namespace BiatecTokensTests
 
             var mockAuthService = Mock.Of<IAuthenticationService>();
             var mockUserRepo = Mock.Of<IUserRepository>();
+            var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
 
             var service = new ERC20TokenService(
                 mockConfig.Object, 
@@ -80,7 +82,8 @@ namespace BiatecTokensTests
                 _complianceRepository,
                 deploymentStatusServiceMock.Object,
                 mockAuthService,
-                mockUserRepo);
+                mockUserRepo,
+                mockHttpContextAccessor);
 
             // Act & Assert
             var ex = Assert.Throws<ArgumentException>(() => 
@@ -135,6 +138,7 @@ namespace BiatecTokensTests
 
             var mockAuthService = Mock.Of<IAuthenticationService>();
             var mockUserRepo = Mock.Of<IUserRepository>();
+            var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
 
             var service = new ERC20TokenService(
                 mockConfig.Object, 
@@ -144,7 +148,8 @@ namespace BiatecTokensTests
                 _complianceRepository,
                 deploymentStatusServiceMock.Object,
                 mockAuthService,
-                mockUserRepo);
+                mockUserRepo,
+                mockHttpContextAccessor);
 
             // Act & Assert - should not throw
             Assert.DoesNotThrow(() => service.ValidateRequest(request, TokenType.ERC20_Mintable));
@@ -184,6 +189,7 @@ namespace BiatecTokensTests
 
             var mockAuthService = Mock.Of<IAuthenticationService>();
             var mockUserRepo = Mock.Of<IUserRepository>();
+            var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
 
             var service = new ERC20TokenService(
                 mockConfig.Object, 
@@ -193,7 +199,8 @@ namespace BiatecTokensTests
                 _complianceRepository,
                 deploymentStatusServiceMock.Object,
                 mockAuthService,
-                mockUserRepo);
+                mockUserRepo,
+                mockHttpContextAccessor);
 
             // Act & Assert - should not throw
             Assert.DoesNotThrow(() => service.ValidateRequest(request, TokenType.ERC20_Mintable));

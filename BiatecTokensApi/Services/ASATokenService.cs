@@ -33,6 +33,8 @@ namespace BiatecTokensApi.Services
         private readonly Dictionary<string, string> _genesisId2GenesisHash = new();
         private readonly IOptionsMonitor<AppConfiguration> _appConfig;
         private readonly IComplianceRepository _complianceRepository;
+        private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         /// <summary>
         /// Initializes a new instance of the <see cref="ARC3TokenService"/> class, configuring it to interact
         /// with Algorand nodes and IPFS repositories based on the provided options.
@@ -47,17 +49,23 @@ namespace BiatecTokensApi.Services
         /// <param name="logger">An <see cref="ILogger{TCategoryName}"/> instance used for logging information, warnings, and errors related
         /// to the service's operations.</param>
         /// <param name="complianceRepository">The compliance metadata repository</param>
+        /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
+        /// <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
         public ASATokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             IOptionsMonitor<AppConfiguration> appConfig,
             ILogger<ARC3TokenService> logger,
-            IComplianceRepository complianceRepository
+            IComplianceRepository complianceRepository,
+            ITokenIssuanceRepository tokenIssuanceRepository,
+            IHttpContextAccessor httpContextAccessor
             )
         {
             _config = config;
             _appConfig = appConfig;
             _logger = logger;
             _complianceRepository = complianceRepository;
+            _tokenIssuanceRepository = tokenIssuanceRepository;
+            _httpContextAccessor = httpContextAccessor;
 
             foreach (var chain in _config.CurrentValue.AllowedNetworks)
             {
@@ -332,6 +340,16 @@ namespace BiatecTokensApi.Services
                     request.Network, acc.Address.EncodeAsString());
             }
 
+            // Log token issuance audit entry
+            await LogTokenIssuanceAudit(
+                request, 
+                assetResult.AssetIndex,
+                result.TxID(), 
+                acc.Address.EncodeAsString(), 
+                true, 
+                null, 
+                request.Network);
+
             return new ASATokenDeploymentResponse
             {
                 Success = true,
@@ -443,6 +461,59 @@ namespace BiatecTokensApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error persisting compliance metadata for ASA token {AssetId}", assetId);
+            }
+        }
+
+        /// <summary>
+        /// Logs token issuance audit entry for ASA tokens
+        /// </summary>
+        private async Task LogTokenIssuanceAudit(
+            ASAFungibleTokenDeploymentRequest request,
+            ulong? assetId,
+            string? transactionId,
+            string deployedBy,
+            bool success,
+            string? errorMessage,
+            string network)
+        {
+            try
+            {
+                var tokenType = request.Decimals == 0 && request.TotalSupply == 1 
+                    ? "ASA_NFT" 
+                    : (request.Decimals > 0 && request.TotalSupply > 1) 
+                        ? "ASA_FNFT" 
+                        : "ASA_FT";
+
+                var auditEntry = new TokenIssuanceAuditLogEntry
+                {
+                    AssetId = assetId,
+                    AssetIdentifier = assetId?.ToString(),
+                    Network = network,
+                    TokenType = tokenType,
+                    TokenName = request.Name,
+                    TokenSymbol = request.UnitName,
+                    TotalSupply = request.TotalSupply.ToString(),
+                    Decimals = (int)request.Decimals,
+                    DeployedBy = deployedBy,
+                    DeployedAt = DateTime.UtcNow,
+                    Success = success,
+                    ErrorMessage = errorMessage,
+                    TransactionHash = transactionId,
+                    ManagerAddress = request.ManagerAddress,
+                    ReserveAddress = request.ReserveAddress,
+                    FreezeAddress = request.FreezeAddress,
+                    ClawbackAddress = request.ClawbackAddress,
+                    MetadataUrl = request.Url,
+                    CorrelationId = _httpContextAccessor.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString()
+                };
+
+                await _tokenIssuanceRepository.AddAuditLogEntryAsync(auditEntry);
+                _logger.LogInformation("Token issuance audit log created for ASA token {AssetId} with correlation ID {CorrelationId}",
+                    assetId, auditEntry.CorrelationId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging token issuance audit entry for ASA token");
             }
         }
     }
