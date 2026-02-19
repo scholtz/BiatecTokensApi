@@ -100,6 +100,9 @@ namespace BiatecTokensTests
             _factory?.Dispose();
         }
 
+        private static string GenerateTestEmail(string prefix) =>
+            $"{prefix}-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+
         #region AC1 - Deterministic Auth-Account Mapping
 
         /// <summary>
@@ -110,7 +113,7 @@ namespace BiatecTokensTests
         public async Task AC1_SameCredentials_ThreeLoginSessions_ProduceIdenticalARC76Address()
         {
             // Arrange - Register a user once
-            string email = $"ac1-determinism-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac1-determinism");
             string password = "Harden1ng!Test";
 
             var registerResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
@@ -153,7 +156,7 @@ namespace BiatecTokensTests
         public async Task AC1_EmailCaseVariants_SameUser_ProduceIdenticalARC76Address()
         {
             // Arrange
-            string baseEmail = $"ac1-case-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string baseEmail = GenerateTestEmail("ac1-case");
             string password = "Harden1ng!Case";
 
             var registerResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
@@ -192,7 +195,7 @@ namespace BiatecTokensTests
         public async Task AC1_TokenRefresh_PreservesIdenticalARC76Address()
         {
             // Arrange - register and login
-            string email = $"ac1-refresh-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac1-refresh");
             string password = "Harden1ng!Refresh";
 
             var registerResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
@@ -340,7 +343,8 @@ namespace BiatecTokensTests
             var deployment = await service.GetDeploymentAsync(deploymentId);
             Assert.That(deployment!.CurrentStatus, Is.EqualTo(DeploymentStatus.Submitted), "Current status must be Submitted after retry");
             Assert.That(deployment.StatusHistory.Any(h => h.Status == DeploymentStatus.Failed), Is.True, "Failed state must be in history");
-            Assert.That(deployment.StatusHistory.Any(h => h.Status == DeploymentStatus.Queued && deployment.StatusHistory.IndexOf(h) > 0), Is.True, "Retry Queued state must be in history after Failed");
+            int queuedCount = deployment.StatusHistory.Count(h => h.Status == DeploymentStatus.Queued);
+            Assert.That(queuedCount, Is.GreaterThanOrEqualTo(2), "At least 2 Queued states must exist (initial + retry) in history");
         }
 
         #endregion
@@ -355,7 +359,7 @@ namespace BiatecTokensTests
         public async Task AC3_DuplicateRegistration_ReturnsStandardizedErrorSchema()
         {
             // Arrange - register first user
-            string email = $"ac3-dupe-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac3-dupe");
             string password = "Harden1ng!Dupe";
 
             await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
@@ -395,7 +399,7 @@ namespace BiatecTokensTests
         public async Task AC3_InvalidCredentials_ReturnsStandardizedAuthError()
         {
             // Arrange - register user
-            string email = $"ac3-wrong-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac3-wrong");
             string password = "Harden1ng!Correct";
 
             await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
@@ -507,7 +511,7 @@ namespace BiatecTokensTests
         public async Task AC4_NonExistentResource_Returns404WithStandardizedError()
         {
             // Act - register user, get token, then request non-existent resource
-            string email = $"ac4-notfound-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac4-notfound");
             var registerResp = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
             {
                 Email = email,
@@ -544,7 +548,7 @@ namespace BiatecTokensTests
             string correlationId = $"trace-{Guid.NewGuid().ToString("N")}";
             _client.DefaultRequestHeaders.TryAddWithoutValidation("X-Correlation-ID", correlationId);
 
-            string email = $"ac5-corr-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac5-corr");
             var registerResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
             {
                 Email = email,
@@ -574,7 +578,7 @@ namespace BiatecTokensTests
         public async Task AC5_LoginResponse_IncludesDerivationContractVersion_ForObservability()
         {
             // Arrange - register and login
-            string email = $"ac5-version-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac5-version");
             string password = "Harden1ng!Version";
 
             await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
@@ -612,7 +616,7 @@ namespace BiatecTokensTests
         public async Task AC6_FullAuthFlow_WorksWithoutWalletDependency()
         {
             // Act - complete auth flow without any wallet/mnemonic interaction
-            string email = $"ac6-walletless-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email = GenerateTestEmail("ac6-walletless");
             string password = "Harden1ng!NoWallet";
 
             // Step 1: Register (no wallet needed)
@@ -663,8 +667,8 @@ namespace BiatecTokensTests
             Assert.That(healthBody, Is.Not.Null.And.Not.Empty, "Health response must have content");
 
             // Validate different user registrations produce unique addresses (product feature: unique wallets per user)
-            string email1 = $"ac6-unique1-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
-            string email2 = $"ac6-unique2-{Guid.NewGuid().ToString("N")}@hardeningtest.com";
+            string email1 = GenerateTestEmail("ac6-unique1");
+            string email2 = GenerateTestEmail("ac6-unique2");
 
             var reg1 = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
             {
