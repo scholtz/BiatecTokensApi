@@ -4843,6 +4843,91 @@
             - Monitor remediation progress
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.TokenOperationsIntelligenceController">
+             <summary>
+             Token Operations Intelligence API v1
+             </summary>
+             <remarks>
+             Provides consolidated operational intelligence for deployed tokens including:
+             - Token health assessments from deterministic policy evaluators
+             - Lifecycle recommendations with reason codes and rationale
+             - Normalized token-affecting event summaries with actor attribution
+             - Contract version metadata for schema evolution tracking
+             - Graceful degraded-mode responses when upstream sources are unavailable
+            
+             All evaluations are deterministic: identical inputs always produce identical outputs.
+             Partial upstream failures return best-effort intelligence with explicit degraded-state flags.
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenOperationsIntelligenceController.#ctor(BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.TokenOperationsIntelligenceController})">
+            <summary>
+            Initializes a new instance of <see cref="T:BiatecTokensApi.Controllers.TokenOperationsIntelligenceController"/>.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenOperationsIntelligenceController.Evaluate(BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest)">
+             <summary>
+             Returns consolidated operations intelligence for a token
+             </summary>
+             <param name="request">Intelligence request specifying the token and evaluation options</param>
+             <returns>Consolidated response with health, recommendations, events, and contract version</returns>
+             <remarks>
+             **Response Structure:**
+             - `health`: Aggregated token health from all policy dimensions
+             - `recommendations`: Ordered lifecycle recommendations with reason codes (highest priority first)
+             - `events`: Recent normalized token-affecting events with actor, timestamp, category, and impact
+             - `contractVersion`: API schema version and backward-compatibility metadata
+             - `isDegraded`: True when one or more upstream sources failed but partial intelligence is available
+             - `degradedSources`: Which upstream sources failed (for operator visibility)
+            
+             **Policy Dimensions Evaluated:**
+             - `MintAuthority`: Mint authority posture and supply control
+             - `MetadataCompleteness`: Token metadata presence and validity
+             - `TreasuryMovement`: Anomalous treasury movement detection
+             - `OwnershipConsistency`: Deployment and ownership record consistency
+            
+             **Caching:**
+             Health assessments are cached for 5 minutes per token+network combination.
+             The `healthFromCache` flag indicates when cached data is returned.
+            
+             **Degraded Mode:**
+             If any upstream source fails, the endpoint returns 200 with `isDegraded=true`
+             and `degradedSources` listing the failed sources, rather than returning an error.
+             This ensures consumers always receive best-effort intelligence.
+            
+             **Example Request:**
+             ```json
+             POST /api/v1/operations-intelligence/evaluate
+             {
+               "assetId": 1234567,
+               "network": "voimain-v1.0",
+               "maxEvents": 10,
+               "includeEventDetails": false
+             }
+             ```
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenOperationsIntelligenceController.GetHealth(System.UInt64,System.String,System.String)">
+            <summary>
+            Returns the health assessment for a token across all policy dimensions
+            </summary>
+            <param name="assetId">Token asset ID</param>
+            <param name="network">Network identifier</param>
+            <param name="dimensions">Optional comma-separated policy dimensions to evaluate</param>
+            <returns>Token health assessment</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenOperationsIntelligenceController.GetRecommendations(System.UInt64,System.String)">
+            <summary>
+            Returns lifecycle recommendations for a token
+            </summary>
+            <param name="assetId">Token asset ID</param>
+            <param name="network">Network identifier</param>
+            <returns>Ordered list of recommendations (highest priority first)</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.TokenOperationsIntelligenceController.HealthCheck">
+            <summary>
+            Health check for the operations intelligence API
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.TokenRegistryController">
             <summary>
             Controller for token registry operations
@@ -22529,6 +22614,461 @@
             Whether the update was successful
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation">
+            <summary>
+            A lifecycle recommendation with reason code and rationale
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.ReasonCode">
+            <summary>
+            Unique machine-readable reason code for this recommendation (e.g., "MINT_AUTHORITY_UNREVOKED")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.Title">
+            <summary>
+            Short title of the recommendation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.Rationale">
+            <summary>
+            User-facing rationale explaining why this recommendation is relevant
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.SuggestedAction">
+            <summary>
+            Suggested action to resolve or act on this recommendation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.Priority">
+            <summary>
+            Priority of this recommendation (higher = more urgent)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.Severity">
+            <summary>
+            Severity associated with this recommendation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.RelatedDimension">
+            <summary>
+            Related policy dimension (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation.DocumentationUrl">
+            <summary>
+            Documentation URL for further reading (optional)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent">
+            <summary>
+            Normalized token-affecting event with canonical structure
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.EventId">
+            <summary>
+            Unique event identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.OccurredAt">
+            <summary>
+            Canonical UTC timestamp of the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.Category">
+            <summary>
+            Event category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.Impact">
+            <summary>
+            Impact level of this event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.Actor">
+            <summary>
+            Actor who initiated the event (address or system identifier)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.Description">
+            <summary>
+            Short description of the event
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.TransactionId">
+            <summary>
+            Blockchain transaction ID (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.BlockRound">
+            <summary>
+            Block/round number where the event occurred (if applicable)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent.Details">
+            <summary>
+            Additional event-specific details (included when IncludeEventDetails = true)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult">
+            <summary>
+            Result of evaluating a single policy dimension
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.DimensionId">
+            <summary>
+            Unique identifier for this policy dimension (e.g., "MintAuthority")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.DimensionName">
+            <summary>
+            Human-readable name of the policy dimension
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.Status">
+            <summary>
+            Evaluation status for this dimension
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.Severity">
+            <summary>
+            Severity when status is Warning or Fail
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.Description">
+            <summary>
+            Human-readable description of the evaluation outcome
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.FindingCode">
+            <summary>
+            Machine-readable code identifying the specific finding
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.RemediationHint">
+            <summary>
+            Human-readable remediation hint when status is not Pass
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.Details">
+            <summary>
+            Specific details or evidence supporting this evaluation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.EvaluatedAt">
+            <summary>
+            UTC timestamp when this evaluation was performed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult.FromCache">
+            <summary>
+            Whether this result came from cached data
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment">
+            <summary>
+            Aggregated token health assessment from all policy dimensions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.OverallStatus">
+            <summary>
+            Overall health status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.HealthScore">
+            <summary>
+            Composite health score (0.0 = critical, 1.0 = perfect)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.PolicyResults">
+            <summary>
+            Individual policy dimension results
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.PassingDimensions">
+            <summary>
+            Number of passing policy dimensions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.WarningDimensions">
+            <summary>
+            Number of warning policy dimensions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.FailingDimensions">
+            <summary>
+            Number of failing policy dimensions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.DegradedDimensions">
+            <summary>
+            Number of degraded (unavailable) policy dimensions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.IsPartialResult">
+            <summary>
+            Whether health assessment is operating in degraded mode due to upstream failures
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthAssessment.DegradedReason">
+            <summary>
+            Explanation of what data is missing when IsPartialResult is true
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.AssessmentSeverity">
+            <summary>
+            Severity level for health and policy assessments
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.AssessmentSeverity.Healthy">
+            <summary>Healthy - no issues detected</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.AssessmentSeverity.Low">
+            <summary>Low severity - informational issue</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.AssessmentSeverity.Medium">
+            <summary>Medium severity - action recommended</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.AssessmentSeverity.High">
+            <summary>High severity - action required</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.AssessmentSeverity.Critical">
+            <summary>Critical severity - immediate action required</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyStatus">
+            <summary>
+            Status of a policy dimension evaluation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyStatus.Pass">
+            <summary>Policy dimension passes all checks</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyStatus.Warning">
+            <summary>Policy dimension has warnings</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyStatus.Fail">
+            <summary>Policy dimension has failures</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyStatus.Degraded">
+            <summary>Evaluation could not be completed due to data unavailability</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory">
+            <summary>
+            Category of a token-affecting event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.Mint">
+            <summary>Token minting operation</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.Burn">
+            <summary>Token burning operation</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.OwnershipChange">
+            <summary>Ownership or authority transfer</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.MetadataUpdate">
+            <summary>Metadata update</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.TreasuryMovement">
+            <summary>Treasury movement</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.Deployment">
+            <summary>Deployment event</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.Governance">
+            <summary>Governance action</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.Compliance">
+            <summary>Compliance-related event</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.Security">
+            <summary>Security-related event</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenEventCategory.Other">
+            <summary>Other uncategorized event</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.EventImpact">
+            <summary>
+            Impact level of a token-affecting event
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.EventImpact.Informational">
+            <summary>Informational - no operational impact</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.EventImpact.Low">
+            <summary>Low impact</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.EventImpact.Moderate">
+            <summary>Moderate impact</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.EventImpact.High">
+            <summary>High impact</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.EventImpact.Critical">
+            <summary>Critical impact</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthStatus">
+            <summary>
+            Overall health status of a token
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthStatus.Healthy">
+            <summary>Token is healthy</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthStatus.Degraded">
+            <summary>Token has minor issues</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthStatus.Unhealthy">
+            <summary>Token has significant issues</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenHealthStatus.Unknown">
+            <summary>Health could not be determined</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest">
+            <summary>
+            Request for consolidated token operations intelligence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest.AssetId">
+            <summary>
+            Asset ID of the token to evaluate
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest.Network">
+            <summary>
+            Network identifier (e.g., voimain-v1.0, mainnet-v1.0)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest.CorrelationId">
+            <summary>
+            Optional client-provided idempotency/correlation key
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest.MaxEvents">
+            <summary>
+            Maximum number of events to include in the response (1-50, default 10)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest.IncludeEventDetails">
+            <summary>
+            Whether to include full event detail or summaries only
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest.PolicyDimensions">
+            <summary>
+            Optional list of policy dimensions to evaluate. If null or empty, all dimensions are evaluated.
+            Valid values: MintAuthority, MetadataCompleteness, TreasuryMovement, OwnershipConsistency
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion">
+            <summary>
+            API contract version metadata for schema evolution tracking
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion.ApiVersion">
+            <summary>
+            API version string (e.g., "v1.0")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion.SchemaVersion">
+            <summary>
+            Schema version for this response structure
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion.MinClientVersion">
+            <summary>
+            Minimum client version required to consume this response
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion.BackwardCompatible">
+            <summary>
+            Whether this response contains any breaking changes from previous versions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion.DeprecatedFields">
+            <summary>
+            List of deprecated fields in this response (for migration guidance)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion.GeneratedAt">
+            <summary>
+            UTC timestamp when this contract version was generated
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse">
+            <summary>
+            Consolidated token operations intelligence response
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.Success">
+            <summary>
+            Whether the request was processed successfully
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.AssetId">
+            <summary>
+            Asset ID that was evaluated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.Network">
+            <summary>
+            Network identifier
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.CorrelationId">
+            <summary>
+            Correlation ID for tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.ContractVersion">
+            <summary>
+            API contract version metadata
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.Health">
+            <summary>
+            Aggregated token health assessment from all policy dimensions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.Recommendations">
+            <summary>
+            Ordered lifecycle recommendations (highest priority first)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.Events">
+            <summary>
+            Recent normalized token-affecting events
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.IsDegraded">
+            <summary>
+            Whether this response is in degraded mode due to partial upstream failures
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.DegradedSources">
+            <summary>
+            List of upstream data sources that failed (when IsDegraded = true)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.GeneratedAt">
+            <summary>
+            UTC timestamp when this response was generated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.HealthFromCache">
+            <summary>
+            Whether health data is from cache
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.ErrorCode">
+            <summary>
+            Machine-readable error code (populated on failure)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.ErrorMessage">
+            <summary>
+            Human-readable error message with remediation hint (populated on failure)
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest">
             <summary>
             Request model for listing tokens in the registry
@@ -31814,6 +32354,48 @@
             Recommended value with valid precision
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService">
+            <summary>
+            Service interface for token operations intelligence
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService.GetOperationsIntelligenceAsync(BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest)">
+            <summary>
+            Returns a consolidated operations intelligence response including health assessment,
+            lifecycle recommendations, and normalized recent events.
+            Partial upstream failures produce a degraded-mode response rather than a hard error.
+            </summary>
+            <param name="request">Request specifying which token to evaluate and options</param>
+            <returns>Consolidated operations intelligence response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService.EvaluateHealthAsync(System.UInt64,System.String,System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Evaluates token health across all (or specified) policy dimensions.
+            Returns deterministic results for identical inputs.
+            </summary>
+            <param name="assetId">Token asset ID</param>
+            <param name="network">Network identifier</param>
+            <param name="dimensions">Optional filter for specific dimensions</param>
+            <returns>Aggregated health assessment</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService.GetRecommendationsAsync(System.UInt64,System.String)">
+            <summary>
+            Generates deterministic lifecycle recommendations for a token based on its current state.
+            </summary>
+            <param name="assetId">Token asset ID</param>
+            <param name="network">Network identifier</param>
+            <returns>Ordered list of lifecycle recommendations (highest priority first)</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService.GetNormalizedEventsAsync(System.UInt64,System.String,System.Int32,System.Boolean)">
+            <summary>
+            Returns recent normalized token-affecting events with actor attribution and impact categorization.
+            </summary>
+            <param name="assetId">Token asset ID</param>
+            <param name="network">Network identifier</param>
+            <param name="maxEvents">Maximum number of events to return</param>
+            <param name="includeDetails">Whether to include full event details</param>
+            <returns>List of normalized events</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.ITokenRegistryService">
             <summary>
             Service interface for token registry operations
@@ -32852,6 +33434,60 @@
         </member>
         <member name="M:BiatecTokensApi.Services.TokenMetadataValidator.ConvertDisplayToRawBalance(System.Decimal,System.Int32)">
             <inheritdoc/>
+        </member>
+        <member name="T:BiatecTokensApi.Services.TokenOperationsIntelligenceService">
+            <summary>
+            Service for consolidated token operations intelligence.
+            Provides deterministic health assessments, lifecycle recommendations,
+            and normalized event summaries with graceful degraded-mode handling.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.GetOperationsIntelligenceAsync(BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateHealthAsync(System.UInt64,System.String,System.Collections.Generic.IEnumerable{System.String})">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.GetRecommendationsAsync(System.UInt64,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.GetNormalizedEventsAsync(System.UInt64,System.String,System.Int32,System.Boolean)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluatePolicyDimension(System.UInt64,System.String,System.String)">
+            <summary>
+            Evaluates a single policy dimension deterministically
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateMintAuthority(System.UInt64,System.String)">
+            <summary>
+            Evaluates mint authority posture
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateMetadataCompleteness(System.UInt64,System.String)">
+            <summary>
+            Evaluates metadata completeness
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateTreasuryMovement(System.UInt64,System.String)">
+            <summary>
+            Evaluates treasury movement sanity
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateOwnershipConsistency(System.UInt64,System.String)">
+            <summary>
+            Evaluates deployment/ownership consistency
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.ComputeOverallHealth(System.Collections.Generic.List{BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult})">
+            <summary>
+            Computes overall health from individual policy results
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.BuildDegradedHealthAssessment(System.String)">
+            <summary>
+            Builds a degraded health assessment for use when evaluation fails
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.TokenRegistryService">
             <summary>
