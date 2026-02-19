@@ -8002,6 +8002,12 @@
             Timestamp of the response
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.Auth.LoginResponse.DerivationContractVersion">
+            <summary>
+            Version of the ARC76 derivation contract used for this response.
+            Clients can use this to detect contract changes and adapt accordingly.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Auth.RefreshTokenRequest">
             <summary>
             Request model for token refresh
@@ -8215,6 +8221,12 @@
         <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.Timestamp">
             <summary>
             Timestamp of the response
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.RegisterResponse.DerivationContractVersion">
+            <summary>
+            Version of the ARC76 derivation contract used for this response.
+            Clients can use this to detect contract changes and adapt accordingly.
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Auth.User">
@@ -28961,6 +28973,12 @@
         <member name="T:BiatecTokensApi.Services.AuthenticationService">
             <summary>
             Authentication service with ARC76 account derivation and JWT token management
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.AuthenticationService.DerivationContractVersion">
+            <summary>
+            Version of the ARC76 derivation contract implemented by this service.
+            Increment when derivation rules change to allow clients to detect breaking changes.
             </summary>
         </member>
         <member name="M:BiatecTokensApi.Services.AuthenticationService.CanonicalizeEmail(System.String)">
