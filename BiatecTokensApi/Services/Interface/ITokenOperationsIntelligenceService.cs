@@ -24,11 +24,13 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="assetId">Token asset ID</param>
         /// <param name="network">Network identifier</param>
         /// <param name="dimensions">Optional filter for specific dimensions</param>
+        /// <param name="stateInputs">Optional token state that drives evaluator conditions</param>
         /// <returns>Aggregated health assessment</returns>
         Task<TokenHealthAssessment> EvaluateHealthAsync(
             ulong assetId,
             string network,
-            IEnumerable<string>? dimensions = null);
+            IEnumerable<string>? dimensions = null,
+            TokenStateInputs? stateInputs = null);
 
         /// <summary>
         /// Generates deterministic lifecycle recommendations for a token based on its current state.

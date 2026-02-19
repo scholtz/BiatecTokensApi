@@ -22959,6 +22959,12 @@
             Valid values: MintAuthority, MetadataCompleteness, TreasuryMovement, OwnershipConsistency
             </summary>
         </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest.StateInputs">
+            <summary>
+            Optional token state inputs that drive deterministic evaluator outcomes.
+            When not provided, evaluators use conservative (Warning) defaults.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.OperationsContractVersion">
             <summary>
             API contract version metadata for schema evolution tracking
@@ -23067,6 +23073,52 @@
         <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceResponse.ErrorMessage">
             <summary>
             Human-readable error message with remediation hint (populated on failure)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs">
+            <summary>
+            State inputs that drive deterministic policy evaluator outcomes.
+            When not provided, evaluators use conservative (Warning) defaults.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.MintAuthorityRevoked">
+            <summary>
+            Whether mint authority has been explicitly revoked (null = unknown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.SupplyCapReached">
+            <summary>
+            Whether the mint supply cap has been reached (null = unknown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.MetadataCompletenessPercent">
+            <summary>
+            Metadata completeness percentage (0-100). null = unknown.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.MetadataUrlAccessible">
+            <summary>
+            Whether the metadata URL is accessible and valid (null = unknown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.LargeTreasuryMovementDetected">
+            <summary>
+            Whether a large treasury movement has been detected (null = unknown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.LargestMovementPercent">
+            <summary>
+            Largest single treasury movement as percentage of total supply (null = unknown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.OwnershipRecordsMatch">
+            <summary>
+            Whether on-chain ownership records match deployment records (null = unknown)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs.UnauthorizedManagerChangesDetected">
+            <summary>
+            Whether multiple unauthorized manager changes have been detected (null = unknown)
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.TokenRegistry.ListTokenRegistryRequest">
@@ -32368,7 +32420,7 @@
             <param name="request">Request specifying which token to evaluate and options</param>
             <returns>Consolidated operations intelligence response</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService.EvaluateHealthAsync(System.UInt64,System.String,System.Collections.Generic.IEnumerable{System.String})">
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService.EvaluateHealthAsync(System.UInt64,System.String,System.Collections.Generic.IEnumerable{System.String},BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs)">
             <summary>
             Evaluates token health across all (or specified) policy dimensions.
             Returns deterministic results for identical inputs.
@@ -32376,6 +32428,7 @@
             <param name="assetId">Token asset ID</param>
             <param name="network">Network identifier</param>
             <param name="dimensions">Optional filter for specific dimensions</param>
+            <param name="stateInputs">Optional token state that drives evaluator conditions</param>
             <returns>Aggregated health assessment</returns>
         </member>
         <member name="M:BiatecTokensApi.Services.Interface.ITokenOperationsIntelligenceService.GetRecommendationsAsync(System.UInt64,System.String)">
@@ -33445,7 +33498,7 @@
         <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.GetOperationsIntelligenceAsync(BiatecTokensApi.Models.TokenOperationsIntelligence.TokenOperationsIntelligenceRequest)">
             <inheritdoc/>
         </member>
-        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateHealthAsync(System.UInt64,System.String,System.Collections.Generic.IEnumerable{System.String})">
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateHealthAsync(System.UInt64,System.String,System.Collections.Generic.IEnumerable{System.String},BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs)">
             <inheritdoc/>
         </member>
         <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.GetRecommendationsAsync(System.UInt64,System.String)">
@@ -33454,29 +33507,41 @@
         <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.GetNormalizedEventsAsync(System.UInt64,System.String,System.Int32,System.Boolean)">
             <inheritdoc/>
         </member>
-        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluatePolicyDimension(System.UInt64,System.String,System.String)">
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluatePolicyDimension(System.UInt64,System.String,System.String,BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs)">
             <summary>
             Evaluates a single policy dimension deterministically
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateMintAuthority(System.UInt64,System.String)">
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateMintAuthority(System.UInt64,System.String,BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs)">
             <summary>
-            Evaluates mint authority posture
+            Evaluates mint authority posture.
+            Pass: authority is revoked or supply cap reached.
+            Warning: authority present but not critical.
+            Critical: authority present and supply cap not reached with no governance documentation.
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateMetadataCompleteness(System.UInt64,System.String)">
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateMetadataCompleteness(System.UInt64,System.String,BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs)">
             <summary>
-            Evaluates metadata completeness
+            Evaluates metadata completeness.
+            Pass: completeness >= 90% and URL accessible.
+            Warning: completeness 50-89% or URL unknown.
+            Fail: completeness &lt; 50% or URL inaccessible.
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateTreasuryMovement(System.UInt64,System.String)">
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateTreasuryMovement(System.UInt64,System.String,BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs)">
             <summary>
-            Evaluates treasury movement sanity
+            Evaluates treasury movement sanity.
+            Pass: no large movements detected.
+            Warning: movements above 10% of supply.
+            Critical: movements above 30% of supply.
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateOwnershipConsistency(System.UInt64,System.String)">
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.EvaluateOwnershipConsistency(System.UInt64,System.String,BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs)">
             <summary>
-            Evaluates deployment/ownership consistency
+            Evaluates deployment/ownership consistency.
+            Pass: records match, no unauthorized changes.
+            Warning: minor discrepancy or unknown state.
+            Critical: unauthorized manager changes detected.
             </summary>
         </member>
         <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.ComputeOverallHealth(System.Collections.Generic.List{BiatecTokensApi.Models.TokenOperationsIntelligence.PolicyAssuranceResult})">

@@ -144,6 +144,31 @@
 - **ALWAYS include roadmap alignment**: Reference https://raw.githubusercontent.com/scholtz/biatec-tokens/refs/heads/main/business-owner-roadmap.md
 - **Pattern**: Add focused integration tests (10-20 tests) to validate existing infrastructure, then document comprehensively
 
+**Lesson Learned (2026-02-19 - Issue #379, PR for Token Operations Intelligence)**: Product owner rejected initial PR draft as "not ready for merge" citing:
+- ❌ PR not linked to issue with "Fixes #379" syntax
+- ❌ Missing business rationale section in PR body
+- ❌ Tests insufficient: no evaluator logic tests across normal/warning/critical conditions
+- ❌ No degraded-state signaling tests with simulated failures
+- ❌ No E2E workflow test proving full consumer experience
+- ❌ No schema contract assertions on response fields
+
+**Root cause**: Initial implementation used static/fixed evaluator returns instead of state-driven evaluators, making it impossible to test evaluator logic across different conditions. Policy evaluators must accept `TokenStateInputs` to be testable.
+
+**Corrective actions taken**:
+1. ✅ Added `TokenStateInputs` model to drive evaluator conditions deterministically
+2. ✅ Updated all 4 policy evaluators (MintAuthority, MetadataCompleteness, TreasuryMovement, OwnershipConsistency) to produce Pass/Warning/Fail based on state inputs
+3. ✅ Added 40+ unit tests covering normal/warning/critical conditions per evaluator
+4. ✅ Added E2E workflow tests: full-success path, at-risk token path, recommendation evolution stability, schema contract assertions
+5. ✅ Added `Fixes #379` as first line of PR description
+6. ✅ Added retrospective section in PR description
+
+**KEY LESSONS for Implementation Issues**:
+- **Policy evaluators MUST accept state inputs** - Static return values cannot be tested across conditions
+- **Test coverage MUST include normal/warning/critical for EACH evaluator dimension** - Not just one state per dimension
+- **E2E tests MUST simulate full consumer journey** - Not just unit tests
+- **Schema contract tests MUST validate every required field is non-null** - Not just top-level success flag
+- **Link PR to issue with "Fixes #NNN" ALWAYS** - Not "Related Issues" or generic text
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:

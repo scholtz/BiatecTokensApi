@@ -35,5 +35,11 @@ namespace BiatecTokensApi.Models.TokenOperationsIntelligence
         /// Valid values: MintAuthority, MetadataCompleteness, TreasuryMovement, OwnershipConsistency
         /// </summary>
         public List<string>? PolicyDimensions { get; set; }
+
+        /// <summary>
+        /// Optional token state inputs that drive deterministic evaluator outcomes.
+        /// When not provided, evaluators use conservative (Warning) defaults.
+        /// </summary>
+        public TokenStateInputs? StateInputs { get; set; }
     }
 }

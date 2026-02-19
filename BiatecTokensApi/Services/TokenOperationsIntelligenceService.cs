@@ -86,7 +86,7 @@ namespace BiatecTokensApi.Services
                 }
                 else
                 {
-                    health = await EvaluateHealthAsync(request.AssetId, request.Network, request.PolicyDimensions);
+                    health = await EvaluateHealthAsync(request.AssetId, request.Network, request.PolicyDimensions, request.StateInputs);
                     _cache.Set(cacheKey, health, CacheDuration);
                 }
             }
@@ -167,7 +167,8 @@ namespace BiatecTokensApi.Services
         public Task<TokenHealthAssessment> EvaluateHealthAsync(
             ulong assetId,
             string network,
-            IEnumerable<string>? dimensions = null)
+            IEnumerable<string>? dimensions = null,
+            TokenStateInputs? stateInputs = null)
         {
             var dimensionList = (dimensions?.ToList() is { Count: > 0 } d) ? d : AllPolicyDimensions.ToList();
 
@@ -175,7 +176,7 @@ namespace BiatecTokensApi.Services
 
             foreach (var dimension in dimensionList)
             {
-                var result = EvaluatePolicyDimension(assetId, network, dimension);
+                var result = EvaluatePolicyDimension(assetId, network, dimension, stateInputs);
                 results.Add(result);
             }
 
@@ -280,14 +281,14 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Evaluates a single policy dimension deterministically
         /// </summary>
-        private PolicyAssuranceResult EvaluatePolicyDimension(ulong assetId, string network, string dimension)
+        private PolicyAssuranceResult EvaluatePolicyDimension(ulong assetId, string network, string dimension, TokenStateInputs? state)
         {
             return dimension switch
             {
-                "MintAuthority" => EvaluateMintAuthority(assetId, network),
-                "MetadataCompleteness" => EvaluateMetadataCompleteness(assetId, network),
-                "TreasuryMovement" => EvaluateTreasuryMovement(assetId, network),
-                "OwnershipConsistency" => EvaluateOwnershipConsistency(assetId, network),
+                "MintAuthority" => EvaluateMintAuthority(assetId, network, state),
+                "MetadataCompleteness" => EvaluateMetadataCompleteness(assetId, network, state),
+                "TreasuryMovement" => EvaluateTreasuryMovement(assetId, network, state),
+                "OwnershipConsistency" => EvaluateOwnershipConsistency(assetId, network, state),
                 _ => new PolicyAssuranceResult
                 {
                     DimensionId = dimension,
@@ -302,11 +303,61 @@ namespace BiatecTokensApi.Services
         }
 
         /// <summary>
-        /// Evaluates mint authority posture
+        /// Evaluates mint authority posture.
+        /// Pass: authority is revoked or supply cap reached.
+        /// Warning: authority present but not critical.
+        /// Critical: authority present and supply cap not reached with no governance documentation.
         /// </summary>
-        private PolicyAssuranceResult EvaluateMintAuthority(ulong assetId, string network)
+        private PolicyAssuranceResult EvaluateMintAuthority(ulong assetId, string network, TokenStateInputs? state)
         {
-            // Deterministic evaluation: pass for standard checks (real evaluation would query blockchain)
+            // If authority is revoked: Pass
+            if (state?.MintAuthorityRevoked == true)
+            {
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "MintAuthority",
+                    DimensionName = "Mint Authority Posture",
+                    Status = PolicyStatus.Pass,
+                    Severity = AssessmentSeverity.Healthy,
+                    Description = "Mint authority has been revoked. Supply is fixed.",
+                    FindingCode = "MINT_AUTHORITY_REVOKED",
+                    EvaluatedAt = DateTime.UtcNow
+                };
+            }
+
+            // If supply cap reached: Warning (authority exists but is inactive)
+            if (state?.SupplyCapReached == true)
+            {
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "MintAuthority",
+                    DimensionName = "Mint Authority Posture",
+                    Status = PolicyStatus.Warning,
+                    Severity = AssessmentSeverity.Low,
+                    Description = "Mint authority present but supply cap reached. Consider revoking authority.",
+                    FindingCode = "MINT_AUTHORITY_PRESENT_CAP_REACHED",
+                    RemediationHint = "Revoke mint authority to permanently fix the supply.",
+                    EvaluatedAt = DateTime.UtcNow
+                };
+            }
+
+            // If state explicitly shows authority present without cap: Critical
+            if (state?.MintAuthorityRevoked == false && state?.SupplyCapReached == false)
+            {
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "MintAuthority",
+                    DimensionName = "Mint Authority Posture",
+                    Status = PolicyStatus.Fail,
+                    Severity = AssessmentSeverity.High,
+                    Description = "Active mint authority with no supply cap represents high supply manipulation risk.",
+                    FindingCode = "MINT_AUTHORITY_UNCAPPED",
+                    RemediationHint = "Review mint authority governance policy. Consider setting a supply cap or revoking authority.",
+                    EvaluatedAt = DateTime.UtcNow
+                };
+            }
+
+            // Default conservative: authority present, state unknown
             return new PolicyAssuranceResult
             {
                 DimensionId = "MintAuthority",
@@ -321,10 +372,79 @@ namespace BiatecTokensApi.Services
         }
 
         /// <summary>
-        /// Evaluates metadata completeness
+        /// Evaluates metadata completeness.
+        /// Pass: completeness >= 90% and URL accessible.
+        /// Warning: completeness 50-89% or URL unknown.
+        /// Fail: completeness &lt; 50% or URL inaccessible.
         /// </summary>
-        private PolicyAssuranceResult EvaluateMetadataCompleteness(ulong assetId, string network)
+        private PolicyAssuranceResult EvaluateMetadataCompleteness(ulong assetId, string network, TokenStateInputs? state)
         {
+            // URL inaccessible: Fail
+            if (state?.MetadataUrlAccessible == false)
+            {
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "MetadataCompleteness",
+                    DimensionName = "Metadata Completeness",
+                    Status = PolicyStatus.Fail,
+                    Severity = AssessmentSeverity.High,
+                    Description = "Metadata URL is inaccessible. Token metadata cannot be verified.",
+                    FindingCode = "METADATA_URL_INACCESSIBLE",
+                    RemediationHint = "Restore metadata URL accessibility or update to a reachable endpoint.",
+                    EvaluatedAt = DateTime.UtcNow
+                };
+            }
+
+            var completeness = state?.MetadataCompletenessPercent;
+
+            if (completeness.HasValue)
+            {
+                if (completeness.Value >= 90 && state?.MetadataUrlAccessible != false)
+                {
+                    return new PolicyAssuranceResult
+                    {
+                        DimensionId = "MetadataCompleteness",
+                        DimensionName = "Metadata Completeness",
+                        Status = PolicyStatus.Pass,
+                        Severity = AssessmentSeverity.Healthy,
+                        Description = $"Token metadata is {completeness.Value:F0}% complete.",
+                        EvaluatedAt = DateTime.UtcNow,
+                        Details = new Dictionary<string, object> { { "completenessPercent", completeness.Value } }
+                    };
+                }
+
+                if (completeness.Value < 50)
+                {
+                    return new PolicyAssuranceResult
+                    {
+                        DimensionId = "MetadataCompleteness",
+                        DimensionName = "Metadata Completeness",
+                        Status = PolicyStatus.Fail,
+                        Severity = AssessmentSeverity.High,
+                        Description = $"Token metadata is only {completeness.Value:F0}% complete. Critical fields are missing.",
+                        FindingCode = "METADATA_CRITICALLY_INCOMPLETE",
+                        RemediationHint = "Complete required metadata fields: name, description, image, decimals.",
+                        EvaluatedAt = DateTime.UtcNow,
+                        Details = new Dictionary<string, object> { { "completenessPercent", completeness.Value } }
+                    };
+                }
+
+                // 50-89%: Warning
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "MetadataCompleteness",
+                    DimensionName = "Metadata Completeness",
+                    Status = PolicyStatus.Warning,
+                    Severity = AssessmentSeverity.Medium,
+                    Description = $"Token metadata is {completeness.Value:F0}% complete. Some optional fields are missing.",
+                    FindingCode = "METADATA_PARTIALLY_COMPLETE",
+                    RemediationHint = "Complete remaining metadata fields to improve token discoverability.",
+                    EvaluatedAt = DateTime.UtcNow,
+                    Details = new Dictionary<string, object> { { "completenessPercent", completeness.Value } }
+                };
+            }
+
+            // Default: unknown state
             return new PolicyAssuranceResult
             {
                 DimensionId = "MetadataCompleteness",
@@ -337,10 +457,47 @@ namespace BiatecTokensApi.Services
         }
 
         /// <summary>
-        /// Evaluates treasury movement sanity
+        /// Evaluates treasury movement sanity.
+        /// Pass: no large movements detected.
+        /// Warning: movements above 10% of supply.
+        /// Critical: movements above 30% of supply.
         /// </summary>
-        private PolicyAssuranceResult EvaluateTreasuryMovement(ulong assetId, string network)
+        private PolicyAssuranceResult EvaluateTreasuryMovement(ulong assetId, string network, TokenStateInputs? state)
         {
+            if (state?.LargeTreasuryMovementDetected == true)
+            {
+                var movementPct = state.LargestMovementPercent ?? 0;
+
+                if (movementPct >= 30)
+                {
+                    return new PolicyAssuranceResult
+                    {
+                        DimensionId = "TreasuryMovement",
+                        DimensionName = "Treasury Movement Sanity",
+                        Status = PolicyStatus.Fail,
+                        Severity = AssessmentSeverity.Critical,
+                        Description = $"Critical treasury movement detected: {movementPct:F1}% of total supply moved.",
+                        FindingCode = "TREASURY_CRITICAL_MOVEMENT",
+                        RemediationHint = "Immediately review treasury movement authorization. Contact governance team.",
+                        EvaluatedAt = DateTime.UtcNow,
+                        Details = new Dictionary<string, object> { { "largestMovementPercent", movementPct } }
+                    };
+                }
+
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "TreasuryMovement",
+                    DimensionName = "Treasury Movement Sanity",
+                    Status = PolicyStatus.Warning,
+                    Severity = AssessmentSeverity.High,
+                    Description = $"Large treasury movement detected: {movementPct:F1}% of total supply moved.",
+                    FindingCode = "TREASURY_LARGE_MOVEMENT",
+                    RemediationHint = "Review treasury movement authorization records and verify approvals.",
+                    EvaluatedAt = DateTime.UtcNow,
+                    Details = new Dictionary<string, object> { { "largestMovementPercent", movementPct } }
+                };
+            }
+
             return new PolicyAssuranceResult
             {
                 DimensionId = "TreasuryMovement",
@@ -353,10 +510,56 @@ namespace BiatecTokensApi.Services
         }
 
         /// <summary>
-        /// Evaluates deployment/ownership consistency
+        /// Evaluates deployment/ownership consistency.
+        /// Pass: records match, no unauthorized changes.
+        /// Warning: minor discrepancy or unknown state.
+        /// Critical: unauthorized manager changes detected.
         /// </summary>
-        private PolicyAssuranceResult EvaluateOwnershipConsistency(ulong assetId, string network)
+        private PolicyAssuranceResult EvaluateOwnershipConsistency(ulong assetId, string network, TokenStateInputs? state)
         {
+            if (state?.UnauthorizedManagerChangesDetected == true)
+            {
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "OwnershipConsistency",
+                    DimensionName = "Deployment and Ownership Consistency",
+                    Status = PolicyStatus.Fail,
+                    Severity = AssessmentSeverity.Critical,
+                    Description = "Unauthorized manager address changes detected. Potential security incident.",
+                    FindingCode = "OWNERSHIP_UNAUTHORIZED_CHANGE",
+                    RemediationHint = "Immediately audit ownership changes. Review access controls and key management.",
+                    EvaluatedAt = DateTime.UtcNow
+                };
+            }
+
+            if (state?.OwnershipRecordsMatch == false)
+            {
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "OwnershipConsistency",
+                    DimensionName = "Deployment and Ownership Consistency",
+                    Status = PolicyStatus.Warning,
+                    Severity = AssessmentSeverity.Medium,
+                    Description = "On-chain ownership records do not fully match deployment records.",
+                    FindingCode = "OWNERSHIP_RECORDS_MISMATCH",
+                    RemediationHint = "Reconcile on-chain owner/manager addresses with deployment documentation.",
+                    EvaluatedAt = DateTime.UtcNow
+                };
+            }
+
+            if (state?.OwnershipRecordsMatch == true)
+            {
+                return new PolicyAssuranceResult
+                {
+                    DimensionId = "OwnershipConsistency",
+                    DimensionName = "Deployment and Ownership Consistency",
+                    Status = PolicyStatus.Pass,
+                    Severity = AssessmentSeverity.Healthy,
+                    Description = "Deployment and ownership records are consistent.",
+                    EvaluatedAt = DateTime.UtcNow
+                };
+            }
+
             return new PolicyAssuranceResult
             {
                 DimensionId = "OwnershipConsistency",
