@@ -252,6 +252,10 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<ITokenLaunchReadinessService, TokenLaunchReadinessService>();
             builder.Services.AddSingleton<ILifecycleIntelligenceService, LifecycleIntelligenceService>();
             builder.Services.AddSingleton<IRetryPolicyClassifier, RetryPolicyClassifier>();
+
+            // Register token operations intelligence service
+            builder.Services.AddMemoryCache();
+            builder.Services.AddSingleton<ITokenOperationsIntelligenceService, TokenOperationsIntelligenceService>();
             builder.Services.AddSingleton<IStateTransitionGuard, StateTransitionGuard>();
 
             // Register background workers
