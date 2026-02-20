@@ -717,6 +717,104 @@ namespace BiatecTokensTests
             Assert.That(Enum.IsDefined(typeof(TokenHealthStatus), "Unhealthy"), Is.True);
             Assert.That(Enum.IsDefined(typeof(TokenHealthStatus), "Unknown"), Is.True);
         }
+
+        // ============================================================
+        // Contract compatibility and consumer migration (AC2, AC5, AC12)
+        // ============================================================
+
+        [Test]
+        public async Task ContractVersion_ApiVersion_FollowsSemanticVersionFormat()
+        {
+            var request = new TokenOperationsIntelligenceRequest { AssetId = 1001, Network = "mainnet-v1.0" };
+            var response = await _service.GetOperationsIntelligenceAsync(request);
+
+            // v1.0, v1.1, v2.0 etc.
+            Assert.That(response.ContractVersion.ApiVersion, Does.Match(@"^v\d+\.\d+$"),
+                "ApiVersion must follow 'vMAJOR.MINOR' format for consumer parsing stability");
+        }
+
+        [Test]
+        public async Task ContractVersion_SchemaVersion_FollowsSemanticVersionFormat()
+        {
+            var request = new TokenOperationsIntelligenceRequest { AssetId = 1002, Network = "mainnet-v1.0" };
+            var response = await _service.GetOperationsIntelligenceAsync(request);
+
+            // 1.0.0, 1.1.0, 2.0.0 etc.
+            Assert.That(response.ContractVersion.SchemaVersion, Does.Match(@"^\d+\.\d+\.\d+$"),
+                "SchemaVersion must follow 'MAJOR.MINOR.PATCH' semver for consumer upgrade decisions");
+        }
+
+        [Test]
+        public async Task ContractVersion_MinClientVersion_FollowsSemanticVersionFormat()
+        {
+            var request = new TokenOperationsIntelligenceRequest { AssetId = 1003, Network = "mainnet-v1.0" };
+            var response = await _service.GetOperationsIntelligenceAsync(request);
+
+            Assert.That(response.ContractVersion.MinClientVersion, Does.Match(@"^\d+\.\d+\.\d+$"),
+                "MinClientVersion must follow semver so consumers can gate upgrade checks");
+        }
+
+        [Test]
+        public async Task ContractVersion_DeprecatedFields_EmptyForV1_NoMigrationNeeded()
+        {
+            var request = new TokenOperationsIntelligenceRequest { AssetId = 1004, Network = "mainnet-v1.0" };
+            var response = await _service.GetOperationsIntelligenceAsync(request);
+
+            // v1.0 has no deprecated fields; consumers should check this list before each request
+            Assert.That(response.ContractVersion.DeprecatedFields, Is.Not.Null,
+                "DeprecatedFields must always be non-null (empty list, not null) for safe consumer iteration");
+            Assert.That(response.ContractVersion.DeprecatedFields, Is.Empty,
+                "No deprecated fields in v1.0 - consumers need not apply any migration");
+        }
+
+        [Test]
+        public async Task ContractVersion_BackwardCompatible_TrueForV1_ConsumersSafeToUpgrade()
+        {
+            var request = new TokenOperationsIntelligenceRequest { AssetId = 1005, Network = "mainnet-v1.0" };
+            var response = await _service.GetOperationsIntelligenceAsync(request);
+
+            Assert.That(response.ContractVersion.BackwardCompatible, Is.True,
+                "BackwardCompatible=true means consumers with existing parsers need not change code to consume v1.0");
+        }
+
+        [Test]
+        public async Task ContractVersion_MultipleEvaluations_ProduceConsistentVersionMetadata()
+        {
+            // Validates that contract version is not random/per-request — consumers can cache version checks
+            var request1 = new TokenOperationsIntelligenceRequest { AssetId = 2001, Network = "voimain-v1.0" };
+            var request2 = new TokenOperationsIntelligenceRequest { AssetId = 2002, Network = "voimain-v1.0" };
+
+            var response1 = await _service.GetOperationsIntelligenceAsync(request1);
+            var response2 = await _service.GetOperationsIntelligenceAsync(request2);
+
+            Assert.That(response1.ContractVersion.ApiVersion, Is.EqualTo(response2.ContractVersion.ApiVersion));
+            Assert.That(response1.ContractVersion.SchemaVersion, Is.EqualTo(response2.ContractVersion.SchemaVersion));
+            Assert.That(response1.ContractVersion.MinClientVersion, Is.EqualTo(response2.ContractVersion.MinClientVersion));
+            Assert.That(response1.ContractVersion.BackwardCompatible, Is.EqualTo(response2.ContractVersion.BackwardCompatible));
+        }
+
+        [Test]
+        public async Task ContractVersion_PresentEvenWhenHealthDegraded()
+        {
+            // Consumer migration note: ContractVersion is always populated — even in degraded mode
+            // Consumers must not assume ContractVersion implies full data availability
+            var metricsLoggerMock = new Mock<ILogger<BiatecTokensApi.Services.MetricsService>>();
+            var metricsService = new BiatecTokensApi.Services.MetricsService(metricsLoggerMock.Object);
+            var service = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache,
+                metricsService,
+                _loggerMock.Object,
+                failHealth: true);
+
+            var request = new TokenOperationsIntelligenceRequest { AssetId = 3001, Network = "voimain-v1.0" };
+            var response = await service.GetOperationsIntelligenceAsync(request);
+
+            Assert.That(response.ContractVersion, Is.Not.Null,
+                "ContractVersion must be present even in degraded mode — consumers use it for version gating");
+            Assert.That(response.ContractVersion.ApiVersion, Is.EqualTo("v1.0"));
+            Assert.That(response.IsDegraded, Is.True,
+                "IsDegraded=true must coexist with valid ContractVersion — they are independent fields");
+        }
     }
 }
 
