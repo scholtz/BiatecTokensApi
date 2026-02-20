@@ -131,14 +131,33 @@ namespace BiatecTokensApi.Services
             }
 
             sw.Stop();
+            var isDegraded = degradedSources.Count > 0;
+            var latencyMs = sw.Elapsed.TotalMilliseconds;
+
+            // Emit telemetry: latency, degraded-mode invocation, failure class
+            _metricsService.RecordHistogram("operations_intelligence.latency_ms", latencyMs);
+            _metricsService.IncrementCounter("operations_intelligence.requests_total");
+            if (isDegraded)
+            {
+                _metricsService.IncrementCounter("operations_intelligence.degraded_total");
+                foreach (var source in degradedSources)
+                {
+                    _metricsService.IncrementCounter($"operations_intelligence.failure_class.{SanitizeMetricLabel(source)}");
+                }
+            }
+            if (healthFromCache)
+            {
+                _metricsService.IncrementCounter("operations_intelligence.cache_hits_total");
+            }
+
             _logger.LogInformation(
                 "Operations intelligence completed: AssetId={AssetId}, HealthStatus={HealthStatus}, Recommendations={RecCount}, Events={EvCount}, Degraded={Degraded}, LatencyMs={LatencyMs}, CorrelationId={CorrelationId}",
                 request.AssetId,
                 health?.OverallStatus,
                 recommendations.Count,
                 events.Count,
-                degradedSources.Count > 0,
-                sw.ElapsedMilliseconds,
+                isDegraded,
+                latencyMs,
                 correlationId);
 
             return new TokenOperationsIntelligenceResponse
@@ -637,6 +656,19 @@ namespace BiatecTokensApi.Services
                 IsPartialResult = true,
                 DegradedReason = reason
             };
+        }
+
+        /// <summary>
+        /// Sanitizes a string for safe use as a metric label.
+        /// Replaces non-alphanumeric characters with underscores and lowercases the result.
+        /// </summary>
+        private static string SanitizeMetricLabel(string label)
+        {
+            var sanitized = System.Text.RegularExpressions.Regex.Replace(
+                label.ToLowerInvariant(),
+                @"[^a-z0-9_]",
+                "_");
+            return sanitized;
         }
     }
 }

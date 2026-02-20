@@ -33554,6 +33554,12 @@
             Builds a degraded health assessment for use when evaluation fails
             </summary>
         </member>
+        <member name="M:BiatecTokensApi.Services.TokenOperationsIntelligenceService.SanitizeMetricLabel(System.String)">
+            <summary>
+            Sanitizes a string for safe use as a metric label.
+            Replaces non-alphanumeric characters with underscores and lowercases the result.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.TokenRegistryService">
             <summary>
             Service for token registry operations

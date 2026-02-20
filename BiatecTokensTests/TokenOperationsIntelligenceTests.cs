@@ -815,6 +815,133 @@ namespace BiatecTokensTests
             Assert.That(response.IsDegraded, Is.True,
                 "IsDegraded=true must coexist with valid ContractVersion — they are independent fields");
         }
+
+        // ============================================================
+        // AC8: Telemetry emitted for latency, failure class, degraded-mode
+        // ============================================================
+
+        [Test]
+        public async Task Telemetry_NormalRequest_EmitsLatencyAndRequestCounter()
+        {
+            // Arrange: use a mock IMetricsService to capture metric calls
+            var metricsMock = new Mock<BiatecTokensApi.Services.Interface.IMetricsService>();
+            var service = new TokenOperationsIntelligenceService(
+                _cache,
+                metricsMock.Object,
+                _loggerMock.Object);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 5001,
+                Network = "voimain-v1.0"
+            };
+
+            // Act
+            await service.GetOperationsIntelligenceAsync(request);
+
+            // Assert: latency histogram recorded
+            metricsMock.Verify(
+                m => m.RecordHistogram("operations_intelligence.latency_ms", It.Is<double>(v => v >= 0)),
+                Times.Once,
+                "Latency histogram must be emitted for each evaluation (AC8)");
+
+            // Assert: request counter incremented by 1
+            metricsMock.Verify(
+                m => m.IncrementCounter("operations_intelligence.requests_total", 1),
+                Times.Once,
+                "Request counter must be incremented by 1 for each evaluation (AC8)");
+        }
+
+        [Test]
+        public async Task Telemetry_DegradedMode_EmitsDegradedCounterAndFailureClass()
+        {
+            // Arrange: use a fault-injectable service with mocked metrics to verify degraded telemetry
+            var metricsMock = new Mock<BiatecTokensApi.Services.Interface.IMetricsService>();
+            var service = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache,
+                metricsMock.Object,
+                _loggerMock.Object,
+                failHealth: true);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 5002,
+                Network = "voimain-v1.0"
+            };
+
+            // Act
+            var response = await service.GetOperationsIntelligenceAsync(request);
+
+            // Assert: degraded mode detected
+            Assert.That(response.IsDegraded, Is.True, "Response must be degraded when health evaluation fails");
+
+            // Assert: degraded counter emitted by 1 (AC8)
+            metricsMock.Verify(
+                m => m.IncrementCounter("operations_intelligence.degraded_total", 1),
+                Times.Once,
+                "Degraded counter must be incremented by 1 when any upstream source fails (AC8)");
+
+            // Assert: failure class counter emitted with source name (AC8)
+            metricsMock.Verify(
+                m => m.IncrementCounter(
+                    It.Is<string>(s => s.StartsWith("operations_intelligence.failure_class.")),
+                    It.IsAny<long>()),
+                Times.AtLeastOnce,
+                "Failure class counter must identify the failing source (AC8)");
+        }
+
+        [Test]
+        public async Task Telemetry_CacheHit_EmitsCacheHitCounter()
+        {
+            // Arrange: two identical requests — second should be served from cache
+            var metricsMock = new Mock<BiatecTokensApi.Services.Interface.IMetricsService>();
+            var service = new TokenOperationsIntelligenceService(
+                _cache,
+                metricsMock.Object,
+                _loggerMock.Object);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 5003,
+                Network = "voimain-v1.0"
+            };
+
+            // Act: first call populates cache, second serves from cache
+            await service.GetOperationsIntelligenceAsync(request);
+            await service.GetOperationsIntelligenceAsync(request);
+
+            // Assert: cache hit counter emitted on second call (AC8)
+            metricsMock.Verify(
+                m => m.IncrementCounter("operations_intelligence.cache_hits_total", It.IsAny<long>()),
+                Times.Once,
+                "Cache hit counter must be emitted when health is served from cache (AC8)");
+        }
+
+        [Test]
+        public async Task Telemetry_NoDegradation_NoDegradedCounterEmitted()
+        {
+            // Arrange: healthy request with no failures
+            var metricsMock = new Mock<BiatecTokensApi.Services.Interface.IMetricsService>();
+            var service = new TokenOperationsIntelligenceService(
+                _cache,
+                metricsMock.Object,
+                _loggerMock.Object);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 5004,
+                Network = "voimain-v1.0"
+            };
+
+            // Act
+            await service.GetOperationsIntelligenceAsync(request);
+
+            // Assert: degraded counter not emitted when no failures occur (AC8)
+            metricsMock.Verify(
+                m => m.IncrementCounter("operations_intelligence.degraded_total", It.IsAny<long>()),
+                Times.Never,
+                "Degraded counter must NOT be emitted on successful evaluations (AC8)");
+        }
     }
 }
 

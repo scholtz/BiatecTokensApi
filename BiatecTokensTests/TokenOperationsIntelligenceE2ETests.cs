@@ -617,7 +617,7 @@ namespace BiatecTokensTests
 
         public FaultInjectableTokenOperationsIntelligenceService(
             IMemoryCache cache,
-            BiatecTokensApi.Services.MetricsService metricsService,
+            BiatecTokensApi.Services.Interface.IMetricsService metricsService,
             ILogger<TokenOperationsIntelligenceService> logger,
             bool failHealth = false,
             bool failRecommendations = false,
