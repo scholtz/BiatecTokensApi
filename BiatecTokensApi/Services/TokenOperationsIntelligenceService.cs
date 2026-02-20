@@ -164,7 +164,7 @@ namespace BiatecTokensApi.Services
         }
 
         /// <inheritdoc/>
-        public Task<TokenHealthAssessment> EvaluateHealthAsync(
+        public virtual Task<TokenHealthAssessment> EvaluateHealthAsync(
             ulong assetId,
             string network,
             IEnumerable<string>? dimensions = null,
@@ -185,7 +185,7 @@ namespace BiatecTokensApi.Services
         }
 
         /// <inheritdoc/>
-        public Task<List<LifecycleRecommendation>> GetRecommendationsAsync(ulong assetId, string network)
+        public virtual Task<List<LifecycleRecommendation>> GetRecommendationsAsync(ulong assetId, string network)
         {
             var recommendations = new List<LifecycleRecommendation>();
 
@@ -246,7 +246,7 @@ namespace BiatecTokensApi.Services
         }
 
         /// <inheritdoc/>
-        public Task<List<NormalizedTokenEvent>> GetNormalizedEventsAsync(
+        public virtual Task<List<NormalizedTokenEvent>> GetNormalizedEventsAsync(
             ulong assetId,
             string network,
             int maxEvents = 10,

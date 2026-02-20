@@ -378,5 +378,282 @@ namespace BiatecTokensTests
             Assert.That(health.PassingDimensions + health.WarningDimensions + health.FailingDimensions + health.DegradedDimensions,
                 Is.EqualTo(health.PolicyResults.Count), "Counts must sum to total");
         }
+
+        // ============================================================
+        // E2E: Degraded-mode with explicit fault injection
+        // These tests use FaultInjectableTokenOperationsIntelligenceService
+        // to simulate real upstream source failures and assert IsDegraded=true.
+        // ============================================================
+
+        [Test]
+        public async Task DegradedMode_HealthEvaluatorFails_ReturnsDegradedWithHealthSource()
+        {
+            // Arrange: health evaluation throws a simulated upstream exception
+            var faultService = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache, CreateMetricsService(), CreateLogger(),
+                failHealth: true);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 1234567,
+                Network = "voimain-v1.0",
+                CorrelationId = "e2e-test-degraded-health"
+            };
+
+            // Act
+            var response = await faultService.GetOperationsIntelligenceAsync(request);
+
+            // Assert: IsDegraded=true, HealthEvaluator listed as degraded source
+            Assert.That(response.Success, Is.True,
+                "Success must be true even when a source fails - best-effort semantics");
+            Assert.That(response.IsDegraded, Is.True,
+                "IsDegraded must be true when health evaluator throws");
+            Assert.That(response.DegradedSources, Contains.Item("HealthEvaluator"),
+                "HealthEvaluator must be listed in DegradedSources");
+
+            // Health is replaced with degraded assessment (not null)
+            Assert.That(response.Health, Is.Not.Null,
+                "Health must not be null even in degraded mode - BuildDegradedHealthAssessment used");
+            // BuildDegradedHealthAssessment returns Unknown (not Degraded) as the OverallStatus
+            Assert.That(response.Health!.OverallStatus, Is.EqualTo(TokenHealthStatus.Unknown),
+                "OverallStatus must be Unknown when health evaluator fails (BuildDegradedHealthAssessment)");
+            Assert.That(response.Health.IsPartialResult, Is.True,
+                "IsPartialResult must be true for degraded health assessment");
+            Assert.That(response.Health.DegradedReason, Is.Not.Null.And.Not.Empty,
+                "DegradedReason must explain why health is unavailable");
+
+            // Recommendations and events still returned (unaffected by health failure)
+            Assert.That(response.Recommendations, Is.Not.Null.And.Not.Empty,
+                "Recommendations should still be returned when only health source fails");
+            Assert.That(response.Events, Is.Not.Null,
+                "Events should still be returned when only health source fails");
+        }
+
+        [Test]
+        public async Task DegradedMode_RecommendationEngineFails_ReturnsDegradedWithRecommendationSource()
+        {
+            // Arrange: recommendation generation throws
+            var faultService = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache, CreateMetricsService(), CreateLogger(),
+                failRecommendations: true);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 2222222,
+                Network = "mainnet-v1.0",
+                CorrelationId = "e2e-test-degraded-recs"
+            };
+
+            // Act
+            var response = await faultService.GetOperationsIntelligenceAsync(request);
+
+            // Assert: IsDegraded=true, RecommendationEngine listed
+            Assert.That(response.Success, Is.True);
+            Assert.That(response.IsDegraded, Is.True);
+            Assert.That(response.DegradedSources, Contains.Item("RecommendationEngine"),
+                "RecommendationEngine must be listed in DegradedSources when it fails");
+
+            // Recommendations are empty (failed gracefully)
+            Assert.That(response.Recommendations, Is.Empty,
+                "Recommendations must be empty when engine fails");
+
+            // Health was evaluated normally (not from BuildDegradedHealthAssessment)
+            Assert.That(response.Health, Is.Not.Null);
+            // IsPartialResult=false means health was computed normally (not degraded due to evaluator failure)
+            Assert.That(response.Health!.IsPartialResult, Is.False,
+                "IsPartialResult must be false when only recommendations fail (health evaluated normally)");
+            Assert.That(response.Events, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task DegradedMode_EventNormalizerFails_ReturnsDegradedWithEventSource()
+        {
+            // Arrange: event retrieval throws
+            var faultService = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache, CreateMetricsService(), CreateLogger(),
+                failEvents: true);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 3333333,
+                Network = "voimain-v1.0",
+                CorrelationId = "e2e-test-degraded-events"
+            };
+
+            // Act
+            var response = await faultService.GetOperationsIntelligenceAsync(request);
+
+            // Assert: IsDegraded=true, EventNormalizer listed
+            Assert.That(response.Success, Is.True);
+            Assert.That(response.IsDegraded, Is.True);
+            Assert.That(response.DegradedSources, Contains.Item("EventNormalizer"),
+                "EventNormalizer must be listed in DegradedSources when it fails");
+
+            // Events are empty (failed gracefully)
+            Assert.That(response.Events, Is.Empty, "Events must be empty when normalizer fails");
+
+            // Health and recommendations still returned
+            Assert.That(response.Health, Is.Not.Null);
+            Assert.That(response.Health!.IsPartialResult, Is.False,
+                "IsPartialResult must be false when only events fail (health evaluated normally)");
+            Assert.That(response.Recommendations, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task DegradedMode_AllSourcesFail_ReturnsFullyDegradedResponse()
+        {
+            // Arrange: all three sources throw
+            var faultService = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache, CreateMetricsService(), CreateLogger(),
+                failHealth: true, failRecommendations: true, failEvents: true);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 4444444,
+                Network = "voimain-v1.0",
+                CorrelationId = "e2e-test-fully-degraded"
+            };
+
+            // Act
+            var response = await faultService.GetOperationsIntelligenceAsync(request);
+
+            // Assert: all 3 degraded, response still 200 (not 500)
+            Assert.That(response.Success, Is.True, "Success must be true even with all sources failing");
+            Assert.That(response.IsDegraded, Is.True);
+            Assert.That(response.DegradedSources.Count, Is.EqualTo(3),
+                "All 3 sources must be listed when all fail");
+            Assert.That(response.DegradedSources, Contains.Item("HealthEvaluator"));
+            Assert.That(response.DegradedSources, Contains.Item("RecommendationEngine"));
+            Assert.That(response.DegradedSources, Contains.Item("EventNormalizer"));
+
+            // Empty collections returned - no silent data loss
+            Assert.That(response.Recommendations, Is.Empty, "No silent data loss: empty list returned");
+            Assert.That(response.Events, Is.Empty, "No silent data loss: empty list returned");
+
+            // Health degraded assessment used (BuildDegradedHealthAssessment returns Unknown)
+            Assert.That(response.Health, Is.Not.Null);
+            Assert.That(response.Health!.OverallStatus, Is.EqualTo(TokenHealthStatus.Unknown),
+                "OverallStatus must be Unknown when health evaluator fails");
+            Assert.That(response.Health.IsPartialResult, Is.True);
+        }
+
+        [Test]
+        public async Task DegradedMode_PartialFailure_CorrelationIdStillPreserved()
+        {
+            // Arrange: health fails, but correlation ID must survive
+            var faultService = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache, CreateMetricsService(), CreateLogger(),
+                failHealth: true);
+
+            var correlationId = "e2e-test-correlation-in-degraded";
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 5555555,
+                Network = "voimain-v1.0",
+                CorrelationId = correlationId
+            };
+
+            // Act
+            var response = await faultService.GetOperationsIntelligenceAsync(request);
+
+            // Assert: correlation ID preserved even in degraded mode
+            Assert.That(response.CorrelationId, Is.EqualTo(correlationId),
+                "CorrelationId must be preserved in degraded responses for traceability");
+            Assert.That(response.IsDegraded, Is.True);
+        }
+
+        [Test]
+        public async Task DegradedMode_RemediationHints_PresentInDegradedHealthAssessment()
+        {
+            // Arrange: health evaluator fails
+            var faultService = new FaultInjectableTokenOperationsIntelligenceService(
+                _cache, CreateMetricsService(), CreateLogger(),
+                failHealth: true);
+
+            var request = new TokenOperationsIntelligenceRequest
+            {
+                AssetId = 6666666,
+                Network = "voimain-v1.0"
+            };
+
+            // Act
+            var response = await faultService.GetOperationsIntelligenceAsync(request);
+
+            // Assert: degraded health assessment has a description (not null/empty)
+            Assert.That(response.Health, Is.Not.Null);
+            Assert.That(response.Health!.PolicyResults, Is.Not.Null.And.Not.Empty,
+                "Degraded health assessment must include at least one result explaining the degradation");
+            var degradedResult = response.Health.PolicyResults.First();
+            Assert.That(degradedResult.Description, Is.Not.Null.And.Not.Empty,
+                "Degraded health result must have a description");
+        }
+
+        // ============================================================
+        // Helpers for fault-injection tests
+        // ============================================================
+
+        private static BiatecTokensApi.Services.MetricsService CreateMetricsService()
+        {
+            var metricsLoggerMock = new Mock<ILogger<BiatecTokensApi.Services.MetricsService>>();
+            return new BiatecTokensApi.Services.MetricsService(metricsLoggerMock.Object);
+        }
+
+        private static ILogger<TokenOperationsIntelligenceService> CreateLogger()
+        {
+            return new Mock<ILogger<TokenOperationsIntelligenceService>>().Object;
+        }
+    }
+
+    /// <summary>
+    /// A fault-injectable subclass of TokenOperationsIntelligenceService used in E2E tests
+    /// to simulate upstream source failures and verify degraded-mode behavior.
+    /// Each source (health, recommendations, events) can be independently configured to throw.
+    /// </summary>
+    internal sealed class FaultInjectableTokenOperationsIntelligenceService : TokenOperationsIntelligenceService
+    {
+        private readonly bool _failHealth;
+        private readonly bool _failRecommendations;
+        private readonly bool _failEvents;
+
+        public FaultInjectableTokenOperationsIntelligenceService(
+            IMemoryCache cache,
+            BiatecTokensApi.Services.MetricsService metricsService,
+            ILogger<TokenOperationsIntelligenceService> logger,
+            bool failHealth = false,
+            bool failRecommendations = false,
+            bool failEvents = false)
+            : base(cache, metricsService, logger)
+        {
+            _failHealth = failHealth;
+            _failRecommendations = failRecommendations;
+            _failEvents = failEvents;
+        }
+
+        public override Task<TokenHealthAssessment> EvaluateHealthAsync(
+            ulong assetId,
+            string network,
+            IEnumerable<string>? dimensions = null,
+            BiatecTokensApi.Models.TokenOperationsIntelligence.TokenStateInputs? stateInputs = null)
+        {
+            if (_failHealth)
+                throw new InvalidOperationException("Simulated HealthEvaluator upstream failure");
+            return base.EvaluateHealthAsync(assetId, network, dimensions, stateInputs);
+        }
+
+        public override Task<List<BiatecTokensApi.Models.TokenOperationsIntelligence.LifecycleRecommendation>> GetRecommendationsAsync(
+            ulong assetId, string network)
+        {
+            if (_failRecommendations)
+                throw new InvalidOperationException("Simulated RecommendationEngine upstream failure");
+            return base.GetRecommendationsAsync(assetId, network);
+        }
+
+        public override Task<List<BiatecTokensApi.Models.TokenOperationsIntelligence.NormalizedTokenEvent>> GetNormalizedEventsAsync(
+            ulong assetId, string network, int maxEvents = 10, bool includeDetails = false)
+        {
+            if (_failEvents)
+                throw new InvalidOperationException("Simulated EventNormalizer upstream failure");
+            return base.GetNormalizedEventsAsync(assetId, network, maxEvents, includeDetails);
+        }
     }
 }
