@@ -490,7 +490,7 @@ namespace BiatecTokensApi.Models
         public const string OPERATION_FAILED = "OPERATION_FAILED";
 
         /// <summary>
-        /// KYC verification is required before this operation can proceed
+        /// An active subscription is required before this operation can proceed
         /// </summary>
         public const string SUBSCRIPTION_REQUIRED = "SUBSCRIPTION_REQUIRED";
 

@@ -53,12 +53,13 @@ namespace BiatecTokensApi.Services.Interface
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Builds an <see cref="OrchestrationContext"/> from an HTTP request context,
-        /// extracting the correlation ID and idempotency key from headers.
+        /// Builds an <see cref="OrchestrationContext"/> from the provided values.
+        /// Callers should pass the correlation ID obtained from <c>HttpContext.TraceIdentifier</c>
+        /// and the idempotency key obtained from the <c>Idempotency-Key</c> request header.
         /// </summary>
         /// <param name="operationType">Logical operation type identifier (e.g. "ERC20_MINTABLE_CREATE")</param>
         /// <param name="correlationId">Correlation ID from the request trace identifier</param>
-        /// <param name="idempotencyKey">Optional idempotency key from the Idempotency-Key header</param>
+        /// <param name="idempotencyKey">Optional idempotency key extracted from the Idempotency-Key header</param>
         /// <param name="userId">Optional authenticated user identifier</param>
         /// <returns>A populated <see cref="OrchestrationContext"/></returns>
         OrchestrationContext BuildContext(
