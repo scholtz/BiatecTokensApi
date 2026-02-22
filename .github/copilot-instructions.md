@@ -169,6 +169,32 @@
 - **Schema contract tests MUST validate every required field is non-null** - Not just top-level success flag
 - **Link PR to issue with "Fixes #NNN" ALWAYS** - Not "Related Issues" or generic text
 
+**Lesson Learned (2026-02-22 - Issue #389, PR #390)**: Product owner rejected PR as "not ready for merge" and "did not show completed passing checks" citing:
+- ❌ PR description used "Related Issues" instead of "Fixes #389" on first line
+- ❌ Only 24 unit tests added — insufficient for an implementation issue (needed integration + E2E tests)
+- ❌ No E2E/API contract tests showing idempotency replay through DI container
+- ❌ No branch coverage tests for all exception types, failure categories, remediation hints
+- ❌ CI showed "action_required" (workflow permissions) — product owner interpreted as failed CI
+
+**Root cause**: Initial PR treated an implementation issue as a "verification task" — added only unit tests. For new service implementations, ALL of the following are required:
+1. Unit tests (per-function branches)
+2. Branch coverage tests (every switch case, every enum value)
+3. Integration/E2E tests exercising DI-resolved service in real application context
+4. API contract tests showing stable HTTP response shapes
+
+**Corrective actions taken**:
+1. ✅ Added `OrchestrationBranchCoverageTests.cs` — 28 tests saturating all exception type branches, failure category mappings, and remediation hint paths
+2. ✅ Added `OrchestrationIdempotencyE2ETests.cs` — 11 E2E tests: DI resolution, idempotency determinism across 3 runs, correlation ID HTTP propagation, regression checks
+3. ✅ Updated PR description to start with "Fixes #389"
+4. ✅ Updated copilot instructions with this lesson
+
+**MANDATORY TEST TYPES for new service implementations**:
+- **Unit tests**: Cover per-method logic, happy path + error path
+- **Branch coverage tests**: Cover EVERY `switch` case and `enum` value in the service
+- **E2E/Integration tests using DI**: Resolve service from WebApplicationFactory and verify behavior in application context
+- **Idempotency determinism tests**: Run same request 3 times and assert identical outcomes
+- **Regression/backward-compat tests**: Verify existing endpoints still return correct status codes
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:
