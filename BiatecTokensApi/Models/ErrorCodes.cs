@@ -451,5 +451,57 @@ namespace BiatecTokensApi.Models
         /// ARC76 account metadata invalid
         /// </summary>
         public const string ACCOUNT_METADATA_INVALID = "ACCOUNT_METADATA_INVALID";
+
+        // ── Orchestration pipeline error codes ──────────────────────────────────────
+
+        /// <summary>
+        /// A required precondition was not satisfied (KYC, subscription, compliance)
+        /// </summary>
+        public const string PRECONDITION_FAILED = "PRECONDITION_FAILED";
+
+        /// <summary>
+        /// Post-commit verification failed – the operation was submitted but could not be confirmed
+        /// </summary>
+        public const string POST_COMMIT_VERIFICATION_FAILED = "POST_COMMIT_VERIFICATION_FAILED";
+
+        /// <summary>
+        /// The operation was cancelled by the caller or a timeout policy
+        /// </summary>
+        public const string OPERATION_CANCELLED = "OPERATION_CANCELLED";
+
+        /// <summary>
+        /// A blockchain RPC timeout occurred during the operation
+        /// </summary>
+        public const string BLOCKCHAIN_TIMEOUT = "BLOCKCHAIN_TIMEOUT";
+
+        /// <summary>
+        /// A network-level error occurred while calling an external service
+        /// </summary>
+        public const string NETWORK_ERROR = "NETWORK_ERROR";
+
+        /// <summary>
+        /// IPFS upload failed during token metadata persistence
+        /// </summary>
+        public const string IPFS_UPLOAD_FAILED = "IPFS_UPLOAD_FAILED";
+
+        /// <summary>
+        /// The operation failed due to an invalid state or business rule violation
+        /// </summary>
+        public const string OPERATION_FAILED = "OPERATION_FAILED";
+
+        /// <summary>
+        /// KYC verification is required before this operation can proceed
+        /// </summary>
+        public const string SUBSCRIPTION_REQUIRED = "SUBSCRIPTION_REQUIRED";
+
+        /// <summary>
+        /// The operation is blocked by a compliance policy violation
+        /// </summary>
+        public const string COMPLIANCE_VIOLATION = "COMPLIANCE_VIOLATION";
+
+        /// <summary>
+        /// The operation is blocked by a platform policy
+        /// </summary>
+        public const string POLICY_VIOLATION = "POLICY_VIOLATION";
     }
 }

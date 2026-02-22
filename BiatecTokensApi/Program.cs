@@ -257,6 +257,7 @@ namespace BiatecTokensApi
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ITokenOperationsIntelligenceService, TokenOperationsIntelligenceService>();
             builder.Services.AddSingleton<IStateTransitionGuard, StateTransitionGuard>();
+            builder.Services.AddSingleton<ITokenWorkflowOrchestrationPipeline, TokenWorkflowOrchestrationPipeline>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
