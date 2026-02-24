@@ -185,8 +185,9 @@
 **Corrective actions taken**:
 1. ✅ Added `OrchestrationBranchCoverageTests.cs` — 28 tests saturating all exception type branches, failure category mappings, and remediation hint paths
 2. ✅ Added `OrchestrationIdempotencyE2ETests.cs` — 11 E2E tests: DI resolution, idempotency determinism across 3 runs, correlation ID HTTP propagation, regression checks
-3. ✅ Updated PR description to start with "Fixes #389"
-4. ✅ Updated copilot instructions with this lesson
+3. ✅ Added `OrchestrationAdvancedScenariosTests.cs` — 22 tests: policy conflicts, malformed inputs, concurrency edge cases, multi-step workflow execution, retry/rollback semantics, backward-compatible response schema
+4. ✅ Updated PR description to start with "Fixes #389"
+5. ✅ Updated copilot instructions with this lesson
 
 **MANDATORY TEST TYPES for new service implementations**:
 - **Unit tests**: Cover per-method logic, happy path + error path
@@ -194,6 +195,13 @@
 - **E2E/Integration tests using DI**: Resolve service from WebApplicationFactory and verify behavior in application context
 - **Idempotency determinism tests**: Run same request 3 times and assert identical outcomes
 - **Regression/backward-compat tests**: Verify existing endpoints still return correct status codes
+- **Policy conflict tests**: Test multiple conflicting policies, validate fail-fast ordering
+- **Malformed input tests**: Null, empty, oversized, special characters — pipeline must not throw
+- **Concurrency tests**: Multiple parallel executions must produce independent, correct results
+- **Multi-step workflow tests**: Chain multiple pipeline executions, validate audit trail across steps
+- **Retry/rollback semantics tests**: Verify transient vs terminal failure hints are correct
+
+**CI NOTE**: The `action_required` status on "Validate Workflow Permissions" and "Test Pull Request" workflows is NOT a test failure. It is a GitHub security restriction requiring manual maintainer approval before running CI on PRs from agents. The product owner (repo owner) must approve the CI run at https://github.com/scholtz/BiatecTokensApi/actions. This is not fixable in code — it requires clicking "Approve and run" in the GitHub UI. When the PO says "lacks a passing CI signal", they must approve the pending workflow run first.
 
 ## CRITICAL: Requirements vs Scope Section Priority
 
