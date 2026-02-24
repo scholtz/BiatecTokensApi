@@ -42,14 +42,14 @@ spec:
           #     value: https://biatec-tokens-api-main-app-deployment.biatec:5443
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 8080
             initialDelaySeconds: 10
             timeoutSeconds: 5
             failureThreshold: 2
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/live
               port: 8080
             initialDelaySeconds: 20
             timeoutSeconds: 5
