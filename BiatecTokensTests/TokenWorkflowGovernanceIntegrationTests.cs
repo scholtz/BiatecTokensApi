@@ -277,8 +277,8 @@ namespace BiatecTokensTests
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.PRECONDITION_FAILED));
                 Assert.That(result.FailureCategory, Is.EqualTo(OrchestrationFailureCategory.PreconditionFailure));
-                Assert.That(result.RemediationHint, Does.Contain("precondition"),
-                    "Remediation hint must reference precondition resolution");
+                Assert.That(result.RemediationHint, Is.EqualTo("Ensure all preconditions (KYC, subscription, compliance) are satisfied before retrying."),
+                    "Remediation hint must direct users to resolve preconditions");
 
                 // Executor must NOT have been called (fail-fast semantics)
                 Assert.That(executorCallCount, Is.EqualTo(0),
@@ -301,7 +301,7 @@ namespace BiatecTokensTests
                 executor: _ => Task.FromResult(0));
 
             Assert.That(result.FailureCategory, Is.EqualTo(OrchestrationFailureCategory.ValidationFailure));
-            Assert.That(result.RemediationHint, Does.Contain("Correct").Or.Contain("correct").Or.Contain("fix"),
+            Assert.That(result.RemediationHint, Is.EqualTo("Correct the request parameters and resubmit."),
                 "Validation failure must prompt user to correct inputs, not retry");
         }
 
@@ -325,7 +325,7 @@ namespace BiatecTokensTests
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.BLOCKCHAIN_TIMEOUT));
                 Assert.That(result.FailureCategory, Is.EqualTo(OrchestrationFailureCategory.TransientInfrastructureFailure));
-                Assert.That(result.RemediationHint, Does.Contain("Retry").Or.Contain("retry"),
+                Assert.That(result.RemediationHint, Is.EqualTo("A transient error occurred. Retry with exponential back-off using the same idempotency key."),
                     "Transient failures must include retry guidance");
 
                 // Audit summary must record transient failure
@@ -396,7 +396,7 @@ namespace BiatecTokensTests
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.POST_COMMIT_VERIFICATION_FAILED));
                 Assert.That(result.FailureCategory, Is.EqualTo(OrchestrationFailureCategory.PostCommitVerificationFailure));
-                Assert.That(result.RemediationHint, Does.Contain("correlation").Or.Contain("support").Or.Contain("Contact"),
+                Assert.That(result.RemediationHint, Is.EqualTo("The operation was submitted but could not be verified. Contact support with the correlation ID."),
                     "Post-commit failures must direct operators to support with correlation ID");
             });
         }
@@ -422,8 +422,8 @@ namespace BiatecTokensTests
             {
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.OPERATION_CANCELLED));
-                // Cancelled operations suggest retry with same idempotency key
-                Assert.That(result.RemediationHint, Does.Contain("idempotency").Or.Contain("Retry").Or.Contain("same key"));
+                Assert.That(result.RemediationHint, Is.EqualTo("The operation was cancelled. Retry using the same idempotency key."),
+                    "Cancelled operations must suggest safe retry with same idempotency key");
             });
         }
 
