@@ -396,7 +396,7 @@ namespace BiatecTokensTests
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.POST_COMMIT_VERIFICATION_FAILED));
                 Assert.That(result.FailureCategory, Is.EqualTo(OrchestrationFailureCategory.PostCommitVerificationFailure));
-                Assert.That(result.RemediationHint, Is.EqualTo("The operation was submitted but could not be verified. Contact support with the correlation ID."),
+                Assert.That(result.RemediationHint, Is.EqualTo("The operation was submitted but post-commit verification failed. Contact support with the correlation ID."),
                     "Post-commit failures must direct operators to support with correlation ID");
             });
         }
