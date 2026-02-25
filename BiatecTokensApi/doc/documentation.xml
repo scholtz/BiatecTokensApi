@@ -18660,6 +18660,56 @@
             ARC76 account metadata invalid
             </summary>
         </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.PRECONDITION_FAILED">
+            <summary>
+            A required precondition was not satisfied (KYC, subscription, compliance)
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.POST_COMMIT_VERIFICATION_FAILED">
+            <summary>
+            Post-commit verification failed – the operation was submitted but could not be confirmed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.OPERATION_CANCELLED">
+            <summary>
+            The operation was cancelled by the caller or a timeout policy
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.BLOCKCHAIN_TIMEOUT">
+            <summary>
+            A blockchain RPC timeout occurred during the operation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.NETWORK_ERROR">
+            <summary>
+            A network-level error occurred while calling an external service
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.IPFS_UPLOAD_FAILED">
+            <summary>
+            IPFS upload failed during token metadata persistence
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.OPERATION_FAILED">
+            <summary>
+            The operation failed due to an invalid state or business rule violation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.SUBSCRIPTION_REQUIRED">
+            <summary>
+            An active subscription is required before this operation can proceed
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.COMPLIANCE_VIOLATION">
+            <summary>
+            The operation is blocked by a compliance policy violation
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.POLICY_VIOLATION">
+            <summary>
+            The operation is blocked by a platform policy
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.EVM.EVMTokenDeploymentResponse">
             <summary>
             Represents the response of an Ethereum Virtual Machine (EVM) token deployment operation.
@@ -20225,6 +20275,316 @@
         <member name="P:BiatecTokensApi.Models.NetworkMetadataResponse.Timestamp">
             <summary>
             Timestamp of the response
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationContext">
+            <summary>
+            Context object passed through all stages of the orchestration pipeline
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.CorrelationId">
+            <summary>
+            Unique correlation ID for end-to-end tracing across services and logs.
+            Taken from the X-Correlation-ID request header or auto-generated.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.IdempotencyKey">
+            <summary>
+            Idempotency key supplied by the caller to prevent duplicate operations.
+            When present, the pipeline enforces deterministic duplicate-response semantics.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.OperationType">
+            <summary>
+            The token workflow operation type (e.g. "ERC20_MINTABLE_CREATE", "ARC3_CREATE")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.UserId">
+            <summary>
+            Authenticated user identifier – populated from JWT claims or ARC-0014 address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.InitiatedAt">
+            <summary>
+            UTC timestamp when the pipeline was initiated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.StageMarkers">
+            <summary>
+            Stage-level telemetry markers recorded as the pipeline progresses
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.PolicyDecisions">
+            <summary>
+            Policy decisions recorded during the pipeline execution
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.CurrentStage">
+            <summary>
+            The stage currently executing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationContext.Metadata">
+            <summary>
+            Additional metadata attached by pipeline stages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker">
+            <summary>
+            Represents a timestamped marker emitted when a pipeline stage starts or finishes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker.Stage">
+            <summary>Stage that was entered</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker.Timestamp">
+            <summary>UTC timestamp of the marker</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker.Success">
+            <summary>Whether the stage completed successfully</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker.Message">
+            <summary>Optional message associated with the marker</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker.DurationMs">
+            <summary>Duration of this stage in milliseconds</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationPolicyDecision">
+            <summary>
+            Represents a policy decision recorded during orchestration
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationPolicyDecision.PolicyName">
+            <summary>Name of the policy dimension evaluated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationPolicyDecision.Outcome">
+            <summary>Outcome of the policy evaluation: Pass, Warning, or Fail</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationPolicyDecision.Reason">
+            <summary>Reason for the policy decision</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationPolicyDecision.DecidedAt">
+            <summary>UTC timestamp of the decision</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1">
+            <summary>
+            Result produced by the orchestration pipeline for a single token workflow execution
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.Success">
+            <summary>
+            Indicates whether the entire pipeline completed successfully
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.CompletedAtStage">
+            <summary>
+            The stage at which the pipeline completed or failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.CorrelationId">
+            <summary>
+            Correlation ID from the originating request – propagated to response headers
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.IdempotencyKey">
+            <summary>
+            Idempotency key used for this execution (null if not provided by caller)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.IsIdempotentReplay">
+            <summary>
+            Whether this result was served from the idempotency cache (duplicate request)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.ErrorCode">
+            <summary>
+            Structured error code when the pipeline fails (maps to <see cref="T:BiatecTokensApi.Models.ErrorCodes"/> constants)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.ErrorMessage">
+            <summary>
+            Human-readable error message for the caller
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.RemediationHint">
+            <summary>
+            Actionable hint to help callers resolve failures
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.FailureCategory">
+            <summary>
+            Failure category used to determine retry guidance
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.Payload">
+            <summary>
+            The actual operation result when the pipeline succeeds
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.StageMarkers">
+            <summary>
+            Ordered list of stage markers recorded during pipeline execution
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.PolicyDecisions">
+            <summary>
+            Policy decisions made during the pipeline run
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.AuditSummary">
+            <summary>
+            Audit summary for compliance evidence – always populated regardless of success/failure
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.CompletedAt">
+            <summary>
+            UTC timestamp when the pipeline completed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1.TotalDurationMs">
+            <summary>
+            Total elapsed time of the pipeline in milliseconds
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory">
+            <summary>
+            Classifies the reason for a pipeline failure to drive retry guidance and user messaging
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory.None">
+            <summary>No failure – pipeline succeeded</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory.ValidationFailure">
+            <summary>
+            Request did not pass schema or invariant validation.
+            Not retryable – caller must fix input.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory.PreconditionFailure">
+            <summary>
+            A precondition (KYC, subscription, compliance) was not met.
+            Retryable after user remediation.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory.TransientInfrastructureFailure">
+            <summary>
+            A transient infrastructure error occurred during execution (RPC timeout, IPFS unavailable).
+            Retryable with exponential back-off.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory.PolicyFailure">
+            <summary>
+            The operation could not be executed due to a permanent business rule violation.
+            Not retryable without policy change.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory.PostCommitVerificationFailure">
+            <summary>
+            Post-commit verification failed – the operation was submitted but the expected
+            outcome was not confirmed on-chain or in storage.
+            Retryable after operator investigation.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory.TerminalExecutionFailure">
+            <summary>
+            An unclassified terminal error occurred.
+            Not retryable – requires operator investigation.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary">
+            <summary>
+            Audit summary generated for each orchestration run – used as compliance evidence
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.CorrelationId">
+            <summary>Correlation ID of the request</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.OperationType">
+            <summary>Operation type that was executed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.InitiatedBy">
+            <summary>User who initiated the workflow</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.InitiatedAt">
+            <summary>UTC timestamp when the workflow was initiated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.CompletedAt">
+            <summary>UTC timestamp when the workflow completed (success or failure)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.Outcome">
+            <summary>Final outcome: Succeeded or Failed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.CompletedAtStage">
+            <summary>Stage at which the pipeline ended</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.FailureCode">
+            <summary>Error code if the pipeline failed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.StagesCompleted">
+            <summary>Count of stages successfully completed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.PolicyDecisionCount">
+            <summary>Count of policy decisions made</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.HasIdempotencyKey">
+            <summary>Whether idempotency key was present</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Orchestration.OrchestrationAuditSummary.WasIdempotentReplay">
+            <summary>Whether this was a replay of a previously seen idempotency key</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationStage">
+            <summary>
+            Represents the stages of the policy-driven token workflow orchestration pipeline
+            </summary>
+            <remarks>
+            The pipeline executes stages in order: Validate → CheckPreconditions → Execute → VerifyPostCommit → EmitTelemetry.
+            Each stage emits a structured log marker so operators can trace exactly where a workflow
+            is in the lifecycle and diagnose failures quickly.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.NotStarted">
+            <summary>
+            Pipeline not yet started
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.Validate">
+            <summary>
+            Stage 1: Validate request schema and invariant rules.
+            Deterministic – same inputs produce the same validation outcome.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.CheckPreconditions">
+            <summary>
+            Stage 2: Check preconditions such as KYC status, subscription tier, and compliance policies.
+            Guards execution from proceeding when platform requirements are unmet.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.Execute">
+            <summary>
+            Stage 3: Execute the core token workflow (deploy, mint, transfer, burn, etc.).
+            Idempotency guarantees are enforced here using the idempotency key.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.VerifyPostCommit">
+            <summary>
+            Stage 4: Post-commit verification – confirm the executed operation reached the expected state
+            on the underlying network or storage layer.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.EmitTelemetry">
+            <summary>
+            Stage 5: Emit standardized lifecycle telemetry events including correlation ID,
+            stage markers, policy decisions, and audit summary.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.Completed">
+            <summary>
+            Pipeline completed successfully through all stages
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Orchestration.OrchestrationStage.Failed">
+            <summary>
+            Pipeline terminated with a failure at one of the stages
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Preflight.PreflightCheckRequest">
@@ -32631,6 +32991,61 @@
             <param name="standard">The token standard to check</param>
             <returns>True if supported, false otherwise</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.ITokenWorkflowOrchestrationPipeline">
+             <summary>
+             Orchestration pipeline for policy-driven token workflow execution.
+             </summary>
+             <remarks>
+             Encapsulates the five-stage pipeline:
+               1. Validate   – schema and invariant checks
+               2. CheckPreconditions – KYC, subscription, compliance policy gates
+               3. Execute    – core token operation (idempotency-guarded)
+               4. VerifyPostCommit – confirm operation reached expected terminal state
+               5. EmitTelemetry – structured lifecycle events with correlation ID and stage markers
+            
+             Every run produces an <see cref="T:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1"/> that carries full
+             stage markers, policy decisions, and an audit summary regardless of outcome.
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenWorkflowOrchestrationPipeline.ExecuteAsync``2(BiatecTokensApi.Models.Orchestration.OrchestrationContext,``0,System.Func{``0,System.String},System.Func{``0,System.String},System.Func{``0,System.Threading.Tasks.Task{``1}},System.Func{``1,System.Threading.Tasks.Task{System.String}},System.Threading.CancellationToken)">
+            <summary>
+            Executes a token workflow through the full five-stage pipeline.
+            </summary>
+            <typeparam name="TRequest">Type of the incoming request</typeparam>
+            <typeparam name="TResult">Type of the operation result payload</typeparam>
+            <param name="context">Orchestration context carrying correlation ID, idempotency key, and user identity</param>
+            <param name="request">The validated request object</param>
+            <param name="validationPolicy">
+              Delegate that validates the request at Stage 1.
+              Return null to indicate success; return a non-null error message to halt the pipeline.
+            </param>
+            <param name="preconditionPolicy">
+              Delegate that checks preconditions at Stage 2.
+              Return null to proceed; return a non-null error message to halt the pipeline.
+            </param>
+            <param name="executor">
+              Async delegate that executes the core operation at Stage 3.
+              Should throw on unrecoverable failures; transient failures are caught and classified.
+            </param>
+            <param name="postCommitVerifier">
+              Optional async delegate that verifies the result at Stage 4.
+              Return null to indicate verification passed; return a non-null message on failure.
+            </param>
+            <param name="cancellationToken">Cancellation token for the pipeline execution</param>
+            <returns>A fully populated <see cref="T:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1"/></returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.ITokenWorkflowOrchestrationPipeline.BuildContext(System.String,System.String,System.String,System.String)">
+            <summary>
+            Builds an <see cref="T:BiatecTokensApi.Models.Orchestration.OrchestrationContext"/> from the provided values.
+            Callers should pass the correlation ID obtained from <c>HttpContext.TraceIdentifier</c>
+            and the idempotency key obtained from the <c>Idempotency-Key</c> request header.
+            </summary>
+            <param name="operationType">Logical operation type identifier (e.g. "ERC20_MINTABLE_CREATE")</param>
+            <param name="correlationId">Correlation ID from the request trace identifier</param>
+            <param name="idempotencyKey">Optional idempotency key extracted from the Idempotency-Key header</param>
+            <param name="userId">Optional authenticated user identifier</param>
+            <returns>A populated <see cref="T:BiatecTokensApi.Models.Orchestration.OrchestrationContext"/></returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IValidationService">
             <summary>
             Service interface for token metadata validation and evidence management
@@ -33758,6 +34173,64 @@
             <summary>
             Validator for ERC20 tokens (Ethereum-compatible tokens)
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline">
+             <summary>
+             Implementation of the policy-driven token workflow orchestration pipeline.
+             </summary>
+             <remarks>
+             Executes five deterministic stages for every token workflow request:
+            
+               Stage 1 – Validate:           Schema and invariant checks (deterministic, synchronous)
+               Stage 2 – CheckPreconditions: KYC, subscription tier, compliance policy gates
+               Stage 3 – Execute:            Core operation with idempotency tracking
+               Stage 4 – VerifyPostCommit:   Confirm result reached expected state
+               Stage 5 – EmitTelemetry:      Structured lifecycle events with correlation ID
+            
+             Every run, successful or failed, produces a structured <see cref="T:BiatecTokensApi.Models.Orchestration.OrchestrationResult`1"/>
+             with stage markers, policy decisions, and an audit summary for compliance evidence.
+            
+             Business value:
+               - Operators can identify exactly which stage failed and why using the stage markers.
+               - Duplicate submissions are detected via idempotency key tracking and return deterministic responses.
+               - Failure categories drive retry guidance without requiring callers to parse raw exceptions.
+               - Audit summaries provide compliance evidence for completed and failed workflows.
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline},BiatecTokensApi.Services.Interface.IRetryPolicyClassifier)">
+            <summary>
+            Initializes a new instance of <see cref="T:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline"/>.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.BuildContext(System.String,System.String,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.ExecuteAsync``2(BiatecTokensApi.Models.Orchestration.OrchestrationContext,``0,System.Func{``0,System.String},System.Func{``0,System.String},System.Func{``0,System.Threading.Tasks.Task{``1}},System.Func{``1,System.Threading.Tasks.Task{System.String}},System.Threading.CancellationToken)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.RunStage(BiatecTokensApi.Models.Orchestration.OrchestrationContext,BiatecTokensApi.Models.Orchestration.OrchestrationStage,System.Func{System.ValueTuple{System.Boolean,System.String}})">
+            <summary>Runs a synchronous stage and records its marker</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.BeginStage(BiatecTokensApi.Models.Orchestration.OrchestrationContext,BiatecTokensApi.Models.Orchestration.OrchestrationStage)">
+            <summary>Records the start of a stage</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.EndStage(BiatecTokensApi.Models.Orchestration.OrchestrationContext,BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker,System.Boolean,System.String)">
+            <summary>Records the completion of a stage by updating the marker already in context</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.BuildFailureResult``1(BiatecTokensApi.Models.Orchestration.OrchestrationContext,BiatecTokensApi.Models.Orchestration.OrchestrationStageMarker,System.String,BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory,System.String,System.Diagnostics.Stopwatch)">
+            <summary>Builds a failure result with full audit trail</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.BuildAuditSummary(BiatecTokensApi.Models.Orchestration.OrchestrationContext,System.Boolean,System.String,BiatecTokensApi.Models.Orchestration.OrchestrationStage)">
+            <summary>Builds an audit summary for compliance evidence</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.ClassifyExecutionException(System.Exception)">
+            <summary>Classifies an exception into a standardised error code</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.ClassifyFailureCategory(System.String)">
+            <summary>Maps an error code to a failure category</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.TokenWorkflowOrchestrationPipeline.BuildRemediationHint(BiatecTokensApi.Models.Orchestration.OrchestrationFailureCategory)">
+            <summary>Returns a remediation hint based on failure category</summary>
         </member>
         <member name="T:BiatecTokensApi.Services.ValidationService">
             <summary>
