@@ -160,6 +160,15 @@ jobs:
             "KeyManagementConfig": {
               "Provider": "Hardcoded",
               "HardcodedKey": "TestKeyForCIOpenAPIGenerationOnly32CharactersMinimum"
+            },
+            "WorkflowGovernanceConfig": {
+              "Enabled": true,
+              "EnforceValidation": true,
+              "EnforcePreconditions": true,
+              "EnforcePostCommitVerification": true,
+              "MaxRetryAttempts": 5,
+              "PolicyVersion": "1.0.0",
+              "RolloutPercentage": 100
             }
           }
           EOF

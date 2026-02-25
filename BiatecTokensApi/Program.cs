@@ -140,6 +140,9 @@ namespace BiatecTokensApi
             builder.Services.Configure<BiatecTokensApi.Configuration.KycConfig>(
                 builder.Configuration.GetSection("KycConfig"));
 
+            builder.Services.Configure<BiatecTokensApi.Configuration.WorkflowGovernanceConfig>(
+                builder.Configuration.GetSection("WorkflowGovernanceConfig"));
+
             // Register HTTP client for API calls with resilience policies
             builder.Services.AddHttpClient("default")
                 .AddStandardResilienceHandler(options =>
