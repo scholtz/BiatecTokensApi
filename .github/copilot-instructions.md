@@ -1002,6 +1002,55 @@ CI environments have resource constraints that don't affect local development. A
 
 **Lesson Learned (2026-02-10)**: Even with all mitigations (NonParallelizable, complete config, retry logic), CI resource constraints can cause intermittent failures. Always err on the side of MORE retries and LONGER delays for CI environments. Local success does NOT guarantee CI success.
 
+## Mandatory Test Coverage for New Service Methods (Lesson Learned 2026-02-26 — Issue #407)
+
+**Root cause of PR rejection**: PR added 40 integration/E2E tests (WebApplicationFactory) but had NO pure service-layer unit tests for the 3 new service methods (VerifyDerivationAsync, GetDerivationInfo, InspectSessionAsync). PO requires unit tests at the service layer as the primary evidence of correctness.
+
+**ALWAYS add BOTH layers when adding new service methods:**
+
+### Layer 1: Pure Unit Tests (MANDATORY, no HTTP)
+Create `<FeatureName>ServiceUnitTests.cs` using mocked `IUserRepository` and real `KeyProviderFactory`:
+- Happy path: user found, correct inputs → success
+- Error path (user not found): returns bounded error code with RemediationHint
+- Error path (email mismatch): returns FORBIDDEN
+- Degraded path (repository throws): exception swallowed, returns INTERNAL_SERVER_ERROR, no propagation
+- Edge cases: short strings, null inputs, empty strings
+- Determinism: 3 identical calls return identical results
+- Privacy: Serialize response to JSON and assert mnemonic/hash/secret not present
+
+```csharp
+[Test]
+public async Task MyMethod_RepositoryThrows_ReturnsInternalError_NoThrow()
+{
+    _mockUserRepo.Setup(r => r.GetUserByIdAsync(It.IsAny<string>()))
+        .ThrowsAsync(new InvalidOperationException("Simulated failure"));
+
+    Assert.DoesNotThrowAsync(async () => await _service.MyMethodAsync("id", "corr"));
+    var result = await _service.MyMethodAsync("id", "corr");
+    Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.INTERNAL_SERVER_ERROR));
+    Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
+}
+```
+
+### Layer 2: Integration/Contract Tests (MANDATORY, WebApplicationFactory)
+Keep the existing 40-test pattern in `<FeatureName>EvidenceContractTests.cs` for HTTP-level assertions.
+
+### Minimum Test Count per New Service Method
+- `{Method}_{HappyPath}` x1
+- `{Method}_{UserNotFound}` x1
+- `{Method}_{ForbiddenOrValidationError}` x1 (if applicable)
+- `{Method}_{RepositoryThrows}_NoThrow` x1
+- `{Method}_{Determinism}_ThreeConsecutiveCalls` x1
+- `{Method}_{NoSecretLeakage}` x1
+
+**Total minimum**: 6 unit tests per method + 40 integration/contract tests per feature.
+
+**Always run both test files locally before committing:**
+```bash
+dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Feature}ServiceUnitTests"
+dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Feature}ContractTests"
+```
+
 ## Questions and Clarifications
 
 If you encounter ambiguous requirements or need to make architectural decisions:
