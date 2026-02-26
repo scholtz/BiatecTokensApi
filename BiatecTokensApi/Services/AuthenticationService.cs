@@ -457,6 +457,149 @@ namespace BiatecTokensApi.Services
             }
         }
 
+        public async Task<ARC76DerivationVerifyResponse> VerifyDerivationAsync(string userId, string? requestEmail, string correlationId)
+        {
+            try
+            {
+                var user = await _userRepository.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    _logger.LogWarning("Derivation verification: user not found. UserId={UserId}, CorrelationId={CorrelationId}",
+                        LoggingHelper.SanitizeLogInput(userId), correlationId);
+                    return new ARC76DerivationVerifyResponse
+                    {
+                        Success = false,
+                        IsConsistent = false,
+                        ErrorCode = ErrorCodes.NOT_FOUND,
+                        ErrorMessage = "User not found.",
+                        RemediationHint = "Ensure you are authenticated and the session is valid.",
+                        CorrelationId = correlationId
+                    };
+                }
+
+                // If caller supplied an email, it must match the authenticated user's own email.
+                if (!string.IsNullOrWhiteSpace(requestEmail) &&
+                    !string.Equals(CanonicalizeEmail(requestEmail), user.Email, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("Derivation verification: email mismatch. UserId={UserId}, CorrelationId={CorrelationId}",
+                        LoggingHelper.SanitizeLogInput(userId), correlationId);
+                    return new ARC76DerivationVerifyResponse
+                    {
+                        Success = false,
+                        IsConsistent = false,
+                        ErrorCode = ErrorCodes.FORBIDDEN,
+                        ErrorMessage = "The supplied email does not match the authenticated user.",
+                        RemediationHint = "Only the authenticated user may verify their own derivation.",
+                        CorrelationId = correlationId
+                    };
+                }
+
+                var address = user.AlgorandAddress ?? string.Empty;
+                var fingerprint = address.Length >= 8 ? address[..8] : address;
+
+                _logger.LogInformation("Derivation verification succeeded. UserId={UserId}, CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(userId), correlationId);
+
+                return new ARC76DerivationVerifyResponse
+                {
+                    Success = true,
+                    AlgorandAddress = address,
+                    IsConsistent = true,
+                    DerivationContractVersion = DerivationContractVersion,
+                    DerivationAlgorithm = "ARC76/BIP39",
+                    DeterminismProof = new ARC76DeterminismProof
+                    {
+                        CanonicalEmail = user.Email,
+                        Standard = "ARC76",
+                        DerivationPath = "BIP39/Algorand",
+                        AddressFingerprint = fingerprint,
+                        ContractVersion = DerivationContractVersion
+                    },
+                    CorrelationId = correlationId
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Derivation verification error. UserId={UserId}, CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(userId), correlationId);
+                return new ARC76DerivationVerifyResponse
+                {
+                    Success = false,
+                    IsConsistent = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred during derivation verification.",
+                    RemediationHint = "Retry the request. If the problem persists, contact support.",
+                    CorrelationId = correlationId
+                };
+            }
+        }
+
+        public ARC76DerivationInfoResponse GetDerivationInfo(string correlationId)
+        {
+            return new ARC76DerivationInfoResponse
+            {
+                ContractVersion = DerivationContractVersion,
+                Standard = "ARC76",
+                AlgorithmDescription = "Algorand ARC76 account derivation via BIP39 mnemonic. " +
+                    "Each user receives a unique mnemonic at registration which is encrypted at rest. " +
+                    "The Algorand account is derived deterministically from the mnemonic using ARC76.GetAccount().",
+                BoundedErrorCodes = new[]
+                {
+                    ErrorCodes.NOT_FOUND,
+                    ErrorCodes.FORBIDDEN,
+                    ErrorCodes.UNAUTHORIZED,
+                    ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorCodes.INVALID_REQUEST,
+                },
+                IsBackwardCompatible = true,
+                EffectiveFrom = "2026-01-01",
+                SpecificationUrl = "https://github.com/algorandfoundation/ARCs/blob/main/ARCs/arc-0076.md",
+                CorrelationId = correlationId
+            };
+        }
+
+        public async Task<SessionInspectionResponse> InspectSessionAsync(string userId, string correlationId)
+        {
+            try
+            {
+                var user = await _userRepository.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    _logger.LogWarning("Session inspection: user not found. UserId={UserId}, CorrelationId={CorrelationId}",
+                        LoggingHelper.SanitizeLogInput(userId), correlationId);
+                    return new SessionInspectionResponse
+                    {
+                        IsActive = false,
+                        CorrelationId = correlationId
+                    };
+                }
+
+                _logger.LogInformation("Session inspection succeeded. UserId={UserId}, CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(userId), correlationId);
+
+                return new SessionInspectionResponse
+                {
+                    IsActive = user.IsActive,
+                    UserId = user.UserId,
+                    Email = user.Email,
+                    AlgorandAddress = user.AlgorandAddress,
+                    TokenType = "Bearer",
+                    DerivationContractVersion = DerivationContractVersion,
+                    CorrelationId = correlationId
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Session inspection error. UserId={UserId}, CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(userId), correlationId);
+                return new SessionInspectionResponse
+                {
+                    IsActive = false,
+                    CorrelationId = correlationId
+                };
+            }
+        }
+
         // Private helper methods
 
         private string GenerateAccessToken(User user)

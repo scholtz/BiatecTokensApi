@@ -429,5 +429,105 @@ namespace BiatecTokensApi.Controllers
                 correlationId
             });
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // ARC76 Derivation Verification Endpoints (Issue #407)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Verifies that the authenticated user's ARC76 derivation is deterministic and consistent.
+        /// </summary>
+        /// <param name="request">Optional request containing email for cross-validation.</param>
+        /// <returns>Derivation verification response with stable identity fields.</returns>
+        /// <remarks>
+        /// Provides deterministic proof that the Algorand address bound to this session
+        /// was derived correctly via the ARC76 standard.  The response includes a
+        /// <c>DeterminismProof</c> block that frontend and enterprise consumers can assert on.
+        ///
+        /// **Sample Response:**
+        /// ```json
+        /// {
+        ///   "success": true,
+        ///   "algorandAddress": "ALGORAND_ADDRESS",
+        ///   "isConsistent": true,
+        ///   "derivationContractVersion": "1.0",
+        ///   "derivationAlgorithm": "ARC76/BIP39",
+        ///   "determinismProof": {
+        ///     "canonicalEmail": "user@example.com",
+        ///     "standard": "ARC76",
+        ///     "derivationPath": "BIP39/Algorand",
+        ///     "addressFingerprint": "ALGORAND",
+        ///     "contractVersion": "1.0"
+        ///   },
+        ///   "correlationId": "abc123"
+        /// }
+        /// ```
+        /// </remarks>
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        [HttpPost("arc76/verify-derivation")]
+        [ProducesResponseType(typeof(ARC76DerivationVerifyResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ARC76DerivationVerifyResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> VerifyDerivation([FromBody] ARC76DerivationVerifyRequest? request)
+        {
+            var correlationId = HttpContext.TraceIdentifier;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _logger.LogWarning("Derivation verification without valid user ID. CorrelationId={CorrelationId}", correlationId);
+                return Unauthorized();
+            }
+
+            var response = await _authService.VerifyDerivationAsync(userId, request?.Email, correlationId);
+
+            if (!response.Success)
+            {
+                _logger.LogWarning("Derivation verification failed: {ErrorCode}. UserId={UserId}, CorrelationId={CorrelationId}",
+                    response.ErrorCode, LoggingHelper.SanitizeLogInput(userId), correlationId);
+                return response.ErrorCode == Models.ErrorCodes.NOT_FOUND
+                    ? NotFound(response)
+                    : BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Returns ARC76 derivation contract metadata.  No authentication required.
+        /// </summary>
+        /// <returns>Derivation contract info including version, algorithm, and bounded error taxonomy.</returns>
+        [AllowAnonymous]
+        [HttpGet("arc76/info")]
+        [ProducesResponseType(typeof(ARC76DerivationInfoResponse), StatusCodes.Status200OK)]
+        public IActionResult GetDerivationInfo()
+        {
+            var correlationId = HttpContext.TraceIdentifier;
+            var info = _authService.GetDerivationInfo(correlationId);
+            return Ok(info);
+        }
+
+        /// <summary>
+        /// Inspects the current authenticated session, returning stable derivation-linked fields.
+        /// </summary>
+        /// <returns>Session inspection response with account identity and token metadata.</returns>
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        [HttpGet("session")]
+        [ProducesResponseType(typeof(SessionInspectionResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> InspectSession()
+        {
+            var correlationId = HttpContext.TraceIdentifier;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _logger.LogWarning("Session inspection without valid user ID. CorrelationId={CorrelationId}", correlationId);
+                return Unauthorized();
+            }
+
+            var response = await _authService.InspectSessionAsync(userId, correlationId);
+            return Ok(response);
+        }
     }
 }

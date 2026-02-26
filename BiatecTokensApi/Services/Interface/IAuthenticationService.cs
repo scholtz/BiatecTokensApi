@@ -44,5 +44,22 @@ namespace BiatecTokensApi.Services.Interface
         /// Returns the encrypted mnemonic that can be used with ARC76.GetAccount() to derive the account
         /// </remarks>
         Task<string?> GetUserMnemonicForSigningAsync(string userId);
+
+        /// <summary>
+        /// Verifies ARC76 derivation determinism for the user identified by <paramref name="userId"/>.
+        /// Returns a structured response proving the derived Algorand address is stable.
+        /// </summary>
+        Task<ARC76DerivationVerifyResponse> VerifyDerivationAsync(string userId, string? requestEmail, string correlationId);
+
+        /// <summary>
+        /// Returns the static ARC76 derivation contract information (version, algorithm, error taxonomy).
+        /// </summary>
+        ARC76DerivationInfoResponse GetDerivationInfo(string correlationId);
+
+        /// <summary>
+        /// Returns a session inspection payload for the user identified by <paramref name="userId"/>.
+        /// Provides stable, derivation-linked fields that frontend can assert on.
+        /// </summary>
+        Task<SessionInspectionResponse> InspectSessionAsync(string userId, string correlationId);
     }
 }
