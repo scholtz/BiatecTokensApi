@@ -44,5 +44,12 @@ namespace BiatecTokensApi.Models
         /// Optional remediation hint to help users resolve the error
         /// </summary>
         public string? RemediationHint { get; set; }
+
+        /// <summary>
+        /// Indicates whether the operation that caused this error can be retried.
+        /// True for transient failures (e.g., network timeouts, node unavailability).
+        /// False for permanent failures (e.g., insufficient balance, invalid parameters).
+        /// </summary>
+        public bool Retryable { get; set; } = false;
     }
 }

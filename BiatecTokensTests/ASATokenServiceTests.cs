@@ -516,7 +516,8 @@ namespace BiatecTokensTests
             {
                 var mockTokenIssuanceRepository = Mock.Of<ITokenIssuanceRepository>();
                 var mockHttpContextAccessor = Mock.Of<IHttpContextAccessor>();
-                return new ASATokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _complianceRepositoryMock.Object, mockTokenIssuanceRepository, mockHttpContextAccessor);
+                var mockAuthService = Mock.Of<BiatecTokensApi.Services.Interface.IAuthenticationService>();
+                return new ASATokenService(_configMock.Object, _appConfigMock.Object, _loggerMock.Object, _complianceRepositoryMock.Object, mockTokenIssuanceRepository, mockHttpContextAccessor, mockAuthService);
             }
             catch
             {

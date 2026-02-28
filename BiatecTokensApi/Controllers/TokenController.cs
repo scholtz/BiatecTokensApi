@@ -250,7 +250,10 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FT);
+                // Extract userId from JWT claims if present (JWT Bearer authentication)
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FT, userId);
                 
                 // Add correlation ID to response
                 result.CorrelationId = correlationId;
@@ -308,7 +311,10 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_NFT);
+                // Extract userId from JWT claims if present (JWT Bearer authentication)
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_NFT, userId);
                 
                 // Add correlation ID to response
                 result.CorrelationId = correlationId;
@@ -368,7 +374,10 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FNFT);
+                // Extract userId from JWT claims if present (JWT Bearer authentication)
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                var result = await _asaTokenService.CreateASATokenAsync(request, TokenType.ASA_FNFT, userId);
                 
                 // Add correlation ID to response
                 result.CorrelationId = correlationId;
