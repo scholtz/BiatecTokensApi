@@ -265,6 +265,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IAssetIntelligenceService, AssetIntelligenceService>();
             builder.Services.AddSingleton<IPricingReliabilityService, PricingReliabilityService>();
 
+            // Register account management service
+            builder.Services.AddSingleton<IAccountService, AccountService>();
+
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
 
