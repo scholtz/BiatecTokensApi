@@ -249,6 +249,9 @@ namespace BiatecTokensApi
             // Register token metadata validator
             builder.Services.AddSingleton<ITokenMetadataValidator, TokenMetadataValidator>();
 
+            // Register wallet connection service for connection state management and network mismatch detection
+            builder.Services.AddSingleton<IWalletConnectionService, WalletConnectionService>();
+
             // Register entitlement and readiness services
             builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
             builder.Services.AddSingleton<IARC76AccountReadinessService, ARC76AccountReadinessService>();
