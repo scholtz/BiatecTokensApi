@@ -346,7 +346,7 @@ namespace BiatecTokensTests
                 IsFrozen = false
             };
 
-            Assert.That(normalBalance.IsFrozen, Is.False.Or.Null,
+            Assert.That(normalBalance.IsFrozen ?? false, Is.False,
                 "Non-frozen balance should have IsFrozen = false or null");
         }
 
@@ -713,10 +713,10 @@ namespace BiatecTokensTests
         [Test]
         public void DeploymentStatus_RequiredStates_Exist()
         {
-            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), "Queued"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), "Completed"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), "Failed"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), "Cancelled"), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), DeploymentStatus.Queued), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), DeploymentStatus.Completed), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), DeploymentStatus.Failed), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentStatus), DeploymentStatus.Cancelled), Is.True);
         }
 
         /// <summary>
@@ -725,12 +725,12 @@ namespace BiatecTokensTests
         [Test]
         public void DeploymentErrorCategory_RequiredCategories_Exist()
         {
-            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), "NetworkError"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), "ValidationError"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), "ComplianceError"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), "InsufficientFunds"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), "TransactionFailure"), Is.True);
-            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), "UserRejection"), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), DeploymentErrorCategory.NetworkError), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), DeploymentErrorCategory.ValidationError), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), DeploymentErrorCategory.ComplianceError), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), DeploymentErrorCategory.InsufficientFunds), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), DeploymentErrorCategory.TransactionFailure), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeploymentErrorCategory), DeploymentErrorCategory.UserRejection), Is.True);
         }
 
         // =============================================================
