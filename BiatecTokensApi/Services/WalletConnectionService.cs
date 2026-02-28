@@ -187,6 +187,12 @@ namespace BiatecTokensApi.Services
         public IReadOnlyList<string> GetSupportedNetworks() => _supportedNetworks;
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// This performs structural validation only (length and character set for Algorand;
+        /// prefix and hex characters for EVM). It does not verify the Algorand 4-byte
+        /// checksum or the EVM EIP-55 mixed-case checksum. Use this for fast client-side
+        /// format checking; rely on on-chain confirmation for authoritative validity.
+        /// </remarks>
         public bool ValidateWalletAddress(string walletAddress, string network)
         {
             if (string.IsNullOrWhiteSpace(walletAddress))

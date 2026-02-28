@@ -67,11 +67,16 @@ namespace BiatecTokensApi.Services.Interface
         IReadOnlyList<string> GetSupportedNetworks();
 
         /// <summary>
-        /// Validates that a wallet address has the correct format for the given network
+        /// Validates that a wallet address has the correct format for the given network.
         /// </summary>
         /// <param name="walletAddress">Wallet address to validate</param>
         /// <param name="network">Network to validate against</param>
-        /// <returns>True if the address is valid for the network</returns>
+        /// <returns>True if the address passes structural validation for the network</returns>
+        /// <remarks>
+        /// Performs structural checks only (length and character set for Algorand; hex prefix for EVM).
+        /// Does not verify the Algorand 4-byte checksum or EVM EIP-55 mixed-case checksum.
+        /// Use on-chain confirmation for authoritative address validity.
+        /// </remarks>
         bool ValidateWalletAddress(string walletAddress, string network);
     }
 }
