@@ -35,6 +35,7 @@ namespace BiatecTokensApi.Services
         private readonly IComplianceRepository _complianceRepository;
         private readonly ITokenIssuanceRepository _tokenIssuanceRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IAuthenticationService _authenticationService;
         /// <summary>
         /// Initializes a new instance of the <see cref="ARC3TokenService"/> class, configuring it to interact
         /// with Algorand nodes and IPFS repositories based on the provided options.
@@ -51,13 +52,15 @@ namespace BiatecTokensApi.Services
         /// <param name="complianceRepository">The compliance metadata repository</param>
         /// <param name="tokenIssuanceRepository">The token issuance audit repository</param>
         /// <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
+        /// <param name="authenticationService">The authentication service for retrieving user ARC76 accounts</param>
         public ASATokenService(
             IOptionsMonitor<AlgorandAuthenticationOptionsV2> config,
             IOptionsMonitor<AppConfiguration> appConfig,
             ILogger<ARC3TokenService> logger,
             IComplianceRepository complianceRepository,
             ITokenIssuanceRepository tokenIssuanceRepository,
-            IHttpContextAccessor httpContextAccessor
+            IHttpContextAccessor httpContextAccessor,
+            IAuthenticationService authenticationService
             )
         {
             _config = config;
@@ -66,6 +69,7 @@ namespace BiatecTokensApi.Services
             _complianceRepository = complianceRepository;
             _tokenIssuanceRepository = tokenIssuanceRepository;
             _httpContextAccessor = httpContextAccessor;
+            _authenticationService = authenticationService;
 
             foreach (var chain in _config.CurrentValue.AllowedNetworks)
             {
@@ -91,27 +95,27 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Creates an ARC3 fungible token on Algorand blockchain
         /// </summary>
-        public Task<ASATokenDeploymentResponse> CreateASATokenAsync(ASABaseTokenDeploymentRequest request, TokenType tokenType)
+        public Task<ASATokenDeploymentResponse> CreateASATokenAsync(ASABaseTokenDeploymentRequest request, TokenType tokenType, string? userId = null)
         {
             if (tokenType == TokenType.ASA_FNFT)
             {
                 if (request is ASAFractionalNonFungibleTokenDeploymentRequest rfnftRequest)
                 {
-                    return CreateFNFTPublicAsync(rfnftRequest);
+                    return CreateFNFTPublicAsync(rfnftRequest, userId);
                 }
             }
             if (tokenType == TokenType.ASA_FT)
             {
                 if (request is ASAFungibleTokenDeploymentRequest ftRequest)
                 {
-                    return CreateFTPublicAsync(ftRequest);
+                    return CreateFTPublicAsync(ftRequest, userId);
                 }
             }
-            if (tokenType == TokenType.ASA_FT)
+            if (tokenType == TokenType.ASA_NFT)
             {
                 if (request is ASANonFungibleTokenDeploymentRequest nftRequest)
                 {
-                    return CreateNFTAsync(nftRequest);
+                    return CreateNFTPublicAsync(nftRequest, userId);
                 }
             }
             throw new Exception("Unsupported token type for ASA: " + tokenType);
@@ -121,27 +125,27 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Creates an ASA fractional nft token on Algorand blockchain
         /// </summary>
-        public async Task<ASATokenDeploymentResponse> CreateFNFTPublicAsync(ASAFractionalNonFungibleTokenDeploymentRequest request)
+        public async Task<ASATokenDeploymentResponse> CreateFNFTPublicAsync(ASAFractionalNonFungibleTokenDeploymentRequest request, string? userId = null)
         {
             ValidateASARequest(request, TokenType.ASA_FNFT);
-            return await CreateFNFTAsync(request);
+            return await CreateFNFTAsync(request, userId);
         }
         /// <summary>
         /// Creates an ASA fungible token on Algorand blockchain
         /// </summary>
-        public async Task<ASATokenDeploymentResponse> CreateFTPublicAsync(ASAFungibleTokenDeploymentRequest request)
+        public async Task<ASATokenDeploymentResponse> CreateFTPublicAsync(ASAFungibleTokenDeploymentRequest request, string? userId = null)
         {
             ValidateASARequest(request, TokenType.ASA_FT);
-            return await CreateFTAsync(request);
+            return await CreateFTAsync(request, userId);
         }
 
         /// <summary>
         /// Creates an ASA non fungible token on Algorand blockchain
         /// </summary>
-        public async Task<ASATokenDeploymentResponse> CreateNFTPublicAsync(ASANonFungibleTokenDeploymentRequest request)
+        public async Task<ASATokenDeploymentResponse> CreateNFTPublicAsync(ASANonFungibleTokenDeploymentRequest request, string? userId = null)
         {
             ValidateASARequest(request, TokenType.ASA_NFT);
-            return await CreateNFTAsync(request);
+            return await CreateNFTAsync(request, userId);
         }
 
 
@@ -281,10 +285,37 @@ namespace BiatecTokensApi.Services
         /// ID.</returns>
         /// <exception cref="Exception">Thrown if the asset creation transaction or asset index cannot be parsed after creation.</exception>
         private async Task<ASATokenDeploymentResponse> CreateFTAsync(
-            ASAFungibleTokenDeploymentRequest request
+            ASAFungibleTokenDeploymentRequest request,
+            string? userId = null
             )
         {
-            var acc = ARC76.GetAccount(_appConfig.CurrentValue.Account);
+            // Determine which account to use: user's ARC76 account or system account
+            string accountMnemonic;
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                // JWT-authenticated user: use their ARC76-derived account
+                var userMnemonic = await _authenticationService.GetUserMnemonicForSigningAsync(userId);
+                if (string.IsNullOrWhiteSpace(userMnemonic))
+                {
+                    _logger.LogError("Failed to retrieve mnemonic for user: UserId={UserId}", Helpers.LoggingHelper.SanitizeLogInput(userId));
+                    return new ASATokenDeploymentResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Failed to retrieve user account for token deployment",
+                        ErrorCode = ErrorCodes.UNAUTHORIZED
+                    };
+                }
+                accountMnemonic = userMnemonic;
+                _logger.LogInformation("Using user's ARC76 account for ASA deployment: UserId={UserId}", Helpers.LoggingHelper.SanitizeLogInput(userId));
+            }
+            else
+            {
+                // ARC-0014 authenticated or system: use system account
+                accountMnemonic = _appConfig.CurrentValue.Account;
+                _logger.LogInformation("Using system account for ASA deployment");
+            }
+
+            var acc = ARC76.GetAccount(accountMnemonic);
             var assetCreateTx = new AssetCreateTransaction()
             {
                 AssetParams = new Algorand.Algod.Model.AssetParams()
@@ -372,7 +403,8 @@ namespace BiatecTokensApi.Services
         /// <returns>A task representing the asynchronous operation, with a result of type <see
         /// cref="ASATokenDeploymentResponse"/> that contains the details of the deployed NFT.</returns>
         private Task<ASATokenDeploymentResponse> CreateNFTAsync(
-            ASANonFungibleTokenDeploymentRequest request
+            ASANonFungibleTokenDeploymentRequest request,
+            string? userId = null
             )
         {
             var ftRequest = new ASAFungibleTokenDeploymentRequest()
@@ -390,7 +422,7 @@ namespace BiatecTokensApi.Services
                 UnitName = request.UnitName,
                 Url = request.Url
             };
-            return CreateFTAsync(ftRequest);
+            return CreateFTAsync(ftRequest, userId);
         }
         /// <summary>
         /// Initiates the deployment of a fractional non-fungible token (FNFT) based on the specified request
@@ -400,10 +432,12 @@ namespace BiatecTokensApi.Services
         /// fractional non-fungible token request and initiates the deployment process.</remarks>
         /// <param name="request">The request containing the parameters for deploying the fractional non-fungible token, including addresses,
         /// metadata, and supply details.</param>
+        /// <param name="userId">Optional user ID for JWT-authenticated requests</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the response of the FNFT
         /// deployment, including deployment details and status.</returns>
         private Task<ASATokenDeploymentResponse> CreateFNFTAsync(
-            ASAFractionalNonFungibleTokenDeploymentRequest request
+            ASAFractionalNonFungibleTokenDeploymentRequest request,
+            string? userId = null
             )
         {
             var ftRequest = new ASAFungibleTokenDeploymentRequest()
@@ -421,7 +455,7 @@ namespace BiatecTokensApi.Services
                 UnitName = request.UnitName,
                 Url = request.Url
             };
-            return CreateFTAsync(ftRequest);
+            return CreateFTAsync(ftRequest, userId);
         }
 
         /// <summary>
