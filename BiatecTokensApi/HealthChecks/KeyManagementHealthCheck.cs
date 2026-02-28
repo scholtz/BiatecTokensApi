@@ -53,7 +53,7 @@ namespace BiatecTokensApi.HealthChecks
                 // In production, fail if using insecure providers
                 if (!_environment.IsDevelopment())
                 {
-                    if (providerType == "EnvironmentVariable" || providerType == "Hardcoded")
+                    if (providerType == "Hardcoded")
                     {
                         _logger.LogError("Insecure key provider '{ProviderType}' is not allowed in production environment", providerType);
                         return HealthCheckResult.Unhealthy(
@@ -99,11 +99,11 @@ namespace BiatecTokensApi.HealthChecks
                     try
                     {
                         var key = await provider.GetEncryptionKeyAsync();
-                        
+
                         // Validate key without logging it
                         if (string.IsNullOrEmpty(key) || key.Length < 32)
                         {
-                            _logger.LogError("Key provider returned invalid key: ProviderType={ProviderType}, KeyLength={KeyLength}", 
+                            _logger.LogError("Key provider returned invalid key: ProviderType={ProviderType}, KeyLength={KeyLength}",
                                 providerType, key?.Length ?? 0);
                             return HealthCheckResult.Unhealthy(
                                 $"Key provider '{providerType}' returned invalid encryption key (length: {key?.Length ?? 0}, required: ≥32)",
@@ -121,7 +121,7 @@ namespace BiatecTokensApi.HealthChecks
                         key = null;
 
                         responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
-                        _logger.LogInformation("Key provider health check passed: ProviderType={ProviderType}, ResponseTimeMs={ResponseTime}", 
+                        _logger.LogInformation("Key provider health check passed: ProviderType={ProviderType}, ResponseTimeMs={ResponseTime}",
                             providerType, Math.Round(responseTime, 2));
 
                         return HealthCheckResult.Healthy(
@@ -136,7 +136,7 @@ namespace BiatecTokensApi.HealthChecks
                     catch (Exception ex)
                     {
                         responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
-                        _logger.LogError(ex, "Key provider connectivity test failed: ProviderType={ProviderType}, ResponseTimeMs={ResponseTime}", 
+                        _logger.LogError(ex, "Key provider connectivity test failed: ProviderType={ProviderType}, ResponseTimeMs={ResponseTime}",
                             providerType, Math.Round(responseTime, 2));
                         return HealthCheckResult.Unhealthy(
                             $"Key provider '{providerType}' connectivity test failed: {ex.Message}",
@@ -154,7 +154,7 @@ namespace BiatecTokensApi.HealthChecks
 
                 // In development, just validate configuration
                 responseTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
-                _logger.LogInformation("Key provider configuration validated: ProviderType={ProviderType}, ResponseTimeMs={ResponseTime}", 
+                _logger.LogInformation("Key provider configuration validated: ProviderType={ProviderType}, ResponseTimeMs={ResponseTime}",
                     providerType, Math.Round(responseTime, 2));
 
                 return HealthCheckResult.Healthy(

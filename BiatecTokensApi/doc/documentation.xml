@@ -436,6 +436,41 @@
             Default: 100 (all requests governed).
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.AssetIntelligenceController">
+             <summary>
+             Asset Intelligence API providing canonical metadata, validation status, and confidence indicators.
+            
+             All endpoints are:
+             - **Idempotent** – repeated calls return semantically identical responses.
+             - **Privacy-safe** – no internal stack traces or secrets are exposed.
+             - **Correlation-linked** – every response carries a correlation ID for audit tracing.
+             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AssetIntelligenceController.#ctor(BiatecTokensApi.Services.Interface.IAssetIntelligenceService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.AssetIntelligenceController})">
+            <summary>
+            Initializes a new instance of <see cref="T:BiatecTokensApi.Controllers.AssetIntelligenceController"/>.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AssetIntelligenceController.Evaluate(BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest)">
+            <summary>
+            Returns canonical asset metadata with validation status and confidence indicators.
+            </summary>
+            <param name="request">Asset intelligence request including asset ID and network.</param>
+            <returns>Normalized metadata, validation details, and provenance information.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AssetIntelligenceController.GetQuality(System.UInt64,System.String)">
+            <summary>
+            Returns quality indicators for the specified asset.
+            </summary>
+            <param name="assetId">The on-chain asset identifier.</param>
+            <param name="network">The blockchain network identifier.</param>
+            <returns>Asset quality indicators including confidence level and overall score.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AssetIntelligenceController.Health">
+            <summary>
+            Health check for the asset intelligence API.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.AuthController">
             <summary>
             Provides endpoints for authentication diagnostics and ARC-0014 authentication flow support
@@ -835,6 +870,49 @@
             }
             ```
             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.VerifyDerivation(BiatecTokensApi.Models.Auth.ARC76DerivationVerifyRequest)">
+             <summary>
+             Verifies that the authenticated user's ARC76 derivation is deterministic and consistent.
+             </summary>
+             <param name="request">Optional request containing email for cross-validation.</param>
+             <returns>Derivation verification response with stable identity fields.</returns>
+             <remarks>
+             Provides deterministic proof that the Algorand address bound to this session
+             was derived correctly via the ARC76 standard.  The response includes a
+             <c>DeterminismProof</c> block that frontend and enterprise consumers can assert on.
+            
+             **Sample Response:**
+             ```json
+             {
+               "success": true,
+               "algorandAddress": "ALGORAND_ADDRESS",
+               "isConsistent": true,
+               "derivationContractVersion": "1.0",
+               "derivationAlgorithm": "ARC76/BIP39",
+               "determinismProof": {
+                 "canonicalEmail": "user@example.com",
+                 "standard": "ARC76",
+                 "derivationPath": "BIP39/Algorand",
+                 "addressFingerprint": "ALGORAND",
+                 "contractVersion": "1.0"
+               },
+               "correlationId": "abc123"
+             }
+             ```
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.GetDerivationInfo">
+            <summary>
+            Returns ARC76 derivation contract metadata.  No authentication required.
+            </summary>
+            <returns>Derivation contract info including version, algorithm, and bounded error taxonomy.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AuthV2Controller.InspectSession">
+            <summary>
+            Inspects the current authenticated session, returning stable derivation-linked fields.
+            </summary>
+            <returns>Session inspection response with account identity and token metadata.</returns>
         </member>
         <member name="T:BiatecTokensApi.Controllers.BillingController">
             <summary>
@@ -3982,6 +4060,81 @@
             - Chain-specific identifiers (genesis hash or chain ID)
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.OperationalIntelligenceController">
+             <summary>
+             Deterministic Operational Intelligence and Audit Evidence API.
+            
+             Exposes canonical operation timelines, compliance checkpoint summaries,
+             standardized risk signals, and stakeholder-report-ready payloads.
+            
+             All endpoints are:
+             - **Idempotent** – repeated calls return semantically identical responses.
+             - **Privacy-safe** – no internal stack traces or secrets are exposed.
+             - **Correlation-linked** – every response carries a correlation ID for audit tracing.
+             - **Backward-compatible** – existing schema fields are never removed or renamed.
+             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.OperationalIntelligenceController.GetTimeline(BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineRequest)">
+            <summary>
+            Returns a deterministically ordered operation timeline for a deployment.
+            </summary>
+            <param name="request">Timeline request including deployment ID and optional pagination cursor.</param>
+            <returns>Ordered list of state-transition events with stable semantics.</returns>
+            <remarks>
+            **Contract guarantees:**
+            - Entries are always returned oldest-first (ascending UTC timestamp).
+            - Each entry carries a stable `EventCode` and `CorrelationId`.
+            - Pagination is cursor-based for idempotent retrieval under retries.
+            - No internal implementation details appear in responses.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.OperationalIntelligenceController.GetComplianceCheckpoints(BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointRequest)">
+            <summary>
+            Returns a normalized compliance checkpoint summary for a deployment.
+            </summary>
+            <param name="request">Checkpoint request including deployment ID.</param>
+            <returns>Normalized checkpoint states with business-readable guidance.</returns>
+            <remarks>
+            **Contract guarantees:**
+            - Checkpoint states use the stable `ComplianceCheckpointState` enum (Pending / InReview / Satisfied / Failed / Blocked).
+            - Each checkpoint includes a business-readable `Explanation` and optional `RecommendedAction`.
+            - `OverallPosture` is a stable human-readable summary derived deterministically from checkpoint states.
+            - `BlockingCount` counts only checkpoints that block deployment progression.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.OperationalIntelligenceController.ClassifyRisk(System.String,System.String)">
+            <summary>
+            Maps an error code to a bounded operational risk signal.
+            </summary>
+            <param name="errorCode">Stable error code to classify.</param>
+            <param name="correlationId">Optional correlation ID for audit linking.</param>
+            <returns>Operational risk signal with category, severity, and remediation hint.</returns>
+            <remarks>
+            **Contract guarantees:**
+            - Deterministic: same error code always maps to the same `OperationalRiskCategory`.
+            - Bounded: only the nine documented `OperationalRiskCategory` values are returned.
+            - Safe: no internal details appear in the signal description or hint.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.OperationalIntelligenceController.GetStakeholderReport(BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportRequest)">
+            <summary>
+            Returns a privacy-safe stakeholder report payload for a deployment.
+            </summary>
+            <param name="request">Report request including deployment ID.</param>
+            <returns>Stakeholder-facing summary with issuance progress, compliance posture, and blockers.</returns>
+            <remarks>
+            **Contract guarantees:**
+            - Payloads never contain internal addresses, keys, or stack traces.
+            - `UnresolvedBlockers` counts only error-severity signals requiring action.
+            - `PrimaryRecommendedAction` is null when no action is needed.
+            - `RiskSignals` are filtered to signals safe for non-technical stakeholders.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.OperationalIntelligenceController.Health">
+            <summary>
+            Health check for the operational intelligence API.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.PreflightController">
             <summary>
             Controller for preflight readiness checks before token issuance operations
@@ -4019,6 +4172,39 @@
             }
             ```
             </remarks>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.PricingReliabilityController">
+             <summary>
+             Pricing Reliability API providing deterministic quotes with source provenance and fallback tracing.
+            
+             All endpoints are:
+             - **Idempotent** – repeated calls return semantically identical responses.
+             - **Privacy-safe** – no internal stack traces or secrets are exposed.
+             - **Correlation-linked** – every response carries a correlation ID for audit tracing.
+             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.PricingReliabilityController.#ctor(BiatecTokensApi.Services.Interface.IPricingReliabilityService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.PricingReliabilityController})">
+            <summary>
+            Initializes a new instance of <see cref="T:BiatecTokensApi.Controllers.PricingReliabilityController"/>.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.PricingReliabilityController.GetQuote(BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest)">
+            <summary>
+            Returns a deterministic price quote with source provenance and precedence trace.
+            </summary>
+            <param name="request">Pricing reliability request including asset ID, network, and base currency.</param>
+            <returns>Reliable price quote with full fallback chain information when requested.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.PricingReliabilityController.GetSourceHealth">
+            <summary>
+            Returns health status of all configured pricing sources.
+            </summary>
+            <returns>Source health summary including available and unavailable source names.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.PricingReliabilityController.Health">
+            <summary>
+            Health check for the pricing reliability API.
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Controllers.SecurityActivityController">
             <summary>
@@ -7873,6 +8059,156 @@
             This model extends the base token deployment request with additional properties specific to fractional non-fungible tokens.
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetValidationStatus">
+            <summary>Overall validation status of an asset's metadata.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.MetadataSourceType">
+            <summary>Source type for asset metadata retrieval.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.SourceConfidenceLevel">
+            <summary>Confidence level of a metadata source.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetSchemaVersion">
+            <summary>Schema version of the asset metadata standard.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceErrorCode">
+            <summary>Error codes for asset intelligence operations.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest">
+            <summary>Request model for asset intelligence evaluation.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest.AssetId">
+            <summary>The on-chain asset identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest.Network">
+            <summary>The blockchain network identifier (e.g., "algorand-mainnet").</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest.IncludeProvenance">
+            <summary>Whether to include provenance information in the response.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest.CorrelationId">
+            <summary>Optional caller-supplied correlation ID for audit tracing.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetMetadataField">
+            <summary>A single normalized metadata field with source and confidence information.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetMetadataField.FieldName">
+            <summary>The canonical name of the field.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetMetadataField.Value">
+            <summary>The field value as a string.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetMetadataField.Source">
+            <summary>The source type from which this field was retrieved.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetMetadataField.IsValidated">
+            <summary>Whether the field value has been validated.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetMetadataField.ConfidenceScore">
+            <summary>Confidence score between 0 and 1 for this field.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetProvenanceInfo">
+            <summary>Provenance information for a metadata source.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetProvenanceInfo.SourceType">
+            <summary>The type of the metadata source.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetProvenanceInfo.SourceIdentifier">
+            <summary>Stable identifier for the source (e.g., URL, chain node ID).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetProvenanceInfo.RetrievedAt">
+            <summary>When this source was last queried.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetProvenanceInfo.FreshnessWindowSeconds">
+            <summary>Number of seconds before this source's data is considered stale.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetProvenanceInfo.IsStale">
+            <summary>Whether the data from this source is currently stale.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetValidationDetail">
+            <summary>Validation detail for a single metadata field.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetValidationDetail.FieldName">
+            <summary>The canonical name of the field that was validated.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetValidationDetail.Status">
+            <summary>Validation outcome for this field.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetValidationDetail.ValidationMessage">
+            <summary>Human-readable validation message.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetValidationDetail.IssueCode">
+            <summary>Stable issue code when validation fails.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetQualityIndicators">
+            <summary>Comprehensive quality indicators for an asset.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetQualityIndicators.SourceConfidence">
+            <summary>Overall confidence level of the metadata source(s).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetQualityIndicators.FreshnessWindowSeconds">
+            <summary>Freshness window in seconds for the primary source.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetQualityIndicators.ValidationStatus">
+            <summary>Current validation status of the asset's metadata.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetQualityIndicators.LastVerifiedAt">
+            <summary>Timestamp of the last successful verification, if any.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetQualityIndicators.OverallScore">
+            <summary>Overall quality score between 0 and 100.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse">
+            <summary>
+            Canonical asset intelligence response with normalized metadata,
+            validation details, and provenance information.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.Success">
+            <summary>Whether the request succeeded.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.AssetId">
+            <summary>The on-chain asset identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.Network">
+            <summary>The blockchain network identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.CorrelationId">
+            <summary>Correlation ID for audit tracing.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.ValidationStatus">
+            <summary>Overall validation status of the asset metadata.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.SchemaVersion">
+            <summary>Schema version detected for this asset.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.CompletenessScore">
+            <summary>Metadata completeness score between 0 and 100.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.NormalizedFields">
+            <summary>List of normalized metadata fields with source and confidence info.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.Provenance">
+            <summary>Provenance information for each metadata source consulted.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.ValidationDetails">
+            <summary>Per-field validation details.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.QualityIndicators">
+            <summary>Aggregated quality indicators for this asset.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.ErrorCode">
+            <summary>Bounded error code; None on success.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.ErrorMessage">
+            <summary>Human-readable error message; null on success.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.RemediationHint">
+            <summary>Actionable remediation hint when an error occurs.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceResponse.GeneratedAt">
+            <summary>UTC timestamp when this response was generated.</summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.AuditExportFormat">
             <summary>
             Export format for audit trails
@@ -8061,6 +8397,165 @@
             <summary>
             Error message if the export failed
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyRequest">
+            <summary>
+            Request model for ARC76 derivation verification.
+            Allows callers to verify that a given session/user context maps deterministically
+            to an expected ARC76-derived Algorand identity.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyRequest.Email">
+            <summary>
+            The email address whose derivation should be verified.
+            Must match the authenticated user's own email – cross-user verification is not permitted.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse">
+            <summary>
+            Response model for ARC76 derivation verification.
+            Provides stable, privacy-safe fields that frontend and enterprise consumers can rely on
+            to confirm deterministic identity mapping.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.Success">
+            <summary>Whether the derivation verification succeeded.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.AlgorandAddress">
+            <summary>The ARC76-derived Algorand address for the provided context.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.IsConsistent">
+            <summary>
+            Indicates that the derived address is consistent across repeated calls with the same inputs.
+            Always true for a successful verification, false when an inconsistency is detected.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.DerivationContractVersion">
+            <summary>
+            Version of the ARC76 derivation contract used to compute this response.
+            Consumers should monitor this field for breaking-change detection.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.DerivationAlgorithm">
+            <summary>The deterministic algorithm used for derivation (e.g. "ARC76/BIP39").</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.DeterminismProof">
+            <summary>
+            Lightweight proof metadata confirming the derivation path is deterministic.
+            Does NOT contain secrets – only the derivation parameters and a stable hash.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.ErrorCode">
+            <summary>Error code if verification failed.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.ErrorMessage">
+            <summary>Human-readable error description.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.RemediationHint">
+            <summary>Actionable remediation hint for the caller.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.CorrelationId">
+            <summary>Correlation ID linking this response to backend audit evidence.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationVerifyResponse.Timestamp">
+            <summary>UTC timestamp of this response.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.ARC76DeterminismProof">
+            <summary>
+            Lightweight proof that the ARC76 derivation is deterministic for a given context.
+            Contains only non-sensitive derivation metadata.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DeterminismProof.CanonicalEmail">
+            <summary>The canonical (lower-cased, trimmed) email used as input.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DeterminismProof.Standard">
+            <summary>Derivation standard applied.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DeterminismProof.DerivationPath">
+            <summary>Key-derivation path or method label.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DeterminismProof.AddressFingerprint">
+            <summary>
+            Stable fingerprint (first 8 chars of the derived address) confirming the address
+            is bound to the canonical email without exposing the full address unnecessarily.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DeterminismProof.ContractVersion">
+            <summary>Contract version at which this derivation was computed.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse">
+            <summary>
+            Response model for ARC76 derivation contract information.
+            Exposes the stable contract metadata that frontend and enterprise consumers rely on.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.ContractVersion">
+            <summary>Current version of the ARC76 derivation contract.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.Standard">
+            <summary>Derivation standard.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.AlgorithmDescription">
+            <summary>Human-readable description of the derivation algorithm.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.BoundedErrorCodes">
+            <summary>Bounded list of error codes this contract may return.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.IsBackwardCompatible">
+            <summary>
+            Indicates whether this contract version guarantees backward-compatible responses.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.EffectiveFrom">
+            <summary>Date from which this contract version has been in production.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.SpecificationUrl">
+            <summary>Link to the ARC76 specification.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.CorrelationId">
+            <summary>Correlation ID for tracing.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.ARC76DerivationInfoResponse.Timestamp">
+            <summary>UTC timestamp of this response.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Auth.SessionInspectionResponse">
+            <summary>
+            Response model for session inspection.
+            Exposes stable, derivation-linked session fields that frontend can assert on.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.IsActive">
+            <summary>Whether a valid session is active for the caller.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.UserId">
+            <summary>User ID of the authenticated session.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.Email">
+            <summary>Canonicalized email address of the session owner.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.AlgorandAddress">
+            <summary>The ARC76-derived Algorand address bound to this session.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.TokenType">
+            <summary>Token type (always "Bearer" for JWT sessions).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.IssuedAt">
+            <summary>UTC timestamp when the current access token was issued.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.ExpiresAt">
+            <summary>UTC timestamp when the current access token expires.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.DerivationContractVersion">
+            <summary>
+            Version of the ARC76 derivation contract that produced <see cref="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.AlgorandAddress"/>.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.CorrelationId">
+            <summary>Correlation ID for tracing.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Auth.SessionInspectionResponse.Timestamp">
+            <summary>UTC timestamp of this response.</summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Auth.ChangePasswordRequest">
             <summary>
@@ -8880,6 +9375,237 @@
         <member name="P:BiatecTokensApi.Models.Billing.UsageSummaryResponse.ErrorMessage">
             <summary>
             Error message if the request failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile">
+            <summary>
+            Represents a user's compliance profile for wallet-free enterprise onboarding
+            </summary>
+            <remarks>
+            This model stores regulatory and compliance metadata associated with a user account,
+            supporting MICA readiness and enterprise-grade compliance for regulated token issuance.
+            Uses SaaS terminology (account-based) instead of wallet terminology.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Id">
+            <summary>
+            Unique identifier for the compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UserId">
+            <summary>
+            User ID this profile belongs to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuanceIntent">
+            <summary>
+            Issuance intent category (e.g., "equity", "debt", "asset-backed", "utility")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Onboarding readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.CreatedAt">
+            <summary>
+            Timestamp when the profile was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedAt">
+            <summary>
+            Timestamp when the profile was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedBy">
+            <summary>
+            User ID of who last updated the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Metadata">
+            <summary>
+            Optional additional metadata for extensibility
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IsOnboardingComplete">
+            <summary>
+            Determines if onboarding is complete based on profile completeness
+            </summary>
+            <returns>True if all required fields are filled and status is Complete or Active</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Readiness status for compliance profile
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.NotStarted">
+            <summary>
+            Profile has not been started
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.InProgress">
+            <summary>
+            Profile is in progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.PendingReview">
+            <summary>
+            Profile needs review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Complete">
+            <summary>
+            Profile is complete but not yet active
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Active">
+            <summary>
+            Profile is active and ready for token issuance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Suspended">
+            <summary>
+            Profile has been suspended
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry">
+            <summary>
+            Audit log entry for compliance profile changes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Id">
+            <summary>
+            Unique identifier for the audit entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ProfileId">
+            <summary>
+            Compliance profile ID that was changed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserId">
+            <summary>
+            User ID who owns the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Action">
+            <summary>
+            Action performed (Created, Updated, Deleted)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Timestamp">
+            <summary>
+            Timestamp when the action occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PerformedBy">
+            <summary>
+            User ID who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ChangedFields">
+            <summary>
+            Fields that were changed (field name -> new value)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PreviousValues">
+            <summary>
+            Previous values of changed fields (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.IpAddress">
+            <summary>
+            IP address of the request (if available)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserAgent">
+            <summary>
+            User agent of the request (if available)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest">
+            <summary>
+            Request to create or update a compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2, e.g., "US", "GB", "DE")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuanceIntent">
+            <summary>
+            Issuance intent category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.ReadinessStatus">
+            <summary>
+            Readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Metadata">
+            <summary>
+            Optional additional metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest">
+            <summary>
+            Request to get compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest.UserId">
+            <summary>
+            User ID to get profile for (optional, defaults to authenticated user)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse">
+            <summary>
+            Response for compliance profile operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.Profile">
+            <summary>
+            The compliance profile data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.IsOnboardingComplete">
+            <summary>
+            Indicates if onboarding is complete
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError">
+            <summary>
+            Response for compliance profile validation errors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Field">
+            <summary>
+            Field name that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Message">
+            <summary>
+            Error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Code">
+            <summary>
+            Error code
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.BlacklistEntry">
@@ -15548,237 +16274,6 @@
             Total number of pages
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile">
-            <summary>
-            Represents a user's compliance profile for wallet-free enterprise onboarding
-            </summary>
-            <remarks>
-            This model stores regulatory and compliance metadata associated with a user account,
-            supporting MICA readiness and enterprise-grade compliance for regulated token issuance.
-            Uses SaaS terminology (account-based) instead of wallet terminology.
-            </remarks>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Id">
-            <summary>
-            Unique identifier for the compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UserId">
-            <summary>
-            User ID this profile belongs to
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuingEntityName">
-            <summary>
-            Legal name of the issuing entity
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Jurisdiction">
-            <summary>
-            Jurisdiction/country code (ISO 3166-1 alpha-2)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuanceIntent">
-            <summary>
-            Issuance intent category (e.g., "equity", "debt", "asset-backed", "utility")
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.ReadinessStatus">
-            <summary>
-            Onboarding readiness status
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.CreatedAt">
-            <summary>
-            Timestamp when the profile was created
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedAt">
-            <summary>
-            Timestamp when the profile was last updated
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedBy">
-            <summary>
-            User ID of who last updated the profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Metadata">
-            <summary>
-            Optional additional metadata for extensibility
-            </summary>
-        </member>
-        <member name="M:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IsOnboardingComplete">
-            <summary>
-            Determines if onboarding is complete based on profile completeness
-            </summary>
-            <returns>True if all required fields are filled and status is Complete or Active</returns>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus">
-            <summary>
-            Readiness status for compliance profile
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.NotStarted">
-            <summary>
-            Profile has not been started
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.InProgress">
-            <summary>
-            Profile is in progress
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.PendingReview">
-            <summary>
-            Profile needs review
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Complete">
-            <summary>
-            Profile is complete but not yet active
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Active">
-            <summary>
-            Profile is active and ready for token issuance
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Suspended">
-            <summary>
-            Profile has been suspended
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry">
-            <summary>
-            Audit log entry for compliance profile changes
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Id">
-            <summary>
-            Unique identifier for the audit entry
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ProfileId">
-            <summary>
-            Compliance profile ID that was changed
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserId">
-            <summary>
-            User ID who owns the profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Action">
-            <summary>
-            Action performed (Created, Updated, Deleted)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Timestamp">
-            <summary>
-            Timestamp when the action occurred
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PerformedBy">
-            <summary>
-            User ID who performed the action
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ChangedFields">
-            <summary>
-            Fields that were changed (field name -> new value)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PreviousValues">
-            <summary>
-            Previous values of changed fields (for updates)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.IpAddress">
-            <summary>
-            IP address of the request (if available)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserAgent">
-            <summary>
-            User agent of the request (if available)
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest">
-            <summary>
-            Request to create or update a compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuingEntityName">
-            <summary>
-            Legal name of the issuing entity
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Jurisdiction">
-            <summary>
-            Jurisdiction/country code (ISO 3166-1 alpha-2, e.g., "US", "GB", "DE")
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuanceIntent">
-            <summary>
-            Issuance intent category
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.ReadinessStatus">
-            <summary>
-            Readiness status
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Metadata">
-            <summary>
-            Optional additional metadata
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest">
-            <summary>
-            Request to get compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest.UserId">
-            <summary>
-            User ID to get profile for (optional, defaults to authenticated user)
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse">
-            <summary>
-            Response for compliance profile operations
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.Profile">
-            <summary>
-            The compliance profile data
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.IsOnboardingComplete">
-            <summary>
-            Indicates if onboarding is complete
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError">
-            <summary>
-            Response for compliance profile validation errors
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Field">
-            <summary>
-            Field name that failed validation
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Message">
-            <summary>
-            Error message
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Code">
-            <summary>
-            Error code
-            </summary>
-        </member>
         <member name="T:BiatecTokensApi.Models.DecisionIntelligence.GetBenchmarkComparisonRequest">
             <summary>
             Request for benchmark comparison analysis
@@ -20347,6 +20842,363 @@
             Timestamp of the response
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointState">
+            <summary>
+            Normalized compliance checkpoint state.
+            Stable codes safe for frontend rendering and analytics.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointState.Pending">
+            <summary>Checkpoint has not yet been started</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointState.InReview">
+            <summary>Checkpoint is under active review</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointState.Satisfied">
+            <summary>Checkpoint has been fully satisfied</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointState.Failed">
+            <summary>Checkpoint has failed and requires remediation</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointState.Blocked">
+            <summary>Checkpoint is blocked by an unresolved dependency</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.OperationSeverity">
+            <summary>
+            Severity of an operation timeline entry.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationSeverity.Info">
+            <summary>Informational event, no action required</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationSeverity.Warning">
+            <summary>Warning – monitoring recommended</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationSeverity.Error">
+            <summary>Error – action needed</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationSeverity.Critical">
+            <summary>Critical – immediate action required</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory">
+            <summary>
+            Bounded set of operational risk categories.
+            All domain errors map deterministically to one of these.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.None">
+            <summary>No significant risk detected</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.AuthorizationRisk">
+            <summary>Authentication or authorisation issue</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.NetworkRisk">
+            <summary>Blockchain connectivity or network issue</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.ContractRisk">
+            <summary>Smart-contract execution failure</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.ComplianceRisk">
+            <summary>Regulatory or KYC compliance gap</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.DataIntegrityRisk">
+            <summary>Data integrity or schema validation failure</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.InfrastructureRisk">
+            <summary>Operational timeout or transient infrastructure failure</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.SecurityRisk">
+            <summary>Security policy or access-control violation</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskCategory.PolicyRisk">
+            <summary>Business-rule or policy conflict</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.ConfidenceLevel">
+            <summary>
+            Confidence level for a risk or intelligence assessment.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ConfidenceLevel.Low">
+            <summary>Less than 50 % confidence – insufficient data</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ConfidenceLevel.Medium">
+            <summary>50–79 % confidence – partial evidence</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ConfidenceLevel.High">
+            <summary>80–94 % confidence – strong evidence</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.OperationalIntelligence.ConfidenceLevel.Definitive">
+            <summary>95 %+ confidence – definitive evidence</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry">
+            <summary>
+            Single entry in a canonical operation timeline.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.EntryId">
+            <summary>Unique entry identifier (stable across retries)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.CorrelationId">
+            <summary>Correlation ID linking this entry to related backend evidence</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.OccurredAt">
+            <summary>UTC timestamp of the state transition</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.FromState">
+            <summary>Previous deployment/operation status (null for the initial entry)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.ToState">
+            <summary>Resulting deployment/operation status</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.Severity">
+            <summary>Severity of this transition</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.Description">
+            <summary>Business-readable description of what happened</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.RecommendedAction">
+            <summary>Recommended next action (if any)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.EventCode">
+            <summary>Stable error/event code (empty when no error)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.Actor">
+            <summary>Actor who triggered this transition (address or system name)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineEntry.Metadata">
+            <summary>Optional additional metadata (safe for external exposure)</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineRequest">
+            <summary>
+            Request for an operation timeline.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineRequest.DeploymentId">
+            <summary>Deployment ID to retrieve the timeline for</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineRequest.AfterEntryId">
+            <summary>Optional cursor for idempotent pagination</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineRequest.Limit">
+            <summary>Maximum number of entries to return (1-200, default 50)</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse">
+            <summary>
+            Response containing an ordered operation timeline.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.Success">
+            <summary>Whether the request was processed successfully</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.DeploymentId">
+            <summary>Deployment ID these entries belong to</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.Entries">
+            <summary>Chronologically ordered timeline entries (oldest first)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.TotalEntries">
+            <summary>Total available entries (may exceed returned count)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.HasMore">
+            <summary>Whether additional entries are available</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.NextCursor">
+            <summary>Cursor value for the next page (null when no more entries)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.GeneratedAt">
+            <summary>UTC timestamp when this response was generated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.CorrelationId">
+            <summary>Correlation ID for this response</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.ErrorMessage">
+            <summary>Error message (populated when Success = false)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.ErrorCode">
+            <summary>Stable error code (populated when Success = false)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineResponse.RemediationHint">
+            <summary>Actionable remediation hint (populated when Success = false)</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint">
+            <summary>
+            A single compliance checkpoint with normalized state and guidance.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.CheckpointId">
+            <summary>Stable checkpoint identifier (safe for frontend and analytics)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.Name">
+            <summary>Human-readable checkpoint name</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.State">
+            <summary>Normalized state of this checkpoint</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.Explanation">
+            <summary>Business-readable explanation of the current state</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.RecommendedAction">
+            <summary>Recommended action to advance or resolve this checkpoint</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.LastUpdatedAt">
+            <summary>UTC timestamp of the last state change</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.IsBlocking">
+            <summary>Whether this checkpoint blocks deployment progression</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.Category">
+            <summary>Stable category code for grouping in UI</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpoint.CorrelationId">
+            <summary>Correlation ID linking this checkpoint to evidence</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointRequest">
+            <summary>
+            Request for a compliance checkpoint summary.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointRequest.DeploymentId">
+            <summary>Deployment or asset identifier</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointRequest.IncludeNonBlocking">
+            <summary>Whether to include non-blocking checkpoints (default true)</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse">
+            <summary>
+            Response containing normalized compliance checkpoint states.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.Success">
+            <summary>Whether the request was processed successfully</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.DeploymentId">
+            <summary>Deployment or asset identifier</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.Checkpoints">
+            <summary>List of compliance checkpoints</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.BlockingCount">
+            <summary>Number of blocking checkpoints requiring action</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.SatisfiedCount">
+            <summary>Number of satisfied checkpoints</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.OverallPosture">
+            <summary>Overall compliance posture (derived from checkpoint states)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.GeneratedAt">
+            <summary>UTC timestamp when this summary was generated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.CorrelationId">
+            <summary>Correlation ID for this response</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.ErrorMessage">
+            <summary>Error message (populated when Success = false)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.ErrorCode">
+            <summary>Stable error code (populated when Success = false)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointResponse.RemediationHint">
+            <summary>Actionable remediation hint (populated when Success = false)</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal">
+            <summary>
+            Operational risk signal with bounded category and stable severity/confidence fields.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.SignalId">
+            <summary>Unique signal identifier (stable across retries)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.Category">
+            <summary>Bounded operational risk category</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.Severity">
+            <summary>Severity of this risk signal</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.Confidence">
+            <summary>Confidence in this assessment</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.SignalCode">
+            <summary>Stable signal code for machine processing</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.Description">
+            <summary>Business-readable description (no internal details)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.RemediationHint">
+            <summary>Actionable remediation hint</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.AssessedAt">
+            <summary>UTC timestamp of this assessment</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.OperationalRiskSignal.CorrelationId">
+            <summary>Correlation ID linking to backend evidence</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload">
+            <summary>
+            Privacy-safe stakeholder report payload for non-technical summaries.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.DeploymentId">
+            <summary>Deployment or asset identifier</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.TokenName">
+            <summary>Token name (safe for external publication)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.TokenSymbol">
+            <summary>Token symbol</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.IssuanceProgress">
+            <summary>Issuance progress summary (e.g., "Deployment confirmed – metadata indexing")</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.CompliancePosture">
+            <summary>Overall compliance posture (e.g., "All checkpoints satisfied")</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.UnresolvedBlockers">
+            <summary>Number of unresolved blockers requiring stakeholder attention</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.PrimaryRecommendedAction">
+            <summary>Highest-priority recommended action (null when no action needed)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.CurrentState">
+            <summary>Current deployment state (human-readable)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.GeneratedAt">
+            <summary>UTC timestamp when this report was generated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.CorrelationId">
+            <summary>Correlation ID for audit tracing</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportPayload.RiskSignals">
+            <summary>Risk signals summarised for non-technical stakeholders</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportRequest">
+            <summary>
+            Request for a stakeholder report.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportRequest.DeploymentId">
+            <summary>Deployment ID to generate the report for</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportResponse">
+            <summary>
+            Response wrapping a stakeholder report payload.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportResponse.Success">
+            <summary>Whether the request was processed successfully</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportResponse.Report">
+            <summary>The stakeholder report payload (null when Success = false)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportResponse.ErrorMessage">
+            <summary>Error message (populated when Success = false)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportResponse.ErrorCode">
+            <summary>Stable error code (populated when Success = false)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportResponse.RemediationHint">
+            <summary>Actionable remediation hint (populated when Success = false)</summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Orchestration.OrchestrationContext">
             <summary>
             Context object passed through all stages of the orchestration pipeline
@@ -20806,6 +21658,162 @@
             <summary>
             Critical severity - system issue requires immediate attention
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.QuoteStatus">
+            <summary>Status of a price quote response.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.PricingSourceType">
+            <summary>Type of pricing source used for a quote.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.PricingErrorCode">
+            <summary>Error codes for pricing reliability operations.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.PrecedenceDecision">
+            <summary>Decision made during the precedence evaluation chain.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest">
+            <summary>Request model for a reliable price quote.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest.AssetId">
+            <summary>The on-chain asset identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest.Network">
+            <summary>The blockchain network identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest.BaseCurrency">
+            <summary>Base currency for the quote (default: USD).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest.IncludeProvenance">
+            <summary>Whether to include source provenance in the response.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest.IncludeFallbackChain">
+            <summary>Whether to include the full fallback chain trace in the response.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest.CorrelationId">
+            <summary>Optional caller-supplied correlation ID for audit tracing.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo">
+            <summary>Information about the source used to obtain a price quote.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo.SourceType">
+            <summary>The type of pricing source.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo.SourceName">
+            <summary>Human-readable name of the source.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo.RetrievedAt">
+            <summary>UTC timestamp when the quote was retrieved.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo.LatencyMs">
+            <summary>Round-trip latency in milliseconds to retrieve the quote.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo.IsStale">
+            <summary>Whether the quote data is currently stale.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo.FreshnessWindowSeconds">
+            <summary>Freshness window in seconds before the quote is considered stale.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.QuoteSourceInfo.ConfidenceScore">
+            <summary>Confidence score between 0 and 1 for this quote.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.PrecedenceTraceEntry">
+            <summary>A single entry in the precedence decision trace.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PrecedenceTraceEntry.Step">
+            <summary>Step index in the precedence chain (1-based).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PrecedenceTraceEntry.SourceType">
+            <summary>The source type attempted at this step.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PrecedenceTraceEntry.Decision">
+            <summary>The decision made at this step.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PrecedenceTraceEntry.Reason">
+            <summary>Human-readable reason for the decision.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PrecedenceTraceEntry.AttemptedAt">
+            <summary>UTC timestamp when this step was executed.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse">
+            <summary>
+            Deterministic pricing reliability response with source provenance
+            and full fallback chain trace.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.Success">
+            <summary>Whether the request succeeded (includes Fallback/Stale as partial success).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.AssetId">
+            <summary>The on-chain asset identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.Network">
+            <summary>The blockchain network identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.CorrelationId">
+            <summary>Correlation ID for audit tracing.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.BaseCurrency">
+            <summary>Base currency used for the quote.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.QuoteStatus">
+            <summary>Status of the returned quote.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.Price">
+            <summary>Current price of the asset in the base currency; null when all sources failed.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.PriceChangePercent24h">
+            <summary>24-hour price change percentage; null when unavailable.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.Volume24h">
+            <summary>24-hour trading volume; null when unavailable.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.MarketCap">
+            <summary>Market capitalisation; null when unavailable.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.LastUpdated">
+            <summary>UTC timestamp of the underlying quote data; null when unavailable.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.SourceInfo">
+            <summary>Information about the source used for this quote; null when all sources failed.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.PrecedenceTrace">
+            <summary>Full precedence decision trace.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.ErrorCode">
+            <summary>Bounded error code; None on success.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.ErrorMessage">
+            <summary>Human-readable error message; null on success.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.RemediationHint">
+            <summary>Actionable remediation hint when an error occurs.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.GeneratedAt">
+            <summary>UTC timestamp when this response was generated.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingReliabilityResponse.LatencyMs">
+            <summary>Total end-to-end latency in milliseconds for this request.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.PricingReliability.PricingSourceHealthSummary">
+            <summary>Health summary for all configured pricing sources.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingSourceHealthSummary.IsHealthy">
+            <summary>Whether at least one pricing source is healthy.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingSourceHealthSummary.AvailableSources">
+            <summary>Number of currently available pricing sources.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingSourceHealthSummary.TotalSources">
+            <summary>Total number of configured pricing sources.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingSourceHealthSummary.AvailableSourceNames">
+            <summary>Names of currently available pricing sources.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingSourceHealthSummary.UnavailableSourceNames">
+            <summary>Names of currently unavailable pricing sources.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.PricingReliability.PricingSourceHealthSummary.CheckedAt">
+            <summary>UTC timestamp when this health check was performed.</summary>
         </member>
         <member name="T:BiatecTokensApi.Models.RetryPolicy">
             <summary>
@@ -29992,6 +31000,23 @@
             Logs token issuance audit entry for ASA tokens
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.AssetIntelligenceService">
+             <summary>
+             Asset metadata normalization, provenance scoring, and schema validation service.
+            
+             All read operations are idempotent – repeated calls with the same inputs
+             return semantically identical responses.
+             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AssetIntelligenceService.GetAssetIntelligenceAsync(BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AssetIntelligenceService.GetQualityIndicatorsAsync(System.UInt64,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AssetIntelligenceService.ValidateMetadataAsync(System.UInt64,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object})">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.AuthenticationService">
             <summary>
             Authentication service with ARC76 account derivation and JWT token management
@@ -31026,6 +32051,27 @@
             <param name="tokenType">Token type</param>
             <returns>Response with transaction details and asset ID</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IAssetIntelligenceService">
+            <summary>
+            Service for asset metadata normalization, provenance scoring, and schema validation.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAssetIntelligenceService.GetAssetIntelligenceAsync(BiatecTokensApi.Models.AssetIntelligence.AssetIntelligenceRequest)">
+            <summary>
+            Returns canonical asset metadata with validation status and confidence indicators.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAssetIntelligenceService.GetQualityIndicatorsAsync(System.UInt64,System.String)">
+            <summary>
+            Returns asset quality indicators for a specific asset.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAssetIntelligenceService.ValidateMetadataAsync(System.UInt64,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object})">
+            <summary>
+            Validates metadata fields against canonical schema.
+            Returns validation details without persisting changes.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IAuthenticationService">
             <summary>
             Interface for authentication service with ARC76 account derivation
@@ -31068,6 +32114,23 @@
             <remarks>
             Returns the encrypted mnemonic that can be used with ARC76.GetAccount() to derive the account
             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.VerifyDerivationAsync(System.String,System.String,System.String)">
+            <summary>
+            Verifies ARC76 derivation determinism for the user identified by <paramref name="userId"/>.
+            Returns a structured response proving the derived Algorand address is stable.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.GetDerivationInfo(System.String)">
+            <summary>
+            Returns the static ARC76 derivation contract information (version, algorithm, error taxonomy).
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAuthenticationService.InspectSessionAsync(System.String,System.String)">
+            <summary>
+            Returns a session inspection payload for the user identified by <paramref name="userId"/>.
+            Provides stable, derivation-linked fields that frontend can assert on.
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IBillingService">
             <summary>
@@ -32214,6 +33277,35 @@
             </summary>
             <returns>Dictionary of metric categories and their data</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IOperationalIntelligenceService">
+            <summary>
+            Service interface for deterministic operational intelligence and audit evidence APIs.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IOperationalIntelligenceService.GetOperationTimelineAsync(BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineRequest)">
+            <summary>
+            Returns a deterministically ordered operation timeline for a deployment.
+            Idempotent – repeated calls with the same parameters return the same result.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IOperationalIntelligenceService.GetComplianceCheckpointsAsync(BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointRequest)">
+            <summary>
+            Returns a normalized compliance checkpoint summary for a deployment.
+            Includes business-readable explanations and recommended actions.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IOperationalIntelligenceService.GetStakeholderReportAsync(BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportRequest)">
+            <summary>
+            Returns a privacy-safe stakeholder report payload for a deployment.
+            Suitable for non-technical stakeholders and customer-facing summaries.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IOperationalIntelligenceService.ClassifyRisk(System.String,System.String)">
+            <summary>
+            Maps a domain error code to a bounded operational risk signal.
+            Deterministic – same error code always maps to the same category.
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IPolicyEvaluator">
             <summary>
             Interface for evaluating compliance policies
@@ -32244,6 +33336,22 @@
             Gets policy metrics for monitoring
             </summary>
             <returns>Policy metrics</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IPricingReliabilityService">
+            <summary>
+            Pricing reliability orchestrator with deterministic precedence rules.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IPricingReliabilityService.GetReliableQuoteAsync(BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest)">
+            <summary>
+            Returns deterministic quote payload with source provenance and freshness markers.
+            Fallback is traceable; when all sources fail, returns typed error.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IPricingReliabilityService.GetSourceHealthAsync">
+            <summary>
+            Returns health status of the pricing service including source availability.
+            </summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IRetryPolicyClassifier">
             <summary>
@@ -33536,6 +34644,31 @@
             Parses a status string into a KycStatus enum
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.OperationalIntelligenceService">
+             <summary>
+             Deterministic operational intelligence and audit evidence service.
+            
+             All read operations are idempotent – repeated calls with the same inputs
+             return semantically identical responses, supporting safe retries and
+             stable contract behaviour for frontend and enterprise consumers.
+            
+             Internal implementation details and stack traces are never surfaced in
+             public-facing payloads; only bounded error codes and remediation hints
+             are exposed.
+             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.OperationalIntelligenceService.GetOperationTimelineAsync(BiatecTokensApi.Models.OperationalIntelligence.OperationTimelineRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.OperationalIntelligenceService.GetComplianceCheckpointsAsync(BiatecTokensApi.Models.OperationalIntelligence.ComplianceCheckpointRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.OperationalIntelligenceService.GetStakeholderReportAsync(BiatecTokensApi.Models.OperationalIntelligence.StakeholderReportRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.OperationalIntelligenceService.ClassifyRisk(System.String,System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.PolicyEvaluator">
             <summary>
             Service for evaluating compliance policies against onboarding steps
@@ -33605,6 +34738,20 @@
             <summary>
             Initializes the policy configuration with default rules
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.PricingReliabilityService">
+             <summary>
+             Pricing reliability orchestrator with deterministic precedence rules.
+            
+             Precedence chain: Primary → Fallback → Synthetic → ExplicitFailure.
+             All operations are idempotent and cache-backed.
+             </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PricingReliabilityService.GetReliableQuoteAsync(BiatecTokensApi.Models.PricingReliability.PricingReliabilityRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.PricingReliabilityService.GetSourceHealthAsync">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.RegistryIngestionService">
             <summary>
