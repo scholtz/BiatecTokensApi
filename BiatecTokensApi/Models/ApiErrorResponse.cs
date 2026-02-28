@@ -50,6 +50,6 @@ namespace BiatecTokensApi.Models
         /// True for transient failures (e.g., network timeouts, node unavailability).
         /// False for permanent failures (e.g., insufficient balance, invalid parameters).
         /// </summary>
-        public bool Retryable { get; set; }
+        public bool Retryable { get; set; } = false;
     }
 }

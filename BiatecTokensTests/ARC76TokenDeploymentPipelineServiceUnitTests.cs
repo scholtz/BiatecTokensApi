@@ -184,9 +184,10 @@ namespace BiatecTokensTests
             {
                 await service.CreateASATokenAsync(request, TokenType.ASA_FT, null);
             }
-            catch
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException || ex is HttpRequestException || ex is Exception)
             {
-                // Expected: no Algorand node configured in unit test
+                // Expected: no Algorand node configured in unit test environment.
+                // The exception is irrelevant here — we only care whether GetUserMnemonicForSigningAsync was called.
             }
 
             _authServiceMock.Verify(
@@ -220,9 +221,10 @@ namespace BiatecTokensTests
             {
                 await service.CreateASATokenAsync(request, TokenType.ASA_FT, "test-user-id");
             }
-            catch
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException || ex is HttpRequestException || ex is Exception)
             {
-                // Expected: no Algorand node configured in unit test
+                // Expected: no Algorand node configured in unit test environment.
+                // The exception is irrelevant — we only care whether GetUserMnemonicForSigningAsync was called.
             }
 
             _authServiceMock.Verify(

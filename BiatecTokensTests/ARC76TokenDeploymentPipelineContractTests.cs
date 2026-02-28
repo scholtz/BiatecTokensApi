@@ -731,7 +731,7 @@ namespace BiatecTokensTests
         /// AC9: Registration endpoint continues to return HTTP 200 with all required fields.
         /// </summary>
         [Test]
-        public async Task AC9_Registration_StillWorksCorrently()
+        public async Task AC9_Registration_StillWorksCorrectly()
         {
             var email = $"ac9-reg-{Guid.NewGuid()}@biatec.io";
             const string password = "AC9Regression@2024";
