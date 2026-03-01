@@ -593,5 +593,15 @@ namespace BiatecTokensApi.Services
                 // Don't throw - webhook failures shouldn't block deployment tracking
             }
         }
+
+        /// <inheritdoc />
+        public async Task<TokenDeployment?> GetDeploymentByTransactionHashAsync(string transactionHash)
+        {
+            var listRequest = new ListDeploymentsRequest { Page = 1, PageSize = 1000 };
+            var deployments = await _repository.GetDeploymentsAsync(listRequest);
+            return deployments.FirstOrDefault(d =>
+                !string.IsNullOrEmpty(d.TransactionHash) &&
+                string.Equals(d.TransactionHash, transactionHash, StringComparison.OrdinalIgnoreCase));
+        }
     }
 }
