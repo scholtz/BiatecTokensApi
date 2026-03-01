@@ -593,5 +593,17 @@ namespace BiatecTokensApi.Services
                 // Don't throw - webhook failures shouldn't block deployment tracking
             }
         }
+
+        /// <inheritdoc />
+        public async Task<TokenDeployment?> GetDeploymentByTransactionHashAsync(string transactionHash)
+        {
+            // Load all deployments from the in-memory store (consistent with GetDeploymentMetricsAsync pattern).
+            // For production database backends, this should be replaced with an indexed query on TransactionHash.
+            var listRequest = new ListDeploymentsRequest { Page = 1, PageSize = 10000 };
+            var deployments = await _repository.GetDeploymentsAsync(listRequest);
+            return deployments.FirstOrDefault(d =>
+                !string.IsNullOrEmpty(d.TransactionHash) &&
+                string.Equals(d.TransactionHash, transactionHash, StringComparison.OrdinalIgnoreCase));
+        }
     }
 }

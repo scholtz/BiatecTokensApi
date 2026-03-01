@@ -117,5 +117,12 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="request">Metrics request with filters</param>
         /// <returns>Calculated metrics</returns>
         Task<DeploymentMetrics> GetDeploymentMetricsAsync(GetDeploymentMetricsRequest request);
+
+        /// <summary>
+        /// Gets a deployment by its Algorand transaction hash
+        /// </summary>
+        /// <param name="transactionHash">The Algorand transaction hash / ID</param>
+        /// <returns>The deployment if found, null otherwise</returns>
+        Task<TokenDeployment?> GetDeploymentByTransactionHashAsync(string transactionHash);
     }
 }
