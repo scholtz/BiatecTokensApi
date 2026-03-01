@@ -436,6 +436,90 @@
             Default: 100 (all requests governed).
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.AccountController">
+            <summary>
+            Provides account management endpoints for ARC76-derived Algorand accounts
+            </summary>
+            <remarks>
+            All endpoints require JWT Bearer authentication. The user's Algorand account is derived
+            deterministically from their email and password using the ARC76 standard.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AccountController.#ctor(BiatecTokensApi.Services.Interface.IAccountService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.AccountController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.AccountController"/> class.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AccountController.GetAddress">
+             <summary>
+             Returns the ARC76-derived Algorand address for the authenticated user
+             </summary>
+             <returns>The user's Algorand address</returns>
+             <remarks>
+             Returns the deterministic Algorand address derived from the user's credentials via ARC76.
+             The same email/password combination always produces the same Algorand address.
+            
+             **Sample Response:**
+             ```json
+             {
+               "success": true,
+               "algorandAddress": "ALGORAND_ADDRESS_HERE",
+               "derivationStandard": "ARC76"
+             }
+             ```
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AccountController.Fund(BiatecTokensApi.Models.Account.AccountFundRequest)">
+             <summary>
+             Requests testnet ALGO funding for the authenticated user's Algorand address
+             </summary>
+             <param name="request">Fund request specifying the target testnet network</param>
+             <returns>Funding request status</returns>
+             <remarks>
+             Calls the Algorand testnet faucet on behalf of the authenticated user.
+             Only available on testnet networks. For mainnet, users must acquire ALGO through exchanges.
+            
+             **Sample Request:**
+             ```json
+             {
+               "network": "algorand-testnet"
+             }
+             ```
+            
+             **Sample Response:**
+             ```json
+             {
+               "success": true,
+               "algorandAddress": "ALGORAND_ADDRESS_HERE",
+               "network": "algorand-testnet",
+               "message": "Testnet funding request submitted successfully"
+             }
+             ```
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AccountController.GetBalance(System.String)">
+             <summary>
+             Returns ALGO and token balances for the authenticated user's Algorand account
+             </summary>
+             <param name="network">Target network to query (default: algorand-mainnet)</param>
+             <returns>Account balance information</returns>
+             <remarks>
+             Returns the current ALGO balance and all token holdings for the authenticated user's
+             ARC76-derived Algorand address.
+            
+             **Sample Response:**
+             ```json
+             {
+               "success": true,
+               "algorandAddress": "ALGORAND_ADDRESS_HERE",
+               "algoBalance": 10.5,
+               "algoBalanceMicroAlgos": 10500000,
+               "tokenBalances": [],
+               "network": "algorand-mainnet"
+             }
+             ```
+             </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.AssetIntelligenceController">
              <summary>
              Asset Intelligence API providing canonical metadata, validation status, and confidence indicators.
@@ -5409,6 +5493,122 @@
             **Performance:** Target p95 latency is under 200ms for typical payloads.
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.UnifiedDeployController">
+            <summary>
+            Unified token deployment endpoints supporting multiple chains and token standards
+            </summary>
+            <remarks>
+            All endpoints require JWT Bearer authentication. Deployments are queued for async processing
+            and can be polled via the status endpoint.
+            </remarks>
+        </member>
+        <member name="F:BiatecTokensApi.Controllers.UnifiedDeployController.SupportedStandards">
+            <summary>
+            Supported chain + standard combinations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.UnifiedDeployController.#ctor(BiatecTokensApi.Services.Interface.IDeploymentStatusService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.UnifiedDeployController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.UnifiedDeployController"/> class.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.UnifiedDeployController.Deploy(BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployRequest)">
+             <summary>
+             Queues a new token deployment job for the authenticated user
+             </summary>
+             <param name="request">Deployment request with chain, standard, and token parameters</param>
+             <returns>Response containing the job ID for polling</returns>
+             <remarks>
+             Accepts a chain + standard + parameters payload and enqueues the deployment for
+             background processing. Returns a job ID immediately for status polling.
+            
+             **Supported Standards:** ASA, ARC3, ARC200, ERC20, ERC721
+            
+             **Sample Request (ASA):**
+             ```json
+             {
+               "chain": "algorand-mainnet",
+               "standard": "ASA",
+               "params": {
+                 "name": "My Token",
+                 "unitName": "MTK",
+                 "total": 1000000,
+                 "decimals": 6
+               }
+             }
+             ```
+            
+             **Sample Response:**
+             ```json
+             {
+               "success": true,
+               "jobId": "550e8400-e29b-41d4-a716-446655440000",
+               "status": "Queued",
+               "message": "Token deployment queued successfully"
+             }
+             ```
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.UnifiedDeployController.GetDeploymentStatus(System.String)">
+             <summary>
+             Polls the status of a token deployment job
+             </summary>
+             <param name="jobId">The deployment job ID returned from POST /deploy</param>
+             <returns>Current deployment status and history</returns>
+             <remarks>
+             Returns the current status and complete status history for a deployment job.
+             Status transitions: Queued → Submitted → Pending → Confirmed → Completed
+             (or Failed at any stage).
+            
+             **Sample Response:**
+             ```json
+             {
+               "success": true,
+               "jobId": "550e8400-e29b-41d4-a716-446655440000",
+               "status": "Confirmed",
+               "assetIdentifier": "12345678",
+               "statusHistory": [
+                 { "status": "Queued", "timestamp": "..." },
+                 { "status": "Submitted", "timestamp": "..." },
+                 { "status": "Confirmed", "timestamp": "..." }
+               ]
+             }
+             ```
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.UnifiedDeployController.GetDeployments">
+             <summary>
+             Returns all token deployments for the authenticated user
+             </summary>
+             <returns>List of user's token deployments</returns>
+             <remarks>
+             Returns the complete deployment history for the authenticated user across all
+             chains and token standards.
+            
+             **Sample Response:**
+             ```json
+             {
+               "success": true,
+               "deployments": [
+                 {
+                   "jobId": "...",
+                   "status": "Completed",
+                   "tokenType": "ASA",
+                   "network": "algorand-mainnet",
+                   "tokenName": "My Token",
+                   "assetIdentifier": "12345678"
+                 }
+               ],
+               "totalCount": 1
+             }
+             ```
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.UnifiedDeployController.GetStringParam(System.Collections.Generic.Dictionary{System.String,System.Object},System.String)">
+            <summary>
+            Extracts a string value from the deployment params dictionary
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.ValidationController">
             <summary>
             Provides endpoints for token metadata validation and evidence management
@@ -7282,6 +7482,176 @@
             <param name="app">The application builder</param>
             <returns>The application builder for method chaining</returns>
         </member>
+        <member name="T:BiatecTokensApi.Models.Account.AccountAddressResponse">
+            <summary>
+            Response model for retrieving the user's ARC76-derived Algorand address
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountAddressResponse.Success">
+            <summary>
+            Indicates if the operation was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountAddressResponse.AlgorandAddress">
+            <summary>
+            The ARC76-derived Algorand address for the authenticated user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountAddressResponse.DerivationStandard">
+            <summary>
+            The derivation standard used (ARC76)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountAddressResponse.ErrorMessage">
+            <summary>
+            Error message if operation failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountAddressResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountAddressResponse.Timestamp">
+            <summary>
+            Response timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Account.AccountFundRequest">
+            <summary>
+            Request model for testnet funding
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundRequest.Network">
+            <summary>
+            Target network for funding (e.g., "algorand-testnet")
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Account.AccountFundResponse">
+            <summary>
+            Response model for testnet funding request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.Success">
+            <summary>
+            Indicates if the funding request was submitted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.AlgorandAddress">
+            <summary>
+            The Algorand address that was funded
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.Network">
+            <summary>
+            The network on which funding was requested
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.TransactionId">
+            <summary>
+            Transaction ID if the funding was processed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.Message">
+            <summary>
+            Human-readable message about the funding status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.ErrorMessage">
+            <summary>
+            Error message if the request failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountFundResponse.Timestamp">
+            <summary>
+            Response timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Account.AccountBalanceResponse">
+            <summary>
+            Response model for account balance query
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.Success">
+            <summary>
+            Indicates if the balance query was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.AlgorandAddress">
+            <summary>
+            The Algorand address for which balances are returned
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.AlgoBalanceMicroAlgos">
+            <summary>
+            ALGO balance in microAlgos
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.AlgoBalance">
+            <summary>
+            ALGO balance in whole ALGOs (for display)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.TokenBalances">
+            <summary>
+            List of token balances held by the account
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.Network">
+            <summary>
+            Network the balance was queried from
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.ErrorMessage">
+            <summary>
+            Error message if the query failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.AccountBalanceResponse.Timestamp">
+            <summary>
+            Response timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Account.TokenBalance">
+            <summary>
+            Represents the balance of a single token asset
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.TokenBalance.AssetId">
+            <summary>
+            Asset ID on Algorand
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.TokenBalance.Name">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.TokenBalance.UnitName">
+            <summary>
+            Token unit name / symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.TokenBalance.Amount">
+            <summary>
+            Raw balance amount
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Account.TokenBalance.Decimals">
+            <summary>
+            Number of decimals for display
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ApiErrorResponse">
             <summary>
             Standardized error response structure for API errors
@@ -7325,6 +7695,13 @@
         <member name="P:BiatecTokensApi.Models.ApiErrorResponse.RemediationHint">
             <summary>
             Optional remediation hint to help users resolve the error
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ApiErrorResponse.Retryable">
+            <summary>
+            Indicates whether the operation that caused this error can be retried.
+            True for transient failures (e.g., network timeouts, node unavailability).
+            False for permanent failures (e.g., insufficient balance, invalid parameters).
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ApiStatusResponse">
@@ -9375,237 +9752,6 @@
         <member name="P:BiatecTokensApi.Models.Billing.UsageSummaryResponse.ErrorMessage">
             <summary>
             Error message if the request failed
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile">
-            <summary>
-            Represents a user's compliance profile for wallet-free enterprise onboarding
-            </summary>
-            <remarks>
-            This model stores regulatory and compliance metadata associated with a user account,
-            supporting MICA readiness and enterprise-grade compliance for regulated token issuance.
-            Uses SaaS terminology (account-based) instead of wallet terminology.
-            </remarks>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Id">
-            <summary>
-            Unique identifier for the compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UserId">
-            <summary>
-            User ID this profile belongs to
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuingEntityName">
-            <summary>
-            Legal name of the issuing entity
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Jurisdiction">
-            <summary>
-            Jurisdiction/country code (ISO 3166-1 alpha-2)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuanceIntent">
-            <summary>
-            Issuance intent category (e.g., "equity", "debt", "asset-backed", "utility")
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.ReadinessStatus">
-            <summary>
-            Onboarding readiness status
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.CreatedAt">
-            <summary>
-            Timestamp when the profile was created
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedAt">
-            <summary>
-            Timestamp when the profile was last updated
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedBy">
-            <summary>
-            User ID of who last updated the profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Metadata">
-            <summary>
-            Optional additional metadata for extensibility
-            </summary>
-        </member>
-        <member name="M:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IsOnboardingComplete">
-            <summary>
-            Determines if onboarding is complete based on profile completeness
-            </summary>
-            <returns>True if all required fields are filled and status is Complete or Active</returns>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus">
-            <summary>
-            Readiness status for compliance profile
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.NotStarted">
-            <summary>
-            Profile has not been started
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.InProgress">
-            <summary>
-            Profile is in progress
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.PendingReview">
-            <summary>
-            Profile needs review
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Complete">
-            <summary>
-            Profile is complete but not yet active
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Active">
-            <summary>
-            Profile is active and ready for token issuance
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Suspended">
-            <summary>
-            Profile has been suspended
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry">
-            <summary>
-            Audit log entry for compliance profile changes
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Id">
-            <summary>
-            Unique identifier for the audit entry
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ProfileId">
-            <summary>
-            Compliance profile ID that was changed
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserId">
-            <summary>
-            User ID who owns the profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Action">
-            <summary>
-            Action performed (Created, Updated, Deleted)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Timestamp">
-            <summary>
-            Timestamp when the action occurred
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PerformedBy">
-            <summary>
-            User ID who performed the action
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ChangedFields">
-            <summary>
-            Fields that were changed (field name -> new value)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PreviousValues">
-            <summary>
-            Previous values of changed fields (for updates)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.IpAddress">
-            <summary>
-            IP address of the request (if available)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserAgent">
-            <summary>
-            User agent of the request (if available)
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest">
-            <summary>
-            Request to create or update a compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuingEntityName">
-            <summary>
-            Legal name of the issuing entity
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Jurisdiction">
-            <summary>
-            Jurisdiction/country code (ISO 3166-1 alpha-2, e.g., "US", "GB", "DE")
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuanceIntent">
-            <summary>
-            Issuance intent category
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.ReadinessStatus">
-            <summary>
-            Readiness status
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Metadata">
-            <summary>
-            Optional additional metadata
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest">
-            <summary>
-            Request to get compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest.UserId">
-            <summary>
-            User ID to get profile for (optional, defaults to authenticated user)
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse">
-            <summary>
-            Response for compliance profile operations
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.Profile">
-            <summary>
-            The compliance profile data
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.IsOnboardingComplete">
-            <summary>
-            Indicates if onboarding is complete
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError">
-            <summary>
-            Response for compliance profile validation errors
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Field">
-            <summary>
-            Field name that failed validation
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Message">
-            <summary>
-            Error message
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Code">
-            <summary>
-            Error code
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.BlacklistEntry">
@@ -16272,6 +16418,237 @@
         <member name="P:BiatecTokensApi.Models.Compliance.ListValidationEvidenceResponse.TotalPages">
             <summary>
             Total number of pages
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile">
+            <summary>
+            Represents a user's compliance profile for wallet-free enterprise onboarding
+            </summary>
+            <remarks>
+            This model stores regulatory and compliance metadata associated with a user account,
+            supporting MICA readiness and enterprise-grade compliance for regulated token issuance.
+            Uses SaaS terminology (account-based) instead of wallet terminology.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Id">
+            <summary>
+            Unique identifier for the compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UserId">
+            <summary>
+            User ID this profile belongs to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuanceIntent">
+            <summary>
+            Issuance intent category (e.g., "equity", "debt", "asset-backed", "utility")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Onboarding readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.CreatedAt">
+            <summary>
+            Timestamp when the profile was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedAt">
+            <summary>
+            Timestamp when the profile was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedBy">
+            <summary>
+            User ID of who last updated the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Metadata">
+            <summary>
+            Optional additional metadata for extensibility
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IsOnboardingComplete">
+            <summary>
+            Determines if onboarding is complete based on profile completeness
+            </summary>
+            <returns>True if all required fields are filled and status is Complete or Active</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Readiness status for compliance profile
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.NotStarted">
+            <summary>
+            Profile has not been started
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.InProgress">
+            <summary>
+            Profile is in progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.PendingReview">
+            <summary>
+            Profile needs review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Complete">
+            <summary>
+            Profile is complete but not yet active
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Active">
+            <summary>
+            Profile is active and ready for token issuance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Suspended">
+            <summary>
+            Profile has been suspended
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry">
+            <summary>
+            Audit log entry for compliance profile changes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Id">
+            <summary>
+            Unique identifier for the audit entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ProfileId">
+            <summary>
+            Compliance profile ID that was changed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserId">
+            <summary>
+            User ID who owns the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Action">
+            <summary>
+            Action performed (Created, Updated, Deleted)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Timestamp">
+            <summary>
+            Timestamp when the action occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PerformedBy">
+            <summary>
+            User ID who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ChangedFields">
+            <summary>
+            Fields that were changed (field name -> new value)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PreviousValues">
+            <summary>
+            Previous values of changed fields (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.IpAddress">
+            <summary>
+            IP address of the request (if available)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserAgent">
+            <summary>
+            User agent of the request (if available)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest">
+            <summary>
+            Request to create or update a compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2, e.g., "US", "GB", "DE")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuanceIntent">
+            <summary>
+            Issuance intent category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.ReadinessStatus">
+            <summary>
+            Readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Metadata">
+            <summary>
+            Optional additional metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest">
+            <summary>
+            Request to get compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest.UserId">
+            <summary>
+            User ID to get profile for (optional, defaults to authenticated user)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse">
+            <summary>
+            Response for compliance profile operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.Profile">
+            <summary>
+            The compliance profile data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.IsOnboardingComplete">
+            <summary>
+            Indicates if onboarding is complete
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError">
+            <summary>
+            Response for compliance profile validation errors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Field">
+            <summary>
+            Field name that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Message">
+            <summary>
+            Error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Code">
+            <summary>
+            Error code
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.DecisionIntelligence.GetBenchmarkComparisonRequest">
@@ -25824,6 +26201,262 @@
             Represents an ERC20 token which is fully preminted.
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployRequest">
+            <summary>
+            Unified token deployment request supporting multiple chains and token standards
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployRequest.Chain">
+            <summary>
+            Target blockchain network (e.g., "algorand-mainnet", "algorand-testnet", "base", "ethereum")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployRequest.Standard">
+            <summary>
+            Token standard to deploy (e.g., "ASA", "ARC3", "ARC200", "ERC20", "ERC721")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployRequest.Params">
+            <summary>
+            Token deployment parameters (name, symbol, total supply, decimals, etc.)
+            Varies by chain/standard combination
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployRequest.IdempotencyKey">
+            <summary>
+            Optional idempotency key to prevent duplicate deployments
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse">
+            <summary>
+            Response for a unified token deployment request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.Success">
+            <summary>
+            Indicates if the deployment was successfully queued
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.JobId">
+            <summary>
+            Job ID for polling deployment status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.Status">
+            <summary>
+            Current status of the deployment job
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.Message">
+            <summary>
+            Human-readable message about the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.ErrorMessage">
+            <summary>
+            Error message if the deployment could not be queued
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.ErrorCode">
+            <summary>
+            Error code for client handling
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UnifiedDeployResponse.Timestamp">
+            <summary>
+            Response timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse">
+            <summary>
+            Response for polling deployment status by job ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.Success">
+            <summary>
+            Indicates if the query was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.JobId">
+            <summary>
+            The deployment job ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.Status">
+            <summary>
+            Current status of the deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.TokenType">
+            <summary>
+            Token type being deployed (e.g., "ASA", "ARC200", "ERC20")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.Network">
+            <summary>
+            Network where the token is being deployed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.TokenName">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.TokenSymbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.AssetIdentifier">
+            <summary>
+            Asset ID (for Algorand tokens) or contract address (for EVM tokens), available once confirmed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.TransactionHash">
+            <summary>
+            Transaction hash if deployment has been submitted
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.StatusHistory">
+            <summary>
+            Status history showing all transitions
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.ErrorMessage">
+            <summary>
+            Error message if the deployment failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.CreatedAt">
+            <summary>
+            Timestamp when the deployment was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.UpdatedAt">
+            <summary>
+            Timestamp when the deployment was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentStatusPollResponse.Timestamp">
+            <summary>
+            Response timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.UnifiedDeploy.StatusHistoryEntry">
+            <summary>
+            Represents a single status history entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.StatusHistoryEntry.Status">
+            <summary>
+            Status at this point in time
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.StatusHistoryEntry.Timestamp">
+            <summary>
+            When this status was set
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.StatusHistoryEntry.Message">
+            <summary>
+            Optional message providing context
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.UnifiedDeploy.UserDeploymentsResponse">
+            <summary>
+            Response for listing user deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UserDeploymentsResponse.Success">
+            <summary>
+            Indicates if the query was successful
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UserDeploymentsResponse.Deployments">
+            <summary>
+            List of deployments for the user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UserDeploymentsResponse.TotalCount">
+            <summary>
+            Total count of deployments
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UserDeploymentsResponse.ErrorMessage">
+            <summary>
+            Error message if the query failed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UserDeploymentsResponse.CorrelationId">
+            <summary>
+            Correlation ID for request tracing
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.UserDeploymentsResponse.Timestamp">
+            <summary>
+            Response timestamp
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary">
+            <summary>
+            Summary of a single deployment
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.JobId">
+            <summary>
+            Deployment job ID
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.Status">
+            <summary>
+            Current status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.TokenType">
+            <summary>
+            Token type (ASA, ARC200, ERC20, etc.)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.Network">
+            <summary>
+            Network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.TokenName">
+            <summary>
+            Token name
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.TokenSymbol">
+            <summary>
+            Token symbol
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.AssetIdentifier">
+            <summary>
+            Asset ID or contract address (once confirmed)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.CreatedAt">
+            <summary>
+            When the deployment was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.UnifiedDeploy.DeploymentSummary.UpdatedAt">
+            <summary>
+            When the deployment was last updated
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.Wallet.TransactionSummary">
             <summary>
             User-friendly transaction summary with explicit retry and terminal state guidance
@@ -26795,6 +27428,221 @@
         <member name="P:BiatecTokensApi.Models.Wallet.PortfolioResponse.CorrelationId">
             <summary>
             Correlation ID for tracking
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.WalletConnectionStatus">
+            <summary>
+            Represents the current wallet connection status
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletConnectionStatus.Disconnected">
+            <summary>
+            No wallet is connected
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletConnectionStatus.Connecting">
+            <summary>
+            Wallet connection is being established
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletConnectionStatus.Connected">
+            <summary>
+            Wallet is connected and on the expected network
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletConnectionStatus.Reconnecting">
+            <summary>
+            A reconnection attempt is in progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletConnectionStatus.NetworkMismatch">
+            <summary>
+            Wallet is connected but on a different network than required
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletConnectionStatus.Error">
+            <summary>
+            Connection failed with an error; recovery guidance is available
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.WalletConnectionState">
+            <summary>
+            Represents the current state of a wallet connection, including network mismatch and error details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.WalletAddress">
+            <summary>
+            Wallet address (empty when Disconnected)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.Status">
+            <summary>
+            Current connection status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.ActualNetwork">
+            <summary>
+            Network the wallet is currently connected to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.ExpectedNetwork">
+            <summary>
+            Network required by the application
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.IsFirstConnection">
+            <summary>
+            Whether this is the first time this wallet has connected
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.HasReconnectGuidance">
+            <summary>
+            Whether reconnect guidance should be shown
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.StatusMessage">
+            <summary>
+            Human-readable status message for the user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.ConnectedAt">
+            <summary>
+            When the connection was established (null when not connected)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.LastAttemptAt">
+            <summary>
+            When the last connection attempt was made
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.ErrorCode">
+            <summary>
+            Error code if Status is Error (null otherwise)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.ErrorDescription">
+            <summary>
+            User-readable error description (null unless Status is Error)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletConnectionState.NetworkMismatch">
+            <summary>
+            Network mismatch details (null unless Status is NetworkMismatch)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.NetworkMismatchInfo">
+            <summary>
+            Describes a detected network mismatch between the connected wallet and the required network
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkMismatchInfo.ActualNetwork">
+            <summary>
+            Network the wallet is currently on
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkMismatchInfo.ExpectedNetwork">
+            <summary>
+            Network the application requires
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkMismatchInfo.Description">
+            <summary>
+            User-readable description of the mismatch
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.NetworkMismatchInfo.ResolutionGuidance">
+            <summary>
+            Step-by-step instructions to resolve the mismatch
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.WalletReconnectGuidance">
+            <summary>
+            Guidance for reconnecting a wallet, including ordered recovery steps
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectGuidance.Reason">
+            <summary>
+            Root cause category for why reconnection is needed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectGuidance.Explanation">
+            <summary>
+            User-readable explanation of why reconnection is needed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectGuidance.Steps">
+            <summary>
+            Ordered list of steps the user should take to reconnect
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectGuidance.CanAutoResolve">
+            <summary>
+            Whether the issue can be auto-resolved without user action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectGuidance.EstimatedResolutionSeconds">
+            <summary>
+            Estimated time in seconds to resolve (null if unknown)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.WalletReconnectReason">
+            <summary>
+            Reason categories for wallet reconnection
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletReconnectReason.SessionExpired">
+            <summary>
+            Session expired; user must re-authenticate
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletReconnectReason.NetworkMismatch">
+            <summary>
+            Connected to wrong network; user must switch
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletReconnectReason.NetworkTimeout">
+            <summary>
+            Transient network error; retry is safe
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletReconnectReason.AuthorizationRevoked">
+            <summary>
+            Wallet rejected or revoked authorization
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletReconnectReason.WalletDisconnected">
+            <summary>
+            Wallet application closed or disconnected
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Wallet.WalletReconnectReason.Unknown">
+            <summary>
+            Unknown reason; general guidance is provided
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Wallet.WalletReconnectStep">
+            <summary>
+            A single ordered step in a wallet reconnect guidance flow
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectStep.StepNumber">
+            <summary>
+            Step number (1-based)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectStep.Title">
+            <summary>
+            Short title for this step
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectStep.Instruction">
+            <summary>
+            Detailed instruction for this step
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Wallet.WalletReconnectStep.IsAutomated">
+            <summary>
+            Whether this step can be performed automatically
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Webhook.WebhookSubscription">
@@ -30711,6 +31559,30 @@
             <param name="toDate">Optional end date filter</param>
             <returns>List of audit log entries</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.AccountService">
+            <summary>
+            Service for managing user Algorand accounts derived via ARC76
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AccountService.#ctor(BiatecTokensApi.Repositories.Interface.IUserRepository,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.AccountService},System.Net.Http.IHttpClientFactory)">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.AccountService"/> class.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AccountService.GetAddressAsync(System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:BiatecTokensApi.Services.AccountService.RequestTestnetFundingAsync(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:BiatecTokensApi.Services.AccountService.GetBalanceAsync(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:BiatecTokensApi.Services.AccountService.CallAlgorandFaucetAsync(System.String,System.String)">
+            <summary>
+            Calls the Algorand testnet faucet for the given address
+            </summary>
+        </member>
         <member name="T:BiatecTokensApi.Services.ARC1400TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -30913,7 +31785,7 @@
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,Microsoft.AspNetCore.Http.IHttpContextAccessor)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{AlgorandAuthenticationV2.AlgorandAuthenticationOptionsV2},Microsoft.Extensions.Options.IOptionsMonitor{BiatecTokensApi.Models.AppConfiguration},Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC3TokenService},BiatecTokensApi.Repositories.Interface.IComplianceRepository,BiatecTokensApi.Repositories.Interface.ITokenIssuanceRepository,Microsoft.AspNetCore.Http.IHttpContextAccessor,BiatecTokensApi.Services.Interface.IAuthenticationService)">
             <summary>
             Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.ARC3TokenService"/> class, configuring it to interact
             with Algorand nodes and IPFS repositories based on the provided options.
@@ -30930,28 +31802,29 @@
             <param name="complianceRepository">The compliance metadata repository</param>
             <param name="tokenIssuanceRepository">The token issuance audit repository</param>
             <param name="httpContextAccessor">HTTP context accessor for correlation ID extraction</param>
+            <param name="authenticationService">The authentication service for retrieving user ARC76 accounts</param>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType,System.String)">
             <summary>
             Creates an ARC3 fungible token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFNFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFNFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest,System.String)">
             <summary>
             Creates an ASA fractional nft token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest,System.String)">
             <summary>
             Creates an ASA fungible token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateNFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateNFTPublicAsync(BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest,System.String)">
             <summary>
             Creates an ASA non fungible token on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFTAsync(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFTAsync(BiatecTokensApi.Models.ASA.Request.ASAFungibleTokenDeploymentRequest,System.String)">
             <summary>
             Deploys a new Algorand Standard Asset (ASA) fungible token based on the provided deployment request.
             </summary>
@@ -30965,7 +31838,7 @@
             ID.</returns>
             <exception cref="T:System.Exception">Thrown if the asset creation transaction or asset index cannot be parsed after creation.</exception>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateNFTAsync(BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateNFTAsync(BiatecTokensApi.Models.ASA.Request.ASANonFungibleTokenDeploymentRequest,System.String)">
             <summary>
             Creates a non-fungible token (NFT) based on the specified deployment request.
             </summary>
@@ -30978,7 +31851,7 @@
             <returns>A task representing the asynchronous operation, with a result of type <see
             cref="T:BiatecTokensApi.Models.ARC3.Response.ASATokenDeploymentResponse"/> that contains the details of the deployed NFT.</returns>
         </member>
-        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFNFTAsync(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest)">
+        <member name="M:BiatecTokensApi.Services.ASATokenService.CreateFNFTAsync(BiatecTokensApi.Models.ASA.Request.ASAFractionalNonFungibleTokenDeploymentRequest,System.String)">
             <summary>
             Initiates the deployment of a fractional non-fungible token (FNFT) based on the specified request
             parameters.
@@ -30987,6 +31860,7 @@
             fractional non-fungible token request and initiates the deployment process.</remarks>
             <param name="request">The request containing the parameters for deploying the fractional non-fungible token, including addresses,
             metadata, and supply details.</param>
+            <param name="userId">Optional user ID for JWT-authenticated requests</param>
             <returns>A task that represents the asynchronous operation. The task result contains the response of the FNFT
             deployment, including deployment details and status.</returns>
         </member>
@@ -31950,6 +32824,37 @@
             WARNING: NEVER use this in production!
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IAccountService">
+            <summary>
+            Interface for account management operations (ARC76 address lookup, testnet funding, balance queries)
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAccountService.GetAddressAsync(System.String,System.String)">
+            <summary>
+            Gets the ARC76-derived Algorand address for the authenticated user
+            </summary>
+            <param name="userId">The authenticated user's ID</param>
+            <param name="correlationId">Correlation ID for tracing</param>
+            <returns>Account address response with the Algorand address</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAccountService.RequestTestnetFundingAsync(System.String,System.String,System.String)">
+            <summary>
+            Requests testnet ALGO funding for the user's Algorand address
+            </summary>
+            <param name="userId">The authenticated user's ID</param>
+            <param name="network">The target testnet network</param>
+            <param name="correlationId">Correlation ID for tracing</param>
+            <returns>Fund response indicating if the request was submitted</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAccountService.GetBalanceAsync(System.String,System.String,System.String)">
+            <summary>
+            Gets ALGO and token balances for the user's Algorand account
+            </summary>
+            <param name="userId">The authenticated user's ID</param>
+            <param name="network">The target network to query</param>
+            <param name="correlationId">Correlation ID for tracing</param>
+            <returns>Balance response with ALGO and token amounts</returns>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IARC1400TokenService">
             <summary>
             Service interface for deploying ARC1400 tokens on the blockchain
@@ -32043,12 +32948,13 @@
             Interface for ARC3 Fungible Token Service operations on Algorand blockchain
             </summary>
         </member>
-        <member name="M:BiatecTokensApi.Services.Interface.IASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType)">
+        <member name="M:BiatecTokensApi.Services.Interface.IASATokenService.CreateASATokenAsync(BiatecTokensApi.Models.ASA.Request.ASABaseTokenDeploymentRequest,BiatecTokensApi.Models.TokenType,System.String)">
             <summary>
             Creates an ASA token on Algorand type blockchain
             </summary>
             <param name="request">Token creation parameters</param>
             <param name="tokenType">Token type</param>
+            <param name="userId">Optional user ID for JWT-authenticated requests. If provided, uses user's ARC76 account. If null, uses system account.</param>
             <returns>Response with transaction details and asset ID</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IAssetIntelligenceService">
@@ -34275,6 +35181,80 @@
             <param name="evidence">The validation evidence</param>
             <returns>SHA256 checksum as hex string</returns>
         </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IWalletConnectionService">
+            <summary>
+            Service for managing wallet connection state, reconnection flows, and network mismatch detection
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.GetConnectionState(System.String,System.String)">
+            <summary>
+            Gets the current connection state for a wallet address
+            </summary>
+            <param name="walletAddress">Wallet address to query</param>
+            <param name="expectedNetwork">Network the application requires</param>
+            <returns>Current wallet connection state</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.Connect(System.String,System.String,System.String)">
+            <summary>
+            Records a successful wallet connection and returns the updated state
+            </summary>
+            <param name="walletAddress">Connected wallet address</param>
+            <param name="actualNetwork">Network the wallet is connected to</param>
+            <param name="expectedNetwork">Network the application requires</param>
+            <returns>Connection state after connecting (may be Connected or NetworkMismatch)</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.Disconnect(System.String)">
+            <summary>
+            Records a disconnect event and returns the disconnected state
+            </summary>
+            <param name="walletAddress">Wallet address to disconnect</param>
+            <returns>Disconnected connection state</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.Reconnect(System.String,System.String,System.String)">
+            <summary>
+            Attempts to reconnect a previously connected wallet
+            </summary>
+            <param name="walletAddress">Wallet address to reconnect</param>
+            <param name="actualNetwork">Network the wallet is currently on</param>
+            <param name="expectedNetwork">Network the application requires</param>
+            <returns>Connection state after reconnection attempt</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.DetectNetworkMismatch(System.String,System.String)">
+            <summary>
+            Detects whether the wallet is on the wrong network
+            </summary>
+            <param name="actualNetwork">Network the wallet is currently on</param>
+            <param name="expectedNetwork">Network the application requires</param>
+            <returns>True if a network mismatch is detected</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.GetReconnectGuidance(BiatecTokensApi.Models.Wallet.WalletReconnectReason,System.String,System.String)">
+            <summary>
+            Returns step-by-step reconnect guidance for a given failure reason
+            </summary>
+            <param name="reason">Why reconnection is needed</param>
+            <param name="actualNetwork">Network the wallet is currently on (optional)</param>
+            <param name="expectedNetwork">Network the application requires (optional)</param>
+            <returns>Ordered reconnect guidance with actionable steps</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.GetSupportedNetworks">
+            <summary>
+            Returns the list of supported blockchain networks
+            </summary>
+            <returns>List of supported network identifiers</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IWalletConnectionService.ValidateWalletAddress(System.String,System.String)">
+            <summary>
+            Validates that a wallet address has the correct format for the given network.
+            </summary>
+            <param name="walletAddress">Wallet address to validate</param>
+            <param name="network">Network to validate against</param>
+            <returns>True if the address passes structural validation for the network</returns>
+            <remarks>
+            Performs structural checks only (length and character set for Algorand; hex prefix for EVM).
+            Does not verify the Algorand 4-byte checksum or EVM EIP-55 mixed-case checksum.
+            Use on-chain confirmation for authoritative address validity.
+            </remarks>
+        </member>
         <member name="T:BiatecTokensApi.Services.Interface.IWebhookService">
             <summary>
             Service interface for webhook operations
@@ -35503,6 +36483,46 @@
             <param name="metadata">The token metadata</param>
             <param name="context">The validation context</param>
             <returns>List of rule evaluations</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.WalletConnectionService">
+            <summary>
+            Service for managing wallet connection state, reconnection flows, and network mismatch detection
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.WalletConnectionService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Services.WalletConnectionService"/> class.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.GetConnectionState(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.Connect(System.String,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.Disconnect(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.Reconnect(System.String,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.DetectNetworkMismatch(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.GetReconnectGuidance(BiatecTokensApi.Models.Wallet.WalletReconnectReason,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.GetSupportedNetworks">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.WalletConnectionService.ValidateWalletAddress(System.String,System.String)">
+            <inheritdoc/>
+            <remarks>
+            This performs structural validation only (length and character set for Algorand;
+            prefix and hex characters for EVM). It does not verify the Algorand 4-byte
+            checksum or the EVM EIP-55 mixed-case checksum. Use this for fast client-side
+            format checking; rely on on-chain confirmation for authoritative validity.
+            </remarks>
         </member>
         <member name="T:BiatecTokensApi.Services.WebhookService">
             <summary>
