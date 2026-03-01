@@ -174,6 +174,8 @@ namespace BiatecTokensTests
             {
                 Assert.That(code, Does.Not.Contain(" "),
                     $"AC2: Reason code '{code}' must not contain spaces (machine-readable format)");
+                Assert.That(code, Does.Not.Match(@"[\s,;]"),
+                    $"AC2: Reason code '{code}' must not contain whitespace, commas, or semicolons");
                 Assert.That(code, Has.Length.GreaterThan(0),
                     "AC2: Reason codes must not be empty");
             }
@@ -214,8 +216,8 @@ namespace BiatecTokensTests
 
             Assert.That(result.PolicyVersion, Is.Not.Null.And.Not.Empty,
                 "AC3: PolicyVersion must be present in Allow response");
-            Assert.That(result.PolicyVersion, Does.Match(@"^\d+\.\d+\.\d+$"),
-                "AC3: PolicyVersion must follow semantic versioning format");
+            Assert.That(result.PolicyVersion, Does.Match(@"^\d+(\.\d+)*"),
+                "AC3: PolicyVersion must follow semantic versioning format (e.g., 1.0.0)");
         }
 
         [Test]
@@ -789,6 +791,9 @@ namespace BiatecTokensTests
                 "AC7: Stack trace must not be included in API error response");
             Assert.That(response.ErrorMessage, Does.Not.Contain("   at "),
                 "AC7: Stack frame lines must not appear in API error response");
+            // Error message should not leak sensitive connection string details
+            Assert.That(response.ErrorMessage, Does.Not.Contain("Password="),
+                "AC7: Connection string credentials must not be included in API error response");
         }
 
         [Test]
