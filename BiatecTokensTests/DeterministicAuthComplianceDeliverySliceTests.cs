@@ -304,7 +304,7 @@ namespace BiatecTokensTests
         /// Validates the happy-path KYC branch produces exactly 0 risk penalty.
         /// </summary>
         [Test]
-        public void AC3_UnitBranch_KycVerifiedHighCompleteness_ZeroPenalty()
+        public async Task AC3_UnitBranch_KycVerifiedHighCompleteness_ZeroPenalty()
         {
             var service = CreateService();
             var request = new IssuanceRiskEvaluationRequest
@@ -316,7 +316,7 @@ namespace BiatecTokensTests
                 JurisdictionEvidence = new JurisdictionEvidenceInput { JurisdictionCode = "DE", RiskLevel = JurisdictionRiskLevel.Low, MicaCompliant = true }
             };
 
-            var result = service.EvaluateAsync(request).Result;
+            var result = await service.EvaluateAsync(request);
 
             Assert.Multiple(() =>
             {
@@ -333,7 +333,7 @@ namespace BiatecTokensTests
         /// Validates the worst-case KYC path contributes the full 40-point penalty.
         /// </summary>
         [Test]
-        public void AC3_UnitBranch_KycFailed_MaxPenalty()
+        public async Task AC3_UnitBranch_KycFailed_MaxPenalty()
         {
             var service = CreateService();
             var request = new IssuanceRiskEvaluationRequest
@@ -345,7 +345,7 @@ namespace BiatecTokensTests
                 JurisdictionEvidence = new JurisdictionEvidenceInput { JurisdictionCode = "DE", RiskLevel = JurisdictionRiskLevel.Low, MicaCompliant = true }
             };
 
-            var result = service.EvaluateAsync(request).Result;
+            var result = await service.EvaluateAsync(request);
 
             Assert.Multiple(() =>
             {
@@ -362,7 +362,7 @@ namespace BiatecTokensTests
         /// Validates that combined high-risk factors trigger the deny decision path.
         /// </summary>
         [Test]
-        public void AC3_UnitBranch_SanctionsConfirmedHit_MaxPenalty()
+        public async Task AC3_UnitBranch_SanctionsConfirmedHit_MaxPenalty()
         {
             var service = CreateService();
             var request = new IssuanceRiskEvaluationRequest
@@ -375,7 +375,7 @@ namespace BiatecTokensTests
                 // Score = 40 (KYC Failed) + 30 (high confidence hit) + 0 (low jurisdiction) = 70 → deny
             };
 
-            var result = service.EvaluateAsync(request).Result;
+            var result = await service.EvaluateAsync(request);
 
             Assert.Multiple(() =>
             {
@@ -394,7 +394,7 @@ namespace BiatecTokensTests
         /// combined with KYC failure (40+30=70) it crosses into the deny threshold.
         /// </summary>
         [Test]
-        public void AC3_UnitBranch_ProhibitedJurisdiction_MaxPenalty()
+        public async Task AC3_UnitBranch_ProhibitedJurisdiction_MaxPenalty()
         {
             var service = CreateService();
             var request = new IssuanceRiskEvaluationRequest
@@ -407,7 +407,7 @@ namespace BiatecTokensTests
                 // Score = 40 (KYC Failed) + 0 (clean sanctions) + 30 (Prohibited) = 70 → deny
             };
 
-            var result = service.EvaluateAsync(request).Result;
+            var result = await service.EvaluateAsync(request);
 
             Assert.Multiple(() =>
             {
@@ -424,7 +424,7 @@ namespace BiatecTokensTests
         /// The service returns ErrorCode=MISSING_REQUIRED_FIELD and ReasonCode=MISSING_ORGANIZATION_ID.
         /// </summary>
         [Test]
-        public void AC3_UnitBranch_MissingOrganizationId_ReturnsValidationError()
+        public async Task AC3_UnitBranch_MissingOrganizationId_ReturnsValidationError()
         {
             var service = CreateService();
             var request = new IssuanceRiskEvaluationRequest
@@ -436,7 +436,7 @@ namespace BiatecTokensTests
                 JurisdictionEvidence = new JurisdictionEvidenceInput { JurisdictionCode = "DE" }
             };
 
-            var result = service.EvaluateAsync(request).Result;
+            var result = await service.EvaluateAsync(request);
 
             Assert.Multiple(() =>
             {
@@ -537,9 +537,11 @@ namespace BiatecTokensTests
             Assert.That(errorCode.GetString(), Is.EqualTo("MISSING_REQUIRED_FIELD"),
                 "AC4: Top-level error code must be MISSING_REQUIRED_FIELD for missing organizationId");
 
-            // The specific reason is in reasonCodes
-            Assert.That(root.TryGetProperty("details", out _), Is.True.Or.False,
-                "AC4: Details/reasonCodes field is optional but error code is required");
+            // The specific reason is in reasonCodes (details field is optional)
+            Assert.That(root.TryGetProperty("errorCode", out var errorCodeValue), Is.True,
+                "AC4: errorCode is mandatory even when details are optional");
+            Assert.That(errorCodeValue.GetString(), Is.Not.Null.And.Not.Empty,
+                "AC4: errorCode must be non-empty");
         }
 
         /// <summary>
