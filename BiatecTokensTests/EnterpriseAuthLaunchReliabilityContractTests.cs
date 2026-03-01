@@ -191,14 +191,14 @@ namespace BiatecTokensTests
             var raw = await response.Content.ReadAsStringAsync();
             Assert.That(raw, Is.Not.Null.And.Not.Empty, "Error response body must not be empty");
 
-            // Verify the error response contains meaningful information
+            // Verify the error response contains meaningful information (camelCase JSON or ProblemDetails)
             using var doc = JsonDocument.Parse(raw);
             var root = doc.RootElement;
+            // API returns camelCase JSON (default ASP.NET Core); validation errors use ProblemDetails format
             Assert.That(root.TryGetProperty("success", out _) ||
-                        root.TryGetProperty("Success", out _) ||
                         root.TryGetProperty("errorMessage", out _) ||
-                        root.TryGetProperty("ErrorMessage", out _) ||
-                        root.TryGetProperty("title", out _),
+                        root.TryGetProperty("title", out _) ||
+                        root.TryGetProperty("errors", out _),
                 Is.True, "Error response must contain recognizable error structure");
         }
 
@@ -620,16 +620,13 @@ namespace BiatecTokensTests
             var body = await response.Content.ReadFromJsonAsync<RegisterResponse>();
             Assert.That(body, Is.Not.Null);
 
-            // Correlation ID may be in the response body OR in a response header
-            // Both are valid observability approaches
+            // Correlation ID is included in the response body (camelCase: correlationId)
+            // and also as X-Correlation-ID response header per CorrelationIdMiddleware
             bool hasCorrelationInBody = body!.CorrelationId != null;
-            bool hasCorrelationInHeader =
-                response.Headers.Contains("X-Correlation-ID") ||
-                response.Headers.Contains("X-Request-ID") ||
-                response.Headers.Contains("x-correlation-id");
+            bool hasCorrelationInHeader = response.Headers.Contains("X-Correlation-ID");
 
             Assert.That(hasCorrelationInBody || hasCorrelationInHeader, Is.True,
-                "Response must include correlation ID in body or header for enterprise observability");
+                "Response must include correlation ID in body (correlationId) or X-Correlation-ID header for enterprise observability");
         }
 
         /// <summary>
@@ -821,17 +818,14 @@ namespace BiatecTokensTests
             using var doc = JsonDocument.Parse(raw);
             var root = doc.RootElement;
 
-            // Contract version must be present for operational runbooks (field is ContractVersion)
+            // Contract version must be present for operational runbooks
+            // ARC76DerivationInfoResponse serializes ContractVersion as contractVersion (camelCase)
             bool hasVersion =
                 root.TryGetProperty("contractVersion", out var versionEl) ||
-                root.TryGetProperty("ContractVersion", out versionEl) ||
-                root.TryGetProperty("derivationContractVersion", out versionEl) ||
-                root.TryGetProperty("DerivationContractVersion", out versionEl) ||
-                root.TryGetProperty("version", out versionEl) ||
-                root.TryGetProperty("Version", out versionEl);
+                root.TryGetProperty("derivationContractVersion", out versionEl);
 
             Assert.That(hasVersion, Is.True,
-                "ARC76 info must expose derivation contract version for operational runbooks");
+                "ARC76 info must expose contractVersion field for operational runbooks");
         }
 
         /// <summary>
