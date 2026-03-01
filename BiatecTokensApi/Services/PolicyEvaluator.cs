@@ -60,6 +60,9 @@ namespace BiatecTokensApi.Services
                     return new PolicyEvaluationResult
                     {
                         Outcome = DecisionOutcome.RequiresManualReview,
+                        NormalizedOutcome = NormalizedPolicyOutcome.RequiresReview,
+                        ReasonCodes = new List<string> { "NO_POLICY_RULES" },
+                        PolicyVersion = _policyConfiguration.Version,
                         Reason = $"No policy rules configured for step: {context.Step}",
                         RequiredActions = new List<string> { "Contact compliance team for manual review" }
                     };
@@ -114,6 +117,9 @@ namespace BiatecTokensApi.Services
                 return new PolicyEvaluationResult
                 {
                     Outcome = DecisionOutcome.RequiresManualReview,
+                    NormalizedOutcome = NormalizedPolicyOutcome.RequiresReview,
+                    ReasonCodes = new List<string> { "EVALUATION_ERROR" },
+                    PolicyVersion = _policyConfiguration.Version,
                     Reason = "Policy evaluation failed due to system error. Manual review required.",
                     RequiredActions = new List<string> { "Contact support for assistance" }
                 };
@@ -264,10 +270,14 @@ namespace BiatecTokensApi.Services
                     .SelectMany(r => GetRemediationActions(r.RuleId))
                     .Distinct()
                     .ToList();
+                var reasonCodes = failedRequiredRules.Select(r => r.RuleId).Distinct().ToList();
 
                 return new PolicyEvaluationResult
                 {
                     Outcome = DecisionOutcome.Rejected,
+                    NormalizedOutcome = NormalizedPolicyOutcome.Deny,
+                    ReasonCodes = reasonCodes,
+                    PolicyVersion = _policyConfiguration.Version,
                     RuleEvaluations = allEvaluations,
                     Reason = $"Failed required compliance checks: {string.Join(", ", failedRuleNames)}",
                     RequiredActions = requiredActions,
@@ -283,10 +293,14 @@ namespace BiatecTokensApi.Services
                     .SelectMany(r => GetRemediationActions(r.RuleId))
                     .Distinct()
                     .ToList();
+                var reasonCodes = warnings.Select(r => r.RuleId).Distinct().ToList();
 
                 return new PolicyEvaluationResult
                 {
                     Outcome = DecisionOutcome.ConditionalApproval,
+                    NormalizedOutcome = NormalizedPolicyOutcome.RequiresReview,
+                    ReasonCodes = reasonCodes,
+                    PolicyVersion = _policyConfiguration.Version,
                     RuleEvaluations = allEvaluations,
                     Reason = $"Approved with conditions. Address warnings: {string.Join(", ", warningRuleNames)}",
                     RequiredActions = requiredActions,
@@ -298,6 +312,9 @@ namespace BiatecTokensApi.Services
             return new PolicyEvaluationResult
             {
                 Outcome = DecisionOutcome.Approved,
+                NormalizedOutcome = NormalizedPolicyOutcome.Allow,
+                ReasonCodes = new List<string>(),
+                PolicyVersion = _policyConfiguration.Version,
                 RuleEvaluations = allEvaluations,
                 Reason = $"All compliance requirements met for {context.Step}",
                 RequiredActions = new List<string>()

@@ -169,7 +169,7 @@ namespace BiatecTokensApi.Services
                 return new ComplianceDecisionResponse
                 {
                     Success = false,
-                    ErrorMessage = $"Failed to create compliance decision: {ex.Message}"
+                    ErrorMessage = "Failed to create compliance decision. Please try again or contact support."
                 };
             }
         }
@@ -266,7 +266,7 @@ namespace BiatecTokensApi.Services
                 return new QueryComplianceDecisionsResponse
                 {
                     Success = false,
-                    ErrorMessage = $"Failed to query compliance decisions: {ex.Message}"
+                    ErrorMessage = "Failed to query compliance decisions. Please try again or contact support."
                 };
             }
         }
@@ -348,7 +348,7 @@ namespace BiatecTokensApi.Services
                 return new ComplianceDecisionResponse
                 {
                     Success = false,
-                    ErrorMessage = $"Failed to update compliance decision: {ex.Message}"
+                    ErrorMessage = "Failed to update compliance decision. Please try again or contact support."
                 };
             }
         }

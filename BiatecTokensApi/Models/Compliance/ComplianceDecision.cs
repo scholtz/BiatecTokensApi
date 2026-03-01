@@ -338,6 +338,28 @@ namespace BiatecTokensApi.Models.Compliance
     }
 
     /// <summary>
+    /// Normalized policy outcome for MICA-ready compliance reporting.
+    /// Maps internal decision states to standardized machine-readable outcomes.
+    /// </summary>
+    public enum NormalizedPolicyOutcome
+    {
+        /// <summary>
+        /// Token issuance is allowed - all compliance requirements are met
+        /// </summary>
+        Allow,
+
+        /// <summary>
+        /// Token issuance is denied - one or more required compliance checks failed
+        /// </summary>
+        Deny,
+
+        /// <summary>
+        /// Token issuance requires human review before proceeding
+        /// </summary>
+        RequiresReview
+    }
+
+    /// <summary>
     /// Result of policy evaluation
     /// </summary>
     public class PolicyEvaluationResult
@@ -346,6 +368,23 @@ namespace BiatecTokensApi.Models.Compliance
         /// Overall outcome of the evaluation
         /// </summary>
         public DecisionOutcome Outcome { get; set; }
+
+        /// <summary>
+        /// Normalized outcome for MICA-ready interoperability: allow, deny, or requires_review.
+        /// Maps from internal DecisionOutcome to standardized terminology.
+        /// </summary>
+        public NormalizedPolicyOutcome NormalizedOutcome { get; set; }
+
+        /// <summary>
+        /// Machine-readable reason codes for structured error handling and frontend mapping.
+        /// Each code identifies a specific compliance check that drove the outcome.
+        /// </summary>
+        public List<string> ReasonCodes { get; set; } = new();
+
+        /// <summary>
+        /// Policy version identifier used for traceability and rollback analysis
+        /// </summary>
+        public string PolicyVersion { get; set; } = string.Empty;
 
         /// <summary>
         /// Policy rules that were evaluated
