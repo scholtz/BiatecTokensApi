@@ -522,7 +522,7 @@ namespace BiatecTokensTests
 
         /// <summary>
         /// AC3.5: Token launch readiness endpoint responds with structured result (no 500).
-        /// Validates endpoint availability for orchestration lifecycle.
+        /// Validates endpoint availability and response payload structure for orchestration lifecycle.
         /// </summary>
         [Test]
         public async Task AC3_TokenLaunchReadiness_Endpoint_ReturnsStructuredResponse()
@@ -534,12 +534,9 @@ namespace BiatecTokensTests
 
             var request = new
             {
-                TokenName = "TestToken",
-                TokenSymbol = "TEST",
                 TokenType = "ASA",
                 Network = "testnet",
-                TotalSupply = 1000000,
-                Decimals = 6
+                FullEvaluation = true
             };
             var response = await _client.PostAsJsonAsync("/api/v1/token-launch/readiness", request);
 
@@ -547,6 +544,21 @@ namespace BiatecTokensTests
                 "Token launch readiness must never return 500 Internal Server Error");
             Assert.That((int)response.StatusCode, Is.AnyOf(200, 400, 401, 403, 422),
                 "Token launch readiness must return structured status code");
+
+            // For 200 responses, validate the payload contains actionable orchestration fields
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                var raw = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(raw);
+                var root = doc.RootElement;
+
+                Assert.That(root.TryGetProperty("evaluationId", out _), Is.True,
+                    "Readiness response must contain 'evaluationId' for lifecycle tracing");
+                Assert.That(root.TryGetProperty("canProceed", out _), Is.True,
+                    "Readiness response must contain 'canProceed' for orchestration decision");
+                Assert.That(root.TryGetProperty("status", out _), Is.True,
+                    "Readiness response must contain 'status' for blocking-issue identification");
+            }
         }
 
         #endregion
@@ -803,6 +815,14 @@ namespace BiatecTokensTests
                 "Unknown deployment ID must return structured not-found error");
             Assert.That((int)response.StatusCode, Is.Not.EqualTo(500),
                 "Unknown deployment ID must never cause 500 Internal Server Error");
+
+            // For 404 responses, verify the error body is structured (not empty)
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                var raw = await response.Content.ReadAsStringAsync();
+                Assert.That(raw, Is.Not.Null.And.Not.Empty,
+                    "404 response must have structured body (not empty) for frontend error handling");
+            }
         }
 
         #endregion
@@ -1102,6 +1122,12 @@ namespace BiatecTokensTests
 
             Assert.That(result.IsActive, Is.False,
                 "InspectSession for unknown user must return IsActive=false (no throw)");
+            Assert.That(result.UserId, Is.Null.Or.Empty,
+                "InspectSession for unknown user must return null/empty UserId (not throw)");
+            Assert.That(result.AlgorandAddress, Is.Null.Or.Empty,
+                "InspectSession for unknown user must return null/empty AlgorandAddress (not throw)");
+            Assert.That(result.TokenType, Is.EqualTo("Bearer"),
+                "InspectSession must always return TokenType='Bearer' (stable default)");
         }
 
         /// <summary>
