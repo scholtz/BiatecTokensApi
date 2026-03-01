@@ -597,7 +597,9 @@ namespace BiatecTokensApi.Services
         /// <inheritdoc />
         public async Task<TokenDeployment?> GetDeploymentByTransactionHashAsync(string transactionHash)
         {
-            var listRequest = new ListDeploymentsRequest { Page = 1, PageSize = 1000 };
+            // Load all deployments from the in-memory store (consistent with GetDeploymentMetricsAsync pattern).
+            // For production database backends, this should be replaced with an indexed query on TransactionHash.
+            var listRequest = new ListDeploymentsRequest { Page = 1, PageSize = 10000 };
             var deployments = await _repository.GetDeploymentsAsync(listRequest);
             return deployments.FirstOrDefault(d =>
                 !string.IsNullOrEmpty(d.TransactionHash) &&
