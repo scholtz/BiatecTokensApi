@@ -18,6 +18,7 @@ namespace BiatecTokensTests
     public class WalletControllerTests
     {
         private Mock<IWalletConnectionService> _serviceMock = null!;
+        private Mock<IWalletRoutingService> _routingServiceMock = null!;
         private Mock<ILogger<WalletController>> _loggerMock = null!;
         private WalletController _controller = null!;
 
@@ -30,8 +31,9 @@ namespace BiatecTokensTests
         public void SetUp()
         {
             _serviceMock = new Mock<IWalletConnectionService>();
+            _routingServiceMock = new Mock<IWalletRoutingService>();
             _loggerMock = new Mock<ILogger<WalletController>>();
-            _controller = new WalletController(_serviceMock.Object, _loggerMock.Object);
+            _controller = new WalletController(_serviceMock.Object, _routingServiceMock.Object, _loggerMock.Object);
         }
 
         // ── GetConnectionState ────────────────────────────────────────────────

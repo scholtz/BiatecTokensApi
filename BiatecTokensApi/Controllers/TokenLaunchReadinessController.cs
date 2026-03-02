@@ -23,13 +23,16 @@ namespace BiatecTokensApi.Controllers
     public class TokenLaunchReadinessController : ControllerBase
     {
         private readonly ITokenLaunchReadinessService _readinessService;
+        private readonly ITokenConfigPreviewService _configPreviewService;
         private readonly ILogger<TokenLaunchReadinessController> _logger;
 
         public TokenLaunchReadinessController(
             ITokenLaunchReadinessService readinessService,
+            ITokenConfigPreviewService configPreviewService,
             ILogger<TokenLaunchReadinessController> logger)
         {
             _readinessService = readinessService;
+            _configPreviewService = configPreviewService;
             _logger = logger;
         }
 
@@ -305,6 +308,109 @@ namespace BiatecTokensApi.Controllers
                     Success = false,
                     ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
                     ErrorMessage = "An error occurred while retrieving evaluation history",
+                    Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                });
+            }
+        }
+
+        /// <summary>
+        /// Previews a token configuration with completeness scoring and guided validation
+        /// </summary>
+        /// <param name="request">Token configuration to preview</param>
+        /// <returns>Preview result with completeness score, field issues, cost estimate, and competitive signals</returns>
+        /// <remarks>
+        /// Validates the token configuration before deployment, providing:
+        /// - Completeness score (0-100) indicating configuration quality
+        /// - Field-level validation with error, warning, and info issues
+        /// - Ordered improvement suggestions with score impact
+        /// - Deployment cost estimate
+        /// - Competitive signals comparing to successful tokens
+        /// </remarks>
+        [HttpPost("preview-config")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(TokenConfigPreviewResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> PreviewConfig([FromBody] TokenConfigPreviewRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.TokenType))
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.INVALID_REQUEST,
+                        ErrorMessage = "TokenType is required",
+                        Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                    });
+                }
+
+                var response = await _configPreviewService.PreviewConfigAsync(request);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error previewing token configuration");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiErrorResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred during token configuration preview",
+                    Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                });
+            }
+        }
+
+        /// <summary>
+        /// Computes a trust score for an existing deployed token
+        /// </summary>
+        /// <param name="tokenId">Token identifier (asset ID for Algorand, contract address for EVM)</param>
+        /// <param name="network">Network the token is deployed on</param>
+        /// <returns>Trust score with breakdown and signals for buyer confidence assessment</returns>
+        /// <remarks>
+        /// Returns a 0-100 trust score with category breakdown:
+        /// - Metadata completeness (0-25)
+        /// - Compliance signals (0-25)
+        /// - Deployment quality (0-25)
+        /// - Creator reputation (0-25)
+        ///
+        /// Trust levels: Minimal (0-24), Low (25-49), Medium (50-69), High (70-89), Exceptional (90-100)
+        /// </remarks>
+        [HttpGet("trust-score/{tokenId}")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(TokenTrustScoreResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetTrustScore(
+            [FromRoute] string tokenId,
+            [FromQuery] string network = "algorand-mainnet")
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(tokenId))
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.INVALID_REQUEST,
+                        ErrorMessage = "Token identifier is required",
+                        Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                    });
+                }
+
+                var response = await _configPreviewService.ComputeTrustScoreAsync(tokenId, network);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error computing token trust score for {TokenId}",
+                    LoggingHelper.SanitizeLogInput(tokenId));
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiErrorResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred while computing the trust score",
                     Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
                 });
             }
