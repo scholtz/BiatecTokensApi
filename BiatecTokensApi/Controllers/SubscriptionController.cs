@@ -364,6 +364,72 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
+        /// Cancels the authenticated user's subscription
+        /// </summary>
+        /// <param name="request">Optional cancellation options</param>
+        /// <returns>Cancellation result</returns>
+        /// <remarks>
+        /// By default, cancellation is scheduled at the end of the current billing period.
+        /// The user retains access until the period ends. After cancellation, their tier reverts to Free.
+        /// 
+        /// **Authentication:**
+        /// Requires ARC-0014 or JWT authentication.
+        /// 
+        /// **Response:**
+        /// Returns `cancelAtPeriodEnd: true` and `cancellationEffectiveDate` showing when access ends.
+        /// 
+        /// **Use Cases:**
+        /// - User-initiated cancellation from account settings
+        /// - Admin-assisted cancellation
+        /// </remarks>
+        [Authorize]
+        [HttpPost("cancel")]
+        [ProducesResponseType(typeof(CancelSubscriptionResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CancelSubscription([FromBody] CancelSubscriptionRequest? request = null)
+        {
+            try
+            {
+                var userAddress = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userAddress))
+                {
+                    _logger.LogWarning("CancelSubscription called without authenticated user");
+                    return Unauthorized(new CancelSubscriptionResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Authentication required"
+                    });
+                }
+
+                var response = await _stripeService.CancelSubscriptionAsync(
+                    userAddress,
+                    request?.CancelImmediately ?? false);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning(
+                        "Failed to cancel subscription for user {UserAddress}: {Error}",
+                        userAddress, response.ErrorMessage);
+                    return BadRequest(response);
+                }
+
+                _logger.LogInformation("Subscription canceled for user {UserAddress}", userAddress);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error canceling subscription");
+                return StatusCode(StatusCodes.Status500InternalServerError, new CancelSubscriptionResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while canceling subscription"
+                });
+            }
+        }
+
+        /// <summary>
         /// Webhook endpoint for processing Stripe events
         /// </summary>
         /// <remarks>

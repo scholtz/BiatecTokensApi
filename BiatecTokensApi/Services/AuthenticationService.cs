@@ -31,17 +31,20 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<AuthenticationService> _logger;
         private readonly JwtConfig _jwtConfig;
         private readonly KeyProviderFactory _keyProviderFactory;
+        private readonly IStripeService? _stripeService;
 
         public AuthenticationService(
             IUserRepository userRepository,
             ILogger<AuthenticationService> logger,
             IOptions<JwtConfig> jwtConfig,
-            KeyProviderFactory keyProviderFactory)
+            KeyProviderFactory keyProviderFactory,
+            IStripeService? stripeService = null)
         {
             _userRepository = userRepository;
             _logger = logger;
             _jwtConfig = jwtConfig.Value;
             _keyProviderFactory = keyProviderFactory;
+            _stripeService = stripeService;
         }
 
         public async Task<RegisterResponse> RegisterAsync(RegisterRequest request, string? ipAddress, string? userAgent)
@@ -97,6 +100,20 @@ namespace BiatecTokensApi.Services
                 };
 
                 await _userRepository.CreateUserAsync(user);
+
+                // Provision 14-day Professional trial for new users
+                if (_stripeService != null)
+                {
+                    try
+                    {
+                        await _stripeService.ProvisionTrialAsync(user.AlgorandAddress);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Trial provisioning failure must not block registration
+                        _logger.LogWarning(ex, "Trial provisioning failed for new user {Email}; registration will continue", LoggingHelper.SanitizeLogInput(user.Email));
+                    }
+                }
 
                 // Generate tokens
                 var accessToken = GenerateAccessToken(user);

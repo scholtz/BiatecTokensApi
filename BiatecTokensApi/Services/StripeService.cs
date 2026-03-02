@@ -853,5 +853,297 @@ namespace BiatecTokensApi.Services
                 }
             };
         }
+
+        /// <inheritdoc/>
+        public async Task ProvisionTrialAsync(string userAddress)
+        {
+            if (string.IsNullOrWhiteSpace(userAddress))
+            {
+                throw new ArgumentException("User address is required", nameof(userAddress));
+            }
+
+            // Only provision if no subscription exists yet
+            var existing = await _subscriptionRepository.GetSubscriptionAsync(userAddress);
+            if (existing != null && existing.Status != SubscriptionStatus.None)
+            {
+                _logger.LogDebug("Trial not provisioned for {UserAddress}: subscription already exists (status={Status})", userAddress, existing.Status);
+                return;
+            }
+
+            var trialEnd = DateTime.UtcNow.AddDays(14);
+            var trialSubscription = new SubscriptionState
+            {
+                UserAddress = userAddress,
+                Tier = SubscriptionTier.Premium, // Professional = Premium in tier enum
+                Status = SubscriptionStatus.Trialing,
+                SubscriptionStartDate = DateTime.UtcNow,
+                CurrentPeriodStart = DateTime.UtcNow,
+                CurrentPeriodEnd = trialEnd,
+                CancelAtPeriodEnd = false,
+                LastUpdated = DateTime.UtcNow
+            };
+
+            await _subscriptionRepository.SaveSubscriptionAsync(trialSubscription);
+
+            // Update in-memory tier service for immediate access control
+            if (_tierService is SubscriptionTierService tierService)
+            {
+                tierService.SetUserTier(userAddress, SubscriptionTier.Premium);
+            }
+
+            // Audit log
+            await _subscriptionRepository.MarkEventProcessedAsync(new SubscriptionWebhookEvent
+            {
+                EventId = $"trial_provision_{userAddress}_{DateTime.UtcNow.Ticks}",
+                EventType = "trial.provisioned",
+                UserAddress = userAddress,
+                Tier = SubscriptionTier.Premium,
+                Status = SubscriptionStatus.Trialing,
+                Success = true
+            });
+
+            _logger.LogInformation(
+                "SUBSCRIPTION_AUDIT: TrialProvisioned | UserAddress: {UserAddress} | Tier: Premium | TrialEnd: {TrialEnd}",
+                userAddress, trialEnd);
+        }
+
+        /// <inheritdoc/>
+        public async Task<CancelSubscriptionResponse> CancelSubscriptionAsync(string userAddress, bool cancelImmediately = false)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(userAddress))
+                {
+                    throw new ArgumentException("User address is required", nameof(userAddress));
+                }
+
+                var subscription = await _subscriptionRepository.GetSubscriptionAsync(userAddress);
+                if (subscription == null || subscription.Status == SubscriptionStatus.None)
+                {
+                    return new CancelSubscriptionResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "No active subscription found"
+                    };
+                }
+
+                if (subscription.Status == SubscriptionStatus.Canceled)
+                {
+                    return new CancelSubscriptionResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Subscription is already canceled"
+                    };
+                }
+
+                // If there's a real Stripe subscription, cancel via Stripe
+                if (!string.IsNullOrWhiteSpace(subscription.StripeSubscriptionId) && 
+                    !string.IsNullOrWhiteSpace(_config.SecretKey) &&
+                    !_config.SecretKey.Contains("test_placeholder"))
+                {
+                    try
+                    {
+                        var stripeSubService = new Stripe.SubscriptionService();
+                        if (cancelImmediately)
+                        {
+                            await stripeSubService.CancelAsync(subscription.StripeSubscriptionId);
+                            subscription.Status = SubscriptionStatus.Canceled;
+                            subscription.Tier = SubscriptionTier.Free;
+                            subscription.SubscriptionEndDate = DateTime.UtcNow;
+                        }
+                        else
+                        {
+                            await stripeSubService.UpdateAsync(subscription.StripeSubscriptionId, new Stripe.SubscriptionUpdateOptions
+                            {
+                                CancelAtPeriodEnd = true
+                            });
+                            subscription.CancelAtPeriodEnd = true;
+                        }
+                    }
+                    catch (StripeException ex)
+                    {
+                        _logger.LogWarning(ex, "Stripe cancel failed for {UserAddress}, applying local cancel", userAddress);
+                        // Fall through to local cancellation
+                        ApplyLocalCancellation(subscription, cancelImmediately);
+                    }
+                }
+                else
+                {
+                    // Trial or local subscription — cancel locally
+                    ApplyLocalCancellation(subscription, cancelImmediately);
+                }
+
+                await _subscriptionRepository.SaveSubscriptionAsync(subscription);
+
+                await _subscriptionRepository.MarkEventProcessedAsync(new SubscriptionWebhookEvent
+                {
+                    EventId = $"cancel_{userAddress}_{DateTime.UtcNow.Ticks}",
+                    EventType = cancelImmediately ? "subscription.canceled_immediately" : "subscription.cancel_scheduled",
+                    UserAddress = userAddress,
+                    StripeSubscriptionId = subscription.StripeSubscriptionId,
+                    Tier = subscription.Tier,
+                    Status = subscription.Status,
+                    Success = true
+                });
+
+                _logger.LogInformation(
+                    "SUBSCRIPTION_AUDIT: SubscriptionCanceled | UserAddress: {UserAddress} | Immediately: {Immediately} | CancelAtPeriodEnd: {CancelAtPeriodEnd}",
+                    userAddress, cancelImmediately, subscription.CancelAtPeriodEnd);
+
+                return new CancelSubscriptionResponse
+                {
+                    Success = true,
+                    CancelAtPeriodEnd = subscription.CancelAtPeriodEnd,
+                    CancellationEffectiveDate = cancelImmediately ? DateTime.UtcNow : subscription.CurrentPeriodEnd
+                };
+            }
+            catch (ArgumentException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error canceling subscription for {UserAddress}", userAddress);
+                return new CancelSubscriptionResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while canceling subscription"
+                };
+            }
+        }
+
+        private static void ApplyLocalCancellation(SubscriptionState subscription, bool immediately)
+        {
+            if (immediately)
+            {
+                subscription.Status = SubscriptionStatus.Canceled;
+                subscription.Tier = SubscriptionTier.Free;
+                subscription.SubscriptionEndDate = DateTime.UtcNow;
+                subscription.CancelAtPeriodEnd = false;
+            }
+            else
+            {
+                subscription.CancelAtPeriodEnd = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<SubscriptionOverrideResponse> OverrideSubscriptionTierAsync(string userId, SubscriptionTier tier, string? reason = null)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new ArgumentException("User ID is required", nameof(userId));
+            }
+
+            var subscription = await _subscriptionRepository.GetSubscriptionAsync(userId)
+                ?? new SubscriptionState { UserAddress = userId };
+
+            var previousTier = subscription.Tier;
+            subscription.Tier = tier;
+            subscription.Status = tier == SubscriptionTier.Free ? SubscriptionStatus.None : SubscriptionStatus.Active;
+            subscription.LastUpdated = DateTime.UtcNow;
+
+            await _subscriptionRepository.SaveSubscriptionAsync(subscription);
+
+            // Immediately update the in-memory tier service
+            if (_tierService is SubscriptionTierService tierService)
+            {
+                tierService.SetUserTier(userId, tier);
+            }
+
+            await _subscriptionRepository.MarkEventProcessedAsync(new SubscriptionWebhookEvent
+            {
+                EventId = $"admin_override_{userId}_{DateTime.UtcNow.Ticks}",
+                EventType = "admin.subscription_override",
+                UserAddress = userId,
+                Tier = tier,
+                Status = subscription.Status,
+                Success = true,
+                ErrorMessage = reason
+            });
+
+            _logger.LogInformation(
+                "SUBSCRIPTION_AUDIT: AdminOverride | UserId: {UserId} | PreviousTier: {PreviousTier} | NewTier: {NewTier} | Reason: {Reason}",
+                userId, previousTier, tier, reason ?? "no reason provided");
+
+            return new SubscriptionOverrideResponse
+            {
+                Success = true,
+                UserId = userId,
+                Tier = tier
+            };
+        }
+
+        /// <inheritdoc/>
+        public async Task<SubscriptionMetrics> GetAdminMetricsAsync()
+        {
+            var allEvents = await _subscriptionRepository.GetWebhookEventsAsync();
+
+            // Compute tier distribution and counts from events (audit log)
+            var tierCounts = new Dictionary<string, int>
+            {
+                { "Free", 0 },
+                { "Basic", 0 },
+                { "Premium", 0 },
+                { "Enterprise", 0 }
+            };
+
+            // Use latest event per user to determine current tier
+            var latestByUser = allEvents
+                .GroupBy(e => e.UserAddress)
+                .Select(g => g.OrderByDescending(e => e.ProcessedAt).First())
+                .ToList();
+
+            int activeCount = 0;
+            int trialingCount = 0;
+            int canceledCount = 0;
+            int convertedFromTrial = 0;
+            int totalTrialsProvisioned = 0;
+
+            foreach (var evt in latestByUser)
+            {
+                if (string.IsNullOrWhiteSpace(evt.UserAddress)) continue;
+
+                var tierName = evt.Tier.ToString();
+                if (tierCounts.ContainsKey(tierName))
+                    tierCounts[tierName]++;
+
+                if (evt.Status == SubscriptionStatus.Active)
+                    activeCount++;
+                else if (evt.Status == SubscriptionStatus.Trialing)
+                    trialingCount++;
+                else if (evt.Status == SubscriptionStatus.Canceled)
+                    canceledCount++;
+            }
+
+            // Count trials from audit log
+            totalTrialsProvisioned = allEvents.Count(e => e.EventType == "trial.provisioned");
+            convertedFromTrial = allEvents.Count(e =>
+                e.EventType is "customer.subscription.created" or "checkout.session.completed" &&
+                e.Status == SubscriptionStatus.Active);
+
+            // MRR calculation (cents): Basic=$2900, Premium=$9900, Enterprise=$29900
+            long mrrCents = 
+                (long)tierCounts.GetValueOrDefault("Basic") * 2900 +
+                (long)tierCounts.GetValueOrDefault("Premium") * 9900 +
+                (long)tierCounts.GetValueOrDefault("Enterprise") * 29900;
+
+            double conversionRate = totalTrialsProvisioned > 0
+                ? (double)convertedFromTrial / totalTrialsProvisioned
+                : 0.0;
+
+            return new SubscriptionMetrics
+            {
+                MrrCents = mrrCents,
+                TotalActiveSubscribers = activeCount,
+                TotalTrialingUsers = trialingCount,
+                TierDistribution = tierCounts,
+                ChurnedThisMonth = allEvents.Count(e =>
+                    e.EventType is "subscription.canceled_immediately" or "subscription.cancel_scheduled" or "customer.subscription.deleted" &&
+                    e.ProcessedAt >= DateTime.UtcNow.AddDays(-30)),
+                TrialConversionRate = conversionRate,
+                TotalCanceled = canceledCount
+            };
+        }
     }
 }
