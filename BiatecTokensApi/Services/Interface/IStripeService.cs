@@ -44,5 +44,34 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="userAddress">User's Algorand address</param>
         /// <returns>Subscription entitlements</returns>
         Task<SubscriptionEntitlements> GetEntitlementsAsync(string userAddress);
+
+        /// <summary>
+        /// Provisions a 14-day Professional-tier trial for a newly registered user
+        /// </summary>
+        /// <param name="userAddress">User's Algorand address</param>
+        Task ProvisionTrialAsync(string userAddress);
+
+        /// <summary>
+        /// Cancels a user's subscription (at period end by default)
+        /// </summary>
+        /// <param name="userAddress">User's Algorand address</param>
+        /// <param name="cancelImmediately">If true, cancel immediately; otherwise cancel at period end</param>
+        /// <returns>Cancellation response</returns>
+        Task<CancelSubscriptionResponse> CancelSubscriptionAsync(string userAddress, bool cancelImmediately = false);
+
+        /// <summary>
+        /// Overrides a user's subscription tier (admin operation)
+        /// </summary>
+        /// <param name="userId">User ID (Algorand address)</param>
+        /// <param name="tier">Tier to assign</param>
+        /// <param name="reason">Reason for the override (for audit log)</param>
+        /// <returns>Override response</returns>
+        Task<SubscriptionOverrideResponse> OverrideSubscriptionTierAsync(string userId, SubscriptionTier tier, string? reason = null);
+
+        /// <summary>
+        /// Gets aggregate subscription metrics for admin dashboard
+        /// </summary>
+        /// <returns>Subscription metrics</returns>
+        Task<SubscriptionMetrics> GetAdminMetricsAsync();
     }
 }

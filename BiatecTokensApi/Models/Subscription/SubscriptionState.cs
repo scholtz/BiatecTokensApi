@@ -222,6 +222,166 @@ namespace BiatecTokensApi.Models.Subscription
         public SubscriptionState? Subscription { get; set; }
 
         /// <summary>
+        /// Trial end date (populated when status is Trialing)
+        /// </summary>
+        public DateTime? TrialEndsAt => Subscription?.Status == SubscriptionStatus.Trialing
+            ? Subscription.CurrentPeriodEnd
+            : null;
+
+        /// <summary>
+        /// Days remaining in trial (populated when status is Trialing)
+        /// </summary>
+        public int? DaysRemaining => TrialEndsAt.HasValue
+            ? Math.Max(0, (int)Math.Ceiling((TrialEndsAt.Value - DateTime.UtcNow).TotalDays))
+            : null;
+
+        /// <summary>
+        /// Error message if operation failed
+        /// </summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request to cancel a subscription
+    /// </summary>
+    public class CancelSubscriptionRequest
+    {
+        /// <summary>
+        /// Whether to cancel immediately (true) or at period end (false, default)
+        /// </summary>
+        public bool CancelImmediately { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Response for subscription cancellation
+    /// </summary>
+    public class CancelSubscriptionResponse
+    {
+        /// <summary>
+        /// Whether the operation was successful
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// Whether cancellation is scheduled at period end
+        /// </summary>
+        public bool CancelAtPeriodEnd { get; set; }
+
+        /// <summary>
+        /// When the subscription will end
+        /// </summary>
+        public DateTime? CancellationEffectiveDate { get; set; }
+
+        /// <summary>
+        /// Error message if operation failed
+        /// </summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request to override a user's subscription tier (admin only)
+    /// </summary>
+    public class SubscriptionOverrideRequest
+    {
+        /// <summary>
+        /// User ID (Algorand address or email) to override
+        /// </summary>
+        public string UserId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Subscription tier to assign
+        /// </summary>
+        public SubscriptionTier Tier { get; set; }
+
+        /// <summary>
+        /// Reason for override (for audit log)
+        /// </summary>
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// Response for subscription override
+    /// </summary>
+    public class SubscriptionOverrideResponse
+    {
+        /// <summary>
+        /// Whether the operation was successful
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// User ID that was overridden
+        /// </summary>
+        public string? UserId { get; set; }
+
+        /// <summary>
+        /// New subscription tier
+        /// </summary>
+        public SubscriptionTier Tier { get; set; }
+
+        /// <summary>
+        /// Error message if operation failed
+        /// </summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Aggregate subscription metrics (admin only)
+    /// </summary>
+    public class SubscriptionMetrics
+    {
+        /// <summary>
+        /// Monthly Recurring Revenue in cents
+        /// </summary>
+        public long MrrCents { get; set; }
+
+        /// <summary>
+        /// Total active subscribers
+        /// </summary>
+        public int TotalActiveSubscribers { get; set; }
+
+        /// <summary>
+        /// Total trialing users
+        /// </summary>
+        public int TotalTrialingUsers { get; set; }
+
+        /// <summary>
+        /// Number of subscribers per tier
+        /// </summary>
+        public Dictionary<string, int> TierDistribution { get; set; } = new();
+
+        /// <summary>
+        /// Number of canceled subscriptions in current month
+        /// </summary>
+        public int ChurnedThisMonth { get; set; }
+
+        /// <summary>
+        /// Trial-to-paid conversion rate (0.0 to 1.0)
+        /// </summary>
+        public double TrialConversionRate { get; set; }
+
+        /// <summary>
+        /// Total canceled subscriptions (all time)
+        /// </summary>
+        public int TotalCanceled { get; set; }
+    }
+
+    /// <summary>
+    /// Response for admin metrics endpoint
+    /// </summary>
+    public class SubscriptionMetricsResponse
+    {
+        /// <summary>
+        /// Whether the operation was successful
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// Aggregate metrics
+        /// </summary>
+        public SubscriptionMetrics? Metrics { get; set; }
+
+        /// <summary>
         /// Error message if operation failed
         /// </summary>
         public string? ErrorMessage { get; set; }
