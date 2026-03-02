@@ -470,7 +470,7 @@ namespace BiatecTokensTests
         /// Session data must be observable for debugging auth issues in production.
         /// </summary>
         [Test]
-        public async Task AC4_SessionInspection_AuthenticatedUser_ReturnsSesionData()
+        public async Task AC4_SessionInspection_AuthenticatedUser_ReturnsSessionData()
         {
             var email = Email("ac4-session");
             const string password = "VisionAc4@Pass3";
