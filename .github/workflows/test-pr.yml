@@ -109,7 +109,7 @@ jobs:
           echo "📊 Target coverage: Line 80%, Branch 70% - Please help improve coverage with your PRs!"
       
       - name: Upload coverage report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -185,7 +185,7 @@ jobs:
           rm -f BiatecTokensApi/appsettings.OpenAPI.json
       
       - name: Upload OpenAPI Specification
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: openapi-specification
