@@ -258,10 +258,11 @@ namespace BiatecTokensTests
         [Test]
         public async Task AuthRegisterEndpoint_StillAccessible_AfterWalletControllerAdded()
         {
-            var body = new { };
+            // Use a deliberately malformed request (missing required fields) to get a 400 response
+            var body = new { email = "not-an-email", password = "" };
             var response = await _client.PostAsJsonAsync("/api/v1/auth/register", body);
             Assert.That((int)response.StatusCode, Is.InRange(400, 499),
-                "Auth register endpoint must still return 4xx for empty request after adding WalletController");
+                "Auth register endpoint must still return 4xx for invalid request after adding WalletController");
         }
     }
 }

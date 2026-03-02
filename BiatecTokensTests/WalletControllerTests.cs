@@ -734,9 +734,15 @@ namespace BiatecTokensTests
 
             // Assert
             Assert.That(result!.StatusCode, Is.EqualTo(500));
-            // The controller must NOT expose internal exception messages in the response
-            var body = result.Value?.ToString() ?? string.Empty;
-            Assert.That(body, Does.Not.Contain("secret123"), "Internal secrets must not be leaked in error response");
+            // The controller must return only the generic safe error message and NOT expose internal details
+            var errorResponse = result.Value as BiatecTokensApi.Models.ApiErrorResponse;
+            Assert.That(errorResponse, Is.Not.Null, "Error response must be an ApiErrorResponse");
+            Assert.That(errorResponse!.ErrorMessage, Is.EqualTo("An error occurred while retrieving wallet connection state"),
+                "Must return generic safe message, not internal details");
+            Assert.That(errorResponse.ErrorMessage, Does.Not.Contain("secret123"),
+                "Internal secrets must not be leaked in error response");
+            Assert.That(errorResponse.ErrorMessage, Does.Not.Contain("prod-db"),
+                "Internal connection string must not be leaked in error response");
         }
 
         [Test]
