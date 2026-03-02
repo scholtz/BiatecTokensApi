@@ -10,7 +10,7 @@ using System.Text.Json;
 namespace BiatecTokensTests
 {
     /// <summary>
-    /// Comprehensive reliability-gate tests for Issue: MVP Hardening - Deterministic ARC76 Auth Contract
+    /// Comprehensive reliability-gate tests for Issue #445: MVP Hardening - Deterministic ARC76 Auth Contract
     /// and Deployment Reliability Gates.
     ///
     /// Covers all six acceptance criteria:
