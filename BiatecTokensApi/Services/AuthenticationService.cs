@@ -73,9 +73,13 @@ namespace BiatecTokensApi.Services
                     };
                 }
 
-                // Derive ARC76 account from email and password
-                var mnemonic = GenerateMnemonic();
-                var account = ARC76.GetAccount(mnemonic);
+                // Derive ARC76 account deterministically from email + password per ARC-0076 specification.
+                // Same email+password always produces the same Algorand address — no random mnemonic.
+                var canonicalEmail = CanonicalizeEmail(request.Email);
+                var account = ARC76.GetEmailAccount(canonicalEmail, request.Password, 0);
+                // Convert to 25-word Algorand mnemonic for encrypted storage (signing operations)
+                var mnemonic = account.ToMnemonic()
+                    ?? throw new InvalidOperationException("Failed to convert ARC76 account to mnemonic during registration");
 
                 // Hash password
                 var passwordHash = HashPassword(request.Password);
@@ -90,7 +94,7 @@ namespace BiatecTokensApi.Services
                 var user = new User
                 {
                     UserId = Guid.NewGuid().ToString(),
-                    Email = CanonicalizeEmail(request.Email),
+                    Email = canonicalEmail,
                     PasswordHash = passwordHash,
                     AlgorandAddress = account.Address.ToString(),
                     EncryptedMnemonic = encryptedMnemonic,

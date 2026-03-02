@@ -1,5 +1,6 @@
 using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.Auth;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,13 +21,19 @@ namespace BiatecTokensApi.Controllers
     public class AuthV2Controller : ControllerBase
     {
         private readonly IAuthenticationService _authService;
+        private readonly IArc76CredentialDerivationService _derivationService;
+        private readonly IUserRepository _userRepository;
         private readonly ILogger<AuthV2Controller> _logger;
 
         public AuthV2Controller(
             IAuthenticationService authService,
+            IArc76CredentialDerivationService derivationService,
+            IUserRepository userRepository,
             ILogger<AuthV2Controller> logger)
         {
             _authService = authService;
+            _derivationService = derivationService;
+            _userRepository = userRepository;
             _logger = logger;
         }
 
@@ -528,6 +535,174 @@ namespace BiatecTokensApi.Controllers
 
             var response = await _authService.InspectSessionAsync(userId, correlationId);
             return Ok(response);
+        }
+
+        /// <summary>
+        /// Validates ARC76 credential derivation: derives the Algorand address from email+password
+        /// and optionally checks it against the stored account address for the user.
+        /// </summary>
+        /// <param name="request">Request containing email and password</param>
+        /// <returns>The deterministic ARC76-derived Algorand address and public key</returns>
+        /// <remarks>
+        /// This endpoint accepts email + password and returns the deterministic Algorand address
+        /// derived via the ARC76 specification. The same credentials always produce the same address.
+        ///
+        /// If the user exists in the system, also returns whether the derived address matches
+        /// the stored account address (true when the account was registered via ARC76 derivation).
+        ///
+        /// **Never returns private key material.**
+        ///
+        /// **Sample Request:**
+        /// ```json
+        /// {
+        ///   "email": "user@example.com",
+        ///   "password": "SecurePass123!"
+        /// }
+        /// ```
+        ///
+        /// **Sample Response:**
+        /// ```json
+        /// {
+        ///   "algorandAddress": "4DV7T4TUCD4KCPMLCD2GHQGKNX4PTZPMTNJLH77DEH7ZPZHAIAYG5JBBRI",
+        ///   "publicKeyBase64": "...",
+        ///   "addressMatchesStoredAccount": true,
+        ///   "success": true
+        /// }
+        /// ```
+        /// </remarks>
+        [AllowAnonymous]
+        [HttpPost("arc76/validate")]
+        [ProducesResponseType(typeof(ARC76ValidateResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ARC76ValidateResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ValidateARC76Credentials([FromBody] ARC76ValidateRequest? request)
+        {
+            var correlationId = HttpContext.TraceIdentifier;
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest(new ARC76ValidateResponse
+                {
+                    Success = false,
+                    ErrorCode = Models.ErrorCodes.MISSING_REQUIRED_FIELD,
+                    ErrorMessage = "Email and password are required",
+                    CorrelationId = correlationId
+                });
+            }
+
+            try
+            {
+                var (address, publicKeyBase64) = _derivationService.DeriveAddressAndPublicKey(request.Email, request.Password);
+
+                // Optionally check if stored account address matches the derived address
+                bool? addressMatchesStored = null;
+                try
+                {
+                    var canonicalEmail = _derivationService.CanonicalizeEmail(request.Email);
+                    var user = await _userRepository.GetUserByEmailAsync(canonicalEmail);
+                    if (user != null && !string.IsNullOrWhiteSpace(user.AlgorandAddress))
+                    {
+                        addressMatchesStored = string.Equals(
+                            user.AlgorandAddress.Trim(),
+                            address.Trim(),
+                            StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not check stored address during ARC76 validation. CorrelationId={CorrelationId}", correlationId);
+                }
+
+                _logger.LogInformation("ARC76 validation completed. CorrelationId={CorrelationId}", correlationId);
+
+                return Ok(new ARC76ValidateResponse
+                {
+                    AlgorandAddress = address,
+                    PublicKeyBase64 = publicKeyBase64,
+                    AddressMatchesStoredAccount = addressMatchesStored,
+                    Success = true,
+                    CorrelationId = correlationId
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ARC76ValidateResponse
+                {
+                    Success = false,
+                    ErrorCode = Models.ErrorCodes.INVALID_REQUEST,
+                    ErrorMessage = ex.Message,
+                    CorrelationId = correlationId
+                });
+            }
+        }
+
+        /// <summary>
+        /// Returns the ARC76-derived Algorand address bound to the current authenticated session.
+        /// Used by frontend Playwright tests to assert session-to-address binding.
+        /// </summary>
+        /// <returns>The Algorand address associated with the current session</returns>
+        /// <remarks>
+        /// Accepts a Bearer JWT and returns the Algorand address stored in the session.
+        /// This is the canonical account that will be used for all token operations.
+        ///
+        /// **Sample Response:**
+        /// ```json
+        /// {
+        ///   "algorandAddress": "4DV7T4TUCD4KCPMLCD2GHQGKNX4PTZPMTNJLH77DEH7ZPZHAIAYG5JBBRI",
+        ///   "userId": "user-guid-here",
+        ///   "success": true
+        /// }
+        /// ```
+        /// </remarks>
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        [HttpPost("arc76/verify-session")]
+        [ProducesResponseType(typeof(ARC76VerifySessionResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> VerifySession()
+        {
+            var correlationId = HttpContext.TraceIdentifier;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _logger.LogWarning("ARC76 verify-session called without valid user ID. CorrelationId={CorrelationId}", correlationId);
+                return Unauthorized();
+            }
+
+            try
+            {
+                var user = await _userRepository.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return Ok(new ARC76VerifySessionResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "User not found",
+                        CorrelationId = correlationId
+                    });
+                }
+
+                _logger.LogInformation("ARC76 session verified. UserId={UserId}, CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(userId), correlationId);
+
+                return Ok(new ARC76VerifySessionResponse
+                {
+                    AlgorandAddress = user.AlgorandAddress,
+                    UserId = userId,
+                    Success = true,
+                    CorrelationId = correlationId
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during ARC76 session verification. UserId={UserId}, CorrelationId={CorrelationId}",
+                    LoggingHelper.SanitizeLogInput(userId), correlationId);
+                return Ok(new ARC76VerifySessionResponse
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred during session verification",
+                    CorrelationId = correlationId
+                });
+            }
         }
     }
 }
