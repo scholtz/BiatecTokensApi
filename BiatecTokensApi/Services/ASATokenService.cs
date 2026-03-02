@@ -291,9 +291,10 @@ namespace BiatecTokensApi.Services
         {
             // Determine which account to use: user's ARC76 account or system account
             string accountMnemonic;
+            Algorand.Algod.Model.Account acc;
             if (!string.IsNullOrWhiteSpace(userId))
             {
-                // JWT-authenticated user: use their ARC76-derived account
+                // JWT-authenticated user: use their ARC76 credential-derived account
                 var userMnemonic = await _authenticationService.GetUserMnemonicForSigningAsync(userId);
                 if (string.IsNullOrWhiteSpace(userMnemonic))
                 {
@@ -307,15 +308,16 @@ namespace BiatecTokensApi.Services
                 }
                 accountMnemonic = userMnemonic;
                 _logger.LogInformation("Using user's ARC76 account for ASA deployment: UserId={UserId}", Helpers.LoggingHelper.SanitizeLogInput(userId));
+                // User accounts use 25-word Algorand mnemonic from ARC76 credential derivation
+                acc = new Algorand.Algod.Model.Account(accountMnemonic);
             }
             else
             {
-                // ARC-0014 authenticated or system: use system account
+                // ARC-0014 authenticated or system: use system account (BIP39 mnemonic via ARC76.GetAccount)
                 accountMnemonic = _appConfig.CurrentValue.Account;
                 _logger.LogInformation("Using system account for ASA deployment");
+                acc = ARC76.GetAccount(accountMnemonic);
             }
-
-            var acc = ARC76.GetAccount(accountMnemonic);
             var assetCreateTx = new AssetCreateTransaction()
             {
                 AssetParams = new Algorand.Algod.Model.AssetParams()

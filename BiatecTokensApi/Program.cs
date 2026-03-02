@@ -202,6 +202,8 @@ namespace BiatecTokensApi
 
             // Register the token services
             builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+
+            builder.Services.AddSingleton<IArc76CredentialDerivationService, Arc76CredentialDerivationService>();
             
             // Register key management providers
             builder.Services.AddSingleton<EnvironmentKeyProvider>();
