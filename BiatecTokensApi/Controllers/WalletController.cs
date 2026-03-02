@@ -17,18 +17,22 @@ namespace BiatecTokensApi.Controllers
     public class WalletController : ControllerBase
     {
         private readonly IWalletConnectionService _walletConnectionService;
+        private readonly IWalletRoutingService _walletRoutingService;
         private readonly ILogger<WalletController> _logger;
 
         /// <summary>
         /// Initializes a new instance of the WalletController
         /// </summary>
         /// <param name="walletConnectionService">Wallet connection service</param>
+        /// <param name="walletRoutingService">Wallet routing service</param>
         /// <param name="logger">Logger instance</param>
         public WalletController(
             IWalletConnectionService walletConnectionService,
+            IWalletRoutingService walletRoutingService,
             ILogger<WalletController> logger)
         {
             _walletConnectionService = walletConnectionService;
+            _walletRoutingService = walletRoutingService;
             _logger = logger;
         }
 
@@ -340,6 +344,61 @@ namespace BiatecTokensApi.Controllers
                 {
                     ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
                     ErrorMessage = "An error occurred while validating wallet address"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Returns optimized routing options for a cross-network wallet operation
+        /// </summary>
+        /// <param name="request">Routing request specifying source/target network and operation type</param>
+        /// <returns>Routing options with cost and time estimates ordered by recommendation</returns>
+        /// <remarks>
+        /// Helps users optimize wallet connections for cross-network token operations.
+        /// Returns ordered routing options with step-by-step guidance, fee estimates,
+        /// and time estimates to reduce friction for cross-chain scenarios.
+        /// </remarks>
+        [HttpPost("routing-options")]
+        [ProducesResponseType(typeof(WalletRoutingResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetRoutingOptions([FromBody] WalletRoutingRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.SourceNetwork))
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        ErrorCode = ErrorCodes.INVALID_REQUEST,
+                        ErrorMessage = "SourceNetwork is required"
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(request.TargetNetwork))
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        ErrorCode = ErrorCodes.INVALID_REQUEST,
+                        ErrorMessage = "TargetNetwork is required"
+                    });
+                }
+
+                _logger.LogInformation(
+                    "Wallet routing request: {Source} -> {Target}",
+                    LoggingHelper.SanitizeLogInput(request.SourceNetwork),
+                    LoggingHelper.SanitizeLogInput(request.TargetNetwork));
+
+                var response = await _walletRoutingService.GetRoutingOptionsAsync(request);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error computing wallet routing options");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiErrorResponse
+                {
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred while computing routing options"
                 });
             }
         }
