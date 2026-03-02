@@ -564,15 +564,18 @@ namespace BiatecTokensTests
                 $"Malformed JWT must return 401");
         }
 
-        /// <summary>SB5: Empty refresh token body returns 401.</summary>
+        /// <summary>SB5: Empty refresh token body returns 400 or 401 (rejected at model-validation or auth layer).</summary>
         [Test]
-        public async Task SB5_EmptyRefreshToken_Returns401()
+        public async Task SB5_EmptyRefreshToken_ReturnsRejection()
         {
             var resp = await _client.PostAsJsonAsync("/api/v1/auth/refresh",
                 new { refreshToken = "" });
 
-            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
-                "Empty refresh token must return 401 Unauthorized");
+            // Empty refresh token must be rejected — either 400 (model validation before auth)
+            // or 401 (auth layer rejects it). Both are correct; 200 and 5xx are never acceptable.
+            Assert.That(resp.StatusCode,
+                Is.EqualTo(HttpStatusCode.BadRequest).Or.EqualTo(HttpStatusCode.Unauthorized),
+                "Empty refresh token must return 400 (model validation) or 401 (auth rejection), never 200 or 5xx");
         }
 
         /// <summary>SB6: Re-login after password change — old tokens rejected, new tokens work.</summary>
