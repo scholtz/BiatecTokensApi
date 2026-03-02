@@ -1,4 +1,5 @@
 using BiatecTokensApi.Configuration;
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.Subscription;
 using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
@@ -17,6 +18,11 @@ namespace BiatecTokensApi.Services
         private readonly ISubscriptionRepository _subscriptionRepository;
         private readonly ISubscriptionTierService _tierService;
         private readonly ILogger<StripeService> _logger;
+
+        // Tier prices in cents to avoid floating-point errors
+        private const long BasicPriceCents = 2900;    // $29/month
+        private const long PremiumPriceCents = 9900;  // $99/month
+        private const long EnterprisePriceCents = 29900; // $299/month
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StripeService"/> class.
@@ -904,7 +910,7 @@ namespace BiatecTokensApi.Services
 
             _logger.LogInformation(
                 "SUBSCRIPTION_AUDIT: TrialProvisioned | UserAddress: {UserAddress} | Tier: Premium | TrialEnd: {TrialEnd}",
-                userAddress, trialEnd);
+                LoggingHelper.SanitizeLogInput(userAddress), trialEnd);
         }
 
         /// <inheritdoc/>
@@ -962,7 +968,7 @@ namespace BiatecTokensApi.Services
                     }
                     catch (StripeException ex)
                     {
-                        _logger.LogWarning(ex, "Stripe cancel failed for {UserAddress}, applying local cancel", userAddress);
+                        _logger.LogWarning(ex, "Stripe cancel failed for {UserAddress}, applying local cancel", LoggingHelper.SanitizeLogInput(userAddress));
                         // Fall through to local cancellation
                         ApplyLocalCancellation(subscription, cancelImmediately);
                     }
@@ -988,7 +994,7 @@ namespace BiatecTokensApi.Services
 
                 _logger.LogInformation(
                     "SUBSCRIPTION_AUDIT: SubscriptionCanceled | UserAddress: {UserAddress} | Immediately: {Immediately} | CancelAtPeriodEnd: {CancelAtPeriodEnd}",
-                    userAddress, cancelImmediately, subscription.CancelAtPeriodEnd);
+                    LoggingHelper.SanitizeLogInput(userAddress), cancelImmediately, subscription.CancelAtPeriodEnd);
 
                 return new CancelSubscriptionResponse
                 {
@@ -1003,7 +1009,7 @@ namespace BiatecTokensApi.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error canceling subscription for {UserAddress}", userAddress);
+                _logger.LogError(ex, "Error canceling subscription for {UserAddress}", LoggingHelper.SanitizeLogInput(userAddress));
                 return new CancelSubscriptionResponse
                 {
                     Success = false,
@@ -1064,7 +1070,7 @@ namespace BiatecTokensApi.Services
 
             _logger.LogInformation(
                 "SUBSCRIPTION_AUDIT: AdminOverride | UserId: {UserId} | PreviousTier: {PreviousTier} | NewTier: {NewTier} | Reason: {Reason}",
-                userId, previousTier, tier, reason ?? "no reason provided");
+                LoggingHelper.SanitizeLogInput(userId), previousTier, tier, LoggingHelper.SanitizeLogInput(reason ?? "no reason provided"));
 
             return new SubscriptionOverrideResponse
             {
@@ -1122,11 +1128,11 @@ namespace BiatecTokensApi.Services
                 e.EventType is "customer.subscription.created" or "checkout.session.completed" &&
                 e.Status == SubscriptionStatus.Active);
 
-            // MRR calculation (cents): Basic=$2900, Premium=$9900, Enterprise=$29900
+            // MRR calculation using defined price constants
             long mrrCents = 
-                (long)tierCounts.GetValueOrDefault("Basic") * 2900 +
-                (long)tierCounts.GetValueOrDefault("Premium") * 9900 +
-                (long)tierCounts.GetValueOrDefault("Enterprise") * 29900;
+                (long)tierCounts.GetValueOrDefault("Basic") * BasicPriceCents +
+                (long)tierCounts.GetValueOrDefault("Premium") * PremiumPriceCents +
+                (long)tierCounts.GetValueOrDefault("Enterprise") * EnterprisePriceCents;
 
             double conversionRate = totalTrialsProvisioned > 0
                 ? (double)convertedFromTrial / totalTrialsProvisioned

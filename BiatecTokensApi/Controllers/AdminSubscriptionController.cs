@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.Subscription;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -89,7 +90,7 @@ namespace BiatecTokensApi.Controllers
 
                 _logger.LogInformation(
                     "Admin {AdminId} overriding subscription tier for user {UserId} to {Tier}",
-                    adminId, request.UserId, request.Tier);
+                    LoggingHelper.SanitizeLogInput(adminId), LoggingHelper.SanitizeLogInput(request.UserId), request.Tier);
 
                 var response = await _stripeService.OverrideSubscriptionTierAsync(
                     request.UserId,
@@ -100,7 +101,7 @@ namespace BiatecTokensApi.Controllers
                 {
                     _logger.LogWarning(
                         "Failed to override subscription for user {UserId}: {Error}",
-                        request.UserId, response.ErrorMessage);
+                        LoggingHelper.SanitizeLogInput(request.UserId), response.ErrorMessage);
                     return BadRequest(response);
                 }
 
@@ -108,7 +109,7 @@ namespace BiatecTokensApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error overriding subscription tier for user {UserId}", request?.UserId);
+                _logger.LogError(ex, "Error overriding subscription tier for user {UserId}", LoggingHelper.SanitizeLogInput(request?.UserId ?? "unknown"));
                 return StatusCode(StatusCodes.Status500InternalServerError, new SubscriptionOverrideResponse
                 {
                     Success = false,

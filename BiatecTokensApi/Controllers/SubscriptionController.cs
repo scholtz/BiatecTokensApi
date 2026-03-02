@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.Subscription;
 using BiatecTokensApi.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -411,11 +412,11 @@ namespace BiatecTokensApi.Controllers
                 {
                     _logger.LogWarning(
                         "Failed to cancel subscription for user {UserAddress}: {Error}",
-                        userAddress, response.ErrorMessage);
+                        LoggingHelper.SanitizeLogInput(userAddress), response.ErrorMessage);
                     return BadRequest(response);
                 }
 
-                _logger.LogInformation("Subscription canceled for user {UserAddress}", userAddress);
+                _logger.LogInformation("Subscription canceled for user {UserAddress}", LoggingHelper.SanitizeLogInput(userAddress));
                 return Ok(response);
             }
             catch (Exception ex)
