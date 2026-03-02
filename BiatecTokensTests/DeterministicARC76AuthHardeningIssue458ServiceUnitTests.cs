@@ -59,6 +59,11 @@ namespace BiatecTokensTests
         private const string KnownPassword = "TestPassword123!";
         private const string KnownAddress = "4DV7T4TUCD4KCPMLCD2GHQGKNX4PTZPMTNJLH77DEH7ZPZHAIAYG5JBBRI";
 
+        // Synthetic test-only private key base64 derived from the known test vector.
+        // This value was computed on 2026-03-02 and corresponds to no real account holding assets.
+        // Never use this key in production.
+        private const string KnownTestPrivateKeyBase64 = "U23OZLAs/ZlYuxusrcx8QCk9ln0yp2OOTfqZ/sdj3bY=";
+
         private const string TestJwtSecret = "Issue458HardeningMilestoneSecretKey32CharsMin!!";
         private const string TestEncryptionKey = "Issue458HardeningMilestoneEncKey32CharsMin!!";
 
@@ -495,10 +500,9 @@ namespace BiatecTokensTests
         [Test]
         public void AC4_DeriveAddress_DoesNotReturnPrivateKeyMaterial()
         {
-            const string knownPrivateKeyBase64 = "U23OZLAs/ZlYuxusrcx8QCk9ln0yp2OOTfqZ/sdj3bY=";
             var address = _derivationService.DeriveAddress(KnownEmail, KnownPassword);
 
-            Assert.That(address, Does.Not.Contain(knownPrivateKeyBase64),
+            Assert.That(address, Does.Not.Contain(KnownTestPrivateKeyBase64),
                 "DeriveAddress output must not contain private key material");
             Assert.That(address.Length, Is.LessThanOrEqualTo(58),
                 "Algorand addresses are at most 58 characters — longer strings may contain raw key material");
@@ -508,10 +512,9 @@ namespace BiatecTokensTests
         [Test]
         public void AC4_DeriveAddressAndPublicKey_PublicKeyIsNotPrivateKey()
         {
-            const string knownPrivateKeyBase64 = "U23OZLAs/ZlYuxusrcx8QCk9ln0yp2OOTfqZ/sdj3bY=";
             var (address, publicKey) = _derivationService.DeriveAddressAndPublicKey(KnownEmail, KnownPassword);
 
-            Assert.That(publicKey, Is.Not.EqualTo(knownPrivateKeyBase64),
+            Assert.That(publicKey, Is.Not.EqualTo(KnownTestPrivateKeyBase64),
                 "PublicKey must not be the private key");
             Assert.That(address, Is.EqualTo(KnownAddress),
                 "Address must match known test vector");
@@ -693,6 +696,9 @@ namespace BiatecTokensTests
 
         /// <summary>
         /// Mimics the password hashing scheme used by AuthenticationService (salt:SHA256 format).
+        /// Each call generates a random salt — this is correct and intentional, matching the
+        /// service's behavior. AuthenticationService.VerifyPassword extracts the salt from the
+        /// stored hash string and recomputes, so random salts are properly handled.
         /// </summary>
         private static string HashPassword(string password)
         {

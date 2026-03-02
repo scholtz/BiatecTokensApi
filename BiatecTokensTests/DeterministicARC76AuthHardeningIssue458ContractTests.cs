@@ -48,6 +48,13 @@ namespace BiatecTokensTests
         private const string KnownPassword = "TestPassword123!";
         private const string KnownAddress = "4DV7T4TUCD4KCPMLCD2GHQGKNX4PTZPMTNJLH77DEH7ZPZHAIAYG5JBBRI";
 
+        // Synthetic test-only private key base64 for the known test vector.
+        // Corresponds to no real account holding assets. Never use in production.
+        private const string KnownTestPrivateKeyBase64 = "U23OZLAs/ZlYuxusrcx8QCk9ln0yp2OOTfqZ/sdj3bY=";
+
+        // A structurally valid JWT with tampered payload (invalid signature). Safe to use in tests.
+        private const string TamperedJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0YW1wZXJlZCIsImVtYWlsIjoiaGFja2VyQGV4YW1wbGUuY29tIn0.INVALIDSIGNATUREXXXXXXXXXXXXXXXXXXXXXX";
+
         private static readonly Dictionary<string, string?> TestConfiguration = new()
         {
             ["App:Account"] = "test test test test test test test test test test test test test test test test test test test test test test test test test",
@@ -266,9 +273,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task AC2_VerifySession_TamperedJWT_Returns401()
         {
-            // A structurally valid JWT with tampered payload (wrong signature)
-            const string tamperedJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0YW1wZXJlZCIsImVtYWlsIjoiaGFja2VyQGV4YW1wbGUuY29tIn0.INVALIDSIGNATUREXXXXXXXXXXXXXXXXXXXXXX";
-            using var authClient = CreateAuthenticatedClient(tamperedJwt);
+            using var authClient = CreateAuthenticatedClient(TamperedJwt);
             var resp = await authClient.PostAsync("/api/v1/auth/arc76/verify-session", null);
 
             Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
@@ -304,29 +309,28 @@ namespace BiatecTokensTests
             var email = $"ac2-wrong-458-{Guid.NewGuid()}@example.com";
             await RegisterAsync(email, "CorrectPass123!A");
 
-            // Then login with wrong password
+            // Then login with wrong password — must return 401 Unauthorized per AC2
             var resp = await _client.PostAsJsonAsync("/api/v1/auth/login",
                 new { email, password = "WrongPassword999!" });
 
-            Assert.That((int)resp.StatusCode, Is.EqualTo(401).Or.EqualTo(400),
-                "Wrong password must return 401 or 400");
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
+                "Wrong password must return 401 Unauthorized");
 
             var body = await resp.Content.ReadAsStringAsync();
             Assert.That(body, Is.Not.Null.And.Not.Empty,
                 "Error response must have a body (not empty)");
         }
 
-        /// <summary>AC2-C7: /auth/login with non-existent user returns 401 (not 500).</summary>
+        /// <summary>AC2-C7: /auth/login with non-existent user returns 401 (not 500 or 404).</summary>
         [Test]
         public async Task AC2_Login_NonExistentUser_Returns401_Not500()
         {
             var resp = await _client.PostAsJsonAsync("/api/v1/auth/login",
                 new { email = $"nonexistent-{Guid.NewGuid()}@ghost.com", password = "SomePass123!" });
 
-            Assert.That((int)resp.StatusCode, Is.Not.EqualTo(500),
-                "Non-existent user must not cause 500 Internal Server Error");
-            Assert.That((int)resp.StatusCode, Is.EqualTo(401).Or.EqualTo(400),
-                "Non-existent user login must return 401 or 400");
+            // Must return 401 — never 500 (prevents user enumeration, prevents leaking internals)
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
+                "Non-existent user login must return 401 Unauthorized (not 500 or 404)");
         }
 
         /// <summary>AC2-C8: /auth/session without token returns 401.</summary>
@@ -399,8 +403,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task AC3_TokenCreate_TamperedBearer_Returns401()
         {
-            const string tamperedJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0YW1wZXJlZCIsImVtYWlsIjoiaGFja2VyQGV4YW1wbGUuY29tIn0.INVALIDSIGNATUREXXXXXXXXXXXXXXXXXXXXXX";
-            using var authClient = CreateAuthenticatedClient(tamperedJwt);
+            using var authClient = CreateAuthenticatedClient(TamperedJwt);
             var resp = await authClient.PostAsJsonAsync("/api/v1/token/asa-ft/create",
                 new { name = "TestToken" });
 
@@ -627,9 +630,7 @@ namespace BiatecTokensTests
                 new { email = KnownEmail, password = KnownPassword });
             var body = await resp.Content.ReadAsStringAsync();
 
-            // The known private key base64 for the test vector
-            const string knownPrivateKeyBase64 = "U23OZLAs/ZlYuxusrcx8QCk9ln0yp2OOTfqZ/sdj3bY=";
-            Assert.That(body, Does.Not.Contain(knownPrivateKeyBase64),
+            Assert.That(body, Does.Not.Contain(KnownTestPrivateKeyBase64),
                 "Response body must never contain private key material");
             Assert.That(body, Does.Not.Contain("\"privateKey\""),
                 "Response body must not expose any field named 'privateKey'");
