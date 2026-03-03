@@ -97,6 +97,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all TokenDeploymentLifecycle types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.TokenDeploymentLifecycle")
                         return $"TokenDeploymentLifecycle{type.Name}";
+                    // Use namespace-qualified names for all BackendDeploymentLifecycle types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.BackendDeploymentLifecycle")
+                        return $"BackendDeploymentLifecycle{type.Name}";
                     return type.Name;
                 });
                 
@@ -288,6 +291,9 @@ namespace BiatecTokensApi
 
             // Register token deployment lifecycle service (Issue #470)
             builder.Services.AddSingleton<ITokenDeploymentLifecycleService, TokenDeploymentLifecycleService>();
+
+            // Register backend deployment lifecycle contract service (Issue #472)
+            builder.Services.AddSingleton<IBackendDeploymentLifecycleContractService, BackendDeploymentLifecycleContractService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
