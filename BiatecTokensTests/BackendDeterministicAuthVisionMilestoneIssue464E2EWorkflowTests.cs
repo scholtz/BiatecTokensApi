@@ -439,6 +439,9 @@ namespace BiatecTokensTests
 
         private static readonly Dictionary<string, string?> TestConfiguration = new()
         {
+            // Test-only configuration mnemonic (25 "test" words) – this is the standard BIP-39
+            // test vector used across all integration test configurations in this project.
+            // It does not correspond to any funded production account.
             ["App:Account"] = "test test test test test test test test test test test test test test test test test test test test test test test test test",
             ["AlgorandAuthentication:Realm"] = "BiatecTokens#ARC14",
             ["AlgorandAuthentication:CheckExpiration"] = "false",
@@ -709,7 +712,9 @@ namespace BiatecTokensTests
 
             Assert.That(firstRefreshResp.StatusCode,
                 Is.EqualTo(HttpStatusCode.OK).Or.EqualTo(HttpStatusCode.Unauthorized),
-                "TB4: First refresh must return 200 or 401, never 5xx");
+                "TB4: First refresh must return 200 or 401, never a 5xx server error");
+            Assert.That((int)firstRefreshResp.StatusCode, Is.LessThan(500),
+                "TB4: First refresh must not return any 5xx server error");
 
             if (firstRefreshResp.StatusCode == HttpStatusCode.OK)
             {
@@ -907,9 +912,11 @@ namespace BiatecTokensTests
         [Test]
         [TestCase("/api/v1/auth/login", """{"email":"invalid","password":"x"}""")]
         [TestCase("/api/v1/auth/register", """{"email":"invalid","password":"weak","confirmPassword":"weak"}""")]
+        [TestCase("/api/v1/auth/refresh", """{"refreshToken":"not-a-valid-refresh-token-464"}""")]
+        [TestCase("/api/v1/auth/arc76/validate", """{"email":"notanemail","password":"x"}""")]
         public async Task TB12_AuthEndpoints_InvalidInputs_NeverReturn500(string endpoint, string body)
         {
-            var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+            var content = new StringContent(body, Encoding.UTF8, "application/json");
             var resp = await _client.PostAsync(endpoint, content);
 
             Assert.That((int)resp.StatusCode, Is.Not.EqualTo(500),
