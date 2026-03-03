@@ -26,6 +26,14 @@ namespace BiatecTokensApi.Services
         private static readonly Regex EvmAddressPattern =
             new(@"^0x[0-9a-fA-F]{40}$", RegexOptions.Compiled);
 
+        // Confidence indicator keys
+        private static class IndicatorKeys
+        {
+            public const string MetadataVerified = "METADATA_VERIFIED";
+            public const string ExternallyVerified = "EXTERNALLY_VERIFIED";
+            public const string OnchainDataPresent = "ONCHAIN_DATA_PRESENT";
+        }
+
         // Algorand-family networks
         private static readonly HashSet<string> AlgorandNetworks = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -262,7 +270,7 @@ namespace BiatecTokensApi.Services
             // Confidence indicators
             indicators.Add(new ConfidenceIndicator
             {
-                Key = "METADATA_VERIFIED",
+                Key = IndicatorKeys.MetadataVerified,
                 IsPositive = metadataComplete,
                 Description = metadataComplete
                     ? "Token metadata is complete and verifiable."
@@ -271,7 +279,7 @@ namespace BiatecTokensApi.Services
 
             indicators.Add(new ConfidenceIndicator
             {
-                Key = "EXTERNALLY_VERIFIED",
+                Key = IndicatorKeys.ExternallyVerified,
                 IsPositive = isVerified,
                 Description = isVerified
                     ? "Token has been externally verified."
@@ -280,7 +288,7 @@ namespace BiatecTokensApi.Services
 
             indicators.Add(new ConfidenceIndicator
             {
-                Key = "ONCHAIN_DATA_PRESENT",
+                Key = IndicatorKeys.OnchainDataPresent,
                 IsPositive = assetId > 0,
                 Description = assetId > 0
                     ? "On-chain asset ID is present."
@@ -401,8 +409,9 @@ namespace BiatecTokensApi.Services
             // Apply asset filter if provided
             if (request.AssetFilter != null && request.AssetFilter.Count > 0)
             {
+                var filterSet = new HashSet<ulong>(request.AssetFilter);
                 holdings = holdings
-                    .Where(h => request.AssetFilter.Contains(h.AssetId))
+                    .Where(h => filterSet.Contains(h.AssetId))
                     .ToList();
             }
 
@@ -491,7 +500,10 @@ namespace BiatecTokensApi.Services
     // Extension method to check metadata completeness from HoldingIntelligence
     internal static class HoldingIntelligenceExtensions
     {
+        // Uses the same key string as PortfolioIntelligenceService.IndicatorKeys.MetadataVerified
+        private const string MetadataVerifiedKey = "METADATA_VERIFIED";
+
         internal static bool MetadataComplete(this HoldingIntelligence h) =>
-            !h.ConfidenceIndicators.Any(i => i.Key == "METADATA_VERIFIED" && !i.IsPositive);
+            !h.ConfidenceIndicators.Any(i => i.Key == MetadataVerifiedKey && !i.IsPositive);
     }
 }

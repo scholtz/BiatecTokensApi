@@ -86,7 +86,7 @@ namespace BiatecTokensApi.Models.Portfolio
         public string Network { get; set; } = string.Empty;
 
         /// <summary>Optional list of asset IDs to restrict analysis to a subset of holdings.</summary>
-        public IReadOnlyList<ulong>? AssetFilter { get; set; }
+        public List<ulong>? AssetFilter { get; set; }
 
         /// <summary>Whether to include detailed risk breakdown per holding.</summary>
         public bool IncludeRiskDetails { get; set; } = true;
