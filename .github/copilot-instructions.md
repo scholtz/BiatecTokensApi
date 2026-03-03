@@ -1173,3 +1173,43 @@ If you encounter ambiguous requirements or need to make architectural decisions:
 3. Maintain consistency with existing code style
 4. Prioritize security and data integrity
 5. Ask the user if uncertain about blockchain-specific requirements
+
+## CRITICAL: ARC76 PBKDF2 Performance in Tests
+
+**NEVER use more than 10 iterations** when testing ARC76 derivation determinism. ARC76 uses PBKDF2 under the hood which takes ~700ms per call in CI (shared compute). 
+
+- **WRONG**: `for (int i = 0; i < 1000; i++) { DeriveAddress(...) }` → takes ~11 minutes, times out CI
+- **CORRECT**: `const int iterations = 10; for (int i = 0; i < iterations; i++) { DeriveAddress(...) }` → takes ~7 seconds
+
+This was confirmed by `ARC76VisionMilestoneServiceUnitTests.cs` which already uses 10 iterations with the comment "10 iterations to keep test time reasonable while still proving determinism."
+
+**ALWAYS** check that your determinism loop uses ≤ 10 iterations before running. The number 1000 looks like a reasonable "stress test" count but it is completely inappropriate for PBKDF2-based derivation.
+
+**Lesson Learned (2026-03-03 - ARC76EmailDeployment vision milestone)**: Used 1000 iterations instead of 10, causing the test to run for 11 minutes and the CI to time out. The existing test file `ARC76VisionMilestoneServiceUnitTests.cs` shows the correct pattern (10 iterations). Always check existing similar tests before writing new ones.
+
+## CRITICAL: IDeploymentStatusRepository.CreateDeploymentAsync is void (not returning)
+
+`IDeploymentStatusRepository.CreateDeploymentAsync(TokenDeployment)` returns `Task` (not `Task<T>`). Always mock with `.Returns(Task.CompletedTask)` not `.ReturnsAsync(...)`.
+
+**CORRECT mock pattern:**
+```csharp
+_mockDeploymentRepo
+    .Setup(r => r.CreateDeploymentAsync(It.IsAny<TokenDeployment>()))
+    .Returns(Task.CompletedTask);
+```
+
+## CRITICAL: AuthenticationService.RegisterAsync mock requirements
+
+When mocking `IUserRepository` for `RegisterAsync`, you must mock **all three** methods:
+1. `UserExistsAsync` → `ReturnsAsync(false)`
+2. `CreateUserAsync` → `ReturnsAsync((User u) => u)`
+3. `StoreRefreshTokenAsync` → `Returns(Task.CompletedTask)`
+
+Missing `StoreRefreshTokenAsync` causes the response to fail silently (exception caught internally) and return `null` for `AlgorandAddress`.
+
+**CORRECT pattern:**
+```csharp
+_mockUserRepo.Setup(r => r.UserExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+_mockUserRepo.Setup(r => r.CreateUserAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
+_mockUserRepo.Setup(r => r.StoreRefreshTokenAsync(It.IsAny<RefreshToken>())).Returns(Task.CompletedTask);
+```
