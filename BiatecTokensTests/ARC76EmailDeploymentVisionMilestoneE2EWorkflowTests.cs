@@ -142,14 +142,14 @@ namespace BiatecTokensTests
                 c.Provider = keyMgmtConfig.Provider;
                 c.HardcodedKey = keyMgmtConfig.HardcodedKey;
             });
-            svc.AddSingleton<KeyProviderFactory>();
+            svc.AddSingleton<HardcodedKeyProvider>();
             var sp = svc.BuildServiceProvider();
 
             _authService = new AuthenticationService(
                 _mockUserRepo.Object,
                 authLogger.Object,
                 Options.Create(jwtConfig),
-                sp.GetRequiredService<KeyProviderFactory>());
+                new KeyProviderFactory(sp, Options.Create(keyMgmtConfig), new Mock<ILogger<KeyProviderFactory>>().Object));
 
             _mockDeploymentRepo = new Mock<IDeploymentStatusRepository>();
             _mockWebhookService = new Mock<IWebhookService>();
