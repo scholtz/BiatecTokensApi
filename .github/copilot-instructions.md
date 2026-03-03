@@ -1078,6 +1078,93 @@ dotnet test BiatecTokensTests/BiatecTokensTests.csproj --configuration Release -
 # Then: tail /tmp/test.log to see pass/fail summary
 ```
 
+## Mandatory Test Structure for Vision Milestone Issues (Lesson Learned 2026-03-03 — Issue #466, PR #467)
+
+**Root cause of PO rework request**: Initial PR for Issue #466 delivered ONLY a service unit test file (40 tests) and a contract test file (35 tests). The PO required the SAME 3-file test structure used in every previous vision milestone:
+
+1. `ServiceUnitTests.cs` — pure unit tests covering all domain logic branches
+2. `ContractTests.cs` — integration tests for HTTP wiring, DI resolution, auth boundaries, schema stability
+3. **`UserJourneyTests.cs`** — HP/II/BD/FR/NX user journey tests (MISSING IN INITIAL SUBMISSION)
+4. **`E2EWorkflowTests.cs`** — end-to-end workflow tests proving pipeline coherence (MISSING IN INITIAL SUBMISSION)
+
+**MANDATORY: ALL vision milestone issues require ALL FOUR test files.**
+
+### User Journey Test Pattern (HP/II/BD/FR/NX)
+
+Create `<Feature>UserJourneyIssue{N}Tests.cs` with these required categories:
+
+```csharp
+// HP = Happy Path — verify core success flows
+[Test] public async Task HP1_<Action>_<Context>_<ExpectedResult>() { }
+
+// II = Invalid Input — user mistake scenarios (null, empty, malformed, wrong type)
+[Test] public async Task II1_<BadInput>_ReturnsGracefulError_NotException() { }
+
+// BD = Boundary — edge/limit cases
+[Test] public async Task BD1_<Boundary>_ProducesCorrectResult() { }
+
+// FR = Failure-Recovery — behavior after errors
+[Test] public async Task FR1_<FailureScenario>_ReturnsDegradedMode_NotException() { }
+
+// NX = Non-Crypto-Native Experience — messages are human-readable
+[Test] public void NX1_<Message>_IsActionable_NotTechnical() { }
+```
+
+**Minimum test counts per category**:
+- HP: 6+ tests (all primary success scenarios)
+- II: 5+ tests (null/empty/malformed/wrong-type/cross-chain)
+- BD: 5+ tests (empty collections, single items, filter exact match/no match, max values)
+- FR: 3+ tests (unknown input, multiple retries, state isolation)
+- NX: 5+ tests (message readability, no raw codes, no nulls, timestamps, descriptions)
+
+### E2E Workflow Test Pattern
+
+Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
+
+```csharp
+// Part A: Service-layer workflow tests (no WebApplicationFactory)
+// WA = full pipeline workflow (stage1→stage2→stage3 all coherent)
+// WB = specific sub-workflow (opportunity discovery, signal mapping)
+// WC = filter/scope workflow
+// WD = action/decision workflow
+// WE = idempotency (3 consecutive identical runs)
+// WF = summary/aggregate accuracy
+
+// Part B: Integration via WebApplicationFactory
+// WG = DI resolution, auth boundary (401), schema stability, application startup
+```
+
+**WE (idempotency) is MANDATORY**: Always have a test that calls the service 3 times with identical inputs and asserts all 3 results are identical. This proves determinism.
+
+### Total Test Count Targets (per vision milestone)
+
+| File | Minimum |
+|------|---------|
+| `ServiceUnitTests.cs` | 40 |
+| `ContractTests.cs` | 33+ |
+| `UserJourneyTests.cs` | 25+ |
+| `E2EWorkflowTests.cs` | 15+ |
+| **Total** | **113+** |
+
+Issue #466 final counts: 40 unit + 35 contract + 29 journey + 16 E2E = **120 tests**.
+
+**ALWAYS verify all 4 test files pass before report_progress:**
+```bash
+dotnet test BiatecTokensTests --configuration Release \
+  --filter "FullyQualifiedName~Issue{N}" 2>&1 | tail -5
+```
+
+### Alignment with Product Roadmap
+
+**ALWAYS check the roadmap before implementing**: https://raw.githubusercontent.com/scholtz/biatec-tokens/refs/heads/main/business-owner-roadmap.md
+
+For each vision milestone, identify which roadmap items the feature advances and include this in:
+1. The PR description (Roadmap Alignment section)
+2. Each test file's class-level `<summary>` comment
+3. The user journey file's `USER IMPACT RATIONALE` section
+
+The roadmap uses percentages (e.g., "Portfolio Analytics (15%)"). Claim improvement only when code actually advances the capability, not when just adding tests.
+
 ## Questions and Clarifications
 
 If you encounter ambiguous requirements or need to make architectural decisions:
