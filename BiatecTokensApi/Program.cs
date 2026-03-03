@@ -90,6 +90,10 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all TokenLaunch types for consistency
                     if (type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
                         return $"TokenLaunch{type.Name}";
+                    // Use namespace-qualified names for all Portfolio types to avoid conflicts
+                    // (e.g., ConfidenceLevel conflicts with OperationalIntelligence.ConfidenceLevel)
+                    if (type.Namespace == "BiatecTokensApi.Models.Portfolio")
+                        return $"Portfolio{type.Name}";
                     return type.Name;
                 });
                 
@@ -255,6 +259,9 @@ namespace BiatecTokensApi
             // Register wallet connection service for connection state management and network mismatch detection
             builder.Services.AddSingleton<IWalletConnectionService, WalletConnectionService>();
             builder.Services.AddSingleton<IWalletRoutingService, WalletRoutingService>();
+
+            // Register portfolio intelligence service for aggregated holdings context and risk signals
+            builder.Services.AddSingleton<IPortfolioIntelligenceService, PortfolioIntelligenceService>();
 
             // Register entitlement and readiness services
             builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
