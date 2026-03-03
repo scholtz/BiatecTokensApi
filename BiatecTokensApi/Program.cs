@@ -256,6 +256,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IWalletConnectionService, WalletConnectionService>();
             builder.Services.AddSingleton<IWalletRoutingService, WalletRoutingService>();
 
+            // Register portfolio intelligence service for aggregated holdings context and risk signals
+            builder.Services.AddSingleton<IPortfolioIntelligenceService, PortfolioIntelligenceService>();
+
             // Register entitlement and readiness services
             builder.Services.AddSingleton<IEntitlementEvaluationService, EntitlementEvaluationService>();
             builder.Services.AddSingleton<IARC76AccountReadinessService, ARC76AccountReadinessService>();
