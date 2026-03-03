@@ -90,6 +90,10 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all TokenLaunch types for consistency
                     if (type.Namespace == "BiatecTokensApi.Models.TokenLaunch")
                         return $"TokenLaunch{type.Name}";
+                    // Use namespace-qualified names for all Portfolio types to avoid conflicts
+                    // (e.g., ConfidenceLevel conflicts with OperationalIntelligence.ConfidenceLevel)
+                    if (type.Namespace == "BiatecTokensApi.Models.Portfolio")
+                        return $"Portfolio{type.Name}";
                     return type.Name;
                 });
                 
