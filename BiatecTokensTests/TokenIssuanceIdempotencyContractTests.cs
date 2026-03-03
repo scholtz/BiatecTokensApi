@@ -119,8 +119,10 @@ namespace BiatecTokensTests
             // Act
             var response = await _client.SendAsync(requestMessage);
             
-            // Assert - Correlation ID should be preserved in response
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            // Assert - Correlation ID should be preserved in response.
+            // Health endpoint can return 200 or 503 depending on external dependency availability.
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK)
+                .Or.EqualTo(HttpStatusCode.ServiceUnavailable));
             Assert.That(response.Headers.Contains("X-Correlation-ID"), Is.True,
                 "Response should include X-Correlation-ID header");
             
@@ -232,7 +234,9 @@ namespace BiatecTokensTests
             firstRequestMessage.Headers.Add("X-Correlation-ID", "correlation-1");
             
             var firstResponse = await _client.SendAsync(firstRequestMessage);
-            Assert.That(firstResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            // Health endpoint can return 200 or 503 depending on external dependency availability.
+            Assert.That(firstResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK)
+                .Or.EqualTo(HttpStatusCode.ServiceUnavailable));
             
             // Act - Second request to different endpoint with same idempotency key
             var secondRequestMessage = new HttpRequestMessage(HttpMethod.Get, "/api/v1/arc76/account-readiness");
@@ -300,7 +304,10 @@ namespace BiatecTokensTests
                 
                 var response = await _client.SendAsync(requestMessage);
                 
-                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                // Health endpoint returns 200 when all checks pass, or 503 when external
+                // dependencies (e.g. Algorand nodes) are unreachable. Both are valid responses.
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK)
+                    .Or.EqualTo(HttpStatusCode.ServiceUnavailable));
                 
                 if (response.Headers.Contains("X-Correlation-ID"))
                 {
