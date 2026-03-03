@@ -1051,6 +1051,33 @@ dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Fea
 dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Feature}ContractTests"
 ```
 
+**Lesson Learned (2026-03-02 - Issue #462, PR #463)**: CI had 1 test failing out of 3992 because `SB5_EmptyRefreshToken_Returns401` asserted HTTP 401, but the real behavior is HTTP 400 (model validation failure for empty required field).
+
+**Root cause**: When a required JSON field is empty string `""`, ASP.NET Core model validation fires BEFORE auth processing and returns 400 Bad Request — not 401 Unauthorized. The test was overly prescriptive about the HTTP status code.
+
+**Corrective action**: When testing rejection of invalid inputs (empty, null, malformed), assert the status code as `Is.EqualTo(HttpStatusCode.BadRequest).Or.EqualTo(HttpStatusCode.Unauthorized)` because:
+- Empty/null values → 400 (model validation layer rejects before auth runs)
+- Random non-empty garbage → 401 (auth layer rejects after model validation passes)
+
+**Pattern for input rejection tests:**
+```csharp
+// WRONG: Too prescriptive - empty string hits model validation (400) not auth (401)
+Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+
+// CORRECT: Accept either rejection status - both indicate the request was correctly refused
+Assert.That(resp.StatusCode, 
+    Is.EqualTo(HttpStatusCode.BadRequest).Or.EqualTo(HttpStatusCode.Unauthorized),
+    "Invalid input must be rejected (400=validation, 401=auth), never 200 or 5xx");
+```
+
+**Always run ALL tests locally BEFORE committing by checking exit code**:
+```bash
+# Check exit code - if non-zero, a test failed even if grep shows nothing
+dotnet test BiatecTokensTests/BiatecTokensTests.csproj --configuration Release --no-build \
+  --filter "FullyQualifiedName~{Feature}" > /tmp/test.log 2>&1; echo "EXIT:$?"
+# Then: tail /tmp/test.log to see pass/fail summary
+```
+
 ## Questions and Clarifications
 
 If you encounter ambiguous requirements or need to make architectural decisions:
