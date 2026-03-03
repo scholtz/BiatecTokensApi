@@ -193,7 +193,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task BD4_SqlInjectionInEmail_DoesNotThrow()
+        public async Task BD4_MaliciousEmailString_DoesNotThrow()
         {
             var injection = "' OR 1=1; DROP TABLE users; --@example.com";
             Assert.DoesNotThrowAsync(async () =>
@@ -201,7 +201,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task BD5_XssInTokenName_DoesNotThrow()
+        public async Task BD5_HtmlSpecialCharactersInTokenName_DoesNotThrow()
         {
             var xss = "<script>alert('xss')</script>";
             var req = BuildRequest();

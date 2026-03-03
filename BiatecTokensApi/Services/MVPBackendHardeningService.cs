@@ -178,9 +178,14 @@ namespace BiatecTokensApi.Services
                 return Task.FromResult(err);
             }
 
-            // Clamp MaxRetries to non-negative
+            // Validate MaxRetries: reject negative values explicitly
             if (request.MaxRetries < 0)
-                request.MaxRetries = 0;
+            {
+                var err = BuildDeploymentError("INVALID_MAX_RETRIES", "MaxRetries must be non-negative.",
+                    "Set MaxRetries to 0 or a positive integer.", correlationId);
+                RecordAudit("InitiateDeployment", correlationId, null, false, "INVALID_MAX_RETRIES");
+                return Task.FromResult(err);
+            }
 
             lock (_lock)
             {
@@ -189,10 +194,11 @@ namespace BiatecTokensApi.Services
                     _idempotencyIndex.TryGetValue(request.IdempotencyKey, out var existingId) &&
                     _deploymentStore.TryGetValue(existingId, out var existing))
                 {
-                    // Verify critical fields match to prevent idempotency key reuse with different params
+                    // Verify all critical fields match to prevent idempotency key reuse with different params
                     if (!string.Equals(existing.TokenName, request.TokenName, StringComparison.Ordinal) ||
                         !string.Equals(existing.Network, request.Network, StringComparison.Ordinal) ||
-                        !string.Equals(existing.DeployerAddress, request.DeployerAddress, StringComparison.Ordinal))
+                        !string.Equals(existing.DeployerAddress, request.DeployerAddress, StringComparison.Ordinal) ||
+                        !string.Equals(existing.TokenStandard, request.TokenStandard, StringComparison.Ordinal))
                     {
                         _logger.LogWarning("IdempotencyKeyMismatch key={Key}", LoggingHelper.SanitizeLogInput(request.IdempotencyKey));
                         var mismatch = BuildDeploymentError("IDEMPOTENCY_KEY_MISMATCH",
