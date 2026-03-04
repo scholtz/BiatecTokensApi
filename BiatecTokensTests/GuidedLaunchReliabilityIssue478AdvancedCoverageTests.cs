@@ -95,14 +95,15 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task Branch_Stage_Failed_NextAction_Populated()
+        public async Task Branch_Stage_Submitted_NextAction_IsPresent()
         {
-            // Inject Failed by examining GetNextAction via GetComplianceMessages internal logic
-            // Directly check the GetNextAction string for Failed stage through status reads
-            var r = await _service.InitiateLaunchAsync(Req());
-            // The stage machine does not auto-fail; we verify the Failed path description exists
-            // by checking that the state machine maps all stages to non-null NextAction
-            Assert.That(r.NextAction, Is.Not.Null); // TokenDetails
+            // Advance through the full path to verify Submitted stage has a defined NextAction.
+            // (Failed stage requires a Submitted→Failed transition; exposed via schema separately.)
+            var id = (await _service.InitiateLaunchAsync(Req())).LaunchId!;
+            await Advance(id); await Advance(id); await Advance(id); await Advance(id); // reach Submitted
+            var status = await _service.GetLaunchStatusAsync(id, null);
+            Assert.That(status!.NextAction, Is.Not.Null.And.Not.Empty);
+            Assert.That(status.Stage, Is.EqualTo(LaunchStage.Submitted));
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -526,64 +527,58 @@ namespace BiatecTokensTests
         // ════════════════════════════════════════════════════════════════════
 
         [Test]
-        public async Task Malformed_SqlInjection_TokenName_DoesNotThrow()
+        public async Task Malformed_SqlInjection_TokenName_Succeeds()
         {
+            // SQL injection string is non-null/non-empty – passes name validation → Success
             var sqlInput = "'; DROP TABLE tokens; --";
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
-                    { TokenName = sqlInput, TokenStandard = "ASA", OwnerId = "o1" });
-                // Service must handle gracefully (either succeed or fail cleanly)
-                Assert.That(r.LaunchId != null || r.ErrorCode != null, Is.True);
-            });
+            var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
+                { TokenName = sqlInput, TokenStandard = "ASA", OwnerId = "o1" });
+            Assert.That(r.Success, Is.True, "SQL injection in token name must not break the service");
+            Assert.That(r.LaunchId, Is.Not.Null);
         }
 
         [Test]
-        public async Task Malformed_XssPayload_TokenName_DoesNotThrow()
+        public async Task Malformed_XssPayload_TokenName_Succeeds()
         {
+            // XSS string is non-null/non-empty – passes name validation → Success
             var xssInput = "<script>alert('xss')</script>";
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
-                    { TokenName = xssInput, TokenStandard = "ASA", OwnerId = "o1" });
-                Assert.That(r.LaunchId != null || r.ErrorCode != null, Is.True);
-            });
+            var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
+                { TokenName = xssInput, TokenStandard = "ASA", OwnerId = "o1" });
+            Assert.That(r.Success, Is.True, "XSS payload in token name must not break the service");
+            Assert.That(r.LaunchId, Is.Not.Null);
         }
 
         [Test]
-        public async Task Malformed_NullByteInOwnerId_DoesNotThrow()
+        public async Task Malformed_NullByteInOwnerId_Succeeds()
         {
+            // Null-byte string is non-empty – passes OwnerId validation → Success
             var nullByte = "owner\0id";
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
-                    { TokenName = "T", TokenStandard = "ASA", OwnerId = nullByte });
-                Assert.That(r.LaunchId != null || r.ErrorCode != null, Is.True);
-            });
+            var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
+                { TokenName = "T", TokenStandard = "ASA", OwnerId = nullByte });
+            Assert.That(r.Success, Is.True, "Null byte in OwnerId must not break the service");
+            Assert.That(r.LaunchId, Is.Not.Null);
         }
 
         [Test]
-        public async Task Malformed_OversizedTokenName_8000Chars_DoesNotThrow()
+        public async Task Malformed_OversizedTokenName_8000Chars_Succeeds()
         {
+            // 8000-char name passes non-empty validation → Success (no max-length constraint at MVP)
             var huge = new string('X', 8000);
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
-                    { TokenName = huge, TokenStandard = "ASA", OwnerId = "o1" });
-                Assert.That(r.LaunchId != null || r.ErrorCode != null, Is.True);
-            });
+            var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
+                { TokenName = huge, TokenStandard = "ASA", OwnerId = "o1" });
+            Assert.That(r.Success, Is.True, "Oversized token name must not throw");
+            Assert.That(r.LaunchId, Is.Not.Null);
         }
 
         [Test]
-        public async Task Malformed_UnicodeOwner_DoesNotThrow()
+        public async Task Malformed_UnicodeOwner_Succeeds()
         {
+            // Unicode string is non-empty – passes OwnerId validation → Success
             var unicode = "用户测试_👤_Пользователь";
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
-                    { TokenName = "T", TokenStandard = "ASA", OwnerId = unicode });
-                Assert.That(r.LaunchId != null || r.ErrorCode != null, Is.True);
-            });
+            var r = await _service.InitiateLaunchAsync(new GuidedLaunchInitiateRequest
+                { TokenName = "T", TokenStandard = "ASA", OwnerId = unicode });
+            Assert.That(r.Success, Is.True, "Unicode OwnerId must not break the service");
+            Assert.That(r.LaunchId, Is.Not.Null);
         }
 
         [Test]
