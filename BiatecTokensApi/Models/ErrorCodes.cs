@@ -503,5 +503,27 @@ namespace BiatecTokensApi.Models
         /// The operation is blocked by a platform policy
         /// </summary>
         public const string POLICY_VIOLATION = "POLICY_VIOLATION";
+
+        // AML errors
+        /// <summary>AML provider call timed out</summary>
+        public const string AML_PROVIDER_TIMEOUT = "AML_PROVIDER_TIMEOUT";
+
+        /// <summary>AML provider service is unavailable</summary>
+        public const string AML_PROVIDER_UNAVAILABLE = "AML_PROVIDER_UNAVAILABLE";
+
+        /// <summary>AML provider returned a response that could not be parsed</summary>
+        public const string AML_MALFORMED_RESPONSE = "AML_MALFORMED_RESPONSE";
+
+        /// <summary>AML screening resulted in a rejection (sanctions match)</summary>
+        public const string AML_SCREENING_REJECTED = "AML_SCREENING_REJECTED";
+
+        /// <summary>AML screening requires manual review</summary>
+        public const string AML_SCREENING_NEEDS_REVIEW = "AML_SCREENING_NEEDS_REVIEW";
+
+        /// <summary>Compliance check with the given decision ID was not found</summary>
+        public const string COMPLIANCE_CHECK_NOT_FOUND = "COMPLIANCE_CHECK_NOT_FOUND";
+
+        /// <summary>Idempotency key was reused with different request parameters</summary>
+        public const string COMPLIANCE_IDEMPOTENCY_KEY_MISMATCH = "COMPLIANCE_IDEMPOTENCY_KEY_MISMATCH";
     }
 }

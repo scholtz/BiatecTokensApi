@@ -102,6 +102,9 @@ namespace BiatecTokensApi
                         return $"BackendDeploymentLifecycle{type.Name}";
                     if (type.Namespace == "BiatecTokensApi.Models.MVPHardening")
                         return $"MVPHardening{type.Name}";
+                    // Use namespace-qualified names for all ComplianceOrchestration types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.ComplianceOrchestration")
+                        return $"ComplianceOrchestration{type.Name}";
                     return type.Name;
                 });
                 
@@ -252,6 +255,8 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IIssuanceRiskScoringService, IssuanceRiskScoringService>();
             builder.Services.AddSingleton<IKycProvider, MockKycProvider>();
             builder.Services.AddSingleton<IKycService, KycService>();
+            builder.Services.AddSingleton<IAmlProvider, MockAmlProvider>();
+            builder.Services.AddSingleton<IComplianceOrchestrationService, ComplianceOrchestrationService>();
 
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
             
