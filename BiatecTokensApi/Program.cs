@@ -105,6 +105,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ComplianceOrchestration types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ComplianceOrchestration")
                         return $"ComplianceOrchestration{type.Name}";
+                    // Use namespace-qualified names for all GuidedLaunchReliability types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.GuidedLaunchReliability")
+                        return $"GuidedLaunchReliability{type.Name}";
                     return type.Name;
                 });
                 
@@ -302,6 +305,9 @@ namespace BiatecTokensApi
             // Register backend deployment lifecycle contract service (Issue #472)
             builder.Services.AddSingleton<IBackendDeploymentLifecycleContractService, BackendDeploymentLifecycleContractService>();
             builder.Services.AddSingleton<IMVPBackendHardeningService, MVPBackendHardeningService>();
+
+            // Register guided launch reliability service (Issue #478)
+            builder.Services.AddSingleton<IGuidedLaunchReliabilityService, GuidedLaunchReliabilityService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
