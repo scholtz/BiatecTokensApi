@@ -111,6 +111,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all DeterministicOrchestration types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.DeterministicOrchestration")
                         return $"DeterministicOrchestration{type.Name}";
+                    // Use namespace-qualified names for all ARC76MVPPipeline types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.ARC76MVPPipeline")
+                        return $"ARC76MVPPipeline{type.Name}";
                     return type.Name;
                 });
                 
@@ -314,6 +317,9 @@ namespace BiatecTokensApi
 
             // Register deterministic orchestration service (Issue #480)
             builder.Services.AddSingleton<IDeterministicOrchestrationService, DeterministicOrchestrationService>();
+
+            // Register ARC76 MVP deployment pipeline service
+            builder.Services.AddSingleton<IARC76MVPDeploymentPipelineService, ARC76MVPDeploymentPipelineService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
