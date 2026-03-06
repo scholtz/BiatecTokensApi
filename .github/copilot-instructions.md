@@ -203,6 +203,8 @@
 
 **CI NOTE**: The `action_required` status on "Validate Workflow Permissions" and "Test Pull Request" workflows is NOT a test failure. It is a GitHub security restriction requiring manual maintainer approval before running CI on PRs from agents. The product owner (repo owner) must approve the CI run at https://github.com/scholtz/BiatecTokensApi/actions. This is not fixable in code — it requires clicking "Approve and run" in the GitHub UI. When the PO says "lacks a passing CI signal", they must approve the pending workflow run first.
 
+**Lesson Learned (2026-03-06 - Issue #484, PR #485)**: The Test Results check failed because `test-results.trx` contained oversized `<Output>` nodes that exceeded the XML parser limits in `publish-unit-test-result-action`. When adding large test suites, ensure the workflow sanitizes TRX output (strip `<Output>` nodes) before publishing results to avoid parser failures.
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:
