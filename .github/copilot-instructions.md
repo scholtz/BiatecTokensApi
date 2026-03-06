@@ -1142,14 +1142,14 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 50+ |
+| `ServiceUnitTests.cs` | 60+ |
 | `ContractTests.cs` | 38+ |
 | `UserJourneyTests.cs` | 40+ |
-| `E2EWorkflowTests.cs` | 17+ |
-| `AdvancedCoverageTests.cs` | 55+ |
-| **Total** | **200+** |
+| `E2EWorkflowTests.cs` | 22+ |
+| `AdvancedCoverageTests.cs` | 65+ |
+| **Total** | **225+** |
 
-Issue #484 final counts: 52 unit + 38 contract + 40 journey + 17 E2E + 57 advanced = **204 tests**.
+Issue #484 final counts: 60 unit + 38 contract + 40 journey + 22 E2E + 66 advanced = **226 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
@@ -1164,13 +1164,14 @@ dotnet test BiatecTokensTests --configuration Release \
   --filter "FullyQualifiedName~ARC76MVPDeployment" 2>&1 | tail -5
 ```
 
-**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request)**: Product owner posted same coverage request TWICE because:
-- ❌ Initial delivery had 140 tests (too few)
-- ❌ First fix had 182 tests (still not enough - PO requested more)
-- ✅ Final delivery: 204 tests across 5 files
-- **Key**: ServiceUnitTests must be 50+, UserJourneyTests must be 40+, Total must be 200+
+**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x3)**: Product owner posted same coverage request THREE times because:
+- ❌ Initial delivery had 140 tests (too few - 4 files, wrong minimums)
+- ❌ First fix had 182 tests (still not enough - PO re-requested again)
+- ❌ Second fix had 204 tests (PO requested a THIRD time)
+- ✅ Final delivery: 226 tests across 5 files
+- **Key**: ServiceUnitTests must be 60+, E2EWorkflowTests must be 22+, AdvancedCoverageTests must be 65+, Total must be 225+
 
-**Action Required**: ALWAYS deliver 5 test files with 200+ total tests. First attempt had 140 tests (4 mandatory files, wrong minimums). Second attempt had 182 (right files, minimums too low). Final: 204 tests meeting all thresholds.
+**Action Required**: ALWAYS deliver 5 test files with 225+ total tests. Each iteration that fell short raised the minimum by ~25 tests. Start high and stay high.
 
 ### Alignment with Product Roadmap
 
