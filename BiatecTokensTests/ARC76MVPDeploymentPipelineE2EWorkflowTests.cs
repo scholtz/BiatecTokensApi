@@ -1090,5 +1090,204 @@ namespace BiatecTokensTests
             var audit = await svc.GetAuditAsync(r.PipelineId!, null);
             Assert.That(audit.Events.Count, Is.EqualTo(1), "After initiation only, audit should have exactly 1 event");
         }
+
+        [Test]
+        public async Task WZ1_FullLifecycle_ASA_Mainnet_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-asa-mn-" + Guid.NewGuid());
+            req.TokenStandard = "ASA";
+            req.Network = "mainnet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WZ2_FullLifecycle_ARC1400_Testnet_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-arc1400-tn-" + Guid.NewGuid());
+            req.TokenStandard = "ARC1400";
+            req.Network = "testnet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WZ3_FullLifecycle_ERC20_Base_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-erc20-base-" + Guid.NewGuid());
+            req.TokenStandard = "ERC20";
+            req.Network = "base";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WZ4_IdempotencyReplay_Stability_ThreeRunsSamePipeline()
+        {
+            var svc = CreateService();
+            var key = "e2e-idem-stable-" + Guid.NewGuid();
+            var r1 = await svc.InitiateAsync(ValidRequest(idempotencyKey: key));
+            var r2 = await svc.InitiateAsync(ValidRequest(idempotencyKey: key));
+            var r3 = await svc.InitiateAsync(ValidRequest(idempotencyKey: key));
+            Assert.That(r1.PipelineId, Is.EqualTo(r2.PipelineId));
+            Assert.That(r2.PipelineId, Is.EqualTo(r3.PipelineId));
+        }
+
+        [Test]
+        public async Task WZ5_CorrelationId_Propagated_InAdvanceResponse()
+        {
+            var svc = CreateService();
+            var corrId = "e2e-corr-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(ValidRequest(correlationId: corrId));
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId, CorrelationId = corrId });
+            Assert.That(adv.CorrelationId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task WZ6_CancelAtReadinessVerified_ReturnsProperStage()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task WZ7_AuditEvents_GrowMonotonically_WithEachAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            int previous = 1;
+            for (int i = 0; i < 5; i++)
+            {
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+                Assert.That(audit.Events.Count, Is.GreaterThan(previous));
+                previous = audit.Events.Count;
+            }
+        }
+
+        [Test]
+        public async Task WZ8_GetAuditEvents_AfterFullLifecycle_Returns10Events()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.Count, Is.EqualTo(10));
+        }
+
+        [Test]
+        public async Task WZ9_FullLifecycle_Voimain_ARC3_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-voimain-arc3-" + Guid.NewGuid());
+            req.TokenStandard = "ARC3";
+            req.Network = "voimain";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WA2_FullLifecycle_Betanet_ASA_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-betanet-asa-" + Guid.NewGuid());
+            req.TokenStandard = "ASA";
+            req.Network = "betanet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WA3_CancelAtValidationPending_StatusIsCancelled()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 2; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task WA4_AuditEventType_IsNonNull()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.All(e => e.Operation != null), Is.True);
+        }
+
+        [Test]
+        public async Task WA5_AdvanceOnCompleted_ReturnsTerminalStage()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task WA6_MultipleSequentialPipelines_EachComplete()
+        {
+            var svc = CreateService();
+            for (int p = 0; p < 3; p++)
+            {
+                var r = await svc.InitiateAsync(ValidRequest(idempotencyKey: "e2e-seq-" + p + "-" + Guid.NewGuid()));
+                await AdvanceAllStagesAsync(svc, r.PipelineId!);
+                var status = await svc.GetStatusAsync(r.PipelineId!, null);
+                Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed), $"Pipeline {p} should complete");
+            }
+        }
+
+        [Test]
+        public async Task WA7_UniqueIdempotencyKeys_GiveUniquePipelineIds()
+        {
+            var svc = CreateService();
+            var ids = new HashSet<string?>();
+            for (int i = 0; i < 5; i++)
+            {
+                var r = await svc.InitiateAsync(ValidRequest(idempotencyKey: "e2e-unique-" + i + "-" + Guid.NewGuid()));
+                ids.Add(r.PipelineId);
+            }
+            Assert.That(ids.Count, Is.EqualTo(5));
+        }
+
+        [Test]
+        public async Task WA8_GetStatus_AfterInitiate_DeployerAddressMatches()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-depladdr-" + Guid.NewGuid());
+            req.DeployerAddress = "ALGO_E2E_DEPL_ADDR";
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.DeployerAddress, Is.EqualTo("ALGO_E2E_DEPL_ADDR"));
+        }
     }
 }

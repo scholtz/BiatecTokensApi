@@ -1322,5 +1322,193 @@ namespace BiatecTokensTests
             var status = await _svc.GetStatusAsync(r.PipelineId!, null);
             Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
         }
+
+        [Test]
+        public async Task MaxRetries2_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 2;
+            req.IdempotencyKey = "uj-maxretries2-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task TokenNameWithNumbers_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.TokenName = "Token2025ABC";
+            req.IdempotencyKey = "uj-numname-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task ARC200_Mainnet_FullLifecycle_Succeeds()
+        {
+            var req = ValidRequest("mainnet", "ARC200");
+            req.IdempotencyKey = "uj-arc200-mn-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task ERC20_Base_MultipleAdvances_Succeeds()
+        {
+            var req = ValidRequest("base", "ERC20");
+            req.IdempotencyKey = "uj-erc20-base-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 5);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.CompliancePassed));
+        }
+
+        [Test]
+        public async Task IdempotencyReplay_3Calls_ReturnSamePipelineId()
+        {
+            var key = "uj-idem3-" + Guid.NewGuid();
+            var r1 = await _svc.InitiateAsync(new PipelineInitiateRequest { TokenName = "JourneyToken", TokenStandard = "ARC3", Network = "testnet", DeployerAddress = "ALGO_ENTERPRISE_ADDRESS", MaxRetries = 3, IdempotencyKey = key, CorrelationId = Guid.NewGuid().ToString() });
+            var r2 = await _svc.InitiateAsync(new PipelineInitiateRequest { TokenName = "JourneyToken", TokenStandard = "ARC3", Network = "testnet", DeployerAddress = "ALGO_ENTERPRISE_ADDRESS", MaxRetries = 3, IdempotencyKey = key, CorrelationId = Guid.NewGuid().ToString() });
+            var r3 = await _svc.InitiateAsync(new PipelineInitiateRequest { TokenName = "JourneyToken", TokenStandard = "ARC3", Network = "testnet", DeployerAddress = "ALGO_ENTERPRISE_ADDRESS", MaxRetries = 3, IdempotencyKey = key, CorrelationId = Guid.NewGuid().ToString() });
+            Assert.That(r1.PipelineId, Is.EqualTo(r2.PipelineId));
+            Assert.That(r2.PipelineId, Is.EqualTo(r3.PipelineId));
+        }
+
+        [Test]
+        public async Task CompletedPipeline_AdvanceFurther_ReturnsError()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task VoimainNetwork_FullLifecycle_Succeeds()
+        {
+            var req = ValidRequest("voimain", "ASA");
+            req.IdempotencyKey = "uj-voimain-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task BetanetNetwork_FullLifecycle_Succeeds()
+        {
+            var req = ValidRequest("betanet", "ARC3");
+            req.IdempotencyKey = "uj-betanet-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task ARC1400_Standard_Succeeds()
+        {
+            var req = ValidRequest("testnet", "ARC1400");
+            req.IdempotencyKey = "uj-arc1400-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task CancelAtCompliancePassed_ThenStatus_IsCancelled()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 5);
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task GetAudit_AfterFullLifecycle_Has10Events()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var audit = await _svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit!.Events.Count, Is.EqualTo(10));
+        }
+
+        [Test]
+        public async Task CancelThenAdvance_ReturnsError()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.False);
+        }
+
+        [Test]
+        public async Task AuditEvents_Count_GrowsWithAdvances()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            for (int i = 1; i <= 5; i++)
+            {
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                var audit = await _svc.GetAuditAsync(r.PipelineId!, null);
+                Assert.That(audit!.Events.Count, Is.EqualTo(i + 1));
+            }
+        }
+
+        [Test]
+        public async Task AdvanceAsync_CorrelationId_Propagated()
+        {
+            var corrId = "uj-corr-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId, CorrelationId = corrId });
+            Assert.That(adv.CorrelationId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task InitiateAsync_MaxRetries10_Accepted()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 10;
+            req.IdempotencyKey = "uj-maxretries10-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task Stage6_After6Advances_Is_DeploymentQueued()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 6);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.DeploymentQueued));
+        }
+
+        [Test]
+        public async Task RetryAsync_OnCompletedPipeline_ReturnsNotInFailedState()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var retry = await _svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.Success, Is.False);
+            Assert.That(retry.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        [Test]
+        public async Task GetStatus_Returns_DeployerAddress_MatchingRequest()
+        {
+            var req = ValidRequest();
+            req.DeployerAddress = "ALGO_JOURNEY_ADDR_01";
+            req.IdempotencyKey = "uj-depladdr-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.DeployerAddress, Is.EqualTo("ALGO_JOURNEY_ADDR_01"));
+        }
     }
 }

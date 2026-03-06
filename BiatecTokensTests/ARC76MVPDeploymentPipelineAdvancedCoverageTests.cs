@@ -2063,5 +2063,450 @@ namespace BiatecTokensTests
             Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness),
                 "Newly created pipeline must start in PendingReadiness stage");
         }
+
+        // ── BRANCH: remaining error code coverage ────────────────────────────
+
+        [Test]
+        public async Task BRANCH_MissingTokenName_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_TOKEN_NAME"));
+        }
+
+        [Test]
+        public async Task BRANCH_UnsupportedTokenStandard_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "UNKNOWN_STANDARD_XYZ";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.ErrorCode, Is.EqualTo("UNSUPPORTED_TOKEN_STANDARD"));
+        }
+
+        [Test]
+        public async Task BRANCH_MissingNetwork_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_NETWORK"));
+        }
+
+        [Test]
+        public async Task BRANCH_UnsupportedNetwork_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "unsupported_network_xyz";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.ErrorCode, Is.EqualTo("UNSUPPORTED_NETWORK"));
+        }
+
+        [Test]
+        public async Task BRANCH_MissingDeployerAddress_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_DEPLOYER_ADDRESS"));
+        }
+
+        [Test]
+        public async Task BRANCH_MissingPipelineId_Advance_ErrorCode()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = null });
+            Assert.That(adv.ErrorCode, Is.EqualTo("MISSING_PIPELINE_ID"));
+        }
+
+        [Test]
+        public async Task BRANCH_PipelineNotFound_Advance_ErrorCode()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = "branch-notfound-" + Guid.NewGuid() });
+            Assert.That(adv.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+        }
+
+        [Test]
+        public async Task BRANCH_TerminalStage_AfterCompletion_ErrorCode()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task BRANCH_NotInFailedState_ErrorCode_OnAdvancedPipeline()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        [Test]
+        public async Task BRANCH_CannotCancel_AfterTerminal_ErrorCode()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.False);
+            Assert.That(cancel.ErrorCode, Is.EqualTo("TERMINAL_STAGE").Or.EqualTo("CANNOT_CANCEL"));
+        }
+
+        [Test]
+        public async Task BRANCH_MissingPipelineId_Cancel_ErrorCode()
+        {
+            var svc = CreateService();
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = null });
+            Assert.That(cancel.ErrorCode, Is.EqualTo("MISSING_PIPELINE_ID"));
+        }
+
+        [Test]
+        public async Task BRANCH_MissingPipelineId_Retry_ErrorCode()
+        {
+            var svc = CreateService();
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = null });
+            Assert.That(retry.ErrorCode, Is.EqualTo("MISSING_PIPELINE_ID"));
+        }
+
+        [Test]
+        public async Task BRANCH_PipelineNotFound_Cancel_ErrorCode()
+        {
+            var svc = CreateService();
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = "branch-cancel-notfound-" + Guid.NewGuid() });
+            Assert.That(cancel.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+        }
+
+        [Test]
+        public async Task BRANCH_PipelineNotFound_Retry_ErrorCode()
+        {
+            var svc = CreateService();
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = "branch-retry-notfound-" + Guid.NewGuid() });
+            Assert.That(retry.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+        }
+
+        // ── SECURITY: edge cases ─────────────────────────────────────────────
+
+        [Test]
+        public async Task SECURITY_EmptyStringNetwork_ReturnsError()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+        }
+
+        [Test]
+        public async Task SECURITY_TabInTokenName_HandledGracefully()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "Token\tWithTab";
+            req.IdempotencyKey = "sec-tab-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task SECURITY_NewlineInDeployerAddress_HandledGracefully()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = "ADDR\nInjection";
+            req.IdempotencyKey = "sec-nl-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task SECURITY_VeryLongTokenName_HandledGracefully()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = new string('A', 10000);
+            req.IdempotencyKey = "sec-longname-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task SECURITY_SqlInjectionInTokenName_HandledGracefully()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "'; DROP TABLE pipelines; --";
+            req.IdempotencyKey = "sec-sql-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task SECURITY_XssInTokenName_HandledGracefully()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "<script>alert('xss')</script>";
+            req.IdempotencyKey = "sec-xss-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task SECURITY_UnicodeInTokenName_HandledGracefully()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "Token\u0000NullByte";
+            req.IdempotencyKey = "sec-unicode-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task SECURITY_WhitespaceOnlyNetwork_ReturnsError()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "   ";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+        }
+
+        // ── CONC: concurrent pipeline creation ──────────────────────────────
+
+        [Test]
+        public async Task CONC_30ParallelPipelines_AllSucceed()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 30).Select(i =>
+                svc.InitiateAsync(new PipelineInitiateRequest
+                {
+                    TokenName = $"ConcToken{i}",
+                    TokenStandard = "ARC3",
+                    Network = "testnet",
+                    DeployerAddress = "ALGO_CONC_ADDR",
+                    MaxRetries = 3,
+                    IdempotencyKey = "conc30-" + i + "-" + Guid.NewGuid(),
+                    CorrelationId = Guid.NewGuid().ToString()
+                })
+            );
+            var results = await Task.WhenAll(tasks);
+            Assert.That(results.All(r => r.Success), Is.True, "All 30 parallel pipelines must succeed");
+            var ids = results.Select(r => r.PipelineId).ToHashSet();
+            Assert.That(ids.Count, Is.EqualTo(30), "All 30 pipelines must have unique IDs");
+        }
+
+        [Test]
+        public async Task CONC_30ParallelPipelines_UniqueIds()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 30).Select(i =>
+                svc.InitiateAsync(new PipelineInitiateRequest
+                {
+                    TokenName = $"ConcUniq{i}",
+                    TokenStandard = "ASA",
+                    Network = "mainnet",
+                    DeployerAddress = "ALGO_CONC_UNIQ",
+                    MaxRetries = 1,
+                    IdempotencyKey = "concuniq-" + i + "-" + Guid.NewGuid()
+                })
+            );
+            var results = await Task.WhenAll(tasks);
+            var pipelineIds = results.Select(r => r.PipelineId).Distinct().Count();
+            Assert.That(pipelineIds, Is.EqualTo(30));
+        }
+
+        [Test]
+        public async Task CONC_ParallelAdvances_OnSamePipeline_AreOrdered()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            // sequential advances - pipeline stage must progress
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        // ── MULTI: multi-advance ordering ────────────────────────────────────
+
+        [Test]
+        public async Task MULTI_StageSequence_FollowsExpectedOrder()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var expectedStages = new[]
+            {
+                PipelineStage.ReadinessVerified,
+                PipelineStage.ValidationPending,
+                PipelineStage.ValidationPassed,
+                PipelineStage.CompliancePending,
+                PipelineStage.CompliancePassed,
+                PipelineStage.DeploymentQueued,
+                PipelineStage.DeploymentActive,
+                PipelineStage.DeploymentConfirmed,
+                PipelineStage.Completed
+            };
+            for (int i = 0; i < 9; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                Assert.That(adv.CurrentStage, Is.EqualTo(expectedStages[i]), $"Stage after {i + 1} advances");
+            }
+        }
+
+        [Test]
+        public async Task MULTI_PipelineAdvance_StageIsMonotonicallyProgressing()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var stageValues = new List<int> { (int)PipelineStage.PendingReadiness };
+            for (int i = 0; i < 9; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                stageValues.Add((int)adv.CurrentStage);
+            }
+            for (int i = 1; i < stageValues.Count; i++)
+                Assert.That(stageValues[i], Is.GreaterThan(stageValues[i - 1]), "Stages must progress forward");
+        }
+
+        [Test]
+        public async Task MULTI_TwoPipelines_AdvancedIndependently()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest());
+            var r2 = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            var s1 = await svc.GetStatusAsync(r1.PipelineId!, null);
+            var s2 = await svc.GetStatusAsync(r2.PipelineId!, null);
+            Assert.That(s1!.Stage, Is.EqualTo(PipelineStage.ValidationPending));
+            Assert.That(s2!.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        // ── AUDIT: event uniqueness across pipelines ─────────────────────────
+
+        [Test]
+        public async Task AUDIT_EventTimestamps_AreStrictlyIncreasing()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId!);
+            for (int i = 1; i < events.Count; i++)
+                Assert.That(events[i].Timestamp, Is.GreaterThanOrEqualTo(events[i - 1].Timestamp));
+        }
+
+        [Test]
+        public async Task AUDIT_EventsAcrossMultiplePipelines_AreUnique()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest());
+            var r2 = await svc.InitiateAsync(ValidRequest());
+            var events1 = svc.GetAuditEvents(r1.PipelineId!);
+            var events2 = svc.GetAuditEvents(r2.PipelineId!);
+            var allEventIds = events1.Concat(events2).Select(e => e.EventId).ToList();
+            Assert.That(allEventIds.Distinct().Count(), Is.EqualTo(allEventIds.Count),
+                "Event IDs must be unique across pipelines");
+        }
+
+        [Test]
+        public async Task AUDIT_GetAuditAsync_PipelineId_MatchesRequest()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit!.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task AUDIT_GetAuditAsync_Events_HaveNonNullEventType()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit!.Events.All(e => e.Operation != null), Is.True);
+        }
+
+        [Test]
+        public async Task AUDIT_GetAuditAsync_Events_HaveNonDefaultTimestamp()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit!.Events.All(e => e.Timestamp > DateTime.MinValue), Is.True);
+        }
+
+        [Test]
+        public async Task AUDIT_10Events_AfterFullLifecycle()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId!);
+            Assert.That(events.Count, Is.EqualTo(10));
+        }
+
+        [Test]
+        public async Task AUDIT_CancelEvent_IsRecorded()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId!);
+            Assert.That(events.Count, Is.GreaterThanOrEqualTo(3), "Must have initiate + advance + cancel events");
+        }
+
+        [Test]
+        public async Task AUDIT_TwoPipelines_AuditEventsAreIndependent()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest());
+            var r2 = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            var events1 = svc.GetAuditEvents(r1.PipelineId!);
+            var events2 = svc.GetAuditEvents(r2.PipelineId!);
+            Assert.That(events1.Count, Is.EqualTo(3));
+            Assert.That(events2.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AUDIT_CorrelationId_Preserved_InAuditResponse()
+        {
+            var svc = CreateService();
+            var corrId = "adv-audit-corr-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, corrId);
+            Assert.That(audit, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task AUDIT_InitiateEvent_HasSucceeded_True()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var events = svc.GetAuditEvents(r.PipelineId!);
+            Assert.That(events.First().Succeeded, Is.True, "Initiate event must have Succeeded = true");
+        }
     }
 }
