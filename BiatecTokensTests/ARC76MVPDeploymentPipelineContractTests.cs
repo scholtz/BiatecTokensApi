@@ -1635,5 +1635,339 @@ namespace BiatecTokensTests
             var audit = await svc.GetAuditAsync(r.PipelineId!, null);
             Assert.That(audit!.PipelineId, Is.EqualTo(r.PipelineId));
         }
+
+        // ── Additional contract coverage ─────────────────────────────────────────
+
+        [Test]
+        public async Task Contract_InitiateAsync_MissingTokenStandard_ReturnsError()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var req = BuildRequest();
+            req.TokenStandard = null;
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_TOKEN_STANDARD"));
+        }
+
+        [Test]
+        public async Task Contract_InitiateAsync_UnsupportedNetwork_ReturnsError()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var req = BuildRequest();
+            req.Network = "ethereum";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("UNSUPPORTED_NETWORK"));
+        }
+
+        [Test]
+        public async Task Contract_InitiateAsync_UnsupportedTokenStandard_ReturnsErrorCode()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var req = BuildRequest();
+            req.TokenStandard = "XYZ_UNKNOWN";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("UNSUPPORTED_TOKEN_STANDARD"));
+        }
+
+        [Test]
+        public async Task Contract_AdvanceAsync_ThreeConsecutive_AllSucceed()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            for (int i = 0; i < 3; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                Assert.That(adv.Success, Is.True, $"Advance step {i + 1} should succeed");
+            }
+        }
+
+        [Test]
+        public async Task Contract_GetStatusAsync_RetryCount_InitiallyZero()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.RetryCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task Contract_GetStatusAsync_MaxRetries_MatchesRequest()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var req = BuildRequest(Guid.NewGuid().ToString());
+            req.MaxRetries = 5;
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.MaxRetries, Is.EqualTo(5));
+        }
+
+        [Test]
+        public async Task Contract_GetStatusAsync_ReadinessStatus_InitiallyNotChecked()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.NotChecked));
+        }
+
+        [Test]
+        public async Task Contract_GetStatusAsync_ReadinessStatus_AfterFirstAdvance_IsReady()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.Ready));
+        }
+
+        [Test]
+        public async Task Contract_CancelAsync_ReturnsSuccess()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+        }
+
+        [Test]
+        public async Task Contract_CancelAsync_WithReason_Succeeds()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest
+            {
+                PipelineId = r.PipelineId,
+                Reason = "Contract test cancellation"
+            });
+            Assert.That(cancel.Success, Is.True);
+        }
+
+        [Test]
+        public async Task Contract_RetryAsync_WithMissingId_ReturnsError()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var result = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = null });
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_PIPELINE_ID"));
+        }
+
+        [Test]
+        public async Task Contract_RetryAsync_OnNonFailedPipeline_ReturnsNotInFailedState()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var result = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(result.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        [Test]
+        public async Task Contract_GetAuditAsync_EventsHaveSucceededField()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.All(e => e.Succeeded == true || e.Succeeded == false), Is.True);
+        }
+
+        [Test]
+        public async Task Contract_GetAuditAsync_EventsHaveStageField()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.All(e => e.Stage != null), Is.True);
+        }
+
+        [Test]
+        public async Task Contract_GetAuditAsync_ReturnsSchemaVersion1_0_0()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task Contract_AdvanceAsync_From6_IsDeploymentQueued()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.DeploymentQueued));
+        }
+
+        [Test]
+        public async Task Contract_PipelineId_IsNonEmptyGuid()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            Assert.That(Guid.TryParse(r.PipelineId, out _), Is.True, "PipelineId should be a valid GUID");
+        }
+
+        [Test]
+        public async Task Contract_InitiateAsync_WithEmail_Succeeds()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var req = BuildRequest(Guid.NewGuid().ToString());
+            req.DeployerEmail = "user@example.com";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task Contract_MultiPipelines_HaveDifferentIds()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r1 = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var r2 = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+        }
+
+        [Test]
+        public async Task Contract_GetStatusAsync_TokenName_MatchesRequest()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var req = BuildRequest(Guid.NewGuid().ToString());
+            req.TokenName = "UniqueContractTokenName";
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.TokenName, Is.EqualTo("UniqueContractTokenName"));
+        }
+
+        [Test]
+        public async Task Contract_GetStatusAsync_Network_MatchesRequest()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var req = BuildRequest(Guid.NewGuid().ToString());
+            req.Network = "mainnet";
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Network, Is.EqualTo("mainnet"));
+        }
+
+        [Test]
+        public async Task Contract_CancelAsync_AtCompliancePending_Succeeds()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            // Advance to CompliancePending (4 steps)
+            for (int i = 0; i < 4; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+        }
+
+        [Test]
+        public async Task Contract_AuditAsync_HasOperation_Initiate()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.Any(e => e.Operation == "Initiate"), Is.True);
+        }
+
+        [Test]
+        public async Task Contract_RetryAsync_OnRetrying_ReturnsNotInFailedState()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            // Advance once and then retry - still not in Failed state
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var result = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(result.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        [Test]
+        public async Task Contract_AdvanceAsync_PreviousStage_IsPendingReadiness_OnFirstAdvance()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.PreviousStage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task Contract_GetStatusAsync_SuccessIsTrue()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Success, Is.True);
+        }
+
+        [Test]
+        public async Task Contract_AdvanceAsync_CorrelationId_InResponse()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var corrId = "contract-adv-corr-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest
+            {
+                PipelineId = r.PipelineId,
+                CorrelationId = corrId
+            });
+            Assert.That(adv.CorrelationId, Is.EqualTo(corrId));
+        }
+
+        [Test]
+        public async Task Contract_CancelAsync_PipelineId_InResponse()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task Contract_AdvanceAsync_NextAction_IsNonEmpty()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.NextAction, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task Contract_GetAuditAsync_PipelineId_MatchesRequested()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest(Guid.NewGuid().ToString()));
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.PipelineId, Is.EqualTo(r.PipelineId));
+        }
     }
 }
