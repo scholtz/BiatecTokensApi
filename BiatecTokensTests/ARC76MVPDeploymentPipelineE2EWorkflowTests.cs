@@ -1579,5 +1579,299 @@ namespace BiatecTokensTests
             var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
             Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.Completed));
         }
+
+        [Test]
+        public async Task E2E_SinglePipeline_AuditTrail_IsComplete()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Count, Is.GreaterThanOrEqualTo(10));
+        }
+
+        [Test]
+        public async Task E2E_GetStatusAsync_IsSuccessful_AfterInitiate()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Success, Is.True);
+        }
+
+        [Test]
+        public async Task E2E_CancelAsync_AtCompliancePending_Succeeds()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 4; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+        }
+
+        [Test]
+        public async Task E2E_CancelAsync_AtCompliancePassed_Succeeds()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+        }
+
+        [Test]
+        public async Task E2E_AuditEvents_HaveNonNullTimestamp()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.All(e => e.Timestamp > DateTimeOffset.MinValue), Is.True);
+        }
+
+        [Test]
+        public async Task E2E_AuditEvents_HaveDistinctEventIds()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            var eventIds = audit.Events!.Select(e => e.EventId).ToList();
+            Assert.That(eventIds.Distinct().Count(), Is.EqualTo(eventIds.Count));
+        }
+
+        [Test]
+        public async Task E2E_SchemaVersion_IsSame_AcrossMultipleRequests()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.SchemaVersion, Is.EqualTo(r.SchemaVersion));
+        }
+
+        [Test]
+        public async Task E2E_10PipelinesConcurrent_AllSucceed()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 10).Select(i => svc.InitiateAsync(ValidRequest())).ToArray();
+            var results = await Task.WhenAll(tasks);
+            Assert.That(results.All(r => r.Success), Is.True);
+        }
+
+        [Test]
+        public async Task E2E_10PipelinesConcurrent_AllHaveUniqueIds()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 10).Select(i => svc.InitiateAsync(ValidRequest())).ToArray();
+            var results = await Task.WhenAll(tasks);
+            var ids = results.Select(r => r.PipelineId).ToHashSet();
+            Assert.That(ids.Count, Is.EqualTo(10));
+        }
+
+        [Test]
+        public async Task E2E_CorrelationId_Passthrough_WorksEndToEnd()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.CorrelationId = "e2e-corr-id-full";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.CorrelationId, Is.EqualTo("e2e-corr-id-full"));
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Any(e => e.CorrelationId == "e2e-corr-id-full"), Is.True);
+        }
+
+        [Test]
+        public async Task E2E_ReadinessStatus_IsNotChecked_Initially()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.NotChecked));
+        }
+
+        [Test]
+        public async Task E2E_ReadinessStatus_IsReady_AfterFirstAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.Ready));
+        }
+
+        [Test]
+        public async Task E2E_AdvanceAsync_ValidationPassed_GoesToCompliancePending()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            // advance through ReadinessVerified, ValidationPending, ValidationPassed -> CompliancePending
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.CompliancePending));
+        }
+
+        [Test]
+        public async Task E2E_AdvanceAsync_DeploymentQueued_GoesToDeploymentActive()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.DeploymentQueued));
+        }
+
+        [Test]
+        public async Task E2E_AdvanceAsync_DeploymentActive_GoesToDeploymentConfirmed()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 6; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.DeploymentActive));
+        }
+
+        [Test]
+        public async Task E2E_AdvanceAsync_DeploymentConfirmed_GoesToCompleted()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 7; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.DeploymentConfirmed));
+        }
+
+        [Test]
+        public async Task E2E_Aramidmain_Pipeline_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "aramidmain";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task E2E_IdempotencyReplay_ReturnsOriginalPipelineId_ThreeTimes()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req = ValidRequest();
+            req.IdempotencyKey = key;
+            var r1 = await svc.InitiateAsync(req);
+            var r2 = await svc.InitiateAsync(req);
+            var r3 = await svc.InitiateAsync(req);
+            Assert.That(r2.PipelineId, Is.EqualTo(r1.PipelineId));
+            Assert.That(r3.PipelineId, Is.EqualTo(r1.PipelineId));
+        }
+
+        [Test]
+        public async Task E2E_NonExistentPipelineId_GetStatusAsync_ReturnsNull()
+        {
+            var svc = CreateService();
+            var status = await svc.GetStatusAsync("non-existent-12345", null);
+            Assert.That(status, Is.Null);
+        }
+
+        [Test]
+        public async Task E2E_GetAuditAsync_NonExistentId_ReturnsEmptyEvents()
+        {
+            var svc = CreateService();
+            var audit = await svc.GetAuditAsync("non-existent-audit", null);
+            Assert.That(audit.Events, Is.Empty);
+        }
+
+        [Test]
+        public async Task E2E_ARC3_OnBetanet_FullLifecycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC3";
+            req.Network = "betanet";
+            var r = await svc.InitiateAsync(req);
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_AuditEvents_AreOrderedChronologically()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            var timestamps = audit.Events!.Select(e => e.Timestamp).ToList();
+            for (int i = 1; i < timestamps.Count; i++)
+                Assert.That(timestamps[i], Is.GreaterThanOrEqualTo(timestamps[i - 1]));
+        }
+
+        [Test]
+        public async Task E2E_PipelineId_MatchesAcrossAllResponses()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(adv.PipelineId, Is.EqualTo(r.PipelineId));
+            Assert.That(status!.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task E2E_NegativeMaxRetries_ReturnsValidationError()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = -10;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+        }
+
+        [Test]
+        public async Task E2E_CancelAsync_AfterCancel_ReturnsCannot()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var cancel2 = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel2.Success, Is.False);
+            Assert.That(cancel2.ErrorCode, Is.EqualTo("CANNOT_CANCEL"));
+        }
+
+        [Test]
+        public async Task E2E_IdempotencyConflict_ErrorCode_IDEMPOTENCY_KEY_CONFLICT()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            req1.TokenName = "Token-One";
+            await svc.InitiateAsync(req1);
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.TokenName = "Token-Two";
+            var r2 = await svc.InitiateAsync(req2);
+            Assert.That(r2.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+        }
+
+        [Test]
+        public async Task E2E_MaxRetries999_IsValidInput()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = 999;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
     }
 }

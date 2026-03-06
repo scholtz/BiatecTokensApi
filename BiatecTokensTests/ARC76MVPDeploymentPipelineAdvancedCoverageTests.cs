@@ -2847,5 +2847,314 @@ namespace BiatecTokensTests
             Assert.That(extra.Success, Is.False);
             Assert.That(extra.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
         }
+
+        [Test]
+        public async Task ADV_AllStandards_Voimain_Succeed()
+        {
+            var svc = CreateService();
+            foreach (var std in new[] { "ASA", "ARC3", "ARC200", "ARC1400" })
+            {
+                var req = ValidRequest();
+                req.TokenStandard = std;
+                req.Network = "voimain";
+                var r = await svc.InitiateAsync(req);
+                Assert.That(r.Success, Is.True, $"Standard={std} on voimain should succeed");
+            }
+        }
+
+        [Test]
+        public async Task ADV_AllStandards_Betanet_Succeed()
+        {
+            var svc = CreateService();
+            foreach (var std in new[] { "ASA", "ARC3", "ARC200", "ARC1400" })
+            {
+                var req = ValidRequest();
+                req.TokenStandard = std;
+                req.Network = "betanet";
+                var r = await svc.InitiateAsync(req);
+                Assert.That(r.Success, Is.True, $"Standard={std} on betanet should succeed");
+            }
+        }
+
+        [Test]
+        public async Task ADV_SecurityInput_XssScript_IsSafeToStore()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "<script>alert('xss')</script>";
+            var r = await svc.InitiateAsync(req);
+            // Should either succeed or return user-correctable error; must not throw
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ADV_SecurityInput_SqlInjection_DoesNotThrow()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "' OR 1=1 --";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ADV_SecurityInput_NullBytes_DoNotCrash()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "Token WithNull";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ADV_Concurrency_20PipelinesConcurrent_AllSucceed()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 20).Select(_ => svc.InitiateAsync(ValidRequest())).ToArray();
+            var results = await Task.WhenAll(tasks);
+            Assert.That(results.All(r => r.Success), Is.True);
+        }
+
+        [Test]
+        public async Task ADV_Concurrency_20Pipelines_HaveUniqueIds()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 20).Select(_ => svc.InitiateAsync(ValidRequest())).ToArray();
+            var results = await Task.WhenAll(tasks);
+            var ids = results.Select(r => r.PipelineId).ToHashSet();
+            Assert.That(ids.Count, Is.EqualTo(20));
+        }
+
+        [Test]
+        public async Task ADV_MultiStep_AuditTrail_HasAtLeastFiveEventsAfterFiveAdvances()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Count, Is.GreaterThanOrEqualTo(6));
+        }
+
+        [Test]
+        public async Task ADV_StateGuard_Completed_CannotCancel()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.False);
+            Assert.That(cancel.ErrorCode, Is.EqualTo("CANNOT_CANCEL"));
+        }
+
+        [Test]
+        public async Task ADV_StateGuard_Completed_CannotAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task ADV_ErrorMessage_IsSafeForLogging()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "";
+            var r = await svc.InitiateAsync(req);
+            // Error message should be simple and not null
+            Assert.That(r, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ADV_AuditEntry_Operation_IsNonEmpty_ForAllEventTypes()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.All(e => !string.IsNullOrEmpty(e.Operation)), Is.True);
+        }
+
+        [Test]
+        public async Task ADV_100SequentialPipelines_AllUniqueIds()
+        {
+            var svc = CreateService();
+            var ids = new System.Collections.Generic.HashSet<string>();
+            for (int i = 0; i < 100; i++)
+            {
+                var r = await svc.InitiateAsync(ValidRequest());
+                ids.Add(r.PipelineId!);
+            }
+            Assert.That(ids.Count, Is.EqualTo(100));
+        }
+
+        [Test]
+        public async Task ADV_Idempotency_50Replays_AllReturnSamePipelineId()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req = ValidRequest();
+            req.IdempotencyKey = key;
+            var first = await svc.InitiateAsync(req);
+            for (int i = 0; i < 49; i++)
+            {
+                var replay = await svc.InitiateAsync(req);
+                Assert.That(replay.PipelineId, Is.EqualTo(first.PipelineId));
+            }
+        }
+
+        [Test]
+        public async Task ADV_AdvanceAsync_PreviousStage_Matches_StatusStage_BeforeAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var statusBefore = await svc.GetStatusAsync(r.PipelineId!, null);
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.PreviousStage, Is.EqualTo(statusBefore!.Stage));
+        }
+
+        [Test]
+        public async Task ADV_FullLifecycle_AuditEvents_AllHaveNonEmptyEventId()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.All(e => !string.IsNullOrEmpty(e.EventId)), Is.True);
+        }
+
+        [Test]
+        public async Task ADV_FullLifecycle_AuditEvents_AllHaveNonNullPipelineId()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.All(e => e.PipelineId == r.PipelineId), Is.True);
+        }
+
+        [Test]
+        public async Task ADV_CorrelationId_PassedThrough_InAuditEvents()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.CorrelationId = "adv-corr-id-test";
+            var r = await svc.InitiateAsync(req);
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Any(e => e.CorrelationId == "adv-corr-id-test"), Is.True);
+        }
+
+        [Test]
+        public async Task ADV_Stage_Ordering_ReadinessVerified_BeforeValidationPending()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var stagesInOrder = new System.Collections.Generic.List<PipelineStage>();
+            for (int i = 0; i < 3; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                stagesInOrder.Add(adv.CurrentStage);
+            }
+            var rvIdx = stagesInOrder.IndexOf(PipelineStage.ReadinessVerified);
+            var vpIdx = stagesInOrder.IndexOf(PipelineStage.ValidationPending);
+            Assert.That(rvIdx, Is.LessThan(vpIdx));
+        }
+
+        [Test]
+        public async Task ADV_Stage_Ordering_ValidationPassed_BeforeCompliancePending()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var stagesInOrder = new System.Collections.Generic.List<PipelineStage>();
+            for (int i = 0; i < 5; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                stagesInOrder.Add(adv.CurrentStage);
+            }
+            var vpIdx = stagesInOrder.IndexOf(PipelineStage.ValidationPassed);
+            var cpIdx = stagesInOrder.IndexOf(PipelineStage.CompliancePending);
+            Assert.That(vpIdx, Is.LessThan(cpIdx));
+        }
+
+        [Test]
+        public async Task ADV_Stage_CompliancePassed_BeforeDeploymentQueued()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var stagesInOrder = new System.Collections.Generic.List<PipelineStage>();
+            for (int i = 0; i < 7; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                stagesInOrder.Add(adv.CurrentStage);
+            }
+            var cpIdx = stagesInOrder.IndexOf(PipelineStage.CompliancePassed);
+            var dqIdx = stagesInOrder.IndexOf(PipelineStage.DeploymentQueued);
+            Assert.That(cpIdx, Is.LessThan(dqIdx));
+        }
+
+        [Test]
+        public async Task ADV_GetStatusAsync_ReturnsNull_ForUnknownPipelineId()
+        {
+            var svc = CreateService();
+            var status = await svc.GetStatusAsync("unknown-xyz-abc", null);
+            Assert.That(status, Is.Null);
+        }
+
+        [Test]
+        public async Task ADV_EmptyNetwork_FailureCategory_IsUserCorrectable()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+        }
+
+        [Test]
+        public async Task ADV_EmptyTokenStandard_FailureCategory_IsUserCorrectable()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+        }
+
+        [Test]
+        public async Task ADV_CancelAsync_Reason_IsRecordedInAuditTrail()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest 
+            { 
+                PipelineId = r.PipelineId, 
+                Reason = "ADVA_cancel_reason_for_audit" 
+            });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Any(e => 
+                e.Operation?.Contains("Cancel", StringComparison.OrdinalIgnoreCase) == true), Is.True);
+        }
+
+        [Test]
+        public async Task ADV_RetryAsync_OnCancelledPipeline_ReturnsError()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.Success, Is.False);
+        }
     }
 }

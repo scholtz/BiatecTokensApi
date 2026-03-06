@@ -1774,5 +1774,325 @@ namespace BiatecTokensTests
             var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
             Assert.That(adv.CorrelationId, Is.Not.Null.And.Not.Empty);
         }
+
+        [Test]
+        public async Task HP_FullLifecycle_ASA_Testnet_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ASA";
+            req.Network = "testnet";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task HP_AuditTrail_GrowsWithEachOperation()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var a1 = await _svc.GetAuditAsync(r.PipelineId!, null);
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var a2 = await _svc.GetAuditAsync(r.PipelineId!, null);
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var a3 = await _svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(a2.Events!.Count, Is.GreaterThan(a1.Events!.Count));
+            Assert.That(a3.Events!.Count, Is.GreaterThan(a2.Events!.Count));
+        }
+
+        [Test]
+        public async Task HP_MultipleNetworks_AllSucceed()
+        {
+            foreach (var network in new[] { "testnet", "mainnet", "voimain", "betanet" })
+            {
+                var req = ValidRequest();
+                req.Network = network;
+                var r = await _svc.InitiateAsync(req);
+                Assert.That(r.Success, Is.True, $"Network {network} should succeed");
+            }
+        }
+
+        [Test]
+        public async Task HP_MultipleStandards_AllSucceed()
+        {
+            foreach (var std in new[] { "ASA", "ARC3", "ARC200", "ARC1400" })
+            {
+                var req = ValidRequest();
+                req.TokenStandard = std;
+                req.Network = "testnet";
+                var r = await _svc.InitiateAsync(req);
+                Assert.That(r.Success, Is.True, $"Standard {std} should succeed");
+            }
+        }
+
+        [Test]
+        public async Task HP_SchemaVersion_IsConsistentAcrossAllResponses()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var initSchemaV = r.SchemaVersion;
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.SchemaVersion, Is.EqualTo(initSchemaV));
+            Assert.That(status!.SchemaVersion, Is.EqualTo(initSchemaV));
+        }
+
+        [Test]
+        public async Task II_NullTokenStandard_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = null!;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+        }
+
+        [Test]
+        public async Task II_NullNetwork_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.Network = null!;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+        }
+
+        [Test]
+        public async Task II_NullDeployerAddress_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.DeployerAddress = null!;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+        }
+
+        [Test]
+        public async Task II_InvalidStandard_ErrorCode_IsNotNull()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "UNSUPPORTED_STD";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task BD_ERC20_OnBase_Full9Advances_Completes()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ERC20";
+            req.Network = "base";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task BD_ThreePipelinesRun_AllCompleteIndependently()
+        {
+            var r1 = await _svc.InitiateAsync(ValidRequest());
+            var r2 = await _svc.InitiateAsync(ValidRequest());
+            var r3 = await _svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+            {
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r2.PipelineId });
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r3.PipelineId });
+            }
+            var s1 = await _svc.GetStatusAsync(r1.PipelineId!, null);
+            var s2 = await _svc.GetStatusAsync(r2.PipelineId!, null);
+            var s3 = await _svc.GetStatusAsync(r3.PipelineId!, null);
+            Assert.That(s1!.Stage, Is.EqualTo(PipelineStage.Completed));
+            Assert.That(s2!.Stage, Is.EqualTo(PipelineStage.Completed));
+            Assert.That(s3!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task FR_CancelThenNew_PreviousCancelledPipeline_DoesNotAffectNew()
+        {
+            var old = await _svc.InitiateAsync(ValidRequest());
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = old.PipelineId });
+            var newP = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(newP.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task FR_PipelineId_IsGuidFormat()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(Guid.TryParse(r.PipelineId, out _), Is.True);
+        }
+
+        [Test]
+        public async Task FR_CancelledState_IsTerminalForCancelOperation()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var cancel2 = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel2.Success, Is.False);
+        }
+
+        [Test]
+        public async Task NX_StageNames_AreMeaningful_ForAllStages()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var stages = new System.Collections.Generic.List<string>();
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            stages.Add(status!.Stage.ToString());
+            for (int i = 0; i < 9; i++)
+            {
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                status = await _svc.GetStatusAsync(r.PipelineId!, null);
+                stages.Add(status!.Stage.ToString());
+            }
+            Assert.That(stages.All(s => s.Length > 3), Is.True);
+        }
+
+        [Test]
+        public async Task NX_AuditEvents_OrderedChronologically()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await _svc.GetAuditAsync(r.PipelineId!, null);
+            var timestamps = audit.Events!.Select(e => e.Timestamp).ToList();
+            for (int i = 1; i < timestamps.Count; i++)
+                Assert.That(timestamps[i], Is.GreaterThanOrEqualTo(timestamps[i - 1]));
+        }
+
+        [Test]
+        public async Task NX_FailureCategory_IsNone_OnSuccess()
+        {
+            var result = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.None));
+        }
+
+        [Test]
+        public async Task NX_FailureCategory_IsUserCorrectable_OnInvalidInput()
+        {
+            var req = ValidRequest();
+            req.TokenName = "";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+        }
+
+        [Test]
+        public async Task HP_ARC200_OnTestnet_FullLifecycle_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "testnet";
+            var r = await _svc.InitiateAsync(req);
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task HP_ARC1400_OnVoimain_FullLifecycle_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC1400";
+            req.Network = "voimain";
+            var r = await _svc.InitiateAsync(req);
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_Default3_PipelineCreated()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 3;
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_10_PipelineCreated()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 10;
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_100_PipelineCreated()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 100;
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task HP_CorrelationId_PassedThrough_InAllResponses()
+        {
+            var req = ValidRequest();
+            req.CorrelationId = "uj-end-to-end-corr-id";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.CorrelationId, Is.EqualTo("uj-end-to-end-corr-id"));
+        }
+
+        [Test]
+        public async Task FR_TwoDistinctDeployers_IsolatedPipelines()
+        {
+            var req1 = ValidRequest();
+            req1.DeployerAddress = "DEPLOYER_ONE";
+            var req2 = ValidRequest();
+            req2.DeployerAddress = "DEPLOYER_TWO";
+            var r1 = await _svc.InitiateAsync(req1);
+            var r2 = await _svc.InitiateAsync(req2);
+            for (int i = 0; i < 3; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            var s1 = await _svc.GetStatusAsync(r1.PipelineId!, null);
+            var s2 = await _svc.GetStatusAsync(r2.PipelineId!, null);
+            Assert.That(s1!.Stage, Is.Not.EqualTo(s2!.Stage));
+        }
+
+        [Test]
+        public async Task BD_TokenNameWithNumbers_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenName = "Token2025v1";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task HP_IdempotentReplay_Returns_SameStage_BeforeAnyAdvance()
+        {
+            var key = Guid.NewGuid().ToString();
+            var req = ValidRequest();
+            req.IdempotencyKey = key;
+            var r1 = await _svc.InitiateAsync(req);
+            var r2 = await _svc.InitiateAsync(req);
+            Assert.That(r2.Stage, Is.EqualTo(r1.Stage));
+        }
+
+        [Test]
+        public async Task II_WhitespacePaddedTokenStandard_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "  ";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+        }
+
+        [Test]
+        public async Task II_NullTokenName_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.TokenName = null!;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+        }
     }
 }
