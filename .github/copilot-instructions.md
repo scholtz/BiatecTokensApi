@@ -1142,14 +1142,14 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 150+ |
-| `ContractTests.cs` | 111+ |
-| `UserJourneyTests.cs` | 124+ |
-| `E2EWorkflowTests.cs` | 69+ |
-| `AdvancedCoverageTests.cs` | 157+ |
-| **Total** | **605+** |
+| `ServiceUnitTests.cs` | 176+ |
+| `ContractTests.cs` | 127+ |
+| `UserJourneyTests.cs` | 142+ |
+| `E2EWorkflowTests.cs` | 85+ |
+| `AdvancedCoverageTests.cs` | 195+ |
+| **Total** | **720+** |
 
-Issue #484 current counts: 150 unit + 111 contract + 124 journey + 69 E2E + 157 advanced = **611 tests**.
+Issue #484 current counts: 176 unit + 127 contract + 142 journey + 85 E2E + 195 advanced = **725 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
@@ -1174,10 +1174,12 @@ dotnet test BiatecTokensTests --configuration Release \
 - ❌ Sixth fix had 354 tests (PO requested a SEVENTH time)
 - ❌ Seventh delivery had 429 tests (PO requested an EIGHTH time)
 - ❌ Eighth delivery had 519 tests (PO requested a NINTH time)
+- ❌ Ninth delivery had 611 tests (PO requested a TENTH time)
 - ✅ Ninth delivery: 611 tests across 5 files
-- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 150+, ContractTests 111+, UserJourneyTests 124+, E2EWorkflowTests 69+, AdvancedCoverageTests 157+, Total 605+
+- ✅ Tenth delivery: 725 tests across 5 files
+- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 176+, ContractTests 127+, UserJourneyTests 142+, E2EWorkflowTests 85+, AdvancedCoverageTests 195+, Total 720+
 
-**Action Required**: ALWAYS deliver 5 test files with 605+ total tests on first submission. Each iteration that fell short added ~30-90 tests. Start at max coverage and stay there. NEVER submit with fewer than 605 tests total.
+**Action Required**: ALWAYS deliver 5 test files with 720+ total tests on first submission. Each iteration that fell short added ~30-90 tests. Start at max coverage and stay there. NEVER submit with fewer than 720 tests total.
 
 ### Alignment with Product Roadmap
 
