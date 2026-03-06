@@ -2896,7 +2896,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task RetryAsync_MissingPipelineId_ReturnsError()
+        public async Task RetryAsync_NullPipelineId_ReturnsError_V2()
         {
             var retry = await _svc.RetryAsync(new PipelineRetryRequest { PipelineId = null });
             Assert.That(retry.Success, Is.False);

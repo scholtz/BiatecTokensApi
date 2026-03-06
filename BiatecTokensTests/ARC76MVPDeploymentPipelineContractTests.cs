@@ -2693,7 +2693,7 @@ namespace BiatecTokensTests
             var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
             var r = await svc.InitiateAsync(BuildRequest());
             var status = await svc.GetStatusAsync(r.PipelineId!, null);
-            Assert.That(status!.ReadinessStatus, Is.Not.Null);
+            Assert.That(status!.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.NotChecked).Or.EqualTo(ARC76ReadinessStatus.Ready).Or.EqualTo(ARC76ReadinessStatus.NotReady));
         }
 
         [Test]
@@ -2761,7 +2761,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task Contract_InitiateAsync_EmptyTokenName_ReturnsError()
+        public async Task Contract_InitiateAsync_BlankTokenName_ReturnsError()
         {
             using var scope = _factory.Services.CreateScope();
             var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();

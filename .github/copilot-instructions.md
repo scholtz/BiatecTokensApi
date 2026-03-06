@@ -1142,14 +1142,14 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 274+ |
-| `ContractTests.cs` | 209+ |
-| `UserJourneyTests.cs` | 208+ |
-| `E2EWorkflowTests.cs` | 148+ |
-| `AdvancedCoverageTests.cs` | 264+ |
-| **Total** | **1100+** |
+| `ServiceUnitTests.cs` | 299+ |
+| `ContractTests.cs` | 232+ |
+| `UserJourneyTests.cs` | 230+ |
+| `E2EWorkflowTests.cs` | 168+ |
+| `AdvancedCoverageTests.cs` | 286+ |
+| **Total** | **1215+** |
 
-Issue #484 current counts: 274 unit + 209 contract + 208 journey + 148 E2E + 264 advanced = **1103 tests**.
+Issue #484 current counts: 299 unit + 232 contract + 230 journey + 168 E2E + 286 advanced = **1215 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
@@ -1180,9 +1180,10 @@ dotnet test BiatecTokensTests --configuration Release \
 - ❌ Eleventh delivery had 872 tests (PO requested a TWELFTH time)
 - ❌ Twelfth delivery had 1045 tests (PO requested a THIRTEENTH time)
 - ✅ Thirteenth delivery: 1103 tests across 5 files
-- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 274+, ContractTests 209+, UserJourneyTests 208+, E2EWorkflowTests 148+, AdvancedCoverageTests 264+, Total 1100+
+- ✅ Fourteenth delivery: 1215 tests across 5 files
+- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 299+, ContractTests 232+, UserJourneyTests 230+, E2EWorkflowTests 168+, AdvancedCoverageTests 286+, Total 1215+
 
-**Action Required**: ALWAYS deliver 5 test files with 1100+ total tests on first submission. Each iteration that fell short added ~30-173 tests. Start at max coverage and stay there. NEVER submit with fewer than 1100 tests total.
+**Action Required**: ALWAYS deliver 5 test files with 1215+ total tests on first submission. Each iteration that fell short added ~30-173 tests. Start at max coverage and stay there. NEVER submit with fewer than 1215 tests total.
 
 ### Alignment with Product Roadmap
 
