@@ -518,9 +518,10 @@ namespace BiatecTokensTests
         public async Task AdvanceAsync_SetsReadinessStatus_ToReadyWhenAtReadinessVerified()
         {
             var r = await _svc.InitiateAsync(ValidRequest());
-            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
-            Assert.That(adv.Success, Is.True);
-            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.ReadinessVerified));
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ReadinessVerified));
+            Assert.That(status.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.Ready));
         }
 
         // ── Additional CancelAsync tests ─────────────────────────────────────────

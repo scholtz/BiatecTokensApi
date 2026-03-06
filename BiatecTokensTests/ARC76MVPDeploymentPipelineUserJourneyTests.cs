@@ -432,13 +432,12 @@ namespace BiatecTokensTests
         [Test]
         public void NX_ARC76ReadinessStatus_HasFriendlyStringValues()
         {
-            var statuses = Enum.GetValues<ARC76ReadinessStatus>();
-            foreach (var status in statuses)
-            {
-                var name = status.ToString();
-                Assert.That(name, Is.Not.Null.And.Not.Empty);
-                Assert.That(name.Length, Is.GreaterThan(0));
-            }
+            // Verify enum names are human-readable (no underscores, no all-caps jargon)
+            var expected = new[] { "NotChecked", "Ready", "NotReady", "Error" };
+            var actual = Enum.GetNames<ARC76ReadinessStatus>();
+            Assert.That(actual, Is.EquivalentTo(expected));
+            foreach (var name in actual)
+                Assert.That(name, Does.Not.Contain("_"), "Enum names should use PascalCase, not underscores");
         }
     }
 }
