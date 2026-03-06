@@ -326,5 +326,119 @@ namespace BiatecTokensTests
             var status = await _svc.GetStatusAsync(r.PipelineId!, null);
             Assert.That(status!.NextAction, Is.Not.Null.And.Not.Empty);
         }
+
+        // ── Additional HP tests ──────────────────────────────────────────────────
+
+        [Test]
+        public async Task HP_EnterpriseTokenForBase_CompletesPipeline()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(network: "base", standard: "ERC20"));
+            Assert.That(r.Success, Is.True);
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task HP_ARC1400SecurityToken_InitiatesSuccessfully()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(standard: "ARC1400"));
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task HP_UserCanCancelMidway_BeforeDeployment()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 3);
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        // ── Additional II tests ──────────────────────────────────────────────────
+
+        [Test]
+        public async Task II_UserSubmitsEmpty_NetworkName_GetsHelpfulError()
+        {
+            var req = ValidRequest();
+            req.Network = "";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task II_UserSubmitsJunkIdempotencyKey_SameKeyDifferentRequest_GetsClearError()
+        {
+            var key = "user-idempotency-key-123";
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            await _svc.InitiateAsync(req1);
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.TokenName = "DifferentToken";
+            var result = await _svc.InitiateAsync(req2);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+            Assert.That(result.RemediationHint, Is.Not.Null);
+        }
+
+        // ── Additional BD tests ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task BD_MaxRetriesExactlyZero_PipelineCreated()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 0;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_VoimainNetwork_IsSupported()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(network: "voimain"));
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_BetanetNetwork_IsSupported()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(network: "betanet"));
+            Assert.That(r.Success, Is.True);
+        }
+
+        // ── Additional FR tests ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task FR_PipelineStaysIsolated_AfterAnotherPipelineFails()
+        {
+            var r1 = await _svc.InitiateAsync(ValidRequest());
+            var r2 = await _svc.InitiateAsync(ValidRequest());
+
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r1.PipelineId });
+
+            var status2 = await _svc.GetStatusAsync(r2.PipelineId!, null);
+            Assert.That(status2!.Stage, Is.EqualTo(PipelineStage.PendingReadiness),
+                "r2 should be unaffected by r1 cancellation");
+        }
+
+        // ── Additional NX tests ───────────────────────────────────────────────────
+
+        [Test]
+        public void NX_ARC76ReadinessStatus_HasFriendlyStringValues()
+        {
+            var statuses = Enum.GetValues<ARC76ReadinessStatus>();
+            foreach (var status in statuses)
+            {
+                var name = status.ToString();
+                Assert.That(name, Is.Not.Null.And.Not.Empty);
+                Assert.That(name.Length, Is.GreaterThan(0));
+            }
+        }
     }
 }

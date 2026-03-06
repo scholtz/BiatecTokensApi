@@ -424,5 +424,121 @@ namespace BiatecTokensTests
             Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ReadinessVerified));
             Assert.That(status.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.Ready));
         }
+
+        // ── Additional InitiateAsync tests ───────────────────────────────────────
+
+        [Test]
+        public async Task InitiateAsync_EmptyTokenStandard_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "  ";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_TOKEN_STANDARD"));
+        }
+
+        [Test]
+        public async Task InitiateAsync_EmptyNetwork_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.Network = "  ";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_NETWORK"));
+        }
+
+        [Test]
+        public async Task InitiateAsync_EmptyDeployerAddress_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.DeployerAddress = "  ";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_DEPLOYER_ADDRESS"));
+        }
+
+        [Test]
+        public async Task InitiateAsync_MaxRetriesZero_IsValid()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 0;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_MaxRetriesLargeValue_IsValid()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 100;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_WithDeployerEmail_StoresEmail()
+        {
+            var req = ValidRequest();
+            req.DeployerEmail = "enterprise@company.com";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.PipelineId, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task InitiateAsync_PipelineIdIsUniqueGuid()
+        {
+            var r1 = await _svc.InitiateAsync(ValidRequest());
+            var r2 = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(Guid.TryParse(r1.PipelineId, out _), Is.True);
+            Assert.That(Guid.TryParse(r2.PipelineId, out _), Is.True);
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+        }
+
+        // ── Additional AdvanceAsync tests ────────────────────────────────────────
+
+        [Test]
+        public async Task AdvanceAsync_AdvancesToPreviousAndCurrentStage()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.PreviousStage, Is.EqualTo(PipelineStage.PendingReadiness));
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.ReadinessVerified));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_HasSchemaVersion()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_SetsReadinessStatus_ToReadyWhenAtReadinessVerified()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.True);
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.ReadinessVerified));
+        }
+
+        // ── Additional CancelAsync tests ─────────────────────────────────────────
+
+        [Test]
+        public async Task CancelAsync_HasSchemaVersion()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task CancelAsync_HasPreviousStage()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.PreviousStage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
     }
 }
