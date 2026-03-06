@@ -2094,5 +2094,110 @@ namespace BiatecTokensTests
             var result = await _svc.InitiateAsync(req);
             Assert.That(result.Success, Is.False);
         }
+
+        [Test]
+        public async Task HP_FullPipeline_ARC1400_ReachesCompleted()
+        {
+            var req = ValidRequest(standard: "ARC1400");
+            var r = await _svc.InitiateAsync(req);
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task HP_FullPipeline_ERC20_OnBase_ReachesCompleted()
+        {
+            var req = ValidRequest(network: "base", standard: "ERC20");
+            var r = await _svc.InitiateAsync(req);
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task BD_RetryAsync_OnNonFailedPipeline_ReturnsNotInFailedState()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 3);
+            var retry = await _svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        [Test]
+        public async Task HP_DeployerEmail_AcceptedInRequest()
+        {
+            var req = ValidRequest();
+            req.DeployerEmail = "user@biatec.io";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task II_UnknownPipelineId_GetStatus_ReturnsNull()
+        {
+            var status = await _svc.GetStatusAsync("uj-unknown-pipeline-id-xyz", null);
+            Assert.That(status, Is.Null);
+        }
+
+        [Test]
+        public async Task HP_AdvanceAsync_CompliancePending_IsStage5()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 4);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.CompliancePending));
+        }
+
+        [Test]
+        public async Task HP_AdvanceAsync_DeploymentActive_IsStage8()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 7);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.DeploymentActive));
+        }
+
+        [Test]
+        public async Task HP_AdvanceAsync_DeploymentConfirmed_IsStage9()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 8);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.DeploymentConfirmed));
+        }
+
+        [Test]
+        public async Task BD_CancelAsync_AtCompliancePassing_Succeeds()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 5);
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+        }
+
+        [Test]
+        public async Task HP_PipelineStage_PendingReadiness_IsInitialStage()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task FR_TwoPipelines_SamePipelineId_IsNeverReturned()
+        {
+            var r1 = await _svc.InitiateAsync(ValidRequest());
+            var r2 = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+        }
+
+        [Test]
+        public async Task HP_AdvanceAsync_DeploymentQueued_IsStage7()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 6);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.DeploymentQueued));
+        }
     }
 }

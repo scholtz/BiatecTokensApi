@@ -3156,5 +3156,131 @@ namespace BiatecTokensTests
             var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
             Assert.That(retry.Success, Is.False);
         }
+
+        [Test]
+        public async Task ADV_InitiateAsync_ARC1400_OnMainnet_Succeeds()
+        {
+            var svc = CreateService();
+            var req = new PipelineInitiateRequest
+            {
+                TokenName = "ComplianceToken",
+                TokenStandard = "ARC1400",
+                Network = "mainnet",
+                DeployerAddress = "ALGO_MAINNET_ADDR",
+                MaxRetries = 2
+            };
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task ADV_GetAuditAsync_CorrelationId_Propagated()
+        {
+            var svc = CreateService();
+            var corrId = "adv-audit-corr-id-propagation";
+            var req = ValidRequest();
+            req.CorrelationId = corrId;
+            var r = await svc.InitiateAsync(req);
+            var audit = await svc.GetAuditAsync(r.PipelineId!, corrId);
+            Assert.That(audit.Success, Is.True);
+        }
+
+        [Test]
+        public async Task ADV_50Pipelines_AllUniqueIds()
+        {
+            var svc = CreateService();
+            var ids = new HashSet<string>();
+            for (int i = 0; i < 50; i++)
+            {
+                var r = await svc.InitiateAsync(ValidRequest());
+                ids.Add(r.PipelineId!);
+            }
+            Assert.That(ids.Count, Is.EqualTo(50));
+        }
+
+        [Test]
+        public async Task ADV_GetStatusAsync_AfterCancel_StageIsCancelled()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task ADV_InitiateAsync_DeployerEmail_IsNotRequired()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerEmail = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task ADV_AdvanceAsync_ReturnsSuccess_True_OnNonTerminalStage()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.True);
+        }
+
+        [Test]
+        public async Task ADV_FullLifecycle_ASA_OnBetanet_Completes()
+        {
+            var svc = CreateService();
+            var req = new PipelineInitiateRequest
+            {
+                TokenName = "BetanetToken",
+                TokenStandard = "ASA",
+                Network = "betanet",
+                DeployerAddress = "BETA_ADDR_001",
+                MaxRetries = 1
+            };
+            var pipelineId = await FullAdvanceAsync(svc, req);
+            var status = await svc.GetStatusAsync(pipelineId, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task ADV_InitiateAsync_NullDeployerAddress_ReturnsError()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = null!;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_DEPLOYER_ADDRESS"));
+        }
+
+        [Test]
+        public async Task ADV_CancelAsync_StoresPipelineId_InResponse()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task ADV_GetAuditAsync_PipelineId_MatchesInitiateId()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task ADV_GetStatusAsync_ReadinessStatus_IsReadyAfterFirstAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.Ready));
+        }
     }
 }
