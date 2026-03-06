@@ -1142,27 +1142,21 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 40 |
+| `ServiceUnitTests.cs` | 50+ |
 | `ContractTests.cs` | 38+ |
-| `UserJourneyTests.cs` | 30+ |
+| `UserJourneyTests.cs` | 40+ |
 | `E2EWorkflowTests.cs` | 17+ |
 | `AdvancedCoverageTests.cs` | 55+ |
-| **Total** | **180+** |
+| **Total** | **200+** |
 
-Issue #484 final counts: 40 unit + 38 contract + 30 journey + 17 E2E + 57 advanced = **182 tests**.
+Issue #484 final counts: 52 unit + 38 contract + 40 journey + 17 E2E + 57 advanced = **204 tests**.
 
-**AdvancedCoverageTests.cs MUST include:**
-- BRANCH: All error codes for each operation (7+ validation errors × each service method)
-- ALL_NETWORKS: Test all supported networks (testnet/mainnet/base/voimain/betanet)
-- ALL_STANDARDS: Test all supported standards (ASA/ARC3/ARC200/ERC20/ARC1400)
-- SECURITY: SQL injection, XSS, null bytes, unicode, very long inputs
-- CONC: 5+ parallel pipelines complete independently; concurrent same-key idempotency; concurrent advance on same pipeline
-- MULTI: Multi-step audit trail grows with each operation; separate pipelines have isolated audits
-- RETRY: Retry count increments; max retries exhaustion; cancel after retry
-- POLICY: All validation errors have remediation hints; null request fails fast; fail-fast ordering
-- AUDIT: All stages recorded; unique EventIds; correlation IDs match; PipelineId in all entries
-- ERRORS: Messages don't contain internal details (Exception/StackTrace/namespace)
-- STATE: Terminal stages cannot be advanced/retried; invalid transitions rejected
+**UserJourneyTests.cs MUST include (per category):**
+- HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
+- II: 7+ invalid input tests (null/empty/whitespace for each field, idempotency conflict)
+- BD: 7+ boundary tests (MaxRetries=0, all networks, all standards, large MaxRetries)
+- FR: 5+ failure recovery tests (isolation between pipelines, retry from non-failed)
+- NX: 6+ non-crypto-native tests (human-readable messages, enum names, no technical errors)
 
 **ALWAYS verify all 5 test files pass before report_progress:**
 ```bash
@@ -1170,13 +1164,13 @@ dotnet test BiatecTokensTests --configuration Release \
   --filter "FullyQualifiedName~ARC76MVPDeployment" 2>&1 | tail -5
 ```
 
-**Lesson Learned (2026-03-06 - Issue #484, PR #485)**: Product owner requested increased test coverage because:
-- ❌ ContractTests had 26 tests (minimum is 38+) 
-- ❌ E2EWorkflowTests had 13 tests (minimum is 17+)
-- ❌ AdvancedCoverageTests had 30 tests (comparable issues had 55+)
-- ❌ AdvancedCoverageTests not listed as mandatory in the instructions
+**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request)**: Product owner posted same coverage request TWICE because:
+- ❌ Initial delivery had 140 tests (too few)
+- ❌ First fix had 182 tests (still not enough - PO requested more)
+- ✅ Final delivery: 204 tests across 5 files
+- **Key**: ServiceUnitTests must be 50+, UserJourneyTests must be 40+, Total must be 200+
 
-**Action Required**: ALWAYS deliver 5 test files with the minimum counts above. The sub-agent created 140 tests instead of 182+ because the instructions only listed 4 mandatory test files and used lower minimum counts.
+**Action Required**: ALWAYS deliver 5 test files with 200+ total tests. First attempt had 140 tests (4 mandatory files, wrong minimums). Second attempt had 182 (right files, minimums too low). Final: 204 tests meeting all thresholds.
 
 ### Alignment with Product Roadmap
 
