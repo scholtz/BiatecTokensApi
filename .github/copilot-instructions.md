@@ -1138,21 +1138,45 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 ### Total Test Count Targets (per vision milestone)
 
+**MANDATORY: ALL vision milestone issues require ALL FIVE test files.**
+
 | File | Minimum |
 |------|---------|
 | `ServiceUnitTests.cs` | 40 |
-| `ContractTests.cs` | 33+ |
-| `UserJourneyTests.cs` | 25+ |
-| `E2EWorkflowTests.cs` | 15+ |
-| **Total** | **113+** |
+| `ContractTests.cs` | 38+ |
+| `UserJourneyTests.cs` | 30+ |
+| `E2EWorkflowTests.cs` | 17+ |
+| `AdvancedCoverageTests.cs` | 55+ |
+| **Total** | **180+** |
 
-Issue #466 final counts: 40 unit + 35 contract + 29 journey + 16 E2E = **120 tests**.
+Issue #484 final counts: 40 unit + 38 contract + 30 journey + 17 E2E + 57 advanced = **182 tests**.
 
-**ALWAYS verify all 4 test files pass before report_progress:**
+**AdvancedCoverageTests.cs MUST include:**
+- BRANCH: All error codes for each operation (7+ validation errors × each service method)
+- ALL_NETWORKS: Test all supported networks (testnet/mainnet/base/voimain/betanet)
+- ALL_STANDARDS: Test all supported standards (ASA/ARC3/ARC200/ERC20/ARC1400)
+- SECURITY: SQL injection, XSS, null bytes, unicode, very long inputs
+- CONC: 5+ parallel pipelines complete independently; concurrent same-key idempotency; concurrent advance on same pipeline
+- MULTI: Multi-step audit trail grows with each operation; separate pipelines have isolated audits
+- RETRY: Retry count increments; max retries exhaustion; cancel after retry
+- POLICY: All validation errors have remediation hints; null request fails fast; fail-fast ordering
+- AUDIT: All stages recorded; unique EventIds; correlation IDs match; PipelineId in all entries
+- ERRORS: Messages don't contain internal details (Exception/StackTrace/namespace)
+- STATE: Terminal stages cannot be advanced/retried; invalid transitions rejected
+
+**ALWAYS verify all 5 test files pass before report_progress:**
 ```bash
 dotnet test BiatecTokensTests --configuration Release \
-  --filter "FullyQualifiedName~Issue{N}" 2>&1 | tail -5
+  --filter "FullyQualifiedName~ARC76MVPDeployment" 2>&1 | tail -5
 ```
+
+**Lesson Learned (2026-03-06 - Issue #484, PR #485)**: Product owner requested increased test coverage because:
+- ❌ ContractTests had 26 tests (minimum is 38+) 
+- ❌ E2EWorkflowTests had 13 tests (minimum is 17+)
+- ❌ AdvancedCoverageTests had 30 tests (comparable issues had 55+)
+- ❌ AdvancedCoverageTests not listed as mandatory in the instructions
+
+**Action Required**: ALWAYS deliver 5 test files with the minimum counts above. The sub-agent created 140 tests instead of 182+ because the instructions only listed 4 mandatory test files and used lower minimum counts.
 
 ### Alignment with Product Roadmap
 
