@@ -50,7 +50,7 @@ namespace BiatecTokensApi.Services
 
         private static readonly HashSet<string> KnownNetworks = new(StringComparer.OrdinalIgnoreCase)
         {
-            "mainnet", "testnet", "betanet", "voimain", "base"
+            "mainnet", "testnet", "betanet", "voimain", "aramidmain", "base"
         };
 
         // ── Internal record ──────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ namespace BiatecTokensApi.Services
                 Audit("Initiate", correlationId, null, false, "UNSUPPORTED_NETWORK", null, FailureCategory.UserCorrectable);
                 return Task.FromResult(ErrInit("UNSUPPORTED_NETWORK",
                     $"Network '{request.Network}' is not supported.",
-                    "Supported networks: mainnet, testnet, betanet, voimain, base.",
+                    "Supported networks: mainnet, testnet, betanet, voimain, aramidmain, base.",
                     correlationId, FailureCategory.UserCorrectable));
             }
 

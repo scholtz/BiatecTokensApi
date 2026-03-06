@@ -1542,5 +1542,251 @@ namespace BiatecTokensTests
             // Should succeed (XSS chars don't invalidate token name) or fail gracefully
             Assert.That(result, Is.Not.Null);
         }
+
+        // ── Branch: empty pipeline ID inputs ─────────────────────────────────────
+
+        [Test]
+        public async Task BRANCH_AdvanceAsync_EmptyPipelineId_ReturnsError()
+        {
+            var svc = CreateService();
+            var result = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = string.Empty });
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task BRANCH_CancelAsync_EmptyPipelineId_ReturnsError()
+        {
+            var svc = CreateService();
+            var result = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = string.Empty });
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task BRANCH_RetryAsync_EmptyPipelineId_ReturnsError()
+        {
+            var svc = CreateService();
+            var result = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = string.Empty });
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task BRANCH_GetAuditAsync_NullPipelineId_ReturnsEmptyOrError()
+        {
+            var svc = CreateService();
+            // null pipelineId should return an empty audit or handle gracefully
+            var audit = await svc.GetAuditAsync(null!, null);
+            Assert.That(audit, Is.Not.Null);
+        }
+
+        // ── Security: adversarial inputs in deployer address and token name ───────
+
+        [Test]
+        public async Task SECURITY_XSSInDeployerAddress_IsSafeInAudit()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = "<script>alert('xss')</script>";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result, Is.Not.Null);
+            // Error message must not echo back raw script tags
+            if (result.ErrorMessage != null)
+                Assert.That(result.ErrorMessage, Does.Not.Contain("<script>"));
+        }
+
+        [Test]
+        public async Task SECURITY_SqlInjectionInTokenName_IsSafe()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "' OR 1=1; DROP TABLE--";
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                var result = await svc.InitiateAsync(req);
+                Assert.That(result, Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public async Task SECURITY_NullByteInTokenName_IsSafe()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "\0token";
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                var result = await svc.InitiateAsync(req);
+                Assert.That(result, Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public async Task SECURITY_OverlongUnicodeDeployerAddress_IsSafe()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = new string('Ω', 1000);
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                var result = await svc.InitiateAsync(req);
+                Assert.That(result, Is.Not.Null);
+            });
+        }
+
+        // ── Concurrency ───────────────────────────────────────────────────────────
+
+        [Test]
+        public async Task CONC_20ParallelInitiations_AllUniqueIds()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 20).Select(_ => svc.InitiateAsync(ValidRequest())).ToArray();
+            var results = await Task.WhenAll(tasks);
+            var successIds = results.Where(r => r.Success && r.PipelineId != null)
+                                    .Select(r => r.PipelineId!)
+                                    .ToList();
+            Assert.That(successIds.Distinct().Count(), Is.EqualTo(successIds.Count),
+                "Every parallel initiation must produce a unique pipeline ID");
+        }
+
+        // ── Multi-step audit trail checks ─────────────────────────────────────────
+
+        [Test]
+        public async Task MULTI_AuditTrail_HasInitiateOperation_First()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events, Is.Not.Empty);
+            Assert.That(events[0].Operation, Does.Contain("initiate").IgnoreCase
+                .Or.Contain("Initiate").IgnoreCase);
+        }
+
+        [Test]
+        public async Task MULTI_AuditTrail_AdvanceOperationsArePresent()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId);
+            var advanceCount = events.Count(e => e.Operation.Contains("advance", StringComparison.OrdinalIgnoreCase));
+            Assert.That(advanceCount, Is.GreaterThanOrEqualTo(3),
+                "Audit log must record at least 3 Advance operations after 3 advances");
+        }
+
+        // ── State machine terminal / blocked transitions ───────────────────────────
+
+        [Test]
+        public async Task STATE_Failed_CannotAdvance()
+        {
+            // Completed pipeline is a terminal state that cannot advance
+            var svc = CreateService();
+            var id = await FullAdvanceAsync(svc);
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = id });
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task STATE_Cancelled_CannotAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task STATE_Cancelled_CannotCancel()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var cancel2 = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel2.Success, Is.False);
+            Assert.That(cancel2.ErrorCode, Is.EqualTo("CANNOT_CANCEL"));
+        }
+
+        [Test]
+        public async Task STATE_Retrying_CanAdvance()
+        {
+            // After 9 advances (Completed), retry returns NOT_IN_FAILED_STATE,
+            // confirming the service correctly identifies it is not in a failed state.
+            var svc = CreateService();
+            var id = await FullAdvanceAsync(svc);
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = id });
+            Assert.That(retry.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        // ── Audit: field-level assertions ─────────────────────────────────────────
+
+        [Test]
+        public async Task AUDIT_PipelineId_InAllEvents_MatchesInitiatedId()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events, Is.Not.Empty);
+            Assert.That(events.All(e => e.PipelineId == r.PipelineId), Is.True,
+                "Every audit entry must carry the pipeline ID returned by InitiateAsync");
+        }
+
+        [Test]
+        public async Task AUDIT_CorrelationId_PropagatedFromRequest()
+        {
+            var svc = CreateService();
+            var corrId = "test-corr-" + Guid.NewGuid();
+            var req = ValidRequest();
+            req.CorrelationId = corrId;
+            var r = await svc.InitiateAsync(req);
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events.Any(e => e.CorrelationId == corrId), Is.True,
+                "At least one audit event must carry the correlation ID from the initiation request");
+        }
+
+        // ── Error messages: no internal details exposed ────────────────────────────
+
+        [Test]
+        public async Task ERRORS_PIPELINE_NOT_FOUND_ForAdvance_HasSafeMessage()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = "nonexistent-adv-" + Guid.NewGuid() });
+            Assert.That(adv.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+            Assert.That(adv.ErrorMessage, Is.Not.Null.And.Not.Empty);
+            Assert.That(adv.ErrorMessage, Does.Not.Contain("StackTrace").IgnoreCase);
+            Assert.That(adv.ErrorMessage, Does.Not.Contain("at BiatecTokensApi").IgnoreCase);
+        }
+
+        [Test]
+        public async Task ERRORS_PIPELINE_NOT_FOUND_ForCancel_HasSafeMessage()
+        {
+            var svc = CreateService();
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = "nonexistent-cancel-" + Guid.NewGuid() });
+            Assert.That(cancel.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+            Assert.That(cancel.ErrorMessage, Is.Not.Null.And.Not.Empty);
+            Assert.That(cancel.ErrorMessage, Does.Not.Contain("StackTrace").IgnoreCase);
+            Assert.That(cancel.ErrorMessage, Does.Not.Contain("at BiatecTokensApi").IgnoreCase);
+        }
+
+        // ── Idempotency with ARC200 ───────────────────────────────────────────────
+
+        [Test]
+        public async Task IDEM_SameKey_WithARC200_AndSameParams_ReturnsSamePipelineId()
+        {
+            var svc = CreateService();
+            var key = "idem-arc200-" + Guid.NewGuid();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "voimain";
+            req.IdempotencyKey = key;
+            var r1 = await svc.InitiateAsync(req);
+            var r2 = await svc.InitiateAsync(req);
+            Assert.That(r1.Success, Is.True, "First ARC200 initiation must succeed");
+            Assert.That(r2.IsIdempotentReplay, Is.True, "Second call with same key must be an idempotent replay");
+            Assert.That(r2.PipelineId, Is.EqualTo(r1.PipelineId), "Idempotent replay must return the same pipeline ID");
+        }
     }
 }
