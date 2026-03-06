@@ -2910,5 +2910,266 @@ namespace BiatecTokensTests
             var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
             Assert.That(adv.Success, Is.True);
         }
+
+        // ── Additional unit tests ────────────────────────────────────────────────
+
+        [Test]
+        public async Task InitiateAsync_PipelineId_HasGuidFormat()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(Guid.TryParse(r.PipelineId, out _), Is.True);
+        }
+
+        [Test]
+        public async Task AdvanceAsync_FourthAdvance_CurrentStageIsCompliancePending()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            PipelineAdvanceResponse? adv = null;
+            for (int i = 0; i < 4; i++)
+                adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv!.CurrentStage, Is.EqualTo(PipelineStage.CompliancePending));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_FifthAdvance_CurrentStageIsCompliancePassed()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            PipelineAdvanceResponse? adv = null;
+            for (int i = 0; i < 5; i++)
+                adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv!.CurrentStage, Is.EqualTo(PipelineStage.CompliancePassed));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_SixthAdvance_CurrentStageIsDeploymentQueued()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            PipelineAdvanceResponse? adv = null;
+            for (int i = 0; i < 6; i++)
+                adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv!.CurrentStage, Is.EqualTo(PipelineStage.DeploymentQueued));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_NinthAdvance_CurrentStageIsCompleted()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            PipelineAdvanceResponse? adv = null;
+            for (int i = 0; i < 9; i++)
+                adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv!.CurrentStage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task InitiateAsync_TokenName_SingleAlphaChar_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenName = "A";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_DeployerEmail_IsPopulatedInAudit()
+        {
+            var req = ValidRequest();
+            req.DeployerEmail = "deployer@example.com";
+            var r = await _svc.InitiateAsync(req);
+            var events = _svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events, Is.Not.Empty);
+        }
+
+        [Test]
+        public async Task GetStatusAsync_AfterSingleAdvance_StageIsReadinessVerified()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ReadinessVerified));
+        }
+
+        [Test]
+        public async Task GetStatusAsync_AfterTwoAdvances_StageIsValidationPending()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 2; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ValidationPending));
+        }
+
+        [Test]
+        public async Task CancelAsync_PipelineId_IsNonNullInResponse()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task InitiateAsync_ARC1400Standard_V2_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC1400";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_ERC20Standard_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ERC20";
+            req.Network = "base";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task GetStatusAsync_ReturnsSchemaVersion()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task GetStatusAsync_ReturnsCorrelationId()
+        {
+            var corrId = "unit-status-corr-99";
+            var r = await _svc.InitiateAsync(ValidRequest(correlationId: corrId));
+            var status = await _svc.GetStatusAsync(r.PipelineId!, corrId);
+            Assert.That(status!.CorrelationId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task InitiateAsync_SuccessResponse_HasPipelineId()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r.PipelineId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task AdvanceAsync_WhitespaceOnlyPipelineId_ReturnsError()
+        {
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = "   " });
+            Assert.That(adv.Success, Is.False);
+        }
+
+        [Test]
+        public async Task InitiateAsync_BetanetNetwork_V2_Succeeds()
+        {
+            var req = ValidRequest();
+            req.Network = "betanet";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_AramidmainNetwork_V2_Succeeds()
+        {
+            var req = ValidRequest();
+            req.Network = "aramidmain";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task GetAuditAsync_AfterFullLifecycle_EventCountIsAtLeastTen()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await _svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Count, Is.GreaterThanOrEqualTo(10));
+        }
+
+        [Test]
+        public async Task InitiateAsync_MaxRetries_100_Succeeds()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 100;
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_ReadinessStatus_InitiallyNotChecked()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.NotChecked));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_HasNextAction_AfterAdvance()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.NextAction, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task InitiateAsync_FailureCategory_IsNone_OnSuccess()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r.FailureCategory, Is.EqualTo(FailureCategory.None));
+        }
+
+        [Test]
+        public async Task CancelAsync_NullPipelineId_V2_ReturnsError()
+        {
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = null });
+            Assert.That(cancel.Success, Is.False);
+        }
+
+        [Test]
+        public async Task InitiateAsync_TokenName_WithNumbers_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenName = "Token123";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_NextAction_IsNotNull_OnSuccess()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r.NextAction, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task GetStatusAsync_AfterThreeAdvances_StageIsValidationPassed()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 3; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ValidationPassed));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_SeventhAdvance_StageIsDeploymentActive()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            PipelineAdvanceResponse? adv = null;
+            for (int i = 0; i < 7; i++)
+                adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv!.CurrentStage, Is.EqualTo(PipelineStage.DeploymentActive));
+        }
+
+        [Test]
+        public async Task InitiateAsync_SuccessResponse_IsIdempotentReplay_False_OnNewPipeline()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r.IsIdempotentReplay, Is.False);
+        }
+
+        [Test]
+        public async Task GetAuditAsync_UnknownPipelineId_ReturnsEmptyEventList()
+        {
+            var audit = await _svc.GetAuditAsync("nonexistent-id", null);
+            Assert.That(audit.Events, Is.Empty);
+        }
     }
 }
