@@ -1143,13 +1143,13 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 | File | Minimum |
 |------|---------|
 | `ServiceUnitTests.cs` | 60+ |
-| `ContractTests.cs` | 38+ |
-| `UserJourneyTests.cs` | 40+ |
-| `E2EWorkflowTests.cs` | 22+ |
-| `AdvancedCoverageTests.cs` | 65+ |
-| **Total** | **225+** |
+| `ContractTests.cs` | 46+ |
+| `UserJourneyTests.cs` | 50+ |
+| `E2EWorkflowTests.cs` | 26+ |
+| `AdvancedCoverageTests.cs` | 76+ |
+| **Total** | **255+** |
 
-Issue #484 final counts: 60 unit + 38 contract + 40 journey + 22 E2E + 66 advanced = **226 tests**.
+Issue #484 final counts: 60 unit + 46 contract + 50 journey + 26 E2E + 76 advanced = **258 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
@@ -1164,14 +1164,15 @@ dotnet test BiatecTokensTests --configuration Release \
   --filter "FullyQualifiedName~ARC76MVPDeployment" 2>&1 | tail -5
 ```
 
-**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x3)**: Product owner posted same coverage request THREE times because:
+**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x4)**: Product owner posted same coverage request FOUR times because:
 - ❌ Initial delivery had 140 tests (too few - 4 files, wrong minimums)
 - ❌ First fix had 182 tests (still not enough - PO re-requested again)
 - ❌ Second fix had 204 tests (PO requested a THIRD time)
-- ✅ Final delivery: 226 tests across 5 files
-- **Key**: ServiceUnitTests must be 60+, E2EWorkflowTests must be 22+, AdvancedCoverageTests must be 65+, Total must be 225+
+- ❌ Third fix had 226 tests (PO requested a FOURTH time)
+- ✅ Final delivery: 258 tests across 5 files
+- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 60+, ContractTests 46+, UserJourneyTests 50+, E2EWorkflowTests 26+, AdvancedCoverageTests 76+, Total 255+
 
-**Action Required**: ALWAYS deliver 5 test files with 225+ total tests. Each iteration that fell short raised the minimum by ~25 tests. Start high and stay high.
+**Action Required**: ALWAYS deliver 5 test files with 255+ total tests on first submission. Each iteration that fell short added ~25-30 tests. Start at max coverage and stay there.
 
 ### Alignment with Product Roadmap
 

@@ -1037,6 +1037,10 @@ namespace BiatecTokensTests
             // Attempt another retry - should fail (max retries exhausted)
             var retry2 = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
             Assert.That(retry2.Success, Is.False);
+
+            // Pipeline should be in Failed or non-Retrying state
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.Not.EqualTo(PipelineStage.Retrying));
         }
     }
 }
