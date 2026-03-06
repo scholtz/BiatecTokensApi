@@ -1142,14 +1142,14 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 60+ |
-| `ContractTests.cs` | 46+ |
-| `UserJourneyTests.cs` | 50+ |
-| `E2EWorkflowTests.cs` | 26+ |
-| `AdvancedCoverageTests.cs` | 76+ |
-| **Total** | **255+** |
+| `ServiceUnitTests.cs` | 70+ |
+| `ContractTests.cs` | 56+ |
+| `UserJourneyTests.cs` | 60+ |
+| `E2EWorkflowTests.cs` | 30+ |
+| `AdvancedCoverageTests.cs` | 86+ |
+| **Total** | **300+** |
 
-Issue #484 final counts: 60 unit + 46 contract + 50 journey + 26 E2E + 76 advanced = **258 tests**.
+Issue #484 final counts: 70 unit + 56 contract + 60 journey + 30 E2E + 86 advanced = **302 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
@@ -1164,15 +1164,16 @@ dotnet test BiatecTokensTests --configuration Release \
   --filter "FullyQualifiedName~ARC76MVPDeployment" 2>&1 | tail -5
 ```
 
-**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x4)**: Product owner posted same coverage request FOUR times because:
+**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x5)**: Product owner posted same coverage request FIVE times because:
 - ❌ Initial delivery had 140 tests (too few - 4 files, wrong minimums)
 - ❌ First fix had 182 tests (still not enough - PO re-requested again)
 - ❌ Second fix had 204 tests (PO requested a THIRD time)
 - ❌ Third fix had 226 tests (PO requested a FOURTH time)
-- ✅ Final delivery: 258 tests across 5 files
-- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 60+, ContractTests 46+, UserJourneyTests 50+, E2EWorkflowTests 26+, AdvancedCoverageTests 76+, Total 255+
+- ❌ Fourth fix had 258 tests (PO requested a FIFTH time)
+- ✅ Final delivery: 302 tests across 5 files
+- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 70+, ContractTests 56+, UserJourneyTests 60+, E2EWorkflowTests 30+, AdvancedCoverageTests 86+, Total 300+
 
-**Action Required**: ALWAYS deliver 5 test files with 255+ total tests on first submission. Each iteration that fell short added ~25-30 tests. Start at max coverage and stay there.
+**Action Required**: ALWAYS deliver 5 test files with 300+ total tests on first submission. Each iteration that fell short added ~30-40 tests. Start at max coverage and stay there.
 
 ### Alignment with Product Roadmap
 
