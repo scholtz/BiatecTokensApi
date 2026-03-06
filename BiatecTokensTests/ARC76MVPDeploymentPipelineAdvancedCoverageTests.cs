@@ -1788,5 +1788,280 @@ namespace BiatecTokensTests
             Assert.That(r2.IsIdempotentReplay, Is.True, "Second call with same key must be an idempotent replay");
             Assert.That(r2.PipelineId, Is.EqualTo(r1.PipelineId), "Idempotent replay must return the same pipeline ID");
         }
+
+        // ── BRANCH: aramidmain network ─────────────────────────────────────────
+
+        [Test]
+        public async Task BRANCH_AramidMain_Network_Creates_Pipeline()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "aramidmain";
+            req.IdempotencyKey = "adv-aramid-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.PipelineId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task BRANCH_ASA_Testnet_Creates_Pipeline()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ASA";
+            req.Network = "testnet";
+            req.IdempotencyKey = "adv-asa-tn-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BRANCH_ARC200_Mainnet_Creates_Pipeline()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "mainnet";
+            req.IdempotencyKey = "adv-arc200-mn-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BRANCH_ARC1400_Voimain_Creates_Pipeline()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC1400";
+            req.Network = "voimain";
+            req.IdempotencyKey = "adv-arc1400-voi-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BRANCH_ARC200_AramidMain_Creates_Pipeline()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "aramidmain";
+            req.IdempotencyKey = "adv-arc200-aramid-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        // ── SECURITY: empty/invalid inputs ────────────────────────────────────
+
+        [Test]
+        public async Task SECURITY_EmptyString_Network_Returns_Error()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = string.Empty;
+            req.IdempotencyKey = "adv-sec-empty-net-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_NETWORK").Or.EqualTo("UNSUPPORTED_NETWORK"));
+        }
+
+        [Test]
+        public async Task SECURITY_EmptyString_TokenStandard_Returns_Error()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = string.Empty;
+            req.IdempotencyKey = "adv-sec-empty-std-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_TOKEN_STANDARD").Or.EqualTo("UNSUPPORTED_TOKEN_STANDARD"));
+        }
+
+        // ── CONC: concurrent advances ──────────────────────────────────────────
+
+        [Test]
+        public async Task CONC_5Pipelines_Advance_Simultaneously()
+        {
+            var svc = CreateService();
+            var pipelines = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ =>
+                svc.InitiateAsync(new PipelineInitiateRequest
+                {
+                    TokenName = "ConcToken",
+                    TokenStandard = "ARC3",
+                    Network = "testnet",
+                    DeployerAddress = "CONC_ADDRESS",
+                    MaxRetries = 2,
+                    IdempotencyKey = Guid.NewGuid().ToString()
+                })));
+            var advanceTasks = pipelines.Select(p =>
+                svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = p.PipelineId }));
+            var results = await Task.WhenAll(advanceTasks);
+            Assert.That(results.All(r => r.Success || r.ErrorCode != null), Is.True);
+        }
+
+        // ── MULTI: audit isolation ────────────────────────────────────────────
+
+        [Test]
+        public async Task MULTI_Audit_From_Two_Pipelines_Is_Isolated()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(new PipelineInitiateRequest
+            {
+                TokenName = "PipelineOne", TokenStandard = "ASA", Network = "testnet",
+                DeployerAddress = "ADDR1", MaxRetries = 2, IdempotencyKey = "multi-iso-1-" + Guid.NewGuid()
+            });
+            var r2 = await svc.InitiateAsync(new PipelineInitiateRequest
+            {
+                TokenName = "PipelineTwo", TokenStandard = "ARC3", Network = "mainnet",
+                DeployerAddress = "ADDR2", MaxRetries = 2, IdempotencyKey = "multi-iso-2-" + Guid.NewGuid()
+            });
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            var audit1 = await svc.GetAuditAsync(r1.PipelineId!, null);
+            var audit2 = await svc.GetAuditAsync(r2.PipelineId!, null);
+            Assert.That(audit1.Events.Count, Is.GreaterThan(audit2.Events.Count),
+                "Pipeline 1 should have more events than pipeline 2");
+            Assert.That(audit2.Events.All(e => e.PipelineId == r2.PipelineId), Is.True,
+                "Pipeline 2 audit must only contain its own events");
+        }
+
+        // ── STATE: terminal states ────────────────────────────────────────────
+
+        [Test]
+        public async Task STATE_Cannot_Retry_Completed_Pipeline()
+        {
+            var svc = CreateService();
+            var id = await FullAdvanceAsync(svc);
+            var status = await svc.GetStatusAsync(id, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = id });
+            Assert.That(retry.Success, Is.False);
+            Assert.That(retry.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        // ── AUDIT: timestamp checks ───────────────────────────────────────────
+
+        [Test]
+        public async Task AUDIT_Events_Have_NonNull_Timestamps()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events, Is.Not.Empty);
+            Assert.That(events.All(e => e.Timestamp > DateTime.MinValue), Is.True,
+                "All audit events must have a non-default Timestamp");
+        }
+
+        [Test]
+        public async Task AUDIT_InitiateEvent_Has_Correct_Operation()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events.Any(e => e.Operation.Contains("Initiate", StringComparison.OrdinalIgnoreCase)), Is.True,
+                "First audit event must record Initiate operation");
+        }
+
+        [Test]
+        public async Task AUDIT_AdvanceEvent_Has_Correct_Operation()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events.Any(e => e.Operation.Contains("Advance", StringComparison.OrdinalIgnoreCase)
+                || e.Operation.Contains("advance", StringComparison.OrdinalIgnoreCase)), Is.True,
+                "Audit should record Advance operation");
+        }
+
+        [Test]
+        public async Task AUDIT_CancelEvent_Has_Correct_Operation()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events.Any(e => e.Operation.Contains("Cancel", StringComparison.OrdinalIgnoreCase)), Is.True,
+                "Audit should record Cancel operation");
+        }
+
+        // ── ERRORS: safe messages ─────────────────────────────────────────────
+
+        [Test]
+        public async Task ERRORS_Safe_Message_For_GetStatus_NonExistent()
+        {
+            var svc = CreateService();
+            var status = await svc.GetStatusAsync("nonexistent-" + Guid.NewGuid(), null);
+            Assert.That(status, Is.Null, "GetStatus for nonexistent pipeline should return null");
+        }
+
+        [Test]
+        public async Task ERRORS_Safe_Message_For_Retry_NonExistent()
+        {
+            var svc = CreateService();
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = "nonexistent-" + Guid.NewGuid() });
+            Assert.That(retry.Success, Is.False);
+            Assert.That(retry.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+            Assert.That(retry.ErrorMessage, Does.Not.Contain("StackTrace").IgnoreCase);
+        }
+
+        // ── IDEM: case sensitivity ────────────────────────────────────────────
+
+        [Test]
+        public async Task IDEM_IdempotencyKey_CaseSensitivity_DifferentCase_DifferentPipeline()
+        {
+            var svc = CreateService();
+            var baseKey = "idem-case-test-" + Guid.NewGuid();
+            var reqLower = ValidRequest();
+            reqLower.IdempotencyKey = baseKey.ToLowerInvariant();
+            var reqUpper = ValidRequest();
+            reqUpper.IdempotencyKey = baseKey.ToUpperInvariant();
+            var r1 = await svc.InitiateAsync(reqLower);
+            var r2 = await svc.InitiateAsync(reqUpper);
+            Assert.That(r1.Success, Is.True);
+            Assert.That(r2.Success, Is.True);
+            // Case-sensitive: different casing = different keys = different pipelines
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId),
+                "Idempotency keys with different casing must produce different pipelines (case-sensitive)");
+        }
+
+        [Test]
+        public async Task IDEM_LongIdempotencyKey_IsHandled()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.IdempotencyKey = "adv-long-idem-" + new string('x', 500) + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.PipelineId, Is.Not.Null.And.Not.Empty);
+        }
+
+        // ── POLICY: all standards ─────────────────────────────────────────────
+
+        [Test]
+        public async Task POLICY_AllStandards_Are_Supported()
+        {
+            var svc = CreateService();
+            var standards = new[] { "ASA", "ARC3", "ARC200", "ARC1400", "ERC20" };
+            foreach (var std in standards)
+            {
+                var req = ValidRequest();
+                req.TokenStandard = std;
+                req.Network = std == "ERC20" ? "base" : "testnet";
+                req.IdempotencyKey = "adv-policy-std-" + std + "-" + Guid.NewGuid();
+                var r = await svc.InitiateAsync(req);
+                Assert.That(r.Success, Is.True, $"Standard '{std}' should be accepted");
+            }
+        }
+
+        [Test]
+        public async Task STATE_PendingReadiness_Is_Initial_Stage()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness),
+                "Newly created pipeline must start in PendingReadiness stage");
+        }
     }
 }

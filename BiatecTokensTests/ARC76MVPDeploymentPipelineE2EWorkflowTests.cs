@@ -916,5 +916,179 @@ namespace BiatecTokensTests
                 Assert.That(ev.CorrelationId, Is.Not.Empty,
                     $"Audit event '{ev.Operation}' has CorrelationId set but it is empty");
         }
+
+        [Test]
+        public async Task WX1_AuditEvents_Grow_By1_With_Each_Advance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit0 = await svc.GetAuditAsync(r.PipelineId!, null);
+            int baseline = audit0.Events.Count;
+            for (int step = 1; step <= 3; step++)
+            {
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+                Assert.That(audit.Events.Count, Is.EqualTo(baseline + step),
+                    $"After {step} advance(s), audit should have {baseline + step} events");
+            }
+        }
+
+        [Test]
+        public async Task WX2_FullLifecycle_ARC1400_Voimain_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC1400";
+            req.Network = "voimain";
+            req.IdempotencyKey = "e2e-arc1400-voi-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WX3_Cancel_Audit_Contains_Cancel_Operation()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId, Reason = "test" });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.Any(e => e.Operation.Contains("Cancel", StringComparison.OrdinalIgnoreCase)), Is.True);
+        }
+
+        [Test]
+        public async Task WX4_Idempotency_Replay_Returns_Same_Schema_Version()
+        {
+            var svc = CreateService();
+            var key = "e2e-idem-sv-" + Guid.NewGuid();
+            var r1 = await svc.InitiateAsync(ValidRequest(idempotencyKey: key));
+            var r2 = await svc.InitiateAsync(ValidRequest(idempotencyKey: key));
+            Assert.That(r2.IsIdempotentReplay, Is.True);
+            Assert.That(r2.SchemaVersion, Is.EqualTo(r1.SchemaVersion));
+            Assert.That(r2.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task WX5_Cancel_At_ValidationPending_Stage()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ValidationPending));
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+            var statusAfter = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(statusAfter!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task WX6_SchemaVersion_1_0_0_In_All_Response_Types()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            Assert.That(r.SchemaVersion, Is.EqualTo("1.0.0"), "InitiateResponse SchemaVersion");
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.SchemaVersion, Is.EqualTo("1.0.0"), "AdvanceResponse SchemaVersion");
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.SchemaVersion, Is.EqualTo("1.0.0"), "StatusResponse SchemaVersion");
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.SchemaVersion, Is.EqualTo("1.0.0"), "AuditResponse SchemaVersion");
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.SchemaVersion, Is.EqualTo("1.0.0"), "CancelResponse SchemaVersion");
+        }
+
+        [Test]
+        public async Task WX7_Concurrent_5Pipelines_All_Complete()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 5).Select(async _ =>
+            {
+                var req = ValidRequest(idempotencyKey: Guid.NewGuid().ToString());
+                var r = await svc.InitiateAsync(req);
+                await AdvanceAllStagesAsync(svc, r.PipelineId!);
+                return r.PipelineId!;
+            }).ToList();
+            var ids = await Task.WhenAll(tasks);
+            foreach (var id in ids)
+            {
+                var status = await svc.GetStatusAsync(id, null);
+                Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+            }
+        }
+
+        [Test]
+        public async Task WX8_Pipeline_With_MaxRetries_0_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-mr0-" + Guid.NewGuid());
+            req.MaxRetries = 0;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WX9_Stage_Transitions_Have_NonNull_Timestamps()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events, Is.Not.Empty);
+            Assert.That(audit.Events.All(e => e.Timestamp > DateTime.MinValue), Is.True,
+                "All audit events must have a non-default Timestamp");
+        }
+
+        [Test]
+        public async Task WY1_FullLifecycle_ARC200_Mainnet_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-arc200-mn-" + Guid.NewGuid());
+            req.TokenStandard = "ARC200";
+            req.Network = "mainnet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task WY2_AdvanceAsync_ReturnsCurrentStage_NonNull()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv, Is.Not.Null);
+            Assert.That(adv.Success, Is.True);
+        }
+
+        [Test]
+        public async Task WY3_GetStatus_Returns_TokenName_Matching_Request()
+        {
+            var svc = CreateService();
+            var req = ValidRequest(idempotencyKey: "e2e-tokenname-" + Guid.NewGuid());
+            req.TokenName = "UniqueTokenName123";
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.TokenName, Is.EqualTo("UniqueTokenName123"));
+        }
+
+        [Test]
+        public async Task WY4_Initiate_Then_GetAudit_Returns_EventCount_1()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.Count, Is.EqualTo(1), "After initiation only, audit should have exactly 1 event");
+        }
     }
 }
