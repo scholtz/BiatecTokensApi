@@ -761,5 +761,182 @@ namespace BiatecTokensTests
             Assert.That(r2.PipelineId, Is.EqualTo(r1.PipelineId));
             Assert.That(r2.IsIdempotentReplay, Is.True);
         }
+
+        // ── Additional User Journey tests (batch 3) ──────────────────────────────
+
+        [Test]
+        public async Task HP_ERC20OnBase_FullInitiate_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ERC20";
+            req.Network = "base";
+            req.IdempotencyKey = "hp-erc20-base-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task HP_ASA_OnBetanet_FullInitiate_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ASA";
+            req.Network = "betanet";
+            req.IdempotencyKey = "hp-asa-betanet-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task HP_ARC3_OnVoimain_FullInitiate_Succeeds()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC3";
+            req.Network = "voimain";
+            req.IdempotencyKey = "hp-arc3-voimain-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task HP_ARC200_OnMainnet_AdvancesThroughReadiness()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "mainnet";
+            req.IdempotencyKey = "hp-arc200-main-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.ReadinessVerified));
+        }
+
+        [Test]
+        public async Task II_EmptyDeployerAddress_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.DeployerAddress = "";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_DEPLOYER_ADDRESS"));
+        }
+
+        [Test]
+        public async Task II_WhitespaceDeployerAddress_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.DeployerAddress = "   ";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_ExactlyZero_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 0;
+            var r = await _svc.InitiateAsync(req);
+            // MaxRetries=0 means no retries allowed; service accepts it
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_Large_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 999;
+            req.IdempotencyKey = "bd-maxretries-999-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_TokenName_WithDots_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.TokenName = "My.Token.V2";
+            req.IdempotencyKey = "bd-dots-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task FR_CancelThenNewPipeline_SecondPipelineCanAdvance()
+        {
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = "fr-cancel-then-new-1-" + Guid.NewGuid();
+            var r1 = await _svc.InitiateAsync(req1);
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r1.PipelineId });
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = "fr-cancel-then-new-2-" + Guid.NewGuid();
+            var r2 = await _svc.InitiateAsync(req2);
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r2.PipelineId });
+            Assert.That(adv.Success, Is.True);
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.ReadinessVerified));
+        }
+
+        [Test]
+        public async Task FR_RetryOnCancelledPipeline_ReturnsCannotCancel()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var retry = await _svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.Success, Is.False);
+        }
+
+        [Test]
+        public async Task NX_AllStageNames_AreNonEmpty()
+        {
+            var stages = System.Enum.GetValues<PipelineStage>();
+            foreach (var stage in stages)
+                Assert.That(stage.ToString(), Is.Not.Null.And.Not.Empty, $"Stage {stage} must have a name");
+        }
+
+        [Test]
+        public async Task NX_ErrorCode_MISSING_TOKEN_NAME_IsDescriptive()
+        {
+            var req = ValidRequest();
+            req.TokenName = "";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_TOKEN_NAME"));
+            Assert.That(r.ErrorCode, Does.Not.Contain("Exception"), "ErrorCode should not expose exceptions");
+        }
+
+        [Test]
+        public async Task NX_PipelineId_IsGuidFormat_ForAllCreatedPipelines()
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                var req = ValidRequest();
+                req.IdempotencyKey = "nx-guid-check-" + i + "-" + Guid.NewGuid();
+                var r = await _svc.InitiateAsync(req);
+                Assert.That(Guid.TryParse(r.PipelineId, out _), Is.True, $"PipelineId should be GUID format");
+            }
+        }
+
+        [Test]
+        public async Task HP_FullLifecycle_ARC1400OnTestnet_CompletesWith9Advances()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC1400";
+            req.Network = "testnet";
+            req.IdempotencyKey = "hp-arc1400-testnet-" + Guid.NewGuid();
+            var r = await _svc.InitiateAsync(req);
+            PipelineAdvanceResponse? last = null;
+            for (int i = 0; i < 9; i++)
+                last = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(last!.CurrentStage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task II_UnsupportedNetwork_Rejected_WithRemediationHint()
+        {
+            var req = ValidRequest();
+            req.Network = "invalidnet";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("UNSUPPORTED_NETWORK"));
+            Assert.That(r.RemediationHint, Is.Not.Null.And.Not.Empty);
+        }
     }
 }
