@@ -1142,14 +1142,14 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 125+ |
-| `ContractTests.cs` | 96+ |
-| `UserJourneyTests.cs` | 105+ |
-| `E2EWorkflowTests.cs` | 56+ |
-| `AdvancedCoverageTests.cs` | 137+ |
-| **Total** | **515+** |
+| `ServiceUnitTests.cs` | 150+ |
+| `ContractTests.cs` | 111+ |
+| `UserJourneyTests.cs` | 124+ |
+| `E2EWorkflowTests.cs` | 69+ |
+| `AdvancedCoverageTests.cs` | 157+ |
+| **Total** | **605+** |
 
-Issue #484 current counts: 125 unit + 96 contract + 105 journey + 56 E2E + 137 advanced = **519 tests**.
+Issue #484 current counts: 150 unit + 111 contract + 124 journey + 69 E2E + 157 advanced = **611 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
@@ -1164,7 +1164,7 @@ dotnet test BiatecTokensTests --configuration Release \
   --filter "FullyQualifiedName~ARC76MVPDeployment" 2>&1 | tail -5
 ```
 
-**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x8)**: Product owner posted same coverage request EIGHT times because:
+**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x9)**: Product owner posted same coverage request NINE times because:
 - ❌ Initial delivery had 140 tests (too few - 4 files, wrong minimums)
 - ❌ First fix had 182 tests (still not enough - PO re-requested again)
 - ❌ Second fix had 204 tests (PO requested a THIRD time)
@@ -1173,10 +1173,11 @@ dotnet test BiatecTokensTests --configuration Release \
 - ❌ Fifth fix had 302 tests (PO requested a SIXTH time)
 - ❌ Sixth fix had 354 tests (PO requested a SEVENTH time)
 - ❌ Seventh delivery had 429 tests (PO requested an EIGHTH time)
-- ✅ Eighth delivery: 519 tests across 5 files
-- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 125+, ContractTests 96+, UserJourneyTests 105+, E2EWorkflowTests 56+, AdvancedCoverageTests 137+, Total 515+
+- ❌ Eighth delivery had 519 tests (PO requested a NINTH time)
+- ✅ Ninth delivery: 611 tests across 5 files
+- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 150+, ContractTests 111+, UserJourneyTests 124+, E2EWorkflowTests 69+, AdvancedCoverageTests 157+, Total 605+
 
-**Action Required**: ALWAYS deliver 5 test files with 515+ total tests on first submission. Each iteration that fell short added ~30-90 tests. Start at max coverage and stay there. NEVER submit with fewer than 515 tests total.
+**Action Required**: ALWAYS deliver 5 test files with 605+ total tests on first submission. Each iteration that fell short added ~30-90 tests. Start at max coverage and stay there. NEVER submit with fewer than 605 tests total.
 
 ### Alignment with Product Roadmap
 
