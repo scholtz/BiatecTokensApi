@@ -294,8 +294,8 @@ namespace BiatecTokensTests
 
             var ops = audit.Events.Select(e => e.Operation).ToList();
             Assert.That(ops, Has.Member("Initiate"), "Should have Initiate operation");
-            Assert.That(ops.Count(o => o == "Advance"), Is.GreaterThanOrEqualTo(9),
-                "Should have 9 Advance operations");
+            Assert.That(ops.Count(o => o == "Advance"), Is.EqualTo(9),
+                "Should have exactly 9 Advance operations (one per stage transition to Completed)");
             Assert.That(audit.Events.Count, Is.GreaterThanOrEqualTo(10),
                 "Should have at least 10 total audit events");
         }

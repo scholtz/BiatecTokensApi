@@ -691,7 +691,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             // Null request properties should produce a graceful error, not a crash
             var req = new PipelineInitiateRequest();  // All nulls
-            PipelineInitiateResponse result = null!;
+            PipelineInitiateResponse result = new PipelineInitiateResponse();
             Assert.DoesNotThrowAsync(async () => result = await svc.InitiateAsync(req));
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Success, Is.False);
@@ -743,8 +743,8 @@ namespace BiatecTokensTests
             var advanceTask = svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = pipelineId });
             var cancelTask = svc.CancelAsync(new PipelineCancelRequest { PipelineId = pipelineId });
 
-            PipelineAdvanceResponse advResult = null!;
-            PipelineCancelResponse cancelResult = null!;
+            PipelineAdvanceResponse advResult = new PipelineAdvanceResponse();
+            PipelineCancelResponse cancelResult = new PipelineCancelResponse();
             Assert.DoesNotThrowAsync(async () =>
             {
                 advResult = await advanceTask;
