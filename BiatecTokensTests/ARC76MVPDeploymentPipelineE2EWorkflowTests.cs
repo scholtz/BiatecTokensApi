@@ -393,5 +393,68 @@ namespace BiatecTokensTests
             Assert.That(r.Success, Is.True);
             Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
         }
+
+        [Test]
+        public async Task WW_CompliancePassed_ToDeploymentQueued_IsCorrectTransition()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            // 5 advances: PendingReadiness->ReadinessVerified->ValidationPending->ValidationPassed->CompliancePending->CompliancePassed
+            for (int i = 0; i < 5; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.DeploymentQueued));
+        }
+
+        [Test]
+        public async Task WX_DeploymentActive_StageIsReachable()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 7; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.DeploymentActive));
+        }
+
+        [Test]
+        public async Task WY_DeploymentConfirmed_StageIsReachable()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 8; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.DeploymentConfirmed));
+        }
+
+        [Test]
+        public async Task WZ_FullLifecycle_AllStagesAreTraversed_InCorrectOrder()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var stages = new List<PipelineStage> { r.Stage };
+
+            for (int i = 0; i < 9; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                stages.Add(adv.CurrentStage);
+            }
+
+            var expectedOrder = new[]
+            {
+                PipelineStage.PendingReadiness,
+                PipelineStage.ReadinessVerified,
+                PipelineStage.ValidationPending,
+                PipelineStage.ValidationPassed,
+                PipelineStage.CompliancePending,
+                PipelineStage.CompliancePassed,
+                PipelineStage.DeploymentQueued,
+                PipelineStage.DeploymentActive,
+                PipelineStage.DeploymentConfirmed,
+                PipelineStage.Completed
+            };
+            Assert.That(stages, Is.EqualTo(expectedOrder));
+        }
     }
 }

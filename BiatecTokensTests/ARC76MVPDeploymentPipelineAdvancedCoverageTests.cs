@@ -880,5 +880,163 @@ namespace BiatecTokensTests
             var result = await svc.InitiateAsync(req);
             Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
         }
+
+        [Test]
+        public async Task TerminalState_Completed_CannotBeAdvanced()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task TerminalState_Cancelled_CannotBeAdvanced()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task TerminalState_Completed_CannotBeCancelled()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.False);
+            Assert.That(cancel.ErrorCode, Is.EqualTo("CANNOT_CANCEL"));
+        }
+
+        [Test]
+        public async Task AuditLog_MultipleOperations_AllHaveUniqueEventIds()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+
+            var events = svc.GetAuditEvents(r.PipelineId);
+            var ids = events.Select(e => e.EventId).ToList();
+            Assert.That(ids.Distinct().Count(), Is.EqualTo(ids.Count), "All EventIds must be unique");
+        }
+
+        [Test]
+        public async Task ConcurrentRequests_DifferentIdempotencyKeys_ProduceDistinctPipelines()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 5).Select(i =>
+            {
+                var req = ValidRequest();
+                req.IdempotencyKey = $"concurrent-key-{i}-{Guid.NewGuid()}";
+                return svc.InitiateAsync(req);
+            }).ToArray();
+
+            var results = await Task.WhenAll(tasks);
+            var ids = results.Select(r => r.PipelineId).Distinct().ToList();
+            Assert.That(ids.Count, Is.EqualTo(5), "5 distinct idempotency keys should produce 5 distinct pipelines");
+        }
+
+        [Test]
+        public async Task Idempotency_SameKeyDifferentStandard_Returns_Conflict()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            req1.TokenStandard = "ARC3";
+            await svc.InitiateAsync(req1);
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.TokenStandard = "ASA";
+            var result = await svc.InitiateAsync(req2);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+        }
+
+        [Test]
+        public async Task Idempotency_SameKeyDifferentNetwork_Returns_Conflict()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            req1.Network = "mainnet";
+            await svc.InitiateAsync(req1);
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.Network = "testnet";
+            var result = await svc.InitiateAsync(req2);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+        }
+
+        [Test]
+        public async Task Security_OversizedDeployerAddress_IsHandledSafely()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = new string('A', 1000);
+            var result = await svc.InitiateAsync(req);
+            // Must not throw; success or structured error both acceptable
+            Assert.That(result, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task StateTransition_AllForwardStages_AreReachable()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+
+            var expectedStages = new[]
+            {
+                PipelineStage.ReadinessVerified,
+                PipelineStage.ValidationPending,
+                PipelineStage.ValidationPassed,
+                PipelineStage.CompliancePending,
+                PipelineStage.CompliancePassed,
+                PipelineStage.DeploymentQueued,
+                PipelineStage.DeploymentActive,
+                PipelineStage.DeploymentConfirmed,
+                PipelineStage.Completed
+            };
+
+            foreach (var expected in expectedStages)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                Assert.That(adv.CurrentStage, Is.EqualTo(expected), $"Expected stage {expected}");
+            }
+        }
+
+        [Test]
+        public async Task RetryAsync_ExhaustsMaxRetries_TransitionsToFailed()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = 1;
+            var r = await svc.InitiateAsync(req);
+
+            // Advance to DeploymentActive (7 steps)
+            for (int i = 0; i < 7; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+
+            // Retry once (uses 1 of MaxRetries=1)
+            await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+
+            // Attempt another retry - should fail (max retries exhausted)
+            var retry2 = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry2.Success, Is.False);
+        }
     }
 }

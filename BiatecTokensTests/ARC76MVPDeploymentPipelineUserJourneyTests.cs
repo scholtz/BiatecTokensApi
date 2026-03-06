@@ -439,5 +439,102 @@ namespace BiatecTokensTests
             foreach (var name in actual)
                 Assert.That(name, Does.Not.Contain("_"), "Enum names should use PascalCase, not underscores");
         }
+
+        [Test]
+        public async Task HP_VoiMainNetwork_SupportedAndCompletesLifecycle()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(network: "voimain"));
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+            await AdvanceToStageAsync(_svc, r.PipelineId!, 9);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task HP_ARC3Standard_SupportedOnMainnet()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(network: "mainnet", standard: "ARC3"));
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task HP_ASAStandard_SupportedOnMainnet()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(network: "mainnet", standard: "ASA"));
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task HP_MaxRetries_10_SupportedBoundary()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 10;
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task II_NullIdempotencyKey_StillCreates_WithNullKey()
+        {
+            var req = ValidRequest();
+            req.IdempotencyKey = null;
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.PipelineId, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task II_TokenNameWithSpecialChars_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.TokenName = "My Token-Name 2026";
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_100_SupportedAtUpperLimit()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 100;
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task FR_CancelThenNewPipeline_SameDeployer_Succeeds()
+        {
+            var req1 = ValidRequest();
+            var r1 = await _svc.InitiateAsync(req1);
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r1.PipelineId });
+
+            var req2 = ValidRequest();
+            var r2 = await _svc.InitiateAsync(req2);
+            Assert.That(r2.Success, Is.True);
+            Assert.That(r2.PipelineId, Is.Not.EqualTo(r1.PipelineId));
+        }
+
+        [Test]
+        public void NX_AllStageNames_AreHumanReadable()
+        {
+            var stageNames = Enum.GetNames<PipelineStage>();
+            Assert.That(stageNames.Length, Is.GreaterThanOrEqualTo(13));
+            foreach (var name in stageNames)
+            {
+                Assert.That(name, Does.Not.Contain("_"), $"Stage '{name}' should use PascalCase");
+                Assert.That(name, Is.Not.EqualTo(name.ToUpperInvariant()), $"Stage '{name}' should not be all-caps");
+            }
+        }
+
+        [Test]
+        public async Task NX_ErrorMessage_ForMissingFields_ContainsFieldName()
+        {
+            var req = ValidRequest();
+            req.TokenName = null;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Does.Contain("token").IgnoreCase.Or.Contain("name").IgnoreCase);
+        }
     }
 }
