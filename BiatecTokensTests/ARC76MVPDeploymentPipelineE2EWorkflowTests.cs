@@ -299,5 +299,99 @@ namespace BiatecTokensTests
             Assert.That(audit.Events.Count, Is.GreaterThanOrEqualTo(10),
                 "Should have at least 10 total audit events");
         }
+
+        // ── WP: Multi-network pipeline ───────────────────────────────────────────
+
+        [Test]
+        public async Task WP_MainnetNetwork_CompletesFullLifecycle()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "mainnet";
+            req.TokenStandard = "ASA";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        // ── WQ: Multiple completed pipelines have isolated audit trails ──────────
+
+        [Test]
+        public async Task WQ_MultipleCompletedPipelines_HaveIsolatedAuditTrails()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest());
+            var r2 = await svc.InitiateAsync(ValidRequest());
+
+            await AdvanceAllStagesAsync(svc, r1.PipelineId!);
+            // r2 remains at PendingReadiness
+
+            var audit1 = await svc.GetAuditAsync(r1.PipelineId!, null);
+            var audit2 = await svc.GetAuditAsync(r2.PipelineId!, null);
+
+            // r1 should have more events (advanced all the way)
+            Assert.That(audit1.Events.Count, Is.GreaterThan(audit2.Events.Count));
+            // All r2 events should only reference r2's pipeline
+            Assert.That(audit2.Events.All(e => e.PipelineId == r2.PipelineId || e.PipelineId == null), Is.True);
+        }
+
+        // ── WR: Cancel at ValidationPassed produces Cancelled terminal stage ─────
+
+        [Test]
+        public async Task WR_CancelAtValidationPassed_CorrectTerminalStage()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            // Advance to ValidationPassed (3 steps)
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ValidationPassed));
+
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+
+            status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        // ── WS: Schema version stable across all response types ──────────────────
+
+        [Test]
+        public async Task WS_SchemaVersionStable_AcrossAllResponseTypes()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            Assert.That(r.SchemaVersion, Is.EqualTo("1.0.0"));
+
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.SchemaVersion, Is.EqualTo("1.0.0"));
+
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.SchemaVersion, Is.EqualTo("1.0.0"));
+
+            // Cancel a fresh pipeline to verify schema version on cancel response
+            var svc2 = CreateService();
+            var r2 = await svc2.InitiateAsync(ValidRequest());
+            var cancel2 = await svc2.CancelAsync(new PipelineCancelRequest { PipelineId = r2.PipelineId });
+            Assert.That(cancel2.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        // ── WT: ARC200 standard supported on testnet ──────────────────────────────
+
+        [Test]
+        public async Task WT_ARC200Standard_SupportedOnTestnet()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "testnet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
     }
 }

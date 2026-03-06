@@ -541,5 +541,92 @@ namespace BiatecTokensTests
             var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
             Assert.That(cancel.PreviousStage, Is.EqualTo(PipelineStage.PendingReadiness));
         }
+
+        // ── GetAuditAsync additional tests ───────────────────────────────────────
+
+        [Test]
+        public async Task GetAuditAsync_AfterMultipleOperations_GrowsAuditList()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var auditBefore = await _svc.GetAuditAsync(r.PipelineId!, null);
+            int countBefore = auditBefore.Events.Count;
+
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var auditAfter = await _svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(auditAfter.Events.Count, Is.GreaterThan(countBefore));
+        }
+
+        [Test]
+        public async Task GetAuditAsync_EveryEventHasNonNullEventId()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await _svc.GetAuditAsync(r.PipelineId!, null);
+            foreach (var ev in audit.Events)
+                Assert.That(ev.EventId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task GetAuditAsync_EveryEventHasTimestamp()
+        {
+            var before = DateTime.UtcNow.AddSeconds(-1);
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var audit = await _svc.GetAuditAsync(r.PipelineId!, null);
+            foreach (var ev in audit.Events)
+                Assert.That(ev.Timestamp, Is.GreaterThan(before));
+        }
+
+        // ── Idempotency additional tests ─────────────────────────────────────────
+
+        [Test]
+        public async Task InitiateAsync_IdempotentReplay_ReturnsSchemaVersion()
+        {
+            var key = Guid.NewGuid().ToString();
+            await _svc.InitiateAsync(ValidRequest(idempotencyKey: key));
+            var r2 = await _svc.InitiateAsync(ValidRequest(idempotencyKey: key));
+            Assert.That(r2.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task InitiateAsync_IdempotentReplay_ReturnsOriginalCorrelationId()
+        {
+            var key = Guid.NewGuid().ToString();
+            var corrId = "original-corr-" + Guid.NewGuid();
+            await _svc.InitiateAsync(ValidRequest(idempotencyKey: key, correlationId: corrId));
+            var r2 = await _svc.InitiateAsync(ValidRequest(idempotencyKey: key, correlationId: corrId));
+            Assert.That(r2.CorrelationId, Is.EqualTo(corrId));
+        }
+
+        // ── RetryAsync additional tests ───────────────────────────────────────────
+
+        [Test]
+        public async Task RetryAsync_MissingPipelineId_ReturnsError()
+        {
+            var result = await _svc.RetryAsync(new PipelineRetryRequest { PipelineId = null });
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_PIPELINE_ID"));
+        }
+
+        // ── Validation remediation hints ─────────────────────────────────────────
+
+        [Test]
+        public async Task InitiateAsync_UnsupportedStandard_HasRemediationHint()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "SOLANA_SPL";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
+            Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+        }
+
+        [Test]
+        public async Task InitiateAsync_UnsupportedNetwork_HasRemediationHint()
+        {
+            var req = ValidRequest();
+            req.Network = "polkadot";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
+            Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+        }
     }
 }

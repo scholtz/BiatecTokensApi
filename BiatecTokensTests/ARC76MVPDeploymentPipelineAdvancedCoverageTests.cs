@@ -754,5 +754,131 @@ namespace BiatecTokensTests
             Assert.That(advResult.Success || cancelResult.Success, Is.True,
                 "At least one of advance/cancel should succeed");
         }
+
+        // ── Additional ARC76 readiness verification tests ────────────────────────
+
+        [Test]
+        public async Task ARC76_Readiness_PipelineStatusShowsNotCheckedBeforeAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.NotChecked));
+        }
+
+        [Test]
+        public async Task ARC76_Readiness_CannotSkipReadinessStage()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            // First advance goes to ReadinessVerified (cannot skip to ValidationPending)
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.ReadinessVerified));
+            Assert.That(adv.CurrentStage, Is.Not.EqualTo(PipelineStage.ValidationPending));
+        }
+
+        // ── Additional idempotency edge cases ────────────────────────────────────
+
+        [Test]
+        public async Task Idempotency_ConflictResponse_HasRemediationHint()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            await svc.InitiateAsync(req1);
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.TokenName = "ConflictingToken";
+            var result = await svc.InitiateAsync(req2);
+            Assert.That(result.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task Idempotency_ThirtySequentialSameKeyRequests_AllReturnSamePipelineId()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var first = await svc.InitiateAsync(new PipelineInitiateRequest
+            {
+                TokenName = "StressToken", TokenStandard = "ASA", Network = "testnet",
+                DeployerAddress = "STRESS_ADDR", MaxRetries = 3, IdempotencyKey = key
+            });
+
+            for (int i = 0; i < 29; i++)
+            {
+                var replay = await svc.InitiateAsync(new PipelineInitiateRequest
+                {
+                    TokenName = "StressToken", TokenStandard = "ASA", Network = "testnet",
+                    DeployerAddress = "STRESS_ADDR", MaxRetries = 3, IdempotencyKey = key
+                });
+                Assert.That(replay.PipelineId, Is.EqualTo(first.PipelineId), $"Replay {i + 1} had different PipelineId");
+            }
+        }
+
+        // ── Audit trail additional tests ─────────────────────────────────────────
+
+        [Test]
+        public async Task Audit_EventsAreChronologicallyOrdered()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            var timestamps = audit.Events.Select(e => e.Timestamp).ToList();
+            for (int i = 1; i < timestamps.Count; i++)
+                Assert.That(timestamps[i], Is.GreaterThanOrEqualTo(timestamps[i - 1]));
+        }
+
+        [Test]
+        public async Task Audit_PipelineIdPresentInAllEvents()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            foreach (var ev in audit.Events)
+                Assert.That(ev.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task Audit_CancelAddsSeparateAuditEvent()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var auditBefore = await svc.GetAuditAsync(r.PipelineId!, null);
+            int countBefore = auditBefore.Events.Count;
+
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var auditAfter = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(auditAfter.Events.Count, Is.GreaterThan(countBefore));
+        }
+
+        // ── FailureCategory coverage ──────────────────────────────────────────────
+
+        [Test]
+        public async Task FailureCategory_MissingTokenName_IsUserCorrectable()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = null;
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+        }
+
+        [Test]
+        public async Task FailureCategory_UnsupportedNetwork_IsUserCorrectable()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "bsv";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+        }
     }
 }
