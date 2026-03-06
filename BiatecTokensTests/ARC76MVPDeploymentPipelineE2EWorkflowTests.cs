@@ -456,5 +456,79 @@ namespace BiatecTokensTests
             };
             Assert.That(stages, Is.EqualTo(expectedOrder));
         }
+
+        // ── Additional E2E workflow tests ─────────────────────────────────────────
+
+        [Test]
+        public async Task W0_ARC3_OnBetanet_FullLifecycle()
+        {
+            var svc = CreateService();
+            var req = new PipelineInitiateRequest
+            {
+                TokenName = "BetanetARC3Token",
+                TokenStandard = "ARC3",
+                Network = "betanet",
+                DeployerAddress = "ALGO_BETANET_ADDRESS",
+                MaxRetries = 3,
+                CorrelationId = Guid.NewGuid().ToString()
+            };
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task W1_ASA_OnVoimain_FullLifecycle()
+        {
+            var svc = CreateService();
+            var req = new PipelineInitiateRequest
+            {
+                TokenName = "VoimainASAToken",
+                TokenStandard = "ASA",
+                Network = "voimain",
+                DeployerAddress = "ALGO_VOIMAIN_ADDRESS",
+                MaxRetries = 3,
+                CorrelationId = Guid.NewGuid().ToString()
+            };
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task W2_IdempotencyKey_Null_CreatesTwoPipelines()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest(idempotencyKey: null));
+            var r2 = await svc.InitiateAsync(ValidRequest(idempotencyKey: null));
+            // Without idempotency key, each call should produce a distinct pipeline
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+            Assert.That(r1.Success, Is.True);
+            Assert.That(r2.Success, Is.True);
+        }
+
+        [Test]
+        public async Task W3_MultipleStagesAdvanced_AuditTrailGrowsWithEachStep()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit0 = await svc.GetAuditAsync(r.PipelineId!, null);
+            int count0 = audit0.Events.Count;
+
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit1 = await svc.GetAuditAsync(r.PipelineId!, null);
+            int count1 = audit1.Events.Count;
+
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit2 = await svc.GetAuditAsync(r.PipelineId!, null);
+            int count2 = audit2.Events.Count;
+
+            Assert.That(count1, Is.GreaterThan(count0), "Audit should grow after first advance");
+            Assert.That(count2, Is.GreaterThan(count1), "Audit should grow after second advance");
+        }
     }
 }

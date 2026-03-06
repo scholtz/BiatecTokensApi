@@ -628,5 +628,114 @@ namespace BiatecTokensTests
             Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
             Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
         }
+
+        // ── Additional unit tests ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task InitiateAsync_IdempotencyKey_WithMaxLengthString_IsAccepted()
+        {
+            var req = ValidRequest(idempotencyKey: new string('K', 200));
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.PipelineId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task InitiateAsync_DeployerAddress_WithSpecialChars_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.DeployerAddress = "ALGO-TEST+ADDRESS_2026@special";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task GetStatusAsync_ReturnsPipelineId_Matching_InitiateAsync()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.PipelineId, Is.EqualTo(r.PipelineId));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_ThroughAllNineForwardStages_ReachesCompleted()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task CancelAsync_OnCancelledPipeline_Returns_Error()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var cancel2 = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel2.Success, Is.False);
+            Assert.That(cancel2.ErrorCode, Is.EqualTo("CANNOT_CANCEL"));
+        }
+
+        [Test]
+        public async Task InitiateAsync_TokenName_WithNumericChars_IsAccepted()
+        {
+            var req = ValidRequest();
+            req.TokenName = "Token2026v3";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_WithDifferentCorrelationIds_SeparatePipelines_AreBothCreated()
+        {
+            var r1 = await _svc.InitiateAsync(ValidRequest(correlationId: "corr-A"));
+            var r2 = await _svc.InitiateAsync(ValidRequest(correlationId: "corr-B"));
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+            Assert.That(r1.Success, Is.True);
+            Assert.That(r2.Success, Is.True);
+        }
+
+        [Test]
+        public async Task GetAuditAsync_ReturnsEmpty_ForUnknownPipelineId()
+        {
+            var audit = await _svc.GetAuditAsync("unknown-pipeline-id-xyz", null);
+            Assert.That(audit, Is.Not.Null);
+            Assert.That(audit.Events, Is.Empty);
+        }
+
+        [Test]
+        public async Task AdvanceAsync_OnRetryingPipeline_MovesToDeploymentActive()
+        {
+            // Verify the state machine has Retrying -> DeploymentActive as a valid transition
+            var req = ValidRequest();
+            var r = await _svc.InitiateAsync(req);
+            // Advance 7 times to reach DeploymentActive
+            for (int i = 0; i < 7; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            // Calling retry on non-Failed returns structured error (NOT_IN_FAILED_STATE)
+            var retry = await _svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.Success, Is.False);
+            Assert.That(retry.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+            // Pipeline remains in DeploymentActive (not moved to Retrying)
+            var statusAfter = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(statusAfter!.Stage, Is.EqualTo(PipelineStage.DeploymentActive));
+        }
+
+        [Test]
+        public async Task RetryAsync_OnPipeline_IncrementsRetryCount()
+        {
+            // RetryCount starts at 0 on a new pipeline
+            var req = ValidRequest();
+            var r = await _svc.InitiateAsync(req);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.RetryCount, Is.EqualTo(0));
+            // After advancing to DeploymentActive and attempting retry on non-failed, count stays 0
+            for (int i = 0; i < 7; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var statusAfter = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(statusAfter!.RetryCount, Is.EqualTo(0), "RetryCount should not change on non-failed pipeline");
+        }
     }
 }

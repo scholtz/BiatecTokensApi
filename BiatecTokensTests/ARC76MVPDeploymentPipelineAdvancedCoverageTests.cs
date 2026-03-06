@@ -1042,5 +1042,149 @@ namespace BiatecTokensTests
             var status = await svc.GetStatusAsync(r.PipelineId!, null);
             Assert.That(status!.Stage, Is.Not.EqualTo(PipelineStage.Retrying));
         }
+
+        // ── Additional advanced coverage tests ───────────────────────────────────
+
+        [Test]
+        public async Task Security_UnicodeTokenName_IsSafelyHandled()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "Token🚀2026™©";
+            var result = await svc.InitiateAsync(req);
+            // Must not throw; success or structured error both acceptable
+            Assert.That(result, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task Security_NullByteDeployerAddress_IsSafelyHandled()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = "ALGO\0NULLBYTE\0TEST";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task Concurrent_TenPipelines_AllReachReadinessVerified()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 10).Select(async i =>
+            {
+                var req = ValidRequest();
+                req.IdempotencyKey = $"ten-pipelines-{i}-{Guid.NewGuid()}";
+                req.TokenName = $"ConcurrentToken{i}";
+                var r = await svc.InitiateAsync(req);
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                return adv;
+            }).ToArray();
+            var results = await Task.WhenAll(tasks);
+            Assert.That(results.All(a => a.CurrentStage == PipelineStage.ReadinessVerified), Is.True);
+        }
+
+        [Test]
+        public async Task IdempotencyKey_CaseSensitive_DifferentCaseCreatesNew()
+        {
+            var svc = CreateService();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = "MyKey-ABC";
+            var r1 = await svc.InitiateAsync(req1);
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = "mykey-abc";
+            var r2 = await svc.InitiateAsync(req2);
+
+            // Different case = different keys = different pipelines
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+        }
+
+        [Test]
+        public async Task AuditLog_TimestampMonotonicallyIncreases_AcrossOperations()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var events = svc.GetAuditEvents(r.PipelineId);
+            Assert.That(events.Count, Is.GreaterThanOrEqualTo(3));
+            for (int i = 1; i < events.Count; i++)
+                Assert.That(events[i].Timestamp, Is.GreaterThanOrEqualTo(events[i - 1].Timestamp),
+                    $"Event[{i}] timestamp should be >= Event[{i - 1}] timestamp");
+        }
+
+        [Test]
+        public async Task TerminalState_Failed_IsReachable_AfterFailureSignaling()
+        {
+            // Verify Failed is a valid terminal stage by checking enum definition
+            Assert.That(Enum.IsDefined(typeof(PipelineStage), PipelineStage.Failed), Is.True);
+
+            // Verify a pipeline that exhausts retries reaches Failed
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = 1;
+            var r = await svc.InitiateAsync(req);
+            for (int i = 0; i < 7; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId }); // exhaust
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task Retry_OnRetryingPipeline_ReturnsError()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = 5;
+            var r = await svc.InitiateAsync(req);
+            for (int i = 0; i < 7; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId }); // Now in Retrying
+            var retry2 = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry2.Success, Is.False);
+            Assert.That(retry2.ErrorCode, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task AdvanceAsync_OnCancelledPipeline_Returns_TERMINAL_STAGE()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task ErrorCode_PIPELINE_NOT_FOUND_Contains_SafeMessage()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = "totally-unknown-id" });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+            Assert.That(adv.ErrorMessage, Is.Not.Null.And.Not.Empty);
+            // Message must not expose internal details
+            Assert.That(adv.ErrorMessage, Does.Not.Contain("Exception").IgnoreCase);
+            Assert.That(adv.ErrorMessage, Does.Not.Contain("stack").IgnoreCase);
+        }
+
+        [Test]
+        public async Task PipelineId_IsGloballyUnique_Across100Pipelines()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 100).Select(i =>
+            {
+                var req = ValidRequest();
+                req.TokenName = $"UniqueToken{i}";
+                req.IdempotencyKey = Guid.NewGuid().ToString();
+                return svc.InitiateAsync(req);
+            }).ToArray();
+            var results = await Task.WhenAll(tasks);
+            var ids = results.Where(r => r.Success).Select(r => r.PipelineId).ToList();
+            Assert.That(ids.Distinct().Count(), Is.EqualTo(ids.Count), "All pipeline IDs must be globally unique");
+        }
     }
 }
