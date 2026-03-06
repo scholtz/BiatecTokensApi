@@ -2484,5 +2484,294 @@ namespace BiatecTokensTests
             var status = await svc.GetStatusAsync("unknown-pipeline-xyz", null);
             Assert.That(status, Is.Null);
         }
+
+        [Test]
+        public async Task E2E_ASA_OnMainnet_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ASA";
+            req.Network = "mainnet";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_ARC3_OnVoimain_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC3";
+            req.Network = "voimain";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_ERC20_OnBase_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ERC20";
+            req.Network = "base";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_ARC200_OnBetanet_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "betanet";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_CancelAt_CompliancePending_AuditHasCancelEvent()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 4; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Any(e => e.Operation == "Cancel"), Is.True);
+        }
+
+        [Test]
+        public async Task E2E_AuditTrail_FirstEvent_IsInitiate()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.First().Operation, Is.EqualTo("Initiate"));
+        }
+
+        [Test]
+        public async Task E2E_AuditTrail_SecondEvent_IsAdvance_AfterFirstAdvance()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events![1].Operation, Is.EqualTo("Advance"));
+        }
+
+        [Test]
+        public async Task E2E_Idempotency_ThirdReplay_ReturnsSamePipelineId()
+        {
+            var svc = CreateService();
+            var key = "e2e-idempotency-" + Guid.NewGuid();
+            var req = ValidRequest(idempotencyKey: key);
+            var r1 = await svc.InitiateAsync(req);
+            var r2 = await svc.InitiateAsync(req);
+            var r3 = await svc.InitiateAsync(req);
+            Assert.That(r3.PipelineId, Is.EqualTo(r1.PipelineId));
+        }
+
+        [Test]
+        public async Task E2E_StatusAfterCancel_IsNotActive()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task E2E_RetryAsync_UnknownId_ReturnsError()
+        {
+            var svc = CreateService();
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = "no-such-id" });
+            Assert.That(retry.Success, Is.False);
+        }
+
+        [Test]
+        public async Task E2E_AdvanceAsync_UnknownId_ReturnsError()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = "no-such-id" });
+            Assert.That(adv.Success, Is.False);
+        }
+
+        [Test]
+        public async Task E2E_CancelAsync_UnknownId_ReturnsError()
+        {
+            var svc = CreateService();
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = "no-such-id" });
+            Assert.That(cancel.Success, Is.False);
+        }
+
+        [Test]
+        public async Task E2E_TwoPipelines_CancelOne_OtherIsUnaffected()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest());
+            var r2 = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r1.PipelineId });
+            var s2 = await svc.GetStatusAsync(r2.PipelineId!, null);
+            Assert.That(s2!.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task E2E_Status_TokenName_MatchesRequestedTokenName()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "SpecificToken";
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.TokenName, Is.EqualTo("SpecificToken"));
+        }
+
+        [Test]
+        public async Task E2E_Status_TokenStandard_MatchesRequest()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC3";
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.TokenStandard, Is.EqualTo("ARC3"));
+        }
+
+        [Test]
+        public async Task E2E_AdvanceThreeTimesFromPending_AuditHasFourEvents()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events!.Count, Is.GreaterThanOrEqualTo(4));
+        }
+
+        [Test]
+        public async Task E2E_FailureCategory_IsNone_ForSuccessfulInitiate()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            Assert.That(r.FailureCategory, Is.EqualTo(FailureCategory.None));
+        }
+
+        [Test]
+        public async Task E2E_ARC200_OnMainnet_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC200";
+            req.Network = "mainnet";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_ASA_OnVoimain_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ASA";
+            req.Network = "voimain";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_ARC3_OnAramidmain_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC3";
+            req.Network = "aramidmain";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_ARC1400_OnBetanet_FullCycle_Completes()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "ARC1400";
+            req.Network = "betanet";
+            var r = await svc.InitiateAsync(req);
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task E2E_Status_Network_MatchesRequest()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "mainnet";
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Network, Is.EqualTo("mainnet"));
+        }
+
+        [Test]
+        public async Task E2E_AdvanceAsync_NullRequest_ReturnsError()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = null });
+            Assert.That(adv.Success, Is.False);
+        }
+
+        [Test]
+        public async Task E2E_GetAuditAsync_UnknownId_ReturnsEmptyEvents()
+        {
+            var svc = CreateService();
+            var audit = await svc.GetAuditAsync("no-pipeline-here", null);
+            Assert.That(audit.Events, Is.Empty);
+        }
+
+        [Test]
+        public async Task E2E_RetryAsync_NullId_HasErrorCode()
+        {
+            var svc = CreateService();
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = null });
+            Assert.That(retry.ErrorCode, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task E2E_InitiateAsync_MaxRetries_Five_Succeeds()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = 5;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        [Test]
+        public async Task E2E_Status_MaxRetries_MatchesRequest()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = 7;
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.MaxRetries, Is.EqualTo(7));
+        }
     }
 }
