@@ -1142,14 +1142,14 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 211+ |
-| `ContractTests.cs` | 157+ |
-| `UserJourneyTests.cs` | 167+ |
-| `E2EWorkflowTests.cs` | 110+ |
-| `AdvancedCoverageTests.cs` | 227+ |
-| **Total** | **870+** |
+| `ServiceUnitTests.cs` | 274+ |
+| `ContractTests.cs` | 209+ |
+| `UserJourneyTests.cs` | 208+ |
+| `E2EWorkflowTests.cs` | 148+ |
+| `AdvancedCoverageTests.cs` | 264+ |
+| **Total** | **1100+** |
 
-Issue #484 current counts: 211 unit + 157 contract + 167 journey + 110 E2E + 227 advanced = **872 tests**.
+Issue #484 current counts: 274 unit + 209 contract + 208 journey + 148 E2E + 264 advanced = **1103 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
@@ -1177,10 +1177,12 @@ dotnet test BiatecTokensTests --configuration Release \
 - ❌ Ninth delivery had 611 tests (PO requested a TENTH time)
 - ❌ Tenth delivery had 725 tests (PO requested an ELEVENTH time)
 - ❌ Tenth delivery had 725 tests (PO requested an ELEVENTH time)
-- ✅ Eleventh delivery: 872 tests across 5 files
-- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 211+, ContractTests 157+, UserJourneyTests 167+, E2EWorkflowTests 110+, AdvancedCoverageTests 227+, Total 870+
+- ❌ Eleventh delivery had 872 tests (PO requested a TWELFTH time)
+- ❌ Twelfth delivery had 1045 tests (PO requested a THIRTEENTH time)
+- ✅ Thirteenth delivery: 1103 tests across 5 files
+- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 274+, ContractTests 209+, UserJourneyTests 208+, E2EWorkflowTests 148+, AdvancedCoverageTests 264+, Total 1100+
 
-**Action Required**: ALWAYS deliver 5 test files with 870+ total tests on first submission. Each iteration that fell short added ~30-114 tests. Start at max coverage and stay there. NEVER submit with fewer than 870 tests total.
+**Action Required**: ALWAYS deliver 5 test files with 1100+ total tests on first submission. Each iteration that fell short added ~30-173 tests. Start at max coverage and stay there. NEVER submit with fewer than 1100 tests total.
 
 ### Alignment with Product Roadmap
 
