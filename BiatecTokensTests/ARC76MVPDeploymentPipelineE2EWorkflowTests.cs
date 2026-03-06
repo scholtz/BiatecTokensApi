@@ -530,5 +530,72 @@ namespace BiatecTokensTests
             Assert.That(count1, Is.GreaterThan(count0), "Audit should grow after first advance");
             Assert.That(count2, Is.GreaterThan(count1), "Audit should grow after second advance");
         }
+
+        // ── E2E tests (batch 2) ──────────────────────────────────────────────────
+
+        [Test]
+        public async Task W4_TwoConcurrentPipelines_SameDeployer_ProduceDifferentAuditLogs()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest(idempotencyKey: "e2e-dup-" + Guid.NewGuid()));
+            var r2 = await svc.InitiateAsync(ValidRequest(idempotencyKey: "e2e-dup-" + Guid.NewGuid()));
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            var audit1 = await svc.GetAuditAsync(r1.PipelineId!, null);
+            var audit2 = await svc.GetAuditAsync(r2.PipelineId!, null);
+            Assert.That(audit1.PipelineId, Is.EqualTo(r1.PipelineId));
+            Assert.That(audit2.PipelineId, Is.EqualTo(r2.PipelineId));
+            Assert.That(audit1.Events.All(e => e.PipelineId == r1.PipelineId), Is.True);
+            Assert.That(audit2.Events.All(e => e.PipelineId == r2.PipelineId), Is.True);
+        }
+
+        [Test]
+        public async Task W5_CancelledPipeline_HasCancelledInAuditEvents()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.Any(e => e.Operation.Contains("Cancel", StringComparison.OrdinalIgnoreCase)), Is.True);
+        }
+
+        [Test]
+        public async Task W6_FullLifecycle_CompletedPipeline_HasExpectedStageCount()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest(correlationId: "e2e-stage-count"));
+            for (int i = 0; i < 9; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            // At least 10 events: 1 Initiate + 9 Advance
+            Assert.That(audit.Events.Count, Is.GreaterThanOrEqualTo(10));
+        }
+
+        [Test]
+        public async Task W7_AuditEvents_Timestamps_AreRecentUtcTimes()
+        {
+            var svc = CreateService();
+            var before = DateTime.UtcNow.AddSeconds(-1);
+            var r = await svc.InitiateAsync(ValidRequest());
+            var after = DateTime.UtcNow.AddSeconds(1);
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            foreach (var ev in audit.Events)
+            {
+                Assert.That(ev.Timestamp, Is.GreaterThanOrEqualTo(before), "Timestamp should be recent");
+                Assert.That(ev.Timestamp, Is.LessThanOrEqualTo(after), "Timestamp should not be in future");
+            }
+        }
+
+        [Test]
+        public async Task W8_PipelineStatus_SchemaVersion_ConsistentAcrossAllStages()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            Assert.That(r.SchemaVersion, Is.EqualTo("1.0.0"));
+            for (int i = 0; i < 3; i++)
+            {
+                var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+                Assert.That(adv.SchemaVersion, Is.EqualTo("1.0.0"), $"SchemaVersion must be 1.0.0 at stage {i + 1}");
+            }
+        }
     }
 }

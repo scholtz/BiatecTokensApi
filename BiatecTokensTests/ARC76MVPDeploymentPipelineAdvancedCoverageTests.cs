@@ -1186,5 +1186,172 @@ namespace BiatecTokensTests
             var ids = results.Where(r => r.Success).Select(r => r.PipelineId).ToList();
             Assert.That(ids.Distinct().Count(), Is.EqualTo(ids.Count), "All pipeline IDs must be globally unique");
         }
+
+        // ── Additional advanced coverage (batch 2) ───────────────────────────────
+
+        [Test]
+        public async Task AdvanceAsync_DeploymentConfirmed_AdvancesToCompleted()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            // Advance 8 times to reach DeploymentConfirmed
+            for (int i = 0; i < 8; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.DeploymentConfirmed));
+            // One more advance to Completed
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task InitiateAsync_TokenName_OnlyDigits_IsAccepted()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = "12345";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_Network_Base_IsAccepted()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "base";
+            req.TokenStandard = "ERC20";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task AdvanceAsync_OnNonExistentPipeline_ReturnsError()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = "does-not-exist-" + Guid.NewGuid() });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+        }
+
+        [Test]
+        public async Task RetryAsync_OnNonExistentPipeline_ReturnsError()
+        {
+            var svc = CreateService();
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = "not-found-" + Guid.NewGuid() });
+            Assert.That(retry.Success, Is.False);
+        }
+
+        [Test]
+        public async Task CancelAsync_OnNonExistentPipeline_ReturnsError()
+        {
+            var svc = CreateService();
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = "not-found-" + Guid.NewGuid() });
+            Assert.That(cancel.Success, Is.False);
+        }
+
+        [Test]
+        public async Task AuditEvents_Operation_FieldIsNotNull()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events.All(e => e.Operation != null), Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_DeployerEmail_CanBeSetAndRetrieved()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerEmail = "deployer@example.com";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task InitiateAsync_IdempotencyConflict_DifferentDeployerAddress_ReturnsError()
+        {
+            var svc = CreateService();
+            var key = "idem-conflict-deployer-" + Guid.NewGuid();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            req1.DeployerAddress = "ADDRESS_ONE";
+            var r1 = await svc.InitiateAsync(req1);
+            Assert.That(r1.Success, Is.True);
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.DeployerAddress = "ADDRESS_TWO";
+            var r2 = await svc.InitiateAsync(req2);
+            Assert.That(r2.Success, Is.False);
+            Assert.That(r2.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+        }
+
+        [Test]
+        public async Task AuditEvents_EventIds_AreGuidFormat()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events, Is.Not.Empty);
+            foreach (var ev in audit.Events)
+            {
+                Assert.That(Guid.TryParse(ev.EventId, out _), Is.True, $"EventId '{ev.EventId}' should be GUID format");
+            }
+        }
+
+        [Test]
+        public async Task GetStatusAsync_Returns_MaxRetries_MatchingRequest()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = 7;
+            var r = await svc.InitiateAsync(req);
+            var status = await svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.MaxRetries, Is.EqualTo(7));
+        }
+
+        [Test]
+        public async Task InitiateAsync_NullIdempotencyKey_TwoCallsSameParams_CreateTwoPipelines()
+        {
+            var svc = CreateService();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = null;
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = null;
+            var r1 = await svc.InitiateAsync(req1);
+            var r2 = await svc.InitiateAsync(req2);
+            // Without idempotency key, both should succeed but produce distinct pipelines
+            Assert.That(r1.Success, Is.True);
+            Assert.That(r2.Success, Is.True);
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_BackToBack_NineAdvances_ReachesCompleted()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            PipelineAdvanceResponse? last = null;
+            for (int i = 0; i < 9; i++)
+                last = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(last!.CurrentStage, Is.EqualTo(PipelineStage.Completed));
+            Assert.That(last.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_UnsupportedTokenStandard_HasRemediationHint_And_UserCorrectable()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "BRC-20";
+            var result = await svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.FailureCategory, Is.EqualTo(FailureCategory.UserCorrectable));
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
+        }
     }
 }

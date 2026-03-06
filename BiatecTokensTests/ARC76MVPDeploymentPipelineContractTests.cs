@@ -739,5 +739,107 @@ namespace BiatecTokensTests
             var status = await svc.GetStatusAsync("nonexistent-id-xyz-999", null);
             Assert.That(status, Is.Null.Or.Property("Success").EqualTo(false));
         }
+
+        // ── Additional contract tests (batch 2) ────────────────────────────────
+
+        [Test]
+        public async Task Contract_InitiateAsync_Returns_NonEmpty_PipelineId()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var result = await svc.InitiateAsync(BuildRequest());
+            Assert.That(result.PipelineId, Is.Not.Null.And.Not.Empty);
+            Assert.That(Guid.TryParse(result.PipelineId, out _), Is.True);
+        }
+
+        [Test]
+        public async Task Contract_InitiateAsync_IdempotencyReplay_IsDeterministic()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var key = "idem-contract-" + Guid.NewGuid();
+            var req = BuildRequest();
+            req.IdempotencyKey = key;
+            var r1 = await svc.InitiateAsync(req);
+            var r2 = await svc.InitiateAsync(req);
+            Assert.That(r2.PipelineId, Is.EqualTo(r1.PipelineId));
+            Assert.That(r2.IsIdempotentReplay, Is.True);
+        }
+
+        [Test]
+        public async Task Contract_GetAuditAsync_ReturnsSchemaVersion()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest());
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task Contract_AdvanceAsync_FourthAdvance_ReturnsCompliancePending()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest());
+            for (int i = 0; i < 3; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.CompliancePending));
+        }
+
+        [Test]
+        public async Task Contract_AdvanceAsync_FifthAdvance_ReturnsCompliancePassed()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest());
+            for (int i = 0; i < 4; i++)
+                await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.CompliancePassed));
+        }
+
+        [Test]
+        public async Task Contract_RetryAsync_ReturnsSchemaVersion_1_0_0()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            var r = await svc.InitiateAsync(BuildRequest());
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.SchemaVersion, Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task Contract_AllNetworks_AreAccepted()
+        {
+            var networks = new[] { "mainnet", "testnet", "betanet", "voimain", "base" };
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            foreach (var net in networks)
+            {
+                var req = BuildRequest();
+                req.Network = net;
+                req.IdempotencyKey = "net-test-" + net + "-" + Guid.NewGuid();
+                var result = await svc.InitiateAsync(req);
+                Assert.That(result.Success, Is.True, $"Network '{net}' should be accepted");
+            }
+        }
+
+        [Test]
+        public async Task Contract_AllTokenStandards_AreAccepted()
+        {
+            var standards = new[] { "ASA", "ARC3", "ARC200", "ARC1400", "ERC20" };
+            using var scope = _factory.Services.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IARC76MVPDeploymentPipelineService>();
+            foreach (var std in standards)
+            {
+                var req = BuildRequest();
+                req.TokenStandard = std;
+                req.IdempotencyKey = "std-test-" + std + "-" + Guid.NewGuid();
+                var result = await svc.InitiateAsync(req);
+                Assert.That(result.Success, Is.True, $"Standard '{std}' should be accepted");
+            }
+        }
     }
 }

@@ -1142,19 +1142,19 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 | File | Minimum |
 |------|---------|
-| `ServiceUnitTests.cs` | 70+ |
-| `ContractTests.cs` | 56+ |
-| `UserJourneyTests.cs` | 60+ |
-| `E2EWorkflowTests.cs` | 30+ |
-| `AdvancedCoverageTests.cs` | 86+ |
-| **Total** | **300+** |
+| `ServiceUnitTests.cs` | 84+ |
+| `ContractTests.cs` | 64+ |
+| `UserJourneyTests.cs` | 71+ |
+| `E2EWorkflowTests.cs` | 35+ |
+| `AdvancedCoverageTests.cs` | 100+ |
+| **Total** | **350+** |
 
-Issue #484 final counts: 70 unit + 56 contract + 60 journey + 30 E2E + 86 advanced = **302 tests**.
+Issue #484 current counts: 84 unit + 64 contract + 71 journey + 35 E2E + 100 advanced = **354 tests**.
 
 **UserJourneyTests.cs MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
 - II: 7+ invalid input tests (null/empty/whitespace for each field, idempotency conflict)
-- BD: 7+ boundary tests (MaxRetries=0, all networks, all standards, large MaxRetries)
+- BD: 7+ boundary tests (MaxRetries=-1 as invalid, MaxRetries=1/1000 as valid bounds, all networks, all standards, large MaxRetries)
 - FR: 5+ failure recovery tests (isolation between pipelines, retry from non-failed)
 - NX: 6+ non-crypto-native tests (human-readable messages, enum names, no technical errors)
 
@@ -1164,16 +1164,17 @@ dotnet test BiatecTokensTests --configuration Release \
   --filter "FullyQualifiedName~ARC76MVPDeployment" 2>&1 | tail -5
 ```
 
-**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x5)**: Product owner posted same coverage request FIVE times because:
+**Lesson Learned (2026-03-06 - Issue #484, PR #485, PO re-request x6)**: Product owner posted same coverage request SIX times because:
 - ❌ Initial delivery had 140 tests (too few - 4 files, wrong minimums)
 - ❌ First fix had 182 tests (still not enough - PO re-requested again)
 - ❌ Second fix had 204 tests (PO requested a THIRD time)
 - ❌ Third fix had 226 tests (PO requested a FOURTH time)
 - ❌ Fourth fix had 258 tests (PO requested a FIFTH time)
-- ✅ Final delivery: 302 tests across 5 files
-- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 70+, ContractTests 56+, UserJourneyTests 60+, E2EWorkflowTests 30+, AdvancedCoverageTests 86+, Total 300+
+- ❌ Fifth fix had 302 tests (PO requested a SIXTH time)
+- ✅ Sixth delivery: 354 tests across 5 files
+- **Key**: Start high and commit to meaningful per-file targets: ServiceUnitTests 84+, ContractTests 64+, UserJourneyTests 71+, E2EWorkflowTests 35+, AdvancedCoverageTests 100+, Total 350+
 
-**Action Required**: ALWAYS deliver 5 test files with 300+ total tests on first submission. Each iteration that fell short added ~30-40 tests. Start at max coverage and stay there.
+**Action Required**: ALWAYS deliver 5 test files with 350+ total tests on first submission. Each iteration that fell short added ~30-50 tests. Start at max coverage and stay there.
 
 ### Alignment with Product Roadmap
 

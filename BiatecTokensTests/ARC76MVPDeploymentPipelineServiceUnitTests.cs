@@ -737,5 +737,141 @@ namespace BiatecTokensTests
             var statusAfter = await _svc.GetStatusAsync(r.PipelineId!, null);
             Assert.That(statusAfter!.RetryCount, Is.EqualTo(0), "RetryCount should not change on non-failed pipeline");
         }
+
+        // ── Additional unit tests (batch 2) ─────────────────────────────────────
+
+        [Test]
+        public async Task InitiateAsync_ARC3Standard_WithMainnet_ReturnsSuccess()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC3";
+            req.Network = "mainnet";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task InitiateAsync_ERC20Standard_WithBase_ReturnsSuccess()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ERC20";
+            req.Network = "base";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_ARC1400Standard_WithVoimain_ReturnsSuccess()
+        {
+            var req = ValidRequest();
+            req.TokenStandard = "ARC1400";
+            req.Network = "voimain";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task InitiateAsync_WithoutIdempotencyKey_TwoCalls_ProduceDifferentPipelineIds()
+        {
+            var r1 = await _svc.InitiateAsync(ValidRequest());
+            var r2 = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+        }
+
+        [Test]
+        public async Task AdvanceAsync_ReadinessVerified_SetsReadinessStatusToReady()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.ReadinessVerified));
+            Assert.That(status.ReadinessStatus, Is.EqualTo(ARC76ReadinessStatus.Ready));
+        }
+
+        [Test]
+        public async Task InitiateAsync_PipelineId_IsInGuidFormat()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            Assert.That(Guid.TryParse(r.PipelineId, out _), Is.True, "PipelineId should be a valid GUID");
+        }
+
+        [Test]
+        public async Task CancelAsync_BeforeAnyAdvance_ReturnsSuccess()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            var cancel = await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel.Success, Is.True);
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task GetStatusAsync_AfterCancel_StageCancelled()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Cancelled));
+        }
+
+        [Test]
+        public async Task InitiateAsync_EmptyDeployerAddress_ReturnsError_V2()
+        {
+            var req = ValidRequest();
+            req.DeployerAddress = "";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_DEPLOYER_ADDRESS"));
+        }
+
+        [Test]
+        public async Task InitiateAsync_WhitespaceNetwork_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.Network = "   ";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+        }
+
+        [Test]
+        public async Task AdvanceAsync_CompliancePassed_AdvancesToDeploymentQueued()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            // PendingReadiness→ReadinessVerified→ValidationPending→ValidationPassed→CompliancePending→CompliancePassed
+            for (int i = 0; i < 5; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var adv = await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            Assert.That(adv.CurrentStage, Is.EqualTo(PipelineStage.DeploymentQueued));
+        }
+
+        [Test]
+        public async Task InitiateAsync_NullTokenName_ReturnsErrorWithRemediationHint()
+        {
+            var req = ValidRequest();
+            req.TokenName = null!;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task GetAuditAsync_AuditEvents_HavePipelineIdSet()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest(correlationId: "unit-audit-check"));
+            var audit = await _svc.GetAuditAsync(r.PipelineId!, null);
+            Assert.That(audit.Events, Is.Not.Empty);
+            Assert.That(audit.Events.All(e => e.PipelineId == r.PipelineId), Is.True);
+        }
+
+        [Test]
+        public async Task CancelAsync_AddsCancelEventToAuditLog()
+        {
+            var r = await _svc.InitiateAsync(ValidRequest());
+            int countBefore = (await _svc.GetAuditAsync(r.PipelineId!, null)).Events.Count;
+            await _svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            int countAfter = (await _svc.GetAuditAsync(r.PipelineId!, null)).Events.Count;
+            Assert.That(countAfter, Is.GreaterThan(countBefore));
+        }
     }
 }

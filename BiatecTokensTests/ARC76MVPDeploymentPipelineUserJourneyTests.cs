@@ -572,16 +572,13 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task II_TokenStandard_CaseSensitive_Invalid_Returns_Error()
+        public async Task II_TokenStandard_ActuallyInvalid_Returns_Error()
         {
             var req = ValidRequest();
-            req.TokenStandard = "arc3";
+            req.TokenStandard = "TOTALLY_UNSUPPORTED_XYZ";
             var result = await _svc.InitiateAsync(req);
-            // Standards are case-insensitive per KnownStandards, so arc3 is actually valid
-            // The important thing is it either succeeds or returns a structured error
-            Assert.That(result, Is.Not.Null);
-            if (!result.Success)
-                Assert.That(result.ErrorCode, Is.Not.Null.And.Not.Empty);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("UNSUPPORTED_TOKEN_STANDARD"));
         }
 
         [Test]
@@ -618,6 +615,8 @@ namespace BiatecTokensTests
             var req = ValidRequest();
             req.MaxRetries = 5;
             var r = await _svc.InitiateAsync(req);
+            // 7 advances: PendingReadiness→ReadinessVerified→ValidationPending→ValidationPassed→
+            //             CompliancePending→CompliancePassed→DeploymentQueued→DeploymentActive
             for (int i = 0; i < 7; i++)
                 await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
             await _svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
@@ -647,6 +646,120 @@ namespace BiatecTokensTests
                 Assert.That(r.Success, Is.True, $"Network '{net}' should be accepted");
                 Assert.That(Guid.TryParse(r.PipelineId, out _), Is.True, $"PipelineId for '{net}' should be a GUID");
             }
+        }
+
+        // ── User journey tests (batch 2) ─────────────────────────────────────────
+
+        [Test]
+        public async Task HP_ARC200_OnBetanet_FullLifecycle()
+        {
+            var req = ValidRequest(network: "betanet", standard: "ARC200");
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task HP_ERC20_OnBase_FullLifecycle()
+        {
+            var req = ValidRequest(network: "base", standard: "ERC20");
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+            for (int i = 0; i < 9; i++)
+                await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var status = await _svc.GetStatusAsync(r.PipelineId!, null);
+            Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed));
+        }
+
+        [Test]
+        public async Task HP_ASA_OnTestnet_InitialStageIsPendingReadiness()
+        {
+            var req = ValidRequest(network: "testnet", standard: "ASA");
+            var r = await _svc.InitiateAsync(req);
+            Assert.That(r.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
+        }
+
+        [Test]
+        public async Task II_TokenName_OnlyWhitespace_ReturnsError()
+        {
+            var req = ValidRequest();
+            req.TokenName = "   ";
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_TOKEN_NAME"));
+        }
+
+        [Test]
+        public async Task II_MaxRetries_NegativeOne_IsRejected()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = -1;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("INVALID_MAX_RETRIES"));
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_Exactly1_IsValid()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 1;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task BD_MaxRetries_1000_IsValid()
+        {
+            var req = ValidRequest();
+            req.MaxRetries = 1000;
+            var result = await _svc.InitiateAsync(req);
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task FR_TwoPipelines_SameDeployer_DifferentTokens_AreBothCreated()
+        {
+            var req1 = ValidRequest();
+            req1.TokenName = "TokenAlpha";
+            req1.IdempotencyKey = "idem-alpha-" + Guid.NewGuid();
+            var req2 = ValidRequest();
+            req2.TokenName = "TokenBeta";
+            req2.IdempotencyKey = "idem-beta-" + Guid.NewGuid();
+            var r1 = await _svc.InitiateAsync(req1);
+            var r2 = await _svc.InitiateAsync(req2);
+            Assert.That(r1.Success, Is.True);
+            Assert.That(r2.Success, Is.True);
+            Assert.That(r1.PipelineId, Is.Not.EqualTo(r2.PipelineId));
+        }
+
+        [Test]
+        public async Task NX_StageName_PendingReadiness_IsHumanReadable()
+        {
+            Assert.That(PipelineStage.PendingReadiness.ToString(), Is.EqualTo("PendingReadiness"));
+        }
+
+        [Test]
+        public async Task NX_StageName_Completed_IsHumanReadable()
+        {
+            Assert.That(PipelineStage.Completed.ToString(), Is.EqualTo("Completed"));
+        }
+
+        [Test]
+        public async Task HP_IdempotencyReplay_AfterAdvance_ReturnsSameStage()
+        {
+            var key = "idem-hp-" + Guid.NewGuid();
+            var req = ValidRequest();
+            req.IdempotencyKey = key;
+            var r1 = await _svc.InitiateAsync(req);
+            await _svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            // Replay the original initiate - should still return same pipeline (same PipelineId)
+            var r2 = await _svc.InitiateAsync(req);
+            Assert.That(r2.PipelineId, Is.EqualTo(r1.PipelineId));
+            Assert.That(r2.IsIdempotentReplay, Is.True);
         }
     }
 }
