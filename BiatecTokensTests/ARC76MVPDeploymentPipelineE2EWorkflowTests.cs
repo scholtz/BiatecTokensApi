@@ -224,5 +224,80 @@ namespace BiatecTokensTests
             Assert.That(s1!.Stage, Is.EqualTo(PipelineStage.ReadinessVerified));
             Assert.That(s2!.Stage, Is.EqualTo(PipelineStage.PendingReadiness));
         }
+
+        // ── WL: Different token standards ─────────────────────────────────────────
+
+        [Test]
+        public async Task WL_DifferentTokenStandards_AllComplete()
+        {
+            var standards = new[] { "ASA", "ARC3", "ARC200", "ERC20", "ARC1400" };
+            foreach (var standard in standards)
+            {
+                var svc = CreateService();
+                var req = ValidRequest();
+                req.TokenStandard = standard;
+                var r = await svc.InitiateAsync(req);
+                Assert.That(r.Success, Is.True, $"Standard {standard} should initiate");
+                await AdvanceAllStagesAsync(svc, r.PipelineId!);
+                var status = await svc.GetStatusAsync(r.PipelineId!, null);
+                Assert.That(status!.Stage, Is.EqualTo(PipelineStage.Completed),
+                    $"Standard {standard} should reach Completed");
+            }
+        }
+
+        // ── WM: Email provided - ARC76 readiness traceability ────────────────────
+
+        [Test]
+        public async Task WM_EmailProvided_ARC76ReadinessFlow_IsTraceable()
+        {
+            var svc = CreateService();
+            var corrId = "wm-email-" + Guid.NewGuid();
+            var req = ValidRequest(correlationId: corrId);
+            req.DeployerEmail = "deployer@test.example.com";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True);
+
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+
+            var audit = await svc.GetAuditAsync(r.PipelineId!, corrId);
+            Assert.That(audit.Success, Is.True);
+            Assert.That(audit.Events, Is.Not.Empty);
+            Assert.That(audit.Events.All(e => e.PipelineId == r.PipelineId), Is.True);
+        }
+
+        // ── WN: Correlation ID preserved on cancel ────────────────────────────────
+
+        [Test]
+        public async Task WN_CorrelationIdOnCancel_IsPreserved()
+        {
+            var svc = CreateService();
+            var corrId = "wn-cancel-" + Guid.NewGuid();
+            var r = await svc.InitiateAsync(ValidRequest(correlationId: corrId));
+            var cancel = await svc.CancelAsync(new PipelineCancelRequest
+            {
+                PipelineId = r.PipelineId,
+                CorrelationId = corrId
+            });
+            Assert.That(cancel.Success, Is.True);
+            Assert.That(cancel.CorrelationId, Is.EqualTo(corrId));
+        }
+
+        // ── WO: Multi-step audit trail has all operations ─────────────────────────
+
+        [Test]
+        public async Task WO_MultiStepAuditTrail_HasAllOperations()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await AdvanceAllStagesAsync(svc, r.PipelineId!);
+            var audit = await svc.GetAuditAsync(r.PipelineId!, null);
+
+            var ops = audit.Events.Select(e => e.Operation).ToList();
+            Assert.That(ops, Has.Member("Initiate"), "Should have Initiate operation");
+            Assert.That(ops.Count(o => o == "Advance"), Is.GreaterThanOrEqualTo(9),
+                "Should have 9 Advance operations");
+            Assert.That(audit.Events.Count, Is.GreaterThanOrEqualTo(10),
+                "Should have at least 10 total audit events");
+        }
     }
 }

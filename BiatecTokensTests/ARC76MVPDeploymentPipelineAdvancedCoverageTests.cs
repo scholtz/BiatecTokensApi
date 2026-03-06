@@ -409,5 +409,350 @@ namespace BiatecTokensTests
             var cancel = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
             Assert.That(cancel.Success, Is.True);
         }
+
+        // ── Branch coverage - all error codes ────────────────────────────────────
+
+        [Test]
+        public async Task BranchCoverage_MISSING_TOKEN_NAME_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenName = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_TOKEN_NAME"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_MISSING_TOKEN_STANDARD_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_TOKEN_STANDARD"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_UNSUPPORTED_TOKEN_STANDARD_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.TokenStandard = "MADE_UP_STANDARD";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("UNSUPPORTED_TOKEN_STANDARD"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_MISSING_NETWORK_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_NETWORK"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_UNSUPPORTED_NETWORK_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "unknownchain";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("UNSUPPORTED_NETWORK"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_MISSING_DEPLOYER_ADDRESS_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.DeployerAddress = null;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_DEPLOYER_ADDRESS"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_INVALID_MAX_RETRIES_ErrorCode()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.MaxRetries = -1;
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("INVALID_MAX_RETRIES"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_IDEMPOTENCY_KEY_CONFLICT_ErrorCode()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            await svc.InitiateAsync(req1);
+
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.TokenName = "CompletelyDifferentToken";
+            var r = await svc.InitiateAsync(req2);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_MISSING_PIPELINE_ID_ErrorCode_OnAdvance()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = null });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("MISSING_PIPELINE_ID"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_PIPELINE_NOT_FOUND_ErrorCode()
+        {
+            var svc = CreateService();
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = "does-not-exist-99" });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("PIPELINE_NOT_FOUND"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_TERMINAL_STAGE_ErrorCode()
+        {
+            var svc = CreateService();
+            var id = await FullAdvanceAsync(svc);
+            var adv = await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = id });
+            Assert.That(adv.Success, Is.False);
+            Assert.That(adv.ErrorCode, Is.EqualTo("TERMINAL_STAGE"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_NOT_IN_FAILED_STATE_ErrorCode()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var retry = await svc.RetryAsync(new PipelineRetryRequest { PipelineId = r.PipelineId });
+            Assert.That(retry.Success, Is.False);
+            Assert.That(retry.ErrorCode, Is.EqualTo("NOT_IN_FAILED_STATE"));
+        }
+
+        [Test]
+        public async Task BranchCoverage_CANNOT_CANCEL_ErrorCode()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            // Try to cancel an already-cancelled pipeline
+            var cancel2 = await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            Assert.That(cancel2.Success, Is.False);
+            Assert.That(cancel2.ErrorCode, Is.EqualTo("CANNOT_CANCEL"));
+        }
+
+        // ── All networks branch coverage ──────────────────────────────────────────
+
+        [Test]
+        public async Task AllNetworks_testnet_Accepted()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "testnet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True, "testnet should be accepted");
+        }
+
+        [Test]
+        public async Task AllNetworks_mainnet_Accepted()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "mainnet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True, "mainnet should be accepted");
+        }
+
+        [Test]
+        public async Task AllNetworks_base_Accepted()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "base";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True, "base should be accepted");
+        }
+
+        [Test]
+        public async Task AllNetworks_voimain_Accepted()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "voimain";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True, "voimain should be accepted");
+        }
+
+        [Test]
+        public async Task AllNetworks_betanet_Accepted()
+        {
+            var svc = CreateService();
+            var req = ValidRequest();
+            req.Network = "betanet";
+            var r = await svc.InitiateAsync(req);
+            Assert.That(r.Success, Is.True, "betanet should be accepted");
+        }
+
+        // ── Multi-step workflow ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task MultiStep_AuditTrail_GrowsWithEachOperation()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var count0 = svc.GetAuditEvents(r.PipelineId).Count;
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var count1 = svc.GetAuditEvents(r.PipelineId).Count;
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r.PipelineId });
+            var count2 = svc.GetAuditEvents(r.PipelineId).Count;
+            await svc.CancelAsync(new PipelineCancelRequest { PipelineId = r.PipelineId });
+            var count3 = svc.GetAuditEvents(r.PipelineId).Count;
+            Assert.That(count1, Is.GreaterThan(count0));
+            Assert.That(count2, Is.GreaterThan(count1));
+            Assert.That(count3, Is.GreaterThan(count2));
+        }
+
+        [Test]
+        public async Task MultiStep_MultipleInitiations_EachHasIsolatedAudit()
+        {
+            var svc = CreateService();
+            var r1 = await svc.InitiateAsync(ValidRequest());
+            var r2 = await svc.InitiateAsync(ValidRequest());
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+            await svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = r1.PipelineId });
+
+            var events1 = svc.GetAuditEvents(r1.PipelineId);
+            var events2 = svc.GetAuditEvents(r2.PipelineId);
+            Assert.That(events1.All(e => e.PipelineId == r1.PipelineId), Is.True);
+            Assert.That(events2.All(e => e.PipelineId == r2.PipelineId), Is.True);
+            Assert.That(events1.Count, Is.GreaterThan(events2.Count),
+                "Pipeline 1 should have more events than pipeline 2");
+        }
+
+        [Test]
+        public async Task MultiStep_IdempotencyAndAudit_DontDuplicate()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            var req = ValidRequest();
+            req.IdempotencyKey = key;
+            var r1 = await svc.InitiateAsync(req);
+            var countAfterFirst = svc.GetAuditEvents(r1.PipelineId).Count;
+
+            // Idempotent replay - service records a replay audit event, but pipeline state unchanged
+            var r2 = await svc.InitiateAsync(req);
+            Assert.That(r2.IsIdempotentReplay, Is.True);
+            Assert.That(r2.PipelineId, Is.EqualTo(r1.PipelineId));
+            // Audit count grows by exactly 1 (the replay event), not more
+            var countAfterReplay = svc.GetAuditEvents(r1.PipelineId).Count;
+            Assert.That(countAfterReplay, Is.EqualTo(countAfterFirst + 1),
+                "Idempotent replay should add exactly 1 audit event");
+        }
+
+        // ── Policy / fail-fast ────────────────────────────────────────────────────
+
+        [Test]
+        public async Task Policy_DeployerAddressRequired_FailsFast_BeforeIdempotencyCheck()
+        {
+            var svc = CreateService();
+            var key = Guid.NewGuid().ToString();
+            // First create with valid address
+            var req1 = ValidRequest();
+            req1.IdempotencyKey = key;
+            await svc.InitiateAsync(req1);
+
+            // Now use same key but null deployer - should fail on validation, not idempotency
+            var req2 = ValidRequest();
+            req2.IdempotencyKey = key;
+            req2.DeployerAddress = null;
+            var r = await svc.InitiateAsync(req2);
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("MISSING_DEPLOYER_ADDRESS"));
+        }
+
+        [Test]
+        public async Task Policy_NullRequest_FailsFast()
+        {
+            var svc = CreateService();
+            // Null request properties should produce a graceful error, not a crash
+            var req = new PipelineInitiateRequest();  // All nulls
+            PipelineInitiateResponse result = null!;
+            Assert.DoesNotThrowAsync(async () => result = await svc.InitiateAsync(req));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Success, Is.False);
+        }
+
+        [Test]
+        public async Task Policy_AllValidationErrors_HaveRemediationHints()
+        {
+            var svc = CreateService();
+            var errorCases = new[]
+            {
+                (Func<PipelineInitiateRequest>)(() => { var r = ValidRequest(); r.TokenName = null; return r; }),
+                () => { var r = ValidRequest(); r.TokenStandard = null; return r; },
+                () => { var r = ValidRequest(); r.TokenStandard = "BAD"; return r; },
+                () => { var r = ValidRequest(); r.Network = null; return r; },
+                () => { var r = ValidRequest(); r.Network = "invalid"; return r; },
+                () => { var r = ValidRequest(); r.DeployerAddress = null; return r; },
+                () => { var r = ValidRequest(); r.MaxRetries = -5; return r; }
+            };
+
+            foreach (var makeReq in errorCases)
+            {
+                var result = await svc.InitiateAsync(makeReq());
+                Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty,
+                    $"ErrorCode {result.ErrorCode} should have a remediation hint");
+            }
+        }
+
+        // ── Concurrent edge cases ─────────────────────────────────────────────────
+
+        [Test]
+        public async Task Concurrency_10ParallelInitiations_AllGetPipelineId()
+        {
+            var svc = CreateService();
+            var tasks = Enumerable.Range(0, 10).Select(_ => svc.InitiateAsync(ValidRequest())).ToArray();
+            var results = await Task.WhenAll(tasks);
+            Assert.That(results.All(r => r.Success), Is.True, "All 10 initiations should succeed");
+            var ids = results.Select(r => r.PipelineId).Distinct().ToList();
+            Assert.That(ids.Count, Is.EqualTo(10), "Each initiation should produce a unique pipeline ID");
+        }
+
+        [Test]
+        public async Task Concurrency_ParallelCancelAndAdvance_NoCrash()
+        {
+            var svc = CreateService();
+            var r = await svc.InitiateAsync(ValidRequest());
+            var pipelineId = r.PipelineId!;
+
+            var advanceTask = svc.AdvanceAsync(new PipelineAdvanceRequest { PipelineId = pipelineId });
+            var cancelTask = svc.CancelAsync(new PipelineCancelRequest { PipelineId = pipelineId });
+
+            PipelineAdvanceResponse advResult = null!;
+            PipelineCancelResponse cancelResult = null!;
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                advResult = await advanceTask;
+                cancelResult = await cancelTask;
+            });
+            // At least one of them should have succeeded
+            Assert.That(advResult.Success || cancelResult.Success, Is.True,
+                "At least one of advance/cancel should succeed");
+        }
     }
 }
