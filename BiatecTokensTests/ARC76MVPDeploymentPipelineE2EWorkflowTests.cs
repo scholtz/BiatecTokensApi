@@ -828,10 +828,10 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task WR7_Cancel_At_DeploymentConfirmed_Succeeds()
+        public async Task WR7_Cancel_At_DeploymentConfirmed_ReturnsCannotCancel()
         {
-            // DeploymentConfirmed only transitions to Completed; cancel is not a valid transition.
-            // This test verifies the service correctly rejects the cancel with CANNOT_CANCEL.
+            // DeploymentConfirmed only transitions to Completed; cancel is not a valid transition
+            // because the blockchain transaction has already been submitted and confirmed.
             var svc = CreateService();
             var r = await svc.InitiateAsync(ValidRequest());
             for (int i = 0; i < 8; i++)
@@ -849,11 +849,11 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var key = "wr8-conflict-std-" + Guid.NewGuid();
             var req1 = ValidRequest(idempotencyKey: key);
-            // req1 uses default TokenStandard = "ARC200"
+            req1.TokenStandard = "ARC200"; // explicit standard to avoid reliance on default
             await svc.InitiateAsync(req1);
 
             var req2 = ValidRequest(idempotencyKey: key);
-            req2.TokenStandard = "ARC3"; // different standard
+            req2.TokenStandard = "ARC3"; // different standard — should trigger idempotency conflict
             var r2 = await svc.InitiateAsync(req2);
             Assert.That(r2.Success, Is.False);
             Assert.That(r2.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
