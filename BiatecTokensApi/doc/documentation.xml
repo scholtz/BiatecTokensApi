@@ -765,6 +765,33 @@
              ```
              </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController">
+            <summary>
+            ARC76 MVP deployment pipeline API: lifecycle management, ARC76 readiness enforcement,
+            idempotency, compliance traceability, and structured error payloads.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController.#ctor(BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController})">
+            <summary>Initialises a new instance of <see cref="T:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController"/>.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController.Initiate(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateRequest)">
+            <summary>Initiates a new ARC76 MVP deployment pipeline (idempotent).</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController.GetStatus(System.String,System.String)">
+            <summary>Returns the current status of a deployment pipeline.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController.Advance(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceRequest)">
+            <summary>Advances the pipeline to its next lifecycle stage.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController.Cancel(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelRequest)">
+            <summary>Cancels an in-progress pipeline.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController.Retry(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryRequest)">
+            <summary>Retries a failed pipeline.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ARC76MVPDeploymentPipelineController.GetAudit(System.String,System.String)">
+            <summary>Returns the audit trail for a pipeline.</summary>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.AssetIntelligenceController">
              <summary>
              Asset Intelligence API providing canonical metadata, validation status, and confidence indicators.
@@ -9383,6 +9410,48 @@
             <summary>
             Correlation ID for request tracing
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineStage">
+            <summary>Lifecycle stage of an ARC76 MVP deployment pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.FailureCategory">
+            <summary>Failure category for structured error classification.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.ARC76ReadinessStatus">
+            <summary>ARC76 account readiness check status.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateRequest">
+            <summary>Request to initiate a new ARC76 MVP deployment pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateResponse">
+            <summary>Response from pipeline initiation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineStatusResponse">
+            <summary>Response for pipeline status queries.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceRequest">
+            <summary>Request to advance a pipeline to its next stage.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceResponse">
+            <summary>Response from a pipeline advance operation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelRequest">
+            <summary>Request to cancel a pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelResponse">
+            <summary>Response from a pipeline cancel operation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAuditEntry">
+            <summary>Single audit entry in a pipeline's audit trail.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAuditResponse">
+            <summary>Response containing the audit trail for a pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryRequest">
+            <summary>Request to retry a failed pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryResponse">
+            <summary>Response from a pipeline retry operation.</summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ASA.ASATokenInfo">
             <summary>
@@ -35776,6 +35845,37 @@
         <member name="M:BiatecTokensApi.Services.Arc76CredentialDerivationService.CanonicalizeEmail(System.String)">
             <inheritdoc/>
         </member>
+        <member name="T:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService">
+            <summary>
+            Implements the ARC76 MVP deployment pipeline with ARC76 readiness enforcement,
+            idempotency guarantees, compliance traceability, failure classification,
+            and full audit-trail observability.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService})">
+            <summary>Initialises a new instance of <see cref="T:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService"/>.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.InitiateAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.GetStatusAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.AdvanceAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.CancelAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.RetryAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.GetAuditAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ARC76MVPDeploymentPipelineService.GetAuditEvents(System.String,System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.ASATokenService">
             <summary>
             Service for creating and managing ARC3 Fungible Tokens on Algorand blockchain
@@ -37121,6 +37221,33 @@
             Canonicalizes the email address for consistent derivation.
             Applies: trim whitespace + convert to lowercase.
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService">
+            <summary>
+            Service for ARC76 MVP deployment pipeline with ARC76 readiness enforcement,
+            idempotency guarantees, compliance traceability, and failure classification.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService.InitiateAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateRequest)">
+            <summary>Initiates a new pipeline (idempotent via IdempotencyKey).</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService.GetStatusAsync(System.String,System.String)">
+            <summary>Returns the current status of a pipeline, or null if not found.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService.AdvanceAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceRequest)">
+            <summary>Advances a pipeline to its next lifecycle stage.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService.CancelAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelRequest)">
+            <summary>Cancels a non-terminal pipeline.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService.RetryAsync(BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryRequest)">
+            <summary>Retries a failed pipeline.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService.GetAuditAsync(System.String,System.String)">
+            <summary>Returns the structured audit response for a pipeline.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IARC76MVPDeploymentPipelineService.GetAuditEvents(System.String,System.String)">
+            <summary>Returns audit events filtered by pipeline ID and/or correlation ID.</summary>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IASATokenService">
             <summary>

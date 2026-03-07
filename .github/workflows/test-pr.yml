@@ -115,12 +115,32 @@ jobs:
           name: coverage-report
           path: ./CoverageReport
           retention-days: 30
+
+      - name: Sanitize test results for publish
+        if: always()
+        run: |
+          python - <<'PY'
+          import glob
+          import os
+          import xml.etree.ElementTree as ET
+
+          for path in glob.glob('**/test-results.trx', recursive=True):
+              tree = ET.parse(path)
+              root = tree.getroot()
+              for parent in root.iter():
+                  for child in list(parent):
+                      if child.tag.endswith('Output'):
+                          parent.remove(child)
+              sanitized_path = os.path.join(os.path.dirname(path), 'test-results-sanitized.trx')
+              tree.write(sanitized_path, encoding='utf-8', xml_declaration=True)
+              print(f"Sanitized {path} -> {sanitized_path}")
+          PY
       
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          files: '**/test-results.trx'
+          files: '**/test-results-sanitized.trx'
           check_name: 'Test Results'
       
       - name: Generate OpenAPI Specification
