@@ -335,6 +335,208 @@ namespace BiatecTokensTests
             Assert.That(result.Blockers, Is.Empty);
         }
 
+        // ── Complete operator journey ─────────────────────────────────────────
+
+        [Test]
+        public async Task Journey_PlanLaunch_Evaluate_ReviewTrace_GetEvidence_Confirm()
+        {
+            const string owner = "operator-full-journey-001";
+            // Step 1: Evaluate
+            var decision = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            Assert.That(decision.Success, Is.True);
+
+            // Step 2: Review trace
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = decision.DecisionId });
+            Assert.That(trace.Success, Is.True);
+            Assert.That(trace.Rules.Count, Is.EqualTo(9));
+
+            // Step 3: Get evidence
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner });
+            Assert.That(bundle.Success, Is.True);
+            Assert.That(bundle.Items.Count, Is.GreaterThan(0));
+
+            // Step 4: Confirm decision is retrievable
+            var retrieved = await _service.GetDecisionAsync(decision.DecisionId);
+            Assert.That(retrieved, Is.Not.Null);
+            Assert.That(retrieved!.DecisionId, Is.EqualTo(decision.DecisionId));
+        }
+
+        // ── ForceRefresh changes timestamp ────────────────────────────────────
+
+        [Test]
+        public async Task Journey_ForceRefresh_ChangesTimestamp()
+        {
+            const string owner = "fr-ts-journey-owner";
+            var req = BuildRequest(owner, "ASA", "testnet");
+            req.IdempotencyKey = "fr-ts-key";
+            var r1 = await _service.EvaluateLaunchDecisionAsync(req);
+            await Task.Delay(50);
+            req.ForceRefresh = true;
+            var r2 = await _service.EvaluateLaunchDecisionAsync(req);
+            Assert.That(r2.DecidedAt, Is.GreaterThanOrEqualTo(r1.DecidedAt));
+            Assert.That(r2.IsIdempotentReplay, Is.False);
+        }
+
+        // ── Multi-owner isolation ─────────────────────────────────────────────
+
+        [Test]
+        public async Task Journey_MultiOwner_IsolationHolds()
+        {
+            const string ownerA = "isolation-owner-A";
+            const string ownerB = "isolation-owner-B";
+            var dA = await _service.EvaluateLaunchDecisionAsync(BuildRequest(ownerA, "ASA", "testnet"));
+            var dB = await _service.EvaluateLaunchDecisionAsync(BuildRequest(ownerB, "ARC3", "testnet"));
+
+            var listA = await _service.ListDecisionsAsync(ownerA);
+            var listB = await _service.ListDecisionsAsync(ownerB);
+
+            Assert.That(listA.Any(d => d.DecisionId == dB.DecisionId), Is.False, "Owner A should not see Owner B's decisions");
+            Assert.That(listB.Any(d => d.DecisionId == dA.DecisionId), Is.False, "Owner B should not see Owner A's decisions");
+        }
+
+        // ── Journey with all 6 token standards ───────────────────────────────
+
+        [TestCase("ASA", "journey-std-asa")]
+        [TestCase("ARC3", "journey-std-arc3")]
+        [TestCase("ARC200", "journey-std-arc200")]
+        [TestCase("ERC20", "journey-std-erc20")]
+        [TestCase("ARC1400", "journey-std-arc1400")]
+        public async Task Journey_AllSupportedTokenStandards_EvaluateSuccessfully(string standard, string owner)
+        {
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, standard, "testnet"));
+            Assert.That(result.Success, Is.True);
+        }
+
+        // ── Journey with policy staleness ─────────────────────────────────────
+
+        [Test]
+        public async Task Journey_PolicyStaleness_RULE_POLICY_001_Warns()
+        {
+            const string owner = "policy-stale-journey";
+            var req = BuildRequest(owner, "ASA", "testnet");
+            req.PolicyVersion = "old-policy-2020";
+            var result = await _service.EvaluateLaunchDecisionAsync(req);
+
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = result.DecisionId });
+            var policyRule = trace.Rules.First(r => r.RuleId == "RULE-POLICY-001");
+            Assert.That(policyRule.Outcome, Is.EqualTo(RuleOutcome.Warning));
+        }
+
+        // ── Whitelist configuration check ─────────────────────────────────────
+
+        [Test]
+        public async Task Journey_WhitelistConfig_RULE_WL_001_Passes()
+        {
+            const string owner = "wl-check-journey";
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ARC1400", "testnet"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = result.DecisionId });
+            var wlRule = trace.Rules.First(r => r.RuleId == "RULE-WL-001");
+            Assert.That(wlRule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        // ── Integration health check ──────────────────────────────────────────
+
+        [Test]
+        public async Task Journey_IntegrationHealth_RULE_INTEG_001_Passes()
+        {
+            const string owner = "integ-check-journey";
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = result.DecisionId });
+            var integRule = trace.Rules.First(r => r.RuleId == "RULE-INTEG-001");
+            Assert.That(integRule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        // ── Get decisions list → find latest → get trace → verify complete ────
+
+        [Test]
+        public async Task Journey_ListDecisions_FindLatest_GetTrace_Verified()
+        {
+            const string owner = "list-latest-trace-owner";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            await Task.Delay(50);
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ARC3", "testnet"));
+
+            var list = await _service.ListDecisionsAsync(owner);
+            Assert.That(list.Count, Is.GreaterThanOrEqualTo(2));
+
+            var latest = list.First();
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = latest.DecisionId });
+            Assert.That(trace.Success, Is.True);
+            Assert.That(trace.Rules.Count, Is.EqualTo(9));
+        }
+
+        // ── Blocked launch shows at least 1 blocker with RuleId ───────────────
+
+        [Test]
+        public async Task Journey_BlockedLaunch_HasBlockerWithRuleId()
+        {
+            const string owner = "blocked-journey-owner";
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ARC1400", "testnet"));
+            Assert.That(result.Blockers, Is.Not.Empty);
+            Assert.That(result.Blockers.All(b => !string.IsNullOrEmpty(b.RuleId)), Is.True);
+        }
+
+        // ── Ready launch shows CanLaunch=true ─────────────────────────────────
+
+        [Test]
+        public async Task Journey_ReadyLaunch_CanLaunchIsTrue()
+        {
+            const string owner = "ready-journey-owner";
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            Assert.That(result.Status, Is.EqualTo(LaunchDecisionStatus.Ready));
+            Assert.That(result.CanLaunch, Is.True);
+        }
+
+        // ── Warning launch shows CanLaunch=true ──────────────────────────────
+
+        [Test]
+        public async Task Journey_WarningLaunch_CanLaunchIsTrue()
+        {
+            const string owner = "warning-journey-owner";
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "mainnet"));
+            Assert.That(result.Warnings.Count, Is.GreaterThan(0));
+            Assert.That(result.CanLaunch, Is.True);
+        }
+
+        // ── Journey with voimain (causes network warning) ─────────────────────
+
+        [Test]
+        public async Task Journey_Voimain_NetworkRuleWarns()
+        {
+            const string owner = "voimain-journey-owner";
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "voimain"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = result.DecisionId });
+            var networkRule = trace.Rules.First(r => r.RuleId == "RULE-NETWORK-001");
+            Assert.That(networkRule.Outcome, Is.EqualTo(RuleOutcome.Warning));
+        }
+
+        // ── Journey with aramidmain (no RULE-NETWORK-001 warning) ────────────
+
+        [Test]
+        public async Task Journey_Aramidmain_NetworkRule_Passes()
+        {
+            const string owner = "aramid-journey-owner";
+            var result = await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "aramidmain"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = result.DecisionId });
+            var networkRule = trace.Rules.First(r => r.RuleId == "RULE-NETWORK-001");
+            Assert.That(networkRule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        // ── Journey: retrieve decisions, evidence accumulated ─────────────────
+
+        [Test]
+        public async Task Journey_ThreeDecisions_EvidenceCountGrows()
+        {
+            const string owner = "evidence-grows-owner";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            var b1 = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner, Limit = 100 });
+
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ARC3", "testnet"));
+            var b2 = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner, Limit = 100 });
+
+            Assert.That(b2.TotalCount, Is.GreaterThan(b1.TotalCount));
+        }
+
         // ── Helper ────────────────────────────────────────────────────────────
 
         private static LaunchDecisionRequest BuildTestnetRequest(string owner) =>

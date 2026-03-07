@@ -515,6 +515,370 @@ namespace BiatecTokensTests
                 Assert.That(list[0].DecidedAt, Is.GreaterThanOrEqualTo(list[1].DecidedAt));
         }
 
+        // ── Rule trace: exactly 9 rules ───────────────────────────────────────
+
+        [Test]
+        public async Task GetDecisionTrace_HasExactlyNineRules()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Count, Is.EqualTo(9));
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_OWNER_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-OWNER-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_STANDARD_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-STANDARD-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_NETWORK_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-NETWORK-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_ENTITLE_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-ENTITLE-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_KYC_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-KYC-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_JURIS_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-JURIS-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_WL_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-WL-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_INTEG_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-INTEG-001"), Is.True);
+        }
+
+        [Test]
+        public async Task GetDecisionTrace_ContainsRule_POLICY_001()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == "RULE-POLICY-001"), Is.True);
+        }
+
+        // ── Rule outcome specifics ────────────────────────────────────────────
+
+        [Test]
+        public async Task Rule_OWNER_001_AlwaysPasses_ForValidOwner()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-OWNER-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_STANDARD_001_Passes_ForASA()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ASA"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-STANDARD-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_ENTITLE_001_Fails_ForARC1400()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ARC1400"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-ENTITLE-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Fail));
+        }
+
+        [Test]
+        public async Task Rule_ENTITLE_001_Passes_ForNonARC1400()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ASA"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-ENTITLE-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_NETWORK_001_Warns_ForMainnet()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest(network: "mainnet"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-NETWORK-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Warning));
+        }
+
+        [Test]
+        public async Task Rule_NETWORK_001_Passes_ForTestnet()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest(network: "testnet"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-NETWORK-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_KYC_001_Warns_ForMainnet()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest(network: "mainnet"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-KYC-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Warning));
+        }
+
+        [Test]
+        public async Task Rule_KYC_001_Passes_ForTestnet()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest(network: "testnet"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-KYC-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_POLICY_001_Warns_ForCustomVersion()
+        {
+            var req = BuildRequest();
+            req.PolicyVersion = "old-version-1.0";
+            var d = await _service.EvaluateLaunchDecisionAsync(req);
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-POLICY-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Warning));
+        }
+
+        [Test]
+        public async Task Rule_POLICY_001_Passes_ForCurrentVersion()
+        {
+            var req = BuildRequest();
+            req.PolicyVersion = null; // uses current
+            var d = await _service.EvaluateLaunchDecisionAsync(req);
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-POLICY-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_WL_001_AlwaysPasses()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-WL-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_INTEG_001_AlwaysPasses()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-INTEG-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        [Test]
+        public async Task Rule_JURIS_001_AlwaysPasses()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var rule = trace.Rules.First(r => r.RuleId == "RULE-JURIS-001");
+            Assert.That(rule.Outcome, Is.EqualTo(RuleOutcome.Pass));
+        }
+
+        // ── All 9 rules have unique evaluation order ──────────────────────────
+
+        [Test]
+        public async Task GetDecisionTrace_EvaluationOrders_AreContiguous_1to9()
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest());
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            var orders = trace.Rules.Select(r => r.EvaluationOrder).OrderBy(o => o).ToList();
+            Assert.That(orders, Is.EqualTo(new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9 }));
+        }
+
+        // ── Evidence items have unique IDs ────────────────────────────────────
+
+        [Test]
+        public async Task EvidenceBundle_Items_HaveUniqueIds()
+        {
+            const string owner = "unique-ev-owner-001";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(ownerId: owner));
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner });
+            var ids = bundle.Items.Select(e => e.EvidenceId).ToList();
+            Assert.That(ids.Distinct().Count(), Is.EqualTo(ids.Count));
+        }
+
+        // ── Testnet ASA: all rules passing → Ready ────────────────────────────
+
+        [Test]
+        public async Task EvaluateLaunchDecision_TestnetASA_StatusIsReady()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ASA", network: "testnet"));
+            Assert.That(r.Status, Is.EqualTo(LaunchDecisionStatus.Ready));
+        }
+
+        [Test]
+        public async Task EvaluateLaunchDecision_TestnetASA_CanLaunchIsTrue()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ASA", network: "testnet"));
+            Assert.That(r.CanLaunch, Is.True);
+        }
+
+        // ── ARC1400 produces Blocked status ───────────────────────────────────
+
+        [Test]
+        public async Task EvaluateLaunchDecision_ARC1400_StatusIsBlockedOrNeedsReview()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ARC1400"));
+            Assert.That(r.Status, Is.EqualTo(LaunchDecisionStatus.Blocked)
+                .Or.EqualTo(LaunchDecisionStatus.NeedsReview));
+        }
+
+        [Test]
+        public async Task EvaluateLaunchDecision_ARC1400_CanLaunchIsFalse()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ARC1400"));
+            Assert.That(r.CanLaunch, Is.False);
+        }
+
+        // ── GetDecisionAsync null/missing ─────────────────────────────────────
+
+        [Test]
+        public async Task GetDecision_NullId_ReturnsNull()
+        {
+            var result = await _service.GetDecisionAsync(null!);
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public async Task GetDecision_WhitespaceId_ReturnsNull()
+        {
+            var result = await _service.GetDecisionAsync("   ");
+            Assert.That(result, Is.Null);
+        }
+
+        // ── GetEvidenceBundle limit boundary values ────────────────────────────
+
+        [Test]
+        public async Task GetEvidenceBundle_Limit1_ReturnsAtMostOneItem()
+        {
+            const string owner = "limit1-owner";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(ownerId: owner));
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner, Limit = 1 });
+            Assert.That(bundle.Success, Is.True);
+            Assert.That(bundle.Items.Count, Is.LessThanOrEqualTo(1));
+        }
+
+        [Test]
+        public async Task GetEvidenceBundle_Limit100_ReturnsUpTo100Items()
+        {
+            const string owner = "limit100-owner";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(ownerId: owner));
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner, Limit = 100 });
+            Assert.That(bundle.Success, Is.True);
+            Assert.That(bundle.Items.Count, Is.LessThanOrEqualTo(100));
+        }
+
+        // ── ListDecisions limit boundary ──────────────────────────────────────
+
+        [Test]
+        public async Task ListDecisions_Limit1_ReturnsAtMostOneItem()
+        {
+            const string owner = "listlimit1-owner";
+            for (int i = 0; i < 3; i++)
+                await _service.EvaluateLaunchDecisionAsync(BuildRequest(ownerId: owner));
+            var list = await _service.ListDecisionsAsync(owner, limit: 1);
+            Assert.That(list.Count, Is.LessThanOrEqualTo(1));
+        }
+
+        [Test]
+        public async Task ListDecisions_Limit100_ReturnsUpTo100()
+        {
+            const string owner = "listlimit100-owner";
+            for (int i = 0; i < 3; i++)
+                await _service.EvaluateLaunchDecisionAsync(BuildRequest(ownerId: owner));
+            var list = await _service.ListDecisionsAsync(owner, limit: 100);
+            Assert.That(list.Count, Is.GreaterThan(0));
+        }
+
+        // ── ForceRefresh changes timestamp ────────────────────────────────────
+
+        [Test]
+        public async Task ForceRefresh_ProducesNewDecisionWithLaterOrEqualTimestamp()
+        {
+            var req = BuildRequest();
+            req.IdempotencyKey = "fr-timestamp-key";
+            var r1 = await _service.EvaluateLaunchDecisionAsync(req);
+            await Task.Delay(50);
+            req.ForceRefresh = true;
+            var r2 = await _service.EvaluateLaunchDecisionAsync(req);
+            Assert.That(r2.DecidedAt, Is.GreaterThanOrEqualTo(r1.DecidedAt));
+        }
+
+        // ── TestCase permutations for (standard, network) ────────────────────
+
+        [TestCase("ASA", "testnet")]
+        [TestCase("ASA", "betanet")]
+        [TestCase("ASA", "mainnet")]
+        [TestCase("ARC3", "testnet")]
+        [TestCase("ARC3", "voimain")]
+        [TestCase("ARC200", "testnet")]
+        [TestCase("ARC200", "aramidmain")]
+        [TestCase("ERC20", "base")]
+        [TestCase("ERC20", "base-testnet")]
+        public async Task EvaluateLaunchDecision_StandardNetworkPermutations_ReturnSuccess(
+            string standard, string network)
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(
+                BuildRequest(tokenStandard: standard, network: network));
+            Assert.That(r.Success, Is.True);
+        }
+
+        // ── ERC721 is unsupported ─────────────────────────────────────────────
+
+        [Test]
+        public async Task EvaluateLaunchDecision_ERC721_ReturnsError()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest(tokenStandard: "ERC721"));
+            Assert.That(r.Success, Is.False);
+            Assert.That(r.ErrorCode, Is.EqualTo("INVALID_TOKEN_STANDARD"));
+        }
+
         // ── Helper ────────────────────────────────────────────────────────────
 
         private static LaunchDecisionRequest BuildRequest(

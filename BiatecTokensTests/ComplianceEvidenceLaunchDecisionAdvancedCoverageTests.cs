@@ -553,6 +553,225 @@ namespace BiatecTokensTests
             Assert.That(r.Warnings.Count, Is.GreaterThanOrEqualTo(0));
         }
 
+        // ── LaunchDecisionStatus.Warning when only warnings (no blockers) ──────
+
+        [Test]
+        public async Task StatusIsWarning_WhenOnlyWarnings_NoBlockers()
+        {
+            // Mainnet ASA triggers warnings (KYC + network) but no blockers
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest("warn-only-owner", "ASA", "mainnet"));
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.Blockers, Is.Empty);
+            Assert.That(r.Status, Is.EqualTo(LaunchDecisionStatus.Warning));
+        }
+
+        // ── NeedsReview for mainnet+ARC1400 ──────────────────────────────────
+
+        [Test]
+        public async Task StatusIsBlockedOrNeedsReview_ForMainnetARC1400()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest("arc1400-mainnet-owner", "ARC1400", "mainnet"));
+            Assert.That(r.Success, Is.True);
+            Assert.That(r.Status, Is.EqualTo(LaunchDecisionStatus.Blocked)
+                .Or.EqualTo(LaunchDecisionStatus.NeedsReview));
+        }
+
+        // ── 20 concurrent evaluations ─────────────────────────────────────────
+
+        [Test]
+        public async Task Concurrency_TwentyParallelEvaluations_AllSucceed()
+        {
+            var tasks = Enumerable.Range(0, 20).Select(i =>
+                _service.EvaluateLaunchDecisionAsync(BuildRequest($"concurrency20-owner-{i}", "ASA", "testnet")));
+            var results = await Task.WhenAll(tasks);
+            Assert.That(results.All(r => r.Success), Is.True);
+        }
+
+        [Test]
+        public async Task Concurrency_TwentyParallelEvaluations_UniqueDecisionIds()
+        {
+            var tasks = Enumerable.Range(0, 20).Select(i =>
+                _service.EvaluateLaunchDecisionAsync(BuildRequest($"concurrency20-uniq-owner-{i}", "ASA", "testnet")));
+            var results = await Task.WhenAll(tasks);
+            var ids = results.Select(r => r.DecisionId).ToList();
+            Assert.That(ids.Distinct().Count(), Is.EqualTo(20));
+        }
+
+        // ── Very long OwnerId is handled gracefully ───────────────────────────
+
+        [Test]
+        public async Task VeryLongOwnerId_1000Chars_ServiceHandlesGracefully()
+        {
+            var longOwner = new string('x', 1000);
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest(longOwner, "ASA", "testnet"));
+            Assert.That(r.Success, Is.True);
+        }
+
+        // ── Empty string IdempotencyKey treated same as null ──────────────────
+
+        [Test]
+        public async Task EmptyIdempotencyKey_NotCached_TwoCallsProduceDifferentIds()
+        {
+            var req1 = BuildRequest("empty-idem-owner", "ASA", "testnet");
+            req1.IdempotencyKey = "";
+            var req2 = BuildRequest("empty-idem-owner", "ASA", "testnet");
+            req2.IdempotencyKey = "";
+
+            var r1 = await _service.EvaluateLaunchDecisionAsync(req1);
+            var r2 = await _service.EvaluateLaunchDecisionAsync(req2);
+            Assert.That(r2.IsIdempotentReplay, Is.False);
+            Assert.That(r2.DecisionId, Is.Not.EqualTo(r1.DecisionId));
+        }
+
+        // ── Numeric/special chars in TokenName are handled ────────────────────
+
+        [Test]
+        public async Task NumericTokenName_ServiceHandlesGracefully()
+        {
+            var req = BuildRequest("numeric-token-owner", "ASA", "testnet");
+            req.TokenName = "12345-TOKEN-!@#";
+            var r = await _service.EvaluateLaunchDecisionAsync(req);
+            Assert.That(r.Success, Is.True);
+        }
+
+        // ── Unicode OwnerId characters ────────────────────────────────────────
+
+        [Test]
+        public async Task UnicodeOwnerId_ServiceHandlesGracefully()
+        {
+            var unicodeOwner = "owner-日本語-üñïcödé-🚀";
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest(unicodeOwner, "ASA", "testnet"));
+            Assert.That(r.Success, Is.True);
+        }
+
+        // ── MaxDecisionsToList boundary values ───────────────────────────────
+
+        [Test]
+        public async Task ListDecisions_Limit1_ReturnsAtMostOne()
+        {
+            const string owner = "adv-listlimit1-owner";
+            for (int i = 0; i < 5; i++)
+                await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            var list = await _service.ListDecisionsAsync(owner, limit: 1);
+            Assert.That(list.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ListDecisions_Limit100_ReturnsAll_WhenFewerExist()
+        {
+            const string owner = "adv-listlimit100-owner";
+            for (int i = 0; i < 3; i++)
+                await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            var list = await _service.ListDecisionsAsync(owner, limit: 100);
+            Assert.That(list.Count, Is.EqualTo(3));
+        }
+
+        // ── Category filter with ALL EvidenceCategory values ──────────────────
+
+        [TestCase(EvidenceCategory.Identity)]
+        [TestCase(EvidenceCategory.Policy)]
+        [TestCase(EvidenceCategory.Entitlement)]
+        [TestCase(EvidenceCategory.Jurisdiction)]
+        [TestCase(EvidenceCategory.Integration)]
+        [TestCase(EvidenceCategory.Workflow)]
+        public async Task EvidenceBundle_CategoryFilter_ReturnsOnlyMatchingCategory(EvidenceCategory category)
+        {
+            const string owner = "adv-cat-filter-owner";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest
+            {
+                OwnerId = owner, Category = category, Limit = 100
+            });
+            Assert.That(bundle.Success, Is.True);
+            Assert.That(bundle.Items.All(e => e.Category == category), Is.True);
+        }
+
+        // ── Verify evidence items contain DataHash (SHA-256 format) ──────────
+
+        [Test]
+        public async Task EvidenceItems_OwnerIdentity_DataHash_IsHex64Chars()
+        {
+            const string owner = "adv-datahash-owner";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner });
+            var itemsWithHash = bundle.Items.Where(e => e.DataHash != null).ToList();
+            Assert.That(itemsWithHash, Is.Not.Empty);
+            foreach (var item in itemsWithHash)
+                Assert.That(item.DataHash!.Length, Is.EqualTo(64), "SHA-256 hex string should be 64 chars");
+        }
+
+        [Test]
+        public async Task EvidenceItems_DataHash_IsHexadecimal_WhenPresent()
+        {
+            const string owner = "adv-datahash-hex-owner";
+            await _service.EvaluateLaunchDecisionAsync(BuildRequest(owner, "ASA", "testnet"));
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner });
+            foreach (var item in bundle.Items.Where(e => e.DataHash != null))
+            {
+                Assert.That(System.Text.RegularExpressions.Regex.IsMatch(item.DataHash!, @"^[0-9a-f]{64}$"),
+                    Is.True, $"DataHash '{item.DataHash}' is not valid lower-case hex");
+            }
+        }
+
+        // ── Verify correlation IDs are valid GUIDs ────────────────────────────
+
+        [Test]
+        public async Task CorrelationId_AutoGenerated_IsValidGuid()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest("adv-corr-guid-owner", "ASA", "testnet"));
+            Assert.That(Guid.TryParse(r.CorrelationId, out _), Is.True);
+        }
+
+        [Test]
+        public async Task CorrelationId_CustomProvided_IsPropagated()
+        {
+            const string customCorr = "my-custom-correlation-id-12345";
+            var req = BuildRequest("adv-corr-custom-owner", "ASA", "testnet");
+            req.CorrelationId = customCorr;
+            var r = await _service.EvaluateLaunchDecisionAsync(req);
+            Assert.That(r.CorrelationId, Is.EqualTo(customCorr));
+        }
+
+        // ── Each of the 9 rules by their rule ID string ───────────────────────
+
+        [TestCase("RULE-OWNER-001")]
+        [TestCase("RULE-STANDARD-001")]
+        [TestCase("RULE-NETWORK-001")]
+        [TestCase("RULE-ENTITLE-001")]
+        [TestCase("RULE-KYC-001")]
+        [TestCase("RULE-JURIS-001")]
+        [TestCase("RULE-WL-001")]
+        [TestCase("RULE-INTEG-001")]
+        [TestCase("RULE-POLICY-001")]
+        public async Task AllRuleIds_PresentInTrace_ByRuleIdString(string ruleId)
+        {
+            var d = await _service.EvaluateLaunchDecisionAsync(BuildRequest($"adv-ruleid-{ruleId}-owner", "ASA", "testnet"));
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = d.DecisionId });
+            Assert.That(trace.Rules.Any(r => r.RuleId == ruleId), Is.True);
+        }
+
+        // ── Blocked launch CanLaunch is false ─────────────────────────────────
+
+        [Test]
+        public async Task Branch_CanLaunch_False_WhenNeedsReview()
+        {
+            // ARC1400 without premium → NeedsReview or Blocked
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest("adv-needsreview-owner", "ARC1400", "testnet"));
+            Assert.That(r.CanLaunch, Is.False);
+        }
+
+        // ── IsProvisional is true for NeedsReview ─────────────────────────────
+
+        [Test]
+        public async Task IsProvisional_TrueForNeedsReview()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(BuildRequest("adv-provisional-owner", "ARC1400", "testnet"));
+            if (r.Status == LaunchDecisionStatus.NeedsReview)
+                Assert.That(r.IsProvisional, Is.True);
+            else
+                Assert.Pass("Status is not NeedsReview, test not applicable");
+        }
+
         // ── Helper ────────────────────────────────────────────────────────────
 
         private static LaunchDecisionRequest BuildRequest(

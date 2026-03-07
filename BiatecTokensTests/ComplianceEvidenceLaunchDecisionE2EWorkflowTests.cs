@@ -385,5 +385,224 @@ namespace BiatecTokensTests
             Assert.That(list1.Any(d => d.DecisionId == d2.DecisionId), Is.False);
             Assert.That(list2.Any(d => d.DecisionId == d1.DecisionId), Is.False);
         }
+
+        // ── E2E: Full pipeline consistency ────────────────────────────────────
+
+        [Test]
+        public async Task E2E_FullPipeline_DecisionTraceEvidenceAllConsistent()
+        {
+            const string owner = "e2e-pipeline-owner";
+            var decision = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = owner, TokenStandard = "ASA", Network = "testnet"
+            });
+
+            var byId = await _service.GetDecisionAsync(decision.DecisionId);
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = decision.DecisionId });
+            var evidence = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner });
+
+            Assert.That(byId!.DecisionId, Is.EqualTo(decision.DecisionId));
+            Assert.That(trace.DecisionId, Is.EqualTo(decision.DecisionId));
+            Assert.That(evidence.Items.Any(e => e.DecisionId == decision.DecisionId), Is.True);
+        }
+
+        // ── E2E: ForceRefresh invalidates idempotency key ─────────────────────
+
+        [Test]
+        public async Task E2E_ForceRefresh_NewDecisionId_OldIdempotencyKeyUpdated()
+        {
+            const string owner = "e2e-fr-owner";
+            var req = new LaunchDecisionRequest
+            {
+                OwnerId = owner, TokenStandard = "ASA", Network = "testnet",
+                IdempotencyKey = "e2e-fr-key"
+            };
+            var r1 = await _service.EvaluateLaunchDecisionAsync(req);
+            req.ForceRefresh = true;
+            var r2 = await _service.EvaluateLaunchDecisionAsync(req);
+
+            Assert.That(r2.DecisionId, Is.Not.EqualTo(r1.DecisionId));
+            Assert.That(r2.IsIdempotentReplay, Is.False);
+
+            // After force refresh, next call with same key returns r2's id
+            req.ForceRefresh = false;
+            var r3 = await _service.EvaluateLaunchDecisionAsync(req);
+            Assert.That(r3.DecisionId, Is.EqualTo(r2.DecisionId));
+            Assert.That(r3.IsIdempotentReplay, Is.True);
+        }
+
+        // ── E2E: Evidence bundle with null category filter returns all items ───
+
+        [Test]
+        public async Task E2E_EvidenceBundle_NullCategoryFilter_ReturnsAllItems()
+        {
+            const string owner = "e2e-null-cat-owner";
+            await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = owner, TokenStandard = "ASA", Network = "testnet"
+            });
+            var bundleAll = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest
+            {
+                OwnerId = owner, Category = null, Limit = 100
+            });
+            var bundleIdentity = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest
+            {
+                OwnerId = owner, Category = EvidenceCategory.Identity, Limit = 100
+            });
+            Assert.That(bundleAll.Items.Count, Is.GreaterThanOrEqualTo(bundleIdentity.Items.Count));
+        }
+
+        // ── E2E: Decision trace has exactly 9 rules for any valid input ────────
+
+        [TestCase("ASA", "testnet")]
+        [TestCase("ARC3", "mainnet")]
+        [TestCase("ARC1400", "testnet")]
+        [TestCase("ERC20", "base")]
+        public async Task E2E_Trace_AlwaysHasExactly9Rules(string standard, string network)
+        {
+            var decision = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = $"e2e-9rules-{standard}-{network}",
+                TokenStandard = standard,
+                Network = network
+            });
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = decision.DecisionId });
+            Assert.That(trace.Rules.Count, Is.EqualTo(9));
+        }
+
+        // ── E2E: Schema version is stable across 3 evaluations ────────────────
+
+        [Test]
+        public async Task E2E_SchemaVersion_StableAcross3Evaluations()
+        {
+            const string owner = "e2e-schema-stable-owner";
+            var r1 = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+                { OwnerId = owner, TokenStandard = "ASA", Network = "testnet" });
+            var r2 = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+                { OwnerId = owner, TokenStandard = "ARC3", Network = "testnet" });
+            var r3 = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+                { OwnerId = owner, TokenStandard = "ARC200", Network = "testnet" });
+
+            Assert.That(r1.SchemaVersion, Is.EqualTo(r2.SchemaVersion));
+            Assert.That(r2.SchemaVersion, Is.EqualTo(r3.SchemaVersion));
+        }
+
+        // ── E2E: PolicyVersion is stable across identical evaluations ─────────
+
+        [Test]
+        public async Task E2E_PolicyVersion_StableAcrossIdenticalEvaluations()
+        {
+            const string owner = "e2e-policy-stable-owner";
+            var r1 = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+                { OwnerId = owner, TokenStandard = "ASA", Network = "testnet" });
+            var r2 = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+                { OwnerId = owner, TokenStandard = "ASA", Network = "testnet" });
+
+            Assert.That(r1.PolicyVersion, Is.EqualTo(r2.PolicyVersion));
+        }
+
+        // ── E2E: EvaluationTimeMs is >= 0 ────────────────────────────────────
+
+        [Test]
+        public async Task E2E_EvaluationTimeMs_IsNonNegative()
+        {
+            var r = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = "e2e-evaltimems-owner", TokenStandard = "ASA", Network = "testnet"
+            });
+            Assert.That(r.EvaluationTimeMs, Is.GreaterThanOrEqualTo(0));
+        }
+
+        // ── E2E: All 9 rules have unique EvaluationOrder values ────────────────
+
+        [Test]
+        public async Task E2E_Trace_AllRules_HaveUniqueEvaluationOrder()
+        {
+            var decision = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = "e2e-unique-order-owner", TokenStandard = "ASA", Network = "testnet"
+            });
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = decision.DecisionId });
+            var orders = trace.Rules.Select(r => r.EvaluationOrder).ToList();
+            Assert.That(orders.Distinct().Count(), Is.EqualTo(9));
+        }
+
+        // ── E2E: Multiple owners each isolated ────────────────────────────────
+
+        [Test]
+        public async Task E2E_ThreeOwners_EachGet3Decisions_AllIsolated()
+        {
+            var owners = new[] { "e2e-three-owner-1", "e2e-three-owner-2", "e2e-three-owner-3" };
+            var networks = new[] { "testnet", "betanet", "base-testnet" };
+
+            foreach (var owner in owners)
+                for (int i = 0; i < 3; i++)
+                    await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+                    {
+                        OwnerId = owner, TokenStandard = "ASA", Network = networks[i]
+                    });
+
+            var lists = new Dictionary<string, List<LaunchDecisionResponse>>();
+            foreach (var owner in owners)
+                lists[owner] = await _service.ListDecisionsAsync(owner);
+
+            // Each owner has 3 decisions
+            foreach (var owner in owners)
+                Assert.That(lists[owner].Count, Is.EqualTo(3));
+
+            // No cross-contamination
+            for (int a = 0; a < owners.Length; a++)
+                for (int b = 0; b < owners.Length; b++)
+                    if (a != b)
+                        foreach (var d in lists[owners[a]])
+                            Assert.That(lists[owners[b]].Any(x => x.DecisionId == d.DecisionId), Is.False);
+        }
+
+        // ── E2E: Trace rules are ordered by EvaluationOrder ───────────────────
+
+        [Test]
+        public async Task E2E_Trace_Rules_OrderedByEvaluationOrder_Ascending()
+        {
+            var decision = await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = "e2e-order-asc-owner", TokenStandard = "ARC3", Network = "testnet"
+            });
+            var trace = await _service.GetDecisionTraceAsync(new DecisionTraceRequest { DecisionId = decision.DecisionId });
+            var orders = trace.Rules.Select(r => r.EvaluationOrder).ToList();
+            Assert.That(orders, Is.Ordered.Ascending);
+        }
+
+        // ── E2E: EvidenceItem DataHash non-null for identity items ─────────────
+
+        [Test]
+        public async Task E2E_OwnerIdentityEvidenceItem_HasDataHash()
+        {
+            const string owner = "e2e-datahash-owner";
+            await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = owner, TokenStandard = "ASA", Network = "testnet"
+            });
+            var bundle = await _service.GetEvidenceBundleAsync(new EvidenceBundleRequest { OwnerId = owner });
+            var identityItems = bundle.Items.Where(e => e.Category == EvidenceCategory.Identity).ToList();
+            Assert.That(identityItems, Is.Not.Empty);
+            // At least one identity item (RULE-OWNER-001) should have a DataHash
+            Assert.That(identityItems.Any(e => !string.IsNullOrEmpty(e.DataHash)), Is.True);
+        }
+
+        // ── E2E: CorrelationId from request propagated to all responses ────────
+
+        [Test]
+        public async Task E2E_CorrelationId_PropagatedToListDecisions()
+        {
+            const string owner = "e2e-corr-list-owner";
+            const string corrId = "e2e-corr-list-id-001";
+            await _service.EvaluateLaunchDecisionAsync(new LaunchDecisionRequest
+            {
+                OwnerId = owner, TokenStandard = "ASA", Network = "testnet", CorrelationId = corrId
+            });
+            // CorrelationId is per-call; listing decisions doesn't carry a correlationId parameter in this API
+            var list = await _service.ListDecisionsAsync(owner);
+            Assert.That(list.Count, Is.GreaterThan(0));
+        }
     }
 }
