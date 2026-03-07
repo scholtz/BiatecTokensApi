@@ -321,6 +321,9 @@ namespace BiatecTokensApi
             // Register ARC76 MVP deployment pipeline service
             builder.Services.AddSingleton<IARC76MVPDeploymentPipelineService, ARC76MVPDeploymentPipelineService>();
 
+            // Register Compliance Evidence and Launch Decision service (Issue compliance-evidence)
+            builder.Services.AddSingleton<IComplianceEvidenceLaunchDecisionService, ComplianceEvidenceLaunchDecisionService>();
+
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
 
