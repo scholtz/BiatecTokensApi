@@ -520,6 +520,15 @@ namespace BiatecTokensApi.Models
         /// <summary>AML screening requires manual review</summary>
         public const string AML_SCREENING_NEEDS_REVIEW = "AML_SCREENING_NEEDS_REVIEW";
 
+        /// <summary>AML record not found for the given user</summary>
+        public const string AML_RECORD_NOT_FOUND = "AML_RECORD_NOT_FOUND";
+
+        /// <summary>GDPR erasure request failed</summary>
+        public const string GDPR_ERASURE_FAILED = "GDPR_ERASURE_FAILED";
+
+        /// <summary>Invalid input parameters</summary>
+        public const string INVALID_INPUT = "INVALID_INPUT";
+
         /// <summary>Compliance check with the given decision ID was not found</summary>
         public const string COMPLIANCE_CHECK_NOT_FOUND = "COMPLIANCE_CHECK_NOT_FOUND";
 

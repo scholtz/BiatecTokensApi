@@ -114,6 +114,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ARC76MVPPipeline types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ARC76MVPPipeline")
                         return $"ARC76MVPPipeline{type.Name}";
+                    // Use namespace-qualified names for all Aml types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.Aml")
+                        return $"Aml{type.Name}";
                     return type.Name;
                 });
                 
@@ -265,6 +268,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IKycProvider, MockKycProvider>();
             builder.Services.AddSingleton<IKycService, KycService>();
             builder.Services.AddSingleton<IAmlProvider, MockAmlProvider>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IAmlRepository, BiatecTokensApi.Repositories.AmlRepository>();
+            builder.Services.AddSingleton<IAmlService, AmlService>();
+            builder.Services.AddSingleton<IGdprErasureService, GdprErasureService>();
             builder.Services.AddSingleton<IComplianceOrchestrationService, ComplianceOrchestrationService>();
 
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
