@@ -28,8 +28,8 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
         Skipped
     }
 
-    /// <summary>Severity of a blocker or warning item.</summary>
-    public enum BlockerSeverity
+    /// <summary>Severity of a launch blocker or warning item.</summary>
+    public enum LaunchBlockerSeverity
     {
         /// <summary>Informational advisory.</summary>
         Info,
@@ -223,7 +223,7 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
         public string Description { get; set; } = string.Empty;
 
         /// <summary>Severity level.</summary>
-        public BlockerSeverity Severity { get; set; }
+        public LaunchBlockerSeverity Severity { get; set; }
 
         /// <summary>Category of the blocker.</summary>
         public EvidenceCategory Category { get; set; }
@@ -257,7 +257,7 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
         public string Description { get; set; } = string.Empty;
 
         /// <summary>Severity level (typically Info or Low).</summary>
-        public BlockerSeverity Severity { get; set; }
+        public LaunchBlockerSeverity Severity { get; set; }
 
         /// <summary>Category of the warning.</summary>
         public EvidenceCategory Category { get; set; }

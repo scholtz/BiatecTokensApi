@@ -158,7 +158,7 @@ namespace BiatecTokensTests
         {
             var r = await EvalAsync(standard: "ARC1400", network: "mainnet");
             foreach (var b in r.Blockers)
-                Assert.That(Enum.IsDefined(typeof(BlockerSeverity), b.Severity), Is.True);
+                Assert.That(Enum.IsDefined(typeof(LaunchBlockerSeverity), b.Severity), Is.True);
         }
 
         [Test]

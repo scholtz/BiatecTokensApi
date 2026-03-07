@@ -711,11 +711,11 @@ namespace BiatecTokensApi.Services
         private static LaunchDecisionStatus DetermineStatus(
             List<LaunchBlocker> blockers, List<LaunchWarning> warnings)
         {
-            if (blockers.Any(b => b.Severity >= BlockerSeverity.High))
+            if (blockers.Any(b => b.Severity >= LaunchBlockerSeverity.High))
                 return LaunchDecisionStatus.Blocked;
             if (blockers.Any())
                 return LaunchDecisionStatus.NeedsReview;
-            if (warnings.Any(w => w.Severity >= BlockerSeverity.Medium))
+            if (warnings.Any(w => w.Severity >= LaunchBlockerSeverity.Medium))
                 return LaunchDecisionStatus.Warning;
             if (warnings.Any())
                 return LaunchDecisionStatus.Warning;
@@ -745,7 +745,7 @@ namespace BiatecTokensApi.Services
                 BlockerId = $"BLOCKER-{rule.RuleId}",
                 Title = rule.RuleName,
                 Description = rule.Rationale,
-                Severity = BlockerSeverity.High,
+                Severity = LaunchBlockerSeverity.High,
                 Category = rule.Category,
                 RemediationSteps = rule.RemediationGuidance != null
                     ? new List<string> { rule.RemediationGuidance }
@@ -761,7 +761,7 @@ namespace BiatecTokensApi.Services
                 WarningId = $"WARN-{rule.RuleId}",
                 Title = rule.RuleName,
                 Description = rule.Rationale,
-                Severity = BlockerSeverity.Low,
+                Severity = LaunchBlockerSeverity.Low,
                 Category = rule.Category,
                 SuggestedActions = rule.RemediationGuidance != null
                     ? new List<string> { rule.RemediationGuidance }
