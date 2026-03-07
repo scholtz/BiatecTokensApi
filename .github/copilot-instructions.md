@@ -205,6 +205,30 @@
 
 **Lesson Learned (2026-03-06 - Issue #484, PR #485)**: The Test Results check failed because `test-results.trx` contained oversized `<Output>` nodes that exceeded the XML parser limits in `publish-unit-test-result-action`. When adding large test suites, ensure the workflow sanitizes TRX output (strip `<Output>` nodes) before publishing results to avoid parser failures.
 
+**Lesson Learned (2026-03-07 - Compliance Evidence API, PR #487)**: CI had 18 test failures because a newly added enum `BlockerSeverity` in the `ComplianceEvidenceLaunchDecision` namespace conflicted with the pre-existing `BiatecTokensApi.Models.Preflight.BlockerSeverity` enum. Swashbuckle (Swagger) uses the **simple type name** (not fully qualified name) as the OpenAPI schema ID. When two types in the same assembly share the same simple name, Swashbuckle throws `System.InvalidOperationException: Can't use schemaId "$X" for type "$A.X". The same schemaId is already used for type "$B.X"` at runtime, causing all Swagger endpoint requests (GET /swagger/v1/swagger.json) to return HTTP 500.
+
+**Root Cause**: Did not check for type naming conflicts before submitting the PR.
+
+**MANDATORY PRE-SUBMISSION CHECK for any PR adding new types (classes, enums, records) to the API project**:
+```bash
+# 1. Check for simple-name conflicts across ALL existing model types
+cd /path/to/repo
+grep -rh "^    public enum\|^    public class\|^    public record" BiatecTokensApi/Models/ --include="*.cs" \
+  | grep -oP '(?<=class |enum |record )\w+' | sort | uniq -d
+# Any output here = CONFLICT = MUST RENAME before submitting
+
+# 2. Run the Swagger endpoint test after adding new types
+dotnet test BiatecTokensTests --filter "FullyQualifiedName~Swagger_IsReachable|FullyQualifiedName~SwaggerSpec_IsAccessible" \
+  --configuration Release --no-build
+# If ANY test returns InternalServerError, check for type name conflicts
+```
+
+**Prevention Rule**: When naming new types in `BiatecTokensApi.Models.*` namespaces, **always use a distinctive prefix** tied to the feature (e.g., `Launch`, `Compliance`, `Orchestration`) to avoid collisions. Never use generic names like `BlockerSeverity`, `Status`, `Response`, `Request` alone without a domain-specific prefix.
+
+**Fix Pattern**: Rename the conflicting type to include the domain prefix:
+- ❌ `BlockerSeverity` (conflicts with Preflight.BlockerSeverity)
+- ✅ `LaunchBlockerSeverity` (unique across the assembly)
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:
