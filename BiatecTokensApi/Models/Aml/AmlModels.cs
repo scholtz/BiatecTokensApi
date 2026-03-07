@@ -1,3 +1,5 @@
+using BiatecTokensApi.Models.Kyc;
+
 namespace BiatecTokensApi.Models.Aml
 {
     /// <summary>
@@ -300,10 +302,10 @@ namespace BiatecTokensApi.Models.Aml
         public string? UserId { get; set; }
 
         /// <summary>Current verification status</summary>
-        public BiatecTokensApi.Models.Kyc.KycStatus Status { get; set; }
+        public KycStatus Status { get; set; }
 
         /// <summary>KYC provider</summary>
-        public BiatecTokensApi.Models.Kyc.KycProvider Provider { get; set; }
+        public KycProvider Provider { get; set; }
 
         /// <summary>Provider reference ID</summary>
         public string? ProviderReferenceId { get; set; }
@@ -342,7 +344,7 @@ namespace BiatecTokensApi.Models.Aml
     public class KycAdminOverrideRequest
     {
         /// <summary>New status to set</summary>
-        public BiatecTokensApi.Models.Kyc.KycStatus NewStatus { get; set; }
+        public KycStatus NewStatus { get; set; }
 
         /// <summary>Reason for the override (required)</summary>
         public string Reason { get; set; } = string.Empty;

@@ -283,8 +283,9 @@ namespace BiatecTokensApi.Services
 
                 foreach (var record in records)
                 {
+                    // Anonymize all PII fields unconditionally; null values remain null to preserve nullability semantics
                     record.Notes = "[GDPR_ANONYMIZED]";
-                    record.ReasonCode = record.ReasonCode != null ? "[ANONYMIZED]" : null;
+                    record.ReasonCode = "[ANONYMIZED]";
                     record.Metadata = new Dictionary<string, string>
                     {
                         ["gdpr_erased_at"] = DateTime.UtcNow.ToString("O")

@@ -297,9 +297,10 @@ namespace BiatecTokensApi.Controllers
         }
 
         /// <summary>
-        /// Webhook endpoint for receiving KYC status updates from provider
+        /// Webhook endpoint for receiving KYC status updates from provider.
+        /// Signature is validated via HMAC-SHA256 in the X-KYC-Signature header.
         /// </summary>
-        /// <param name="payload">The webhook payload</param>
+        /// <param name="payload">The KYC webhook payload from the provider, containing the provider reference ID, event type, and new status</param>
         /// <returns>Status of webhook processing</returns>
         /// <response code="200">Webhook processed successfully</response>
         /// <response code="400">Invalid webhook payload or signature</response>
