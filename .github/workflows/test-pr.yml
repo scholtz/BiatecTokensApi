@@ -39,28 +39,23 @@ jobs:
           # Get changed files
           CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
           
-          # If only test files or documentation changed, run all tests
-          if echo "$CHANGED_FILES" | grep -qE '\.(md|txt|yml|yaml)$|BiatecTokensTests/.*\.cs$|TestResults/|CoverageReport/|\.github/'; then
-            if ! echo "$CHANGED_FILES" | grep -qE 'BiatecTokensApi/.*\.cs$'; then
-              echo "Only test/docs files changed, running all tests"
-            else
-              echo "Code files changed, determining selective test filter"
-              # Extract feature names from changed code files
-              FEATURES=$(echo "$CHANGED_FILES" | grep 'BiatecTokensApi/.*\.cs$' | \
-                sed 's|.*/||; s|\.cs$||' | \
-                grep -oE '(ARC76|Authentication|Token|Deployment|Health|Status)' | \
-                sort | uniq)
-              
-              if [ -n "$FEATURES" ]; then
-                FILTER_PARTS=""
-                for feature in $FEATURES; do
-                  FILTER_PARTS="$FILTER_PARTS FullyQualifiedName~$feature"
-                done
-                # Run unit tests always + selective integration tests
-                TEST_FILTER="(FullyQualifiedName~UnitTests|FullyQualifiedName~ServiceUnitTests$FILTER_PARTS) & FullyQualifiedName!~RealEndpoint"
-                echo "Running selective tests for features: $FEATURES"
-              fi
-            fi
+          # Extract feature names from changed files (both code and test files)
+          FEATURES=$(echo "$CHANGED_FILES" | \
+            grep -E '\.(cs)$' | \
+            sed 's|.*/||; s|\.cs$||' | \
+            grep -oE '(ARC76|Authentication|Token|Deployment|Health|Status|Compliance|Preflight)' | \
+            sort | uniq)
+          
+          if [ -n "$FEATURES" ]; then
+            FILTER_PARTS=""
+            for feature in $FEATURES; do
+              FILTER_PARTS="$FILTER_PARTS FullyQualifiedName~$feature"
+            done
+            # Run unit tests always + selective integration tests
+            TEST_FILTER="(FullyQualifiedName~UnitTests|FullyQualifiedName~ServiceUnitTests$FILTER_PARTS) & FullyQualifiedName!~RealEndpoint"
+            echo "Running selective tests for features: $FEATURES"
+          else
+            echo "No specific features detected, running all tests"
           fi
           
           echo "TEST_FILTER=$TEST_FILTER" >> $GITHUB_OUTPUT
