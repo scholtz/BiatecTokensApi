@@ -114,12 +114,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ARC76MVPPipeline types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ARC76MVPPipeline")
                         return $"ARC76MVPPipeline{type.Name}";
-<<<<<<< copilot/implement-compliance-api-harden
                     // Use namespace-qualified names for all ComplianceHardening types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ComplianceHardening")
                         return $"ComplianceHardening{type.Name}";
-=======
->>>>>>> master
                     // Use namespace-qualified names for all Aml types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.Aml")
                         return $"Aml{type.Name}";
