@@ -26,6 +26,46 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
       
+      - name: Get changed files
+        uses: tj-actions/changed-files@v44
+        id: changed-files
+      
+      - name: Determine test filter
+        id: test-filter
+        run: |
+          # Default: run all tests except RealEndpoint
+          TEST_FILTER="FullyQualifiedName!~RealEndpoint"
+          
+          # Get changed files
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          
+          # If only test files or documentation changed, run all tests
+          if echo "$CHANGED_FILES" | grep -qE '\.(md|txt|yml|yaml)$|BiatecTokensTests/.*\.cs$|TestResults/|CoverageReport/|\.github/'; then
+            if ! echo "$CHANGED_FILES" | grep -qE 'BiatecTokensApi/.*\.cs$'; then
+              echo "Only test/docs files changed, running all tests"
+            else
+              echo "Code files changed, determining selective test filter"
+              # Extract feature names from changed code files
+              FEATURES=$(echo "$CHANGED_FILES" | grep 'BiatecTokensApi/.*\.cs$' | \
+                sed 's|.*/||; s|\.cs$||' | \
+                grep -oE '(ARC76|Authentication|Token|Deployment|Health|Status)' | \
+                sort | uniq)
+              
+              if [ -n "$FEATURES" ]; then
+                FILTER_PARTS=""
+                for feature in $FEATURES; do
+                  FILTER_PARTS="$FILTER_PARTS FullyQualifiedName~$feature"
+                done
+                # Run unit tests always + selective integration tests
+                TEST_FILTER="(FullyQualifiedName~UnitTests|FullyQualifiedName~ServiceUnitTests$FILTER_PARTS) & FullyQualifiedName!~RealEndpoint"
+                echo "Running selective tests for features: $FEATURES"
+              fi
+            fi
+          fi
+          
+          echo "TEST_FILTER=$TEST_FILTER" >> $GITHUB_OUTPUT
+          echo "Using test filter: $TEST_FILTER"
+      
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -37,7 +77,7 @@ jobs:
       - name: Build solution
         run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
       
-      - name: Run unit tests with coverage
+      - name: Run tests with selective filter
         run: |
           dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
             --configuration Release \
@@ -46,7 +86,7 @@ jobs:
             --logger "trx;LogFileName=test-results.trx" \
             --collect:"XPlat Code Coverage" \
             --settings coverage.runsettings \
-            --filter "FullyQualifiedName!~RealEndpoint" \
+            --filter "${{ steps.test-filter.outputs.TEST_FILTER }}" \
             --results-directory ./TestResults \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
       

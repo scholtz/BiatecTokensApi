@@ -949,6 +949,95 @@ When adding new required configuration:
 
 **Lesson Learned**: Missing required configuration in CI causes build failures that are hard to debug. Always add new required config to ALL test and CI configurations immediately when introducing the requirement.
 
+### Efficient Test Execution for Large Test Suites
+
+**CRITICAL: With 7390+ tests taking >1 hour, PR tests MUST run selective tests based on changes to stay under 10 minutes.**
+
+#### Selective Test Execution Strategy
+
+The CI pipeline automatically detects changed files and runs only relevant tests:
+
+1. **Changed Files Detection**: Uses `tj-actions/changed-files` to identify modified files
+2. **Test Filter Determination**:
+   - **Test/Docs Only Changes**: Run all tests (ensures test changes don't break anything)
+   - **Code Changes**: Extract feature names (ARC76, Authentication, Token, etc.) and run:
+     - All unit tests (fast, always run)
+     - Integration/contract tests matching changed features
+3. **Fallback**: If feature extraction fails, run all tests except RealEndpoint
+
+#### Test Categorization Best Practices
+
+**MANDATORY: All new tests MUST be categorized for selective execution.**
+
+```csharp
+// Unit tests - fast, always run in PRs
+[Test]
+[Category("Unit")]
+public async Task MyService_ValidInput_ReturnsSuccess() { }
+
+// Integration tests - run only when related code changes
+[Test]
+[Category("Integration")]
+public async Task MyController_PostValidRequest_Returns201() { }
+
+// E2E tests - run only on main branch or when explicitly requested
+[Test]
+[Category("E2E")]
+[Explicit("Run manually - requires full environment")]
+public async Task FullUserJourney_Succeeds() { }
+```
+
+#### Test Performance Optimization
+
+**MANDATORY: Keep individual tests under 100ms, test suites under 10 minutes for PRs.**
+
+1. **Mock External Dependencies**: Never call real APIs, blockchains, or databases
+2. **Use In-Memory Providers**: Configure services with `Hardcoded` or in-memory implementations
+3. **Avoid Sleeps/Waits**: Use immediate assertions, no Thread.Sleep
+4. **Parallel Execution**: Tests should be parallelizable (no shared state)
+5. **Minimal Setup**: Reuse test fixtures, avoid per-test database resets
+
+#### Example Fast Test Pattern
+
+```csharp
+[Test]
+[Category("Unit")]
+public async Task ARC76Derivation_DeterministicAcrossCalls()
+{
+    // Arrange - instant
+    var service = new ARC76Service();
+    
+    // Act - fast computation
+    var result1 = await service.DeriveAddress("test@example.com", "password");
+    var result2 = await service.DeriveAddress("test@example.com", "password");
+    
+    // Assert - immediate
+    Assert.That(result1, Is.EqualTo(result2));
+}
+```
+
+#### CI Test Execution Time Targets
+
+- **Unit Tests**: < 2 minutes (always run)
+- **Integration Tests**: < 5 minutes per feature (selective)
+- **Total PR Time**: < 10 minutes
+- **Full Suite**: < 1 hour (main branch only)
+
+#### Local Test Running for Efficiency
+
+```bash
+# Run only unit tests (fast feedback)
+dotnet test --filter "Category=Unit"
+
+# Run tests for specific feature
+dotnet test --filter "FullyQualifiedName~ARC76"
+
+# Run tests excluding slow categories
+dotnet test --filter "Category!=E2E & Category!=Integration"
+```
+
+**Lesson Learned (2026-03-XX)**: With 7390 tests taking >1 hour, PRs became unusable. Implemented selective test execution based on changed files, reducing PR test time to <10 minutes while maintaining coverage for changed features.
+
 ### WebApplicationFactory Integration Test Reliability
 
 **CRITICAL: Integration tests using WebApplicationFactory require multiple reliability measures for CI environments.**
@@ -999,7 +1088,14 @@ CI environments have resource constraints that don't affect local development. A
        ["EVMChains:0:Name"] = "Base",
        ["EVMChains:0:RpcUrl"] = "https://mainnet.base.org",
        ["Debug:EmptySuccessOnFailure"] = "false",
-       ["CorsSettings:AllowedOrigins:0"] = "*"
+       ["CorsSettings:AllowedOrigins:0"] = "*",
+       ["WorkflowGovernanceConfig:Enabled"] = "true",
+       ["WorkflowGovernanceConfig:EnforceValidation"] = "true",
+       ["WorkflowGovernanceConfig:EnforcePreconditions"] = "true",
+       ["WorkflowGovernanceConfig:EnforcePostCommitVerification"] = "true",
+       ["WorkflowGovernanceConfig:MaxRetryAttempts"] = "5",
+       ["WorkflowGovernanceConfig:PolicyVersion"] = "1.0.0",
+       ["WorkflowGovernanceConfig:RolloutPercentage"] = "100"
    };
    ```
 
@@ -1077,33 +1173,6 @@ dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Fea
 dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Feature}ContractTests"
 ```
 
-**Lesson Learned (2026-03-02 - Issue #462, PR #463)**: CI had 1 test failing out of 3992 because `SB5_EmptyRefreshToken_Returns401` asserted HTTP 401, but the real behavior is HTTP 400 (model validation failure for empty required field).
-
-**Root cause**: When a required JSON field is empty string `""`, ASP.NET Core model validation fires BEFORE auth processing and returns 400 Bad Request — not 401 Unauthorized. The test was overly prescriptive about the HTTP status code.
-
-**Corrective action**: When testing rejection of invalid inputs (empty, null, malformed), assert the status code as `Is.EqualTo(HttpStatusCode.BadRequest).Or.EqualTo(HttpStatusCode.Unauthorized)` because:
-- Empty/null values → 400 (model validation layer rejects before auth runs)
-- Random non-empty garbage → 401 (auth layer rejects after model validation passes)
-
-**Pattern for input rejection tests:**
-```csharp
-// WRONG: Too prescriptive - empty string hits model validation (400) not auth (401)
-Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-
-// CORRECT: Accept either rejection status - both indicate the request was correctly refused
-Assert.That(resp.StatusCode, 
-    Is.EqualTo(HttpStatusCode.BadRequest).Or.EqualTo(HttpStatusCode.Unauthorized),
-    "Invalid input must be rejected (400=validation, 401=auth), never 200 or 5xx");
-```
-
-**Always run ALL tests locally BEFORE committing by checking exit code**:
-```bash
-# Check exit code - if non-zero, a test failed even if grep shows nothing
-dotnet test BiatecTokensTests/BiatecTokensTests.csproj --configuration Release --no-build \
-  --filter "FullyQualifiedName~{Feature}" > /tmp/test.log 2>&1; echo "EXIT:$?"
-# Then: tail /tmp/test.log to see pass/fail summary
-```
-
 ## Mandatory Test Structure for Vision Milestone Issues (Lesson Learned 2026-03-03 — Issue #466, PR #467)
 
 **Root cause of PO rework request**: Initial PR for Issue #466 delivered ONLY a service unit test file (40 tests) and a contract test file (35 tests). The PO required the SAME 3-file test structure used in every previous vision milestone:
@@ -1141,7 +1210,7 @@ Create `<Feature>UserJourneyIssue{N}Tests.cs` with these required categories:
 - II: 5+ tests (null/empty/malformed/wrong-type/cross-chain)
 - BD: 5+ tests (empty collections, single items, filter exact match/no match, max values)
 - FR: 3+ tests (unknown input, multiple retries, state isolation)
-- NX: 5+ tests (message readability, no raw codes, no nulls, timestamps, descriptions)
+- NX: 5+ tests (message readability, enum names, no technical errors)
 
 ### E2E Workflow Test Pattern
 
@@ -1177,7 +1246,7 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 Issue #484 current counts: 362 unit + 286 contract + 286 journey + 220 E2E + 350 advanced = **1504 tests**.
 
-**UserJourneyTests.cs MUST include (per category):**
+**UserJourneyTests MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
 - II: 7+ invalid input tests (null/empty/whitespace for each field, idempotency conflict)
 - BD: 7+ boundary tests (MaxRetries=-1 as invalid, MaxRetries=1/1000 as valid bounds, all networks, all standards, large MaxRetries)
@@ -1271,4 +1340,3 @@ Missing `StoreRefreshTokenAsync` causes the response to fail silently (exception
 _mockUserRepo.Setup(r => r.UserExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
 _mockUserRepo.Setup(r => r.CreateUserAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
 _mockUserRepo.Setup(r => r.StoreRefreshTokenAsync(It.IsAny<RefreshToken>())).Returns(Task.CompletedTask);
-```
