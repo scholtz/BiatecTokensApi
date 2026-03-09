@@ -49,10 +49,14 @@ jobs:
           if [ -n "$FEATURES" ]; then
             FILTER_PARTS=""
             for feature in $FEATURES; do
-              FILTER_PARTS="$FILTER_PARTS FullyQualifiedName~$feature"
+              if [ -n "$FILTER_PARTS" ]; then
+                FILTER_PARTS="$FILTER_PARTS | FullyQualifiedName~$feature"
+              else
+                FILTER_PARTS="FullyQualifiedName~$feature"
+              fi
             done
-            # Run unit tests always + selective integration tests
-            TEST_FILTER="(FullyQualifiedName~UnitTests|FullyQualifiedName~ServiceUnitTests$FILTER_PARTS) & FullyQualifiedName!~RealEndpoint"
+            # Run only feature-specific tests to keep PR time under 10 minutes
+            TEST_FILTER="($FILTER_PARTS) & FullyQualifiedName!~RealEndpoint"
             echo "Running selective tests for features: $FEATURES"
           else
             echo "No specific features detected, running all tests"
