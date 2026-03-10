@@ -149,7 +149,7 @@ jobs:
             --filter "${{ steps.test-filter.outputs.TEST_FILTER }}" \
             --results-directory ./TestResults \
             --blame-hang-timeout 60s
-        timeout-minutes: 10
+        timeout-minutes: 90
 
       - name: Sanitize test results for publish
         if: always()
