@@ -5,8 +5,8 @@ on:
     branches:
       - master
       - main
-      - 'dependabot/**'  # Test stacked PRs on dependabot branches
-      - 'copilot/**'     # Test agent branches
+      - 'dependabot/**'
+      - 'copilot/**'
   push:
     branches:
       - master
@@ -19,64 +19,220 @@ permissions:
   checks: write
 
 jobs:
-  build-and-test:
+  # ============================================================
+  # JOB 1: Fast PR tests — only tests affected by the diff
+  # Target: < 10 minutes. Runs on pull_request events only.
+  # ============================================================
+  pr-tests:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 15
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      
+        with:
+          fetch-depth: 0  # needed for accurate diff
+
       - name: Get changed files
         uses: tj-actions/changed-files@v44
         id: changed-files
-      
-      - name: Determine test filter
+
+      - name: Determine test filter from changed files
         id: test-filter
         run: |
-          # Default: run all tests except RealEndpoint
-          TEST_FILTER="FullyQualifiedName!~RealEndpoint"
-          
-          # Get changed files
+          set -euo pipefail
+
           CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
-          
-          # Extract feature names from changed files (both code and test files)
-          FEATURES=$(echo "$CHANGED_FILES" | \
-            grep -E '\.(cs)$' | \
-            sed 's|.*/||; s|\.cs$||' | \
-            grep -oE '(ARC76|Authentication|Token|Deployment|Health|Status|Compliance|Preflight)' | \
-            sort | uniq)
-          
-          if [ -n "$FEATURES" ]; then
-            FILTER_PARTS=""
-            for feature in $FEATURES; do
-              if [ -n "$FILTER_PARTS" ]; then
-                FILTER_PARTS="$FILTER_PARTS | FullyQualifiedName~$feature"
+          echo "Changed files: $CHANGED_FILES"
+
+          # ── Detect infrastructure changes that require the full suite ──
+          INFRA_CHANGED=false
+          for f in $CHANGED_FILES; do
+            case "$f" in
+              *.csproj|*.sln|*.props|*.targets|Directory.Build.*|global.json|NuGet.Config|coverage.runsettings)
+                INFRA_CHANGED=true ;;
+              BiatecTokensApi/Program.cs|BiatecTokensApi/Startup.cs)
+                INFRA_CHANGED=true ;;
+            esac
+          done
+
+          if [ "$INFRA_CHANGED" = true ]; then
+            echo "⚠️  Infrastructure files changed — running full test suite"
+            echo "TEST_FILTER=FullyQualifiedName!~RealEndpoint" >> "$GITHUB_OUTPUT"
+            echo "SELECTIVE=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # ── Collect test class names to run ──
+          TEST_CLASSES=""
+
+          # 1. Directly changed test files → always run them
+          for f in $CHANGED_FILES; do
+            case "$f" in
+              BiatecTokensTests/*.cs)
+                CLASS=$(basename "$f" .cs)
+                TEST_CLASSES="$TEST_CLASSES $CLASS"
+                ;;
+            esac
+          done
+
+          # 2. Changed source files → find matching test files by base name
+          for f in $CHANGED_FILES; do
+            case "$f" in
+              BiatecTokensApi/*.cs)
+                BASE=$(basename "$f" .cs)
+                # Search for test files whose name contains the source file's base name
+                MATCHES=$(find BiatecTokensTests -maxdepth 1 -name "*${BASE}*Tests.cs" -o -name "*${BASE}*Test.cs" 2>/dev/null || true)
+                for m in $MATCHES; do
+                  CLASS=$(basename "$m" .cs)
+                  TEST_CLASSES="$TEST_CLASSES $CLASS"
+                done
+                ;;
+            esac
+          done
+
+          # 3. Deduplicate
+          TEST_CLASSES=$(echo "$TEST_CLASSES" | tr ' ' '\n' | sort -u | grep -v '^$' || true)
+          COUNT=$(echo "$TEST_CLASSES" | grep -c . || echo 0)
+
+          echo "Matched $COUNT test class(es)"
+          echo "$TEST_CLASSES"
+
+          # 4. Build the --filter expression
+          if [ "$COUNT" -eq 0 ]; then
+            # No code changes or no matching tests — run a minimal smoke-test set
+            echo "ℹ️  No matching test classes — running smoke tests only"
+            echo "TEST_FILTER=(FullyQualifiedName~HealthCheck | FullyQualifiedName~SwaggerSpec | FullyQualifiedName~ApiIntegration) & FullyQualifiedName!~RealEndpoint" >> "$GITHUB_OUTPUT"
+            echo "SELECTIVE=true" >> "$GITHUB_OUTPUT"
+          elif [ "$COUNT" -gt 60 ]; then
+            # Too many matches — likely a broad refactor; run everything
+            echo "⚠️  $COUNT test classes matched — running full suite"
+            echo "TEST_FILTER=FullyQualifiedName!~RealEndpoint" >> "$GITHUB_OUTPUT"
+            echo "SELECTIVE=false" >> "$GITHUB_OUTPUT"
+          else
+            FILTER=""
+            for CLASS in $TEST_CLASSES; do
+              if [ -n "$FILTER" ]; then
+                FILTER="$FILTER | FullyQualifiedName~$CLASS"
               else
-                FILTER_PARTS="FullyQualifiedName~$feature"
+                FILTER="FullyQualifiedName~$CLASS"
               fi
             done
-            # Run only feature-specific tests to keep PR time under 10 minutes
-            TEST_FILTER="($FILTER_PARTS) & FullyQualifiedName!~RealEndpoint"
-            echo "Running selective tests for features: $FEATURES"
-          else
-            echo "No specific features detected, running all tests"
+            FILTER="($FILTER) & FullyQualifiedName!~RealEndpoint"
+            echo "TEST_FILTER=$FILTER" >> "$GITHUB_OUTPUT"
+            echo "SELECTIVE=true" >> "$GITHUB_OUTPUT"
           fi
-          
-          echo "TEST_FILTER=$TEST_FILTER" >> $GITHUB_OUTPUT
-          echo "Using test filter: $TEST_FILTER"
-      
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
-      
+
       - name: Restore dependencies
         run: dotnet restore BiatecTokensApi.sln
-      
+
       - name: Build solution
         run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
-      
-      - name: Run tests with selective filter
+
+      - name: Run tests (selective)
+        run: |
+          echo "::group::Test filter"
+          echo "${{ steps.test-filter.outputs.TEST_FILTER }}"
+          echo "::endgroup::"
+
+          dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx" \
+            --filter "${{ steps.test-filter.outputs.TEST_FILTER }}" \
+            --results-directory ./TestResults \
+            --blame-hang-timeout 60s
+        timeout-minutes: 10
+
+      - name: Sanitize test results for publish
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+          for path in glob.glob('**/test-results.trx', recursive=True):
+              tree = ET.parse(path)
+              for parent in tree.getroot().iter():
+                  for child in list(parent):
+                      if child.tag.endswith('Output'):
+                          parent.remove(child)
+              out = os.path.join(os.path.dirname(path), 'test-results-sanitized.trx')
+              tree.write(out, encoding='utf-8', xml_declaration=True)
+              print(f"Sanitized {path} -> {out}")
+          PY
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/test-results-sanitized.trx'
+          check_name: 'PR Test Results'
+
+      - name: Post summary
+        if: always()
+        run: |
+          echo "## PR Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.test-filter.outputs.SELECTIVE }}" = "true" ]; then
+            echo "🎯 **Selective run** — only tests affected by the PR diff were executed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔄 **Full run** — infrastructure or broad changes detected; all tests executed." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Filter: \`${{ steps.test-filter.outputs.TEST_FILTER }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR
+        if: github.actor != 'dependabot[bot]' && always()
+        uses: actions/github-script@v8
+        continue-on-error: true
+        with:
+          script: |
+            const selective = '${{ steps.test-filter.outputs.SELECTIVE }}' === 'true';
+            const mode = selective ? '🎯 Selective (changed files only)' : '🔄 Full suite';
+            const body = `✅ PR tests completed!\n\n**Test mode**: ${mode}\n\n` +
+              `> Full coverage & OpenAPI generation run on merge to main.`;
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            } catch (e) {
+              console.log('Unable to comment:', e.message);
+            }
+
+  # ============================================================
+  # JOB 2: Full test suite — runs on push to main/master only
+  # Includes coverage reporting and OpenAPI generation.
+  # ============================================================
+  full-tests:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore BiatecTokensApi.sln
+
+      - name: Build solution
+        run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
+
+      - name: Run full test suite
         run: |
           dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
             --configuration Release \
@@ -85,13 +241,14 @@ jobs:
             --logger "trx;LogFileName=test-results.trx" \
             --collect:"XPlat Code Coverage" \
             --settings coverage.runsettings \
-            --filter "${{ steps.test-filter.outputs.TEST_FILTER }}" \
+            --filter "FullyQualifiedName!~RealEndpoint" \
             --results-directory ./TestResults \
+            --blame-hang-timeout 120s \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-      
+
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool || true
-      
+
       - name: Generate coverage report
         run: |
           reportgenerator \
@@ -99,54 +256,43 @@ jobs:
             "-targetdir:./CoverageReport" \
             "-reporttypes:Html;Cobertura;TextSummary" \
             "-verbosity:Info"
-      
+
       - name: Display coverage summary
         run: |
           echo "## Code Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat ./CoverageReport/Summary.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Check coverage thresholds
         run: |
-          # Extract line and branch coverage from the Cobertura XML
           LINE_RATE=$(grep -oP 'line-rate="\K[0-9.]+' ./CoverageReport/Cobertura.xml | head -1)
           BRANCH_RATE=$(grep -oP 'branch-rate="\K[0-9.]+' ./CoverageReport/Cobertura.xml | head -1)
-          
-          # Convert to percentage
+
           LINE_PERCENT=$(echo "$LINE_RATE * 100" | bc)
           BRANCH_PERCENT=$(echo "$BRANCH_RATE * 100" | bc)
-          
+
           echo "Line Coverage: ${LINE_PERCENT}%"
           echo "Branch Coverage: ${BRANCH_PERCENT}%"
-          
-          # Coverage thresholds - updated after test improvements
-          # Current coverage: ~15% line, ~8% branch (with Generated code excluded)
-          # Previous: 34% line, 28% branch (before proper test infrastructure)
-          # Target: 80% line, 70% branch (to be reached incrementally)
-          # Setting thresholds at current level to prevent regression
+
           THRESHOLD_LINE=15
           THRESHOLD_BRANCH=8
-          
-          # Use awk for floating point comparison
+
           LINE_PASS=$(echo "$LINE_PERCENT >= $THRESHOLD_LINE" | bc -l)
           BRANCH_PASS=$(echo "$BRANCH_PERCENT >= $THRESHOLD_BRANCH" | bc -l)
-          
+
           if [ "$LINE_PASS" -eq 0 ]; then
             echo "❌ Line coverage ${LINE_PERCENT}% is below threshold of ${THRESHOLD_LINE}%"
-            echo "⚠️ This PR decreased code coverage. Please add tests."
             exit 1
           fi
-          
+
           if [ "$BRANCH_PASS" -eq 0 ]; then
             echo "❌ Branch coverage ${BRANCH_PERCENT}% is below threshold of ${THRESHOLD_BRANCH}%"
-            echo "⚠️ This PR decreased code coverage. Please add tests."
             exit 1
           fi
-          
-          echo "✅ Coverage thresholds met: Line ${LINE_PERCENT}% (>=${THRESHOLD_LINE}%), Branch ${BRANCH_PERCENT}% (>=${THRESHOLD_BRANCH}%)"
-          echo "📊 Target coverage: Line 80%, Branch 70% - Please help improve coverage with your PRs!"
-      
+
+          echo "✅ Coverage OK: Line ${LINE_PERCENT}% (≥${THRESHOLD_LINE}%), Branch ${BRANCH_PERCENT}% (≥${THRESHOLD_BRANCH}%)"
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         if: always()
@@ -158,39 +304,30 @@ jobs:
       - name: Sanitize test results for publish
         if: always()
         run: |
-          python - <<'PY'
-          import glob
-          import os
-          import xml.etree.ElementTree as ET
-
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
           for path in glob.glob('**/test-results.trx', recursive=True):
               tree = ET.parse(path)
-              root = tree.getroot()
-              for parent in root.iter():
+              for parent in tree.getroot().iter():
                   for child in list(parent):
                       if child.tag.endswith('Output'):
                           parent.remove(child)
-              sanitized_path = os.path.join(os.path.dirname(path), 'test-results-sanitized.trx')
-              tree.write(sanitized_path, encoding='utf-8', xml_declaration=True)
-              print(f"Sanitized {path} -> {sanitized_path}")
+              out = os.path.join(os.path.dirname(path), 'test-results-sanitized.trx')
+              tree.write(out, encoding='utf-8', xml_declaration=True)
+              print(f"Sanitized {path} -> {out}")
           PY
-      
+
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
           files: '**/test-results-sanitized.trx'
           check_name: 'Test Results'
-      
+
       - name: Generate OpenAPI Specification
         run: |
-          # Install Swashbuckle CLI
           dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.8.1 || true
-          
-          # Build the API project
-          dotnet build BiatecTokensApi/BiatecTokensApi.csproj --configuration Release
-          
-          # Create a minimal appsettings for OpenAPI generation
+
           cat > BiatecTokensApi/appsettings.OpenAPI.json << 'EOF'
           {
             "App": {
@@ -231,18 +368,15 @@ jobs:
             }
           }
           EOF
-          
-          # Generate OpenAPI spec with the test configuration
+
           export ASPNETCORE_ENVIRONMENT="OpenAPI"
           swagger tofile --output ./openapi.json BiatecTokensApi/bin/Release/net10.0/BiatecTokensApi.dll v1 2>&1 || {
-            echo "⚠️ OpenAPI generation failed. This is expected if services require network access during initialization."
-            echo "OpenAPI spec is available at runtime via /swagger/v1/swagger.json endpoint"
-            echo '{"info": {"title": "BiatecTokens API", "version": "v1"}, "note": "OpenAPI spec available at /swagger/v1/swagger.json when API is running"}' > ./openapi.json
+            echo "⚠️ OpenAPI generation failed — placeholder created"
+            echo '{"info": {"title": "BiatecTokens API", "version": "v1"}, "note": "Available at /swagger/v1/swagger.json when running"}' > ./openapi.json
           }
-          
-          # Cleanup
+
           rm -f BiatecTokensApi/appsettings.OpenAPI.json
-      
+
       - name: Upload OpenAPI Specification
         uses: actions/upload-artifact@v7
         if: always()
@@ -250,36 +384,3 @@ jobs:
           name: openapi-specification
           path: openapi.json
           retention-days: 90
-      
-      - name: Comment PR with OpenAPI artifact link
-        # Skip for dependabot PRs as they have restricted permissions
-        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && always()
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require('fs');
-            let message = '✅ CI checks passed!\n\n';
-            
-            if (fs.existsSync('openapi.json')) {
-              const content = fs.readFileSync('openapi.json', 'utf8');
-              if (content.includes('available at runtime')) {
-                message += '📄 OpenAPI specification is available at runtime:\n';
-                message += '- Swagger UI: https://your-api-url/swagger\n';
-                message += '- JSON spec: https://your-api-url/swagger/v1/swagger.json\n';
-                message += '\nNote: Full spec generation requires running API instance. A placeholder artifact has been uploaded.';
-              } else {
-                message += '📄 OpenAPI specification generated and available as workflow artifact: `openapi-specification`';
-              }
-            }
-            
-            try {
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: message
-              });
-            } catch (error) {
-              console.log('Unable to comment on PR:', error.message);
-              console.log('This is expected for dependabot PRs with restricted permissions.');
-            }

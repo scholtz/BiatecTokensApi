@@ -949,43 +949,75 @@ When adding new required configuration:
 
 **Lesson Learned**: Missing required configuration in CI causes build failures that are hard to debug. Always add new required config to ALL test and CI configurations immediately when introducing the requirement.
 
-### Efficient Test Execution for Large Test Suites
+### Two-Tier CI Strategy: Fast PR Tests + Full Main Branch Suite
 
-**CRITICAL: With 7390+ tests taking >1 hour, PR tests MUST run selective tests based on changes to stay under 10 minutes.**
+**CRITICAL: The CI workflow (`test-pr.yml`) uses TWO separate jobs to keep PR feedback under 10 minutes while still running the full 7390+ test suite on merge.**
 
-#### Selective Test Execution Strategy
+#### Tier 1 — `pr-tests` job (pull_request events only, < 10 min target)
 
-The CI pipeline automatically detects changed files and runs only relevant tests:
+**What it does:**
+1. Detects changed `.cs` files using `tj-actions/changed-files`
+2. Maps changed **test files** → runs them directly by class name
+3. Maps changed **source files** → finds matching test files by searching `BiatecTokensTests/` for filenames containing the source file's base name (e.g., `TokenService.cs` → `*TokenService*Tests.cs`)
+4. If no `.cs` files changed → runs a minimal smoke test set (HealthCheck, SwaggerSpec, ApiIntegration)
+5. If infrastructure files changed (`.csproj`, `.sln`, `Program.cs`, etc.) → falls back to the full suite
+6. If > 60 test classes match → falls back to the full suite (broad refactor)
 
-1. **Changed Files Detection**: Uses `tj-actions/changed-files` to identify modified files
-2. **Test Filter Determination**:
-   - **Test/Docs Only Changes**: Run all tests (ensures test changes don't break anything)
-   - **Code Changes**: Extract feature names (ARC76, Authentication, Token, etc.) and run:
-     - All unit tests (fast, always run)
-     - Integration/contract tests matching changed features
-3. **Fallback**: If feature extraction fails, run all tests except RealEndpoint
+**What it skips (to save time):**
+- ❌ Code coverage collection (`--collect:"XPlat Code Coverage"`)
+- ❌ Coverage threshold checks
+- ❌ OpenAPI/Swagger specification generation
+- ❌ Coverage report artifacts
 
-#### Test Categorization Best Practices
+**Safety nets:**
+- `timeout-minutes: 15` on the job
+- `timeout-minutes: 10` on the test step
+- `--blame-hang-timeout 60s` to kill individual hanging tests
 
-**MANDATORY: All new tests MUST be categorized for selective execution.**
+#### Tier 2 — `full-tests` job (push to main/master only, ~1 hour)
 
-```csharp
-// Unit tests - fast, always run in PRs
-[Test]
-[Category("Unit")]
-public async Task MyService_ValidInput_ReturnsSuccess() { }
+**What it does:**
+- Runs ALL 7390+ tests (except RealEndpoint)
+- Collects code coverage with opencover format
+- Checks coverage thresholds (line ≥ 15%, branch ≥ 8%)
+- Generates OpenAPI specification
+- Publishes coverage report and OpenAPI as artifacts
 
-// Integration tests - run only when related code changes
-[Test]
-[Category("Integration")]
-public async Task MyController_PostValidRequest_Returns201() { }
+**This is the authoritative test run.** PR tests are a fast gate; the full suite runs after merge.
 
-// E2E tests - run only on main branch or when explicitly requested
-[Test]
-[Category("E2E")]
-[Explicit("Run manually - requires full environment")]
-public async Task FullUserJourney_Succeeds() { }
+#### How the File-to-Test Mapping Works
+
+The filter script in `test-pr.yml` uses this algorithm:
+
 ```
+1. For each changed file in BiatecTokensTests/*.cs:
+   → Add its filename (minus .cs) as a test class to run
+
+2. For each changed file in BiatecTokensApi/*.cs:
+   → Extract the base name (e.g., "TokenService" from "Services/TokenService.cs")
+   → Run: find BiatecTokensTests -name "*TokenService*Tests.cs"
+   → Add all matches as test classes to run
+
+3. Deduplicate, then build --filter expression:
+   (FullyQualifiedName~Class1 | FullyQualifiedName~Class2 | ...) & FullyQualifiedName!~RealEndpoint
+```
+
+**Why this is better than the previous keyword approach:**
+- Previous: `Token` keyword matched 50+ unrelated test files
+- Now: `TokenService.cs` change → only runs `TokenServiceTests.cs` (and similar)
+- Each changed source file maps to its specific test files, not a broad keyword
+
+#### Naming Convention for Test Discoverability
+
+**MANDATORY: Name test files so they contain the source file's base name.**
+
+| Source file | Test file(s) |
+|---|---|
+| `Services/TokenService.cs` | `TokenServiceTests.cs` |
+| `Services/AuthenticationService.cs` | `AuthenticationServiceTests.cs`, `AuthenticationServiceErrorHandlingTests.cs` |
+| `Controllers/TokenController.cs` | `TokenControllerTests.cs`, `TokenControllerIntegrationTests.cs` |
+
+This enables the CI file-to-test mapping to work automatically. If a test file doesn't follow this convention, it will only run when directly modified.
 
 #### Test Performance Optimization
 
@@ -997,46 +1029,30 @@ public async Task FullUserJourney_Succeeds() { }
 4. **Parallel Execution**: Tests should be parallelizable (no shared state)
 5. **Minimal Setup**: Reuse test fixtures, avoid per-test database resets
 
-#### Example Fast Test Pattern
-
-```csharp
-[Test]
-[Category("Unit")]
-public async Task ARC76Derivation_DeterministicAcrossCalls()
-{
-    // Arrange - instant
-    var service = new ARC76Service();
-    
-    // Act - fast computation
-    var result1 = await service.DeriveAddress("test@example.com", "password");
-    var result2 = await service.DeriveAddress("test@example.com", "password");
-    
-    // Assert - immediate
-    Assert.That(result1, Is.EqualTo(result2));
-}
-```
-
 #### CI Test Execution Time Targets
 
-- **Unit Tests**: < 2 minutes (always run)
-- **Integration Tests**: < 5 minutes per feature (selective)
-- **Total PR Time**: < 10 minutes
-- **Full Suite**: < 1 hour (main branch only)
+| Scope | Target | When |
+|---|---|---|
+| PR selective tests | < 10 minutes | Every PR |
+| Full suite | < 90 minutes | Push to main/master |
 
 #### Local Test Running for Efficiency
 
 ```bash
-# Run only unit tests (fast feedback)
-dotnet test --filter "Category=Unit"
+# Run only tests for a specific changed file (mimics PR behavior)
+dotnet test --filter "FullyQualifiedName~TokenServiceTests" --no-build --configuration Release
 
-# Run tests for specific feature
-dotnet test --filter "FullyQualifiedName~ARC76"
+# Run tests for a specific feature area
+dotnet test --filter "FullyQualifiedName~ARC76" --no-build --configuration Release
 
-# Run tests excluding slow categories
-dotnet test --filter "Category!=E2E & Category!=Integration"
+# Run the minimal smoke tests (what PRs run for non-code changes)
+dotnet test --filter "FullyQualifiedName~HealthCheck | FullyQualifiedName~SwaggerSpec" --no-build --configuration Release
+
+# Run everything except slow E2E tests
+dotnet test --filter "FullyQualifiedName!~RealEndpoint" --no-build --configuration Release
 ```
 
-**Lesson Learned (2026-03-XX)**: With 7390 tests taking >1 hour, PRs became unusable. Implemented selective test execution based on changed files, reducing PR test time to <10 minutes while maintaining coverage for changed features.
+**Lesson Learned (2026-07-XX)**: With 7390 tests taking >1 hour, PRs were taking 46+ minutes. Root cause: keyword-based filter (`Token`, `ARC76`, etc.) was too broad — a single `Token`-related file change ran all 50+ Token test files. Fix: replaced keyword matching with file-to-test-class mapping. PR tests now run only the test classes that directly correspond to changed source files. Coverage, OpenAPI generation, and threshold checks moved to main-branch-only job.
 
 ### WebApplicationFactory Integration Test Reliability
 
