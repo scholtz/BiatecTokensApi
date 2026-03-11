@@ -696,6 +696,63 @@
              ```
              </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.AmlController">
+            <summary>
+            Controller for AML (Anti-Money Laundering) sanctions screening and PEP checks.
+            Admin endpoints require authentication. Webhook endpoint is anonymous (HMAC-secured).
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AmlController.#ctor(BiatecTokensApi.Services.Interface.IAmlService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.AmlController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.AmlController"/> class.
+            </summary>
+            <param name="amlService">The AML service</param>
+            <param name="logger">The logger</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AmlController.Screen(BiatecTokensApi.Models.Aml.AmlScreenRequest)">
+            <summary>
+            Triggers a manual AML screening for a user (admin only).
+            Screens against UN, EU, OFAC sanctions lists and PEP databases.
+            </summary>
+            <param name="request">The screening request</param>
+            <returns>The screening response including risk level and status</returns>
+            <response code="200">Screening completed successfully</response>
+            <response code="400">Invalid request parameters</response>
+            <response code="401">Unauthorized — authentication required</response>
+            <response code="500">Internal server error</response>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AmlController.GetStatus(System.String)">
+            <summary>
+            Returns the current AML screening status and risk score for a user.
+            </summary>
+            <param name="userId">The user ID to query</param>
+            <returns>The AML status response including risk level and next screening date</returns>
+            <response code="200">Status retrieved successfully</response>
+            <response code="401">Unauthorized — authentication required</response>
+            <response code="500">Internal server error</response>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AmlController.Webhook(BiatecTokensApi.Models.Aml.AmlWebhookPayload)">
+            <summary>
+            Receives continuous-monitoring alert webhooks from the AML provider.
+            Signature is validated via HMAC-SHA256 in the X-AML-Signature header.
+            </summary>
+            <param name="payload">The webhook payload from the AML provider</param>
+            <returns>200 OK on success, 400 on invalid payload or signature</returns>
+            <response code="200">Webhook processed successfully</response>
+            <response code="400">Invalid payload or signature</response>
+            <response code="500">Internal server error</response>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.AmlController.GetReport(System.String)">
+            <summary>
+            Generates an AML compliance report for a user, including full screening history.
+            Suitable for regulatory audit and MICA compliance documentation.
+            </summary>
+            <param name="userId">The user ID</param>
+            <returns>The AML compliance report</returns>
+            <response code="200">Report generated successfully</response>
+            <response code="401">Unauthorized — authentication required</response>
+            <response code="500">Internal server error</response>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.ARC76Controller">
             <summary>
             ARC76 address management endpoints for authenticated users.
@@ -2849,6 +2906,137 @@
             - Identifying common failure points
             </remarks>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController">
+             <summary>
+             Compliance Evidence and Launch Decision API
+             </summary>
+             <remarks>
+             Delivers deterministic, auditable launch readiness for enterprise tokenization workflows.
+            
+             This controller answers the following enterprise questions:
+             - **What checks have passed and which remain?**
+             - **What risk does each blocker represent?**
+             - **What must happen before launch is permitted?**
+             - **What evidence supports this decision?**
+            
+             All evaluations are idempotent, produce stable decision IDs, and include full
+             decision traces for compliance audit and regulatory review.
+            
+             Endpoints:
+             - `POST /decision` – Evaluate and record a launch decision.
+             - `GET  /decision/{id}` – Retrieve a previously recorded decision.
+             - `GET  /decision/{id}/trace` – Retrieve the full rule evaluation trace.
+             - `GET  /decisions/{ownerId}` – List recent decisions for an owner.
+             - `POST /evidence` – Retrieve a compliance evidence bundle.
+             - `GET  /health` – API health check.
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController.#ctor(BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController})">
+            <summary>
+            Initialises a new instance of
+            <see cref="T:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController"/>.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController.EvaluateLaunchDecision(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest)">
+             <summary>
+             Evaluates launch readiness and produces a structured compliance decision
+             </summary>
+             <param name="request">Launch decision request</param>
+             <returns>
+             Comprehensive decision response with status, blockers, warnings,
+             recommended actions, evidence summary, and correlation metadata.
+             </returns>
+             <remarks>
+             Performs a deterministic evaluation of all compliance prerequisites for
+             token launch.  The evaluation engine runs a fixed, ordered rule set so
+             that traces are stable across replays.
+            
+             **Idempotency**: Supply an `IdempotencyKey` to ensure repeated calls with
+             the same inputs return the same decision without re-running evaluation.
+            
+             **Decision status values:**
+             - `Ready` – All prerequisites met; launch is permitted.
+             - `Blocked` – One or more hard blockers prevent launch.
+             - `Warning` – Soft warnings present; launch may proceed with acknowledged risk.
+             - `NeedsReview` – Manual compliance review required before launch.
+            
+             **Response fields:**
+             - `decisionId` – Stable ID for subsequent trace/evidence retrieval.
+             - `canLaunch` – Boolean indicating if launch is currently permitted.
+             - `blockers` – Ordered list of blocking issues with remediation steps.
+             - `warnings` – Non-critical advisory items.
+             - `recommendedActions` – Prioritised next steps.
+             - `evidenceSummary` – Summary of evidence items evaluated.
+             - `policyVersion` – Policy version used for this evaluation.
+             - `correlationId` – Request correlation for log tracing.
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController.GetDecision(System.String,System.String)">
+            <summary>
+            Retrieves a previously recorded launch decision
+            </summary>
+            <param name="decisionId">Decision identifier returned by POST /decision</param>
+            <param name="correlationId">Optional correlation ID for tracing</param>
+            <returns>Full decision record including status, blockers, warnings, and evidence</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController.GetDecisionTrace(System.String,System.String)">
+            <summary>
+            Retrieves the full rule evaluation trace for a decision
+            </summary>
+            <param name="decisionId">Decision identifier</param>
+            <param name="correlationId">Optional correlation ID for tracing</param>
+            <returns>
+            Ordered list of rule evaluations with inputs, outcomes, rationale,
+            and remediation guidance — enabling traceable root cause analysis.
+            </returns>
+            <remarks>
+            The decision trace provides:
+            - `ruleId` – Stable rule identifier (e.g., RULE-KYC-001)
+            - `ruleName` – Human-readable rule name
+            - `outcome` – Pass / Warning / Fail / Skipped
+            - `rationale` – Why the rule produced this outcome
+            - `remediationGuidance` – What to do if outcome is Fail or Warning
+            - `evaluationOrder` – Deterministic evaluation sequence
+            - `evidenceIds` – Evidence items referenced by this rule
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController.ListDecisions(System.String,System.Int32,System.String)">
+            <summary>
+            Lists recent launch decisions for an owner
+            </summary>
+            <param name="ownerId">Owner identifier</param>
+            <param name="limit">Maximum results to return (1–100, default 20)</param>
+            <param name="correlationId">Optional correlation ID for tracing</param>
+            <returns>Decisions ordered by evaluation timestamp, most recent first</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController.GetEvidenceBundle(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest)">
+             <summary>
+             Retrieves a compliance evidence bundle for an owner
+             </summary>
+             <param name="request">Evidence bundle request with optional filters</param>
+             <returns>
+             Bundle of compliance evidence items with provenance metadata, timestamps,
+             validation status, data integrity hashes, and source traceability.
+             </returns>
+             <remarks>
+             Evidence items include:
+             - `evidenceId` – Unique evidence identifier
+             - `category` – Identity, Policy, Entitlement, Jurisdiction, Integration, etc.
+             - `source` – Source system that generated the evidence
+             - `timestamp` – UTC collection time
+             - `validationStatus` – Valid, Pending, Invalid, Stale, Unavailable
+             - `rationale` – Human-readable description
+             - `dataHash` – SHA-256 integrity hash
+            
+             Supports filtering by category, decision ID, and timestamp range.
+             </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceEvidenceLaunchDecisionController.Health">
+            <summary>
+            Health check for the Compliance Evidence and Launch Decision API
+            </summary>
+            <returns>API health status</returns>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.ComplianceOrchestrationController">
             <summary>
             Provides endpoints for enterprise compliance orchestration (KYC + AML).
@@ -2875,6 +3063,57 @@
             </summary>
             <param name="subjectId">The subject identifier.</param>
             <returns>All compliance decisions recorded for the subject.</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Controllers.ComplianceOrchestrationHardeningController">
+            <summary>
+            Compliance orchestration hardening endpoints for enterprise launch decisions.
+            Provides deterministic, auditable compliance readiness evaluation with explicit
+            jurisdiction constraints, sanctions readiness, and launch gate enforcement.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceOrchestrationHardeningController.EvaluateReadiness(BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest)">
+            <summary>
+            Performs a full compliance hardening evaluation for a pending token launch.
+            Aggregates jurisdiction constraints, sanctions readiness, and overall launch gate
+            status into a single deterministic response with remediation hints.
+            </summary>
+            <param name="request">Hardening evaluation request.</param>
+            <returns>Comprehensive hardening response with launch gate status and evidence.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceOrchestrationHardeningController.EvaluateJurisdiction(BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintRequest)">
+            <summary>
+            Evaluates jurisdiction constraints for a subject in a specific jurisdiction.
+            Returns an explicit NotConfigured outcome when the jurisdiction rules engine
+            is not configured — never silently succeeds.
+            </summary>
+            <param name="request">Jurisdiction constraint request.</param>
+            <returns>Jurisdiction constraint evaluation result.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceOrchestrationHardeningController.CheckSanctionsReadiness(BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessRequest)">
+            <summary>
+            Evaluates sanctions and KYC readiness for a subject.
+            Returns an explicit NotConfigured outcome when the provider is not integrated
+            — never silently succeeds.
+            </summary>
+            <param name="request">Sanctions readiness request.</param>
+            <returns>Sanctions readiness evaluation result.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceOrchestrationHardeningController.EnforceLaunchGate(BiatecTokensApi.Models.ComplianceHardening.LaunchGateRequest)">
+            <summary>
+            Enforces the launch gate for a specific token.
+            Prevents launch execution when blocking compliance reasons exist.
+            Returns IsLaunchPermitted=false with explicit blocking reasons and remediation hints
+            when any compliance prerequisite is not satisfied.
+            </summary>
+            <param name="request">Launch gate enforcement request.</param>
+            <returns>Launch gate response with permit/block decision.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.ComplianceOrchestrationHardeningController.GetProviderStatus">
+            <summary>
+            Returns the current integration and health status of all registered compliance providers.
+            Provides observability into which providers are active, degraded, or not yet integrated.
+            </summary>
+            <returns>List of provider status reports.</returns>
         </member>
         <member name="T:BiatecTokensApi.Controllers.ComplianceProfileController">
             <summary>
@@ -3777,6 +4016,33 @@
             </summary>
             <returns>The user's Algorand address</returns>
         </member>
+        <member name="T:BiatecTokensApi.Controllers.GdprController">
+            <summary>
+            Controller for GDPR compliance operations.
+            Implements Article 17 right-to-erasure for KYC and AML personal data.
+            Audit references are retained per AMLD5 5-year retention requirements.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.GdprController.#ctor(BiatecTokensApi.Services.Interface.IGdprErasureService,Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Controllers.GdprController})">
+            <summary>
+            Initializes a new instance of the <see cref="T:BiatecTokensApi.Controllers.GdprController"/> class.
+            </summary>
+            <param name="gdprErasureService">The GDPR erasure service</param>
+            <param name="logger">The logger</param>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.GdprController.EraseUserData(BiatecTokensApi.Models.Aml.GdprErasureRequest)">
+            <summary>
+            Anonymizes all personal data (PII) for a user in compliance with GDPR Article 17.
+            KYC and AML record identifiers, timestamps, and compliance audit references are
+            preserved for the 5-year AMLD5 retention period. Only PII fields are erased.
+            </summary>
+            <param name="request">Erasure request with user ID and reason</param>
+            <returns>Erasure response with anonymization reference and counts</returns>
+            <response code="200">Erasure completed — anonymization reference returned</response>
+            <response code="400">Invalid request</response>
+            <response code="401">Unauthorized — authentication required</response>
+            <response code="500">Internal server error</response>
+        </member>
         <member name="T:BiatecTokensApi.Controllers.GuidedLaunchReliabilityController">
             <summary>
             Exposes guided token launch reliability operations: initiation, status tracking,
@@ -4405,11 +4671,38 @@
             <response code="401">Unauthorized - authentication required</response>
             <response code="500">Internal server error</response>
         </member>
+        <member name="M:BiatecTokensApi.Controllers.KycController.InitiateVerification(BiatecTokensApi.Models.Aml.InitiateKycRequest)">
+            <summary>
+            Initiates KYC verification for the authenticated user and returns an SDK token for the frontend widget.
+            Use this endpoint to start the verification flow — the returned SdkToken is passed to the
+            frontend Sumsub/Onfido widget to launch document capture and liveness detection.
+            Estimated processing time: typically 2-5 minutes.
+            </summary>
+            <param name="request">The initiation request</param>
+            <returns>Initiation response including the SDK token for the frontend widget</returns>
+            <response code="200">KYC initiation successful — SDK token returned</response>
+            <response code="400">Invalid request or verification already pending</response>
+            <response code="401">Unauthorized — authentication required</response>
+            <response code="500">Internal server error</response>
+        </member>
+        <member name="M:BiatecTokensApi.Controllers.KycController.GetAdminDetails(System.String)">
+            <summary>
+            Returns detailed KYC information for a specific user (admin endpoint).
+            Includes provider reference ID, all status history, and metadata.
+            </summary>
+            <param name="userId">The user ID to look up</param>
+            <returns>Admin KYC response with full record details</returns>
+            <response code="200">KYC details retrieved successfully</response>
+            <response code="401">Unauthorized — authentication required</response>
+            <response code="404">No KYC record found for user</response>
+            <response code="500">Internal server error</response>
+        </member>
         <member name="M:BiatecTokensApi.Controllers.KycController.Webhook(BiatecTokensApi.Models.Kyc.KycWebhookPayload)">
             <summary>
-            Webhook endpoint for receiving KYC status updates from provider
+            Webhook endpoint for receiving KYC status updates from provider.
+            Signature is validated via HMAC-SHA256 in the X-KYC-Signature header.
             </summary>
-            <param name="payload">The webhook payload</param>
+            <param name="payload">The KYC webhook payload from the provider, containing the provider reference ID, event type, and new status</param>
             <returns>Status of webhook processing</returns>
             <response code="200">Webhook processed successfully</response>
             <response code="400">Invalid webhook payload or signature</response>
@@ -8746,6 +9039,385 @@
             Response timestamp
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlRiskLevel">
+            <summary>
+            Risk level for AML screening results
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlRiskLevel.Low">
+            <summary>Low risk — no significant matches</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlRiskLevel.Medium">
+            <summary>Medium risk — minor PEP or indirect match requiring monitoring</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlRiskLevel.High">
+            <summary>High risk — confirmed sanctions match or high-risk jurisdiction</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlRiskLevel.Unknown">
+            <summary>Screening not yet performed</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlScreeningStatus">
+            <summary>
+            Overall AML screening status for a subject
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlScreeningStatus.NotScreened">
+            <summary>Screening has not been initiated</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlScreeningStatus.Pending">
+            <summary>Screening is in progress</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlScreeningStatus.Cleared">
+            <summary>Subject cleared — no sanctions or PEP match</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlScreeningStatus.SanctionsMatch">
+            <summary>Subject matches a sanctions list — token creation blocked</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlScreeningStatus.PepMatch">
+            <summary>Subject is a PEP — requires manual review before proceeding</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlScreeningStatus.NeedsReview">
+            <summary>Screening requires manual compliance review</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.Aml.AmlScreeningStatus.Error">
+            <summary>Screening error — provider unavailable or malformed response</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlRecord">
+            <summary>
+            Persisted AML screening record
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.AmlId">
+            <summary>Unique identifier for this AML record</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.UserId">
+            <summary>Subject (user) identifier</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.Status">
+            <summary>Current screening status</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.RiskLevel">
+            <summary>Computed AML risk level</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.ProviderReferenceId">
+            <summary>Provider reference ID for this screening session</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.ReasonCode">
+            <summary>Reason code from the screening provider</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.Notes">
+            <summary>Human-readable reason or notes</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.CorrelationId">
+            <summary>Correlation ID for cross-system tracing</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.CreatedAt">
+            <summary>When the screening record was created</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.UpdatedAt">
+            <summary>When the screening record was last updated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.NextScreeningDue">
+            <summary>When the next scheduled re-screening is due</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlRecord.Metadata">
+            <summary>Additional metadata from screening provider</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlScreenRequest">
+            <summary>
+            Request to trigger an AML screening (admin endpoint)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenRequest.UserId">
+            <summary>Subject (user) ID to screen</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenRequest.Metadata">
+            <summary>Optional additional metadata to pass to the provider</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlScreenResponse">
+            <summary>
+            Response from an AML screen request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.Success">
+            <summary>Whether the request was accepted</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.AmlId">
+            <summary>AML record ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.ProviderReferenceId">
+            <summary>Provider reference ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.Status">
+            <summary>Current screening status</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.RiskLevel">
+            <summary>Risk level determined by screening</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.CorrelationId">
+            <summary>Correlation ID for tracking</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.ErrorMessage">
+            <summary>Error message if unsuccessful</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlScreenResponse.ErrorCode">
+            <summary>Error code if unsuccessful</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlStatusResponse">
+            <summary>
+            AML status response for a specific user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.Success">
+            <summary>Whether the query succeeded</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.AmlId">
+            <summary>AML record ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.Status">
+            <summary>Current screening status</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.RiskLevel">
+            <summary>Risk level</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.ProviderReferenceId">
+            <summary>Provider reference ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.ReasonCode">
+            <summary>Reason code from provider</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.Notes">
+            <summary>Human-readable notes</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.CreatedAt">
+            <summary>When the record was created</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.UpdatedAt">
+            <summary>When the record was last updated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.NextScreeningDue">
+            <summary>When the next re-screening is due</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.ErrorMessage">
+            <summary>Error message if query failed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlStatusResponse.ErrorCode">
+            <summary>Error code if query failed</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlWebhookPayload">
+            <summary>
+            Webhook payload from AML continuous monitoring provider
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlWebhookPayload.ProviderReferenceId">
+            <summary>Provider reference ID of the screening session</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlWebhookPayload.AlertType">
+            <summary>Alert type (e.g., SANCTIONS_MATCH, PEP_MATCH, REVIEW_REQUIRED)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlWebhookPayload.Status">
+            <summary>New screening status</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlWebhookPayload.RiskLevel">
+            <summary>Risk level reported by the provider</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlWebhookPayload.Timestamp">
+            <summary>Timestamp of the event</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlWebhookPayload.ReasonCode">
+            <summary>Reason code from provider</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlWebhookPayload.Data">
+            <summary>Additional data from provider</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.AmlReportResponse">
+            <summary>
+            AML compliance report for a user
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.Success">
+            <summary>Whether the report was generated successfully</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.UserId">
+            <summary>User ID this report covers</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.GeneratedAt">
+            <summary>Report generation timestamp</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.LatestRecord">
+            <summary>Most recent AML record</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.ScreeningHistory">
+            <summary>All historical screening records</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.ComplianceSummary">
+            <summary>Overall compliance status narrative</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.ErrorMessage">
+            <summary>Error message if report generation failed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.AmlReportResponse.ErrorCode">
+            <summary>Error code if report generation failed</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.InitiateKycRequest">
+            <summary>
+            Request to initiate KYC and return an SDK token for the frontend widget
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycRequest.FullName">
+            <summary>User's full legal name</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycRequest.DateOfBirth">
+            <summary>Date of birth (YYYY-MM-DD)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycRequest.Country">
+            <summary>Country of residence (ISO 3166-1 alpha-2)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycRequest.DocumentType">
+            <summary>Document type for verification (passport, national_id, drivers_license)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycRequest.Metadata">
+            <summary>Additional metadata</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.InitiateKycResponse">
+            <summary>
+            Response from KYC initiation — includes SDK token for frontend widget
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.Success">
+            <summary>Whether the initiation was successful</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.KycId">
+            <summary>KYC record ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.SdkToken">
+            <summary>
+            SDK token for the frontend KYC verification widget (e.g., Sumsub SDK token).
+            Pass this to the frontend to launch the verification widget.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.ProviderReferenceId">
+            <summary>Provider reference ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.VerificationUrl">
+            <summary>URL for the verification widget (alternative to SDK token)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.EstimatedProcessingTime">
+            <summary>Estimated processing time (human-readable)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.CorrelationId">
+            <summary>Correlation ID for tracking</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.ErrorMessage">
+            <summary>Error message if unsuccessful</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.InitiateKycResponse.ErrorCode">
+            <summary>Error code if unsuccessful</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.KycAdminResponse">
+            <summary>
+            Admin response for KYC record details
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.Success">
+            <summary>Whether the query was successful</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.KycId">
+            <summary>KYC record ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.UserId">
+            <summary>User ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.Status">
+            <summary>Current verification status</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.Provider">
+            <summary>KYC provider</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.ProviderReferenceId">
+            <summary>Provider reference ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.Reason">
+            <summary>Reason for rejection or admin notes</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.CreatedAt">
+            <summary>When the record was created</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.UpdatedAt">
+            <summary>When the record was last updated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.CompletedAt">
+            <summary>When verification was completed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.ExpiresAt">
+            <summary>Expiration date</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.CorrelationId">
+            <summary>Correlation ID</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.Metadata">
+            <summary>Additional metadata</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.ErrorMessage">
+            <summary>Error message if query failed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminResponse.ErrorCode">
+            <summary>Error code if query failed</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.KycAdminOverrideRequest">
+            <summary>
+            Admin request to override KYC status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminOverrideRequest.NewStatus">
+            <summary>New status to set</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminOverrideRequest.Reason">
+            <summary>Reason for the override (required)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.KycAdminOverrideRequest.AdminId">
+            <summary>Admin user performing the override</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.GdprErasureRequest">
+            <summary>
+            GDPR erasure request
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureRequest.UserId">
+            <summary>User ID whose PII should be anonymized</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureRequest.Reason">
+            <summary>Reason for erasure request</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.Aml.GdprErasureResponse">
+            <summary>
+            GDPR erasure response
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureResponse.Success">
+            <summary>Whether the erasure succeeded</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureResponse.AnonymizationReference">
+            <summary>
+            Anonymization reference — retained for audit purposes after PII is erased.
+            Regulatory data retention (AMLD5: 5 years) is preserved via this reference.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureResponse.KycRecordsAnonymized">
+            <summary>Number of KYC records anonymized</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureResponse.AmlRecordsAnonymized">
+            <summary>Number of AML records anonymized</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureResponse.ErasedAt">
+            <summary>When the erasure was performed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureResponse.ErrorMessage">
+            <summary>Error message if unsuccessful</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.Aml.GdprErasureResponse.ErrorCode">
+            <summary>Error code if unsuccessful</summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ApiErrorResponse">
             <summary>
             Standardized error response structure for API errors
@@ -9217,6 +9889,48 @@
             Token configuration details
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineStage">
+            <summary>Lifecycle stage of an ARC76 MVP deployment pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.FailureCategory">
+            <summary>Failure category for structured error classification.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.ARC76ReadinessStatus">
+            <summary>ARC76 account readiness check status.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateRequest">
+            <summary>Request to initiate a new ARC76 MVP deployment pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateResponse">
+            <summary>Response from pipeline initiation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineStatusResponse">
+            <summary>Response for pipeline status queries.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceRequest">
+            <summary>Request to advance a pipeline to its next stage.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceResponse">
+            <summary>Response from a pipeline advance operation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelRequest">
+            <summary>Request to cancel a pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelResponse">
+            <summary>Response from a pipeline cancel operation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAuditEntry">
+            <summary>Single audit entry in a pipeline's audit trail.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAuditResponse">
+            <summary>Response containing the audit trail for a pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryRequest">
+            <summary>Request to retry a failed pipeline.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryResponse">
+            <summary>Response from a pipeline retry operation.</summary>
+        </member>
         <member name="T:BiatecTokensApi.Models.ARC76.ARC76ReadinessState">
             <summary>
             Represents the readiness state of an ARC76-derived account
@@ -9410,48 +10124,6 @@
             <summary>
             Correlation ID for request tracing
             </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineStage">
-            <summary>Lifecycle stage of an ARC76 MVP deployment pipeline.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.FailureCategory">
-            <summary>Failure category for structured error classification.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.ARC76ReadinessStatus">
-            <summary>ARC76 account readiness check status.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateRequest">
-            <summary>Request to initiate a new ARC76 MVP deployment pipeline.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineInitiateResponse">
-            <summary>Response from pipeline initiation.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineStatusResponse">
-            <summary>Response for pipeline status queries.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceRequest">
-            <summary>Request to advance a pipeline to its next stage.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAdvanceResponse">
-            <summary>Response from a pipeline advance operation.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelRequest">
-            <summary>Request to cancel a pipeline.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineCancelResponse">
-            <summary>Response from a pipeline cancel operation.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAuditEntry">
-            <summary>Single audit entry in a pipeline's audit trail.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineAuditResponse">
-            <summary>Response containing the audit trail for a pipeline.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryRequest">
-            <summary>Request to retry a failed pipeline.</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ARC76MVPPipeline.PipelineRetryResponse">
-            <summary>Response from a pipeline retry operation.</summary>
         </member>
         <member name="T:BiatecTokensApi.Models.ASA.ASATokenInfo">
             <summary>
@@ -11423,6 +12095,1282 @@
         <member name="P:BiatecTokensApi.Models.Billing.UsageSummaryResponse.ErrorMessage">
             <summary>
             Error message if the request failed
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionStatus">
+            <summary>Top-level launch decision status.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionStatus.Ready">
+            <summary>All prerequisites met; launch is permitted.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionStatus.Blocked">
+            <summary>One or more hard blockers prevent launch.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionStatus.Warning">
+            <summary>Soft warnings present; launch may proceed with acknowledged risk.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionStatus.NeedsReview">
+            <summary>Requires manual compliance review before proceeding.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleOutcome">
+            <summary>Outcome of a single decision rule evaluation.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleOutcome.Pass">
+            <summary>Rule passed.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleOutcome.Warning">
+            <summary>Rule raised an advisory warning.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleOutcome.Fail">
+            <summary>Rule failed.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleOutcome.Skipped">
+            <summary>Rule was skipped (prerequisite not available).</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlockerSeverity">
+            <summary>Severity of a launch blocker or warning item.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlockerSeverity.Info">
+            <summary>Informational advisory.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlockerSeverity.Low">
+            <summary>Low severity; does not block launch.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlockerSeverity.Medium">
+            <summary>Medium severity; should be resolved.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlockerSeverity.High">
+            <summary>High severity; blocks launch.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlockerSeverity.Critical">
+            <summary>Critical severity; immediate action required.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory">
+            <summary>Category of compliance evidence.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory.Identity">
+            <summary>Identity or KYC/AML verification evidence.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory.Policy">
+            <summary>Policy rule evaluation evidence.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory.Entitlement">
+            <summary>Subscription or entitlement evidence.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory.Jurisdiction">
+            <summary>Jurisdiction compliance evidence.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory.Integration">
+            <summary>Integration or infrastructure health evidence.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory.AuditTrail">
+            <summary>Audit trail or historical record evidence.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceCategory.Workflow">
+            <summary>Workflow or process prerequisite evidence.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceValidationStatus">
+            <summary>Validation status of an evidence item.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceValidationStatus.Valid">
+            <summary>Evidence was validated successfully.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceValidationStatus.Pending">
+            <summary>Evidence is pending validation.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceValidationStatus.Invalid">
+            <summary>Evidence failed validation.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceValidationStatus.Stale">
+            <summary>Evidence is stale or expired.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceValidationStatus.Unavailable">
+            <summary>Evidence source is unavailable.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest">
+            <summary>
+            Request to evaluate launch readiness and produce a decision record.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.OwnerId">
+            <summary>Requesting user or organization identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.TokenStandard">
+            <summary>Token standard being launched (ASA, ARC3, ARC200, ERC20, ARC1400).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.Network">
+            <summary>Target blockchain network.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.TokenName">
+            <summary>Optional token name for context.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.IdempotencyKey">
+            <summary>
+            Idempotency key.  Repeated calls with the same key return the cached result
+            without re-running evaluation.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.CorrelationId">
+            <summary>Correlation ID for request tracing.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.PolicyVersion">
+            <summary>Policy version to evaluate against (defaults to latest).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest.ForceRefresh">
+            <summary>When true, forces a fresh evaluation even if a cached result exists.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest">
+            <summary>
+            Request to retrieve a compliance evidence bundle.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest.OwnerId">
+            <summary>Owner identifier to retrieve evidence for.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest.DecisionId">
+            <summary>Optional: filter to a specific launch decision ID.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest.Category">
+            <summary>Optional: filter by evidence category.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest.FromTimestamp">
+            <summary>Optional: include only evidence items after this timestamp.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest.Limit">
+            <summary>Maximum number of evidence items to return (1–100, default 50).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest.CorrelationId">
+            <summary>Correlation ID for request tracing.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceRequest">
+            <summary>
+            Request to retrieve the decision trace for a specific evaluation.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceRequest.DecisionId">
+            <summary>Decision ID to retrieve the trace for.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceRequest.CorrelationId">
+            <summary>Correlation ID for request tracing.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse">
+            <summary>
+            Comprehensive launch decision response.  Implements AC1-AC8 of the issue.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.DecisionId">
+            <summary>Unique decision identifier (stable for idempotent replays).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.Status">
+            <summary>Top-level launch decision status.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.CanLaunch">
+            <summary>Whether launch is permitted based on current evaluation.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.Summary">
+            <summary>Human-readable summary of the decision.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.Blockers">
+            <summary>Ordered list of blockers preventing launch.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.Warnings">
+            <summary>Non-critical warnings that should be acknowledged.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.RecommendedActions">
+            <summary>Recommended actions to achieve a Ready state.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.EvidenceSummary">
+            <summary>Summary of evidence evaluated during this decision.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.PolicyVersion">
+            <summary>Policy version used for evaluation.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.SchemaVersion">
+            <summary>Schema version for response contract stability.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.CorrelationId">
+            <summary>Correlation ID propagated from the request.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.DecidedAt">
+            <summary>UTC timestamp when the decision was made.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.EvaluationTimeMs">
+            <summary>Evaluation duration in milliseconds (observability).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.IsIdempotentReplay">
+            <summary>Whether this result was served from an idempotent cache.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.IsProvisional">
+            <summary>Whether this decision requires further review and is not final.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.Success">
+            <summary>Operation success flag.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.ErrorCode">
+            <summary>Error code when Success = false.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.ErrorMessage">
+            <summary>Business-safe error message when Success = false.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker">
+            <summary>A hard blocker preventing launch.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.BlockerId">
+            <summary>Stable identifier for this blocker type.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.Title">
+            <summary>Human-readable title.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.Description">
+            <summary>Detailed description of the blocker.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.Severity">
+            <summary>Severity level.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.Category">
+            <summary>Category of the blocker.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.RemediationSteps">
+            <summary>Ordered remediation steps.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.OwnerHint">
+            <summary>Suggested owner team (e.g., "compliance", "engineering").</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.EstimatedResolutionHours">
+            <summary>Estimated hours to resolve.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.DependsOn">
+            <summary>IDs of other blockers that should be resolved first.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchBlocker.RuleId">
+            <summary>Rule ID that generated this blocker.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning">
+            <summary>A non-critical warning.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning.WarningId">
+            <summary>Stable identifier for this warning type.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning.Title">
+            <summary>Human-readable title.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning.Description">
+            <summary>Detailed description.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning.Severity">
+            <summary>Severity level (typically Info or Low).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning.Category">
+            <summary>Category of the warning.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning.SuggestedActions">
+            <summary>Suggested actions to address the warning.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchWarning.RuleId">
+            <summary>Rule ID that generated this warning.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RecommendedAction">
+            <summary>A recommended action to progress toward a Ready state.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RecommendedAction.ActionId">
+            <summary>Stable action identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RecommendedAction.Priority">
+            <summary>Priority order (lower = higher priority).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RecommendedAction.Title">
+            <summary>Short action title.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RecommendedAction.Description">
+            <summary>Detailed action description.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RecommendedAction.Category">
+            <summary>Category of the action.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RecommendedAction.IsMandatory">
+            <summary>Whether this action is mandatory to unblock launch.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceSummaryItem">
+            <summary>Brief summary of a single evidence item included in a decision.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceSummaryItem.EvidenceId">
+            <summary>Evidence item identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceSummaryItem.Category">
+            <summary>Evidence category.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceSummaryItem.ValidationStatus">
+            <summary>Validation status of this evidence.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceSummaryItem.Rationale">
+            <summary>Brief rationale or description.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceSummaryItem.CollectedAt">
+            <summary>When the evidence was collected.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse">
+            <summary>
+            Full compliance evidence bundle for an owner.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.BundleId">
+            <summary>Unique bundle identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.OwnerId">
+            <summary>Owner identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.Items">
+            <summary>Evidence items in this bundle.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.TotalCount">
+            <summary>Total evidence items available (before Limit).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.CorrelationId">
+            <summary>Correlation ID from the request.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.AssembledAt">
+            <summary>UTC timestamp when this bundle was assembled.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.SchemaVersion">
+            <summary>Schema version.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.Success">
+            <summary>Operation success flag.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.ErrorCode">
+            <summary>Error code when Success = false.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleResponse.ErrorMessage">
+            <summary>Business-safe error message when Success = false.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem">
+            <summary>
+            A single compliance evidence item with provenance metadata.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.EvidenceId">
+            <summary>Unique evidence item identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.DecisionId">
+            <summary>Related decision ID (if any).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.Category">
+            <summary>Category of evidence.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.Source">
+            <summary>Source system or provider that generated this evidence.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.Timestamp">
+            <summary>UTC timestamp when this evidence was collected.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.ValidationStatus">
+            <summary>Validation result for this evidence item.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.Rationale">
+            <summary>Human-readable rationale or description of the evidence.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.DataHash">
+            <summary>Data integrity hash (SHA-256 of evidence payload).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.ReferenceId">
+            <summary>Optional: reference to external source document or record.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.Metadata">
+            <summary>Optional: additional machine-readable metadata.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.ComplianceEvidenceItem.ExpiresAt">
+            <summary>When this evidence expires (UTC), if applicable.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse">
+            <summary>
+            Structured decision trace showing which rules fired and why.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.DecisionId">
+            <summary>Decision ID this trace belongs to.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.PolicyVersion">
+            <summary>Policy version evaluated.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.Rules">
+            <summary>Ordered list of rule evaluations (deterministic).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.OverallOutcome">
+            <summary>Overall outcome of the trace.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.EvaluationTimeMs">
+            <summary>Total evaluation duration in milliseconds.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.EvaluatedAt">
+            <summary>UTC timestamp of the evaluation.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.CorrelationId">
+            <summary>Correlation ID.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.SchemaVersion">
+            <summary>Schema version.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.Success">
+            <summary>Operation success flag.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.ErrorCode">
+            <summary>Error code when Success = false.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceResponse.ErrorMessage">
+            <summary>Business-safe error message when Success = false.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord">
+            <summary>
+            Record of a single rule evaluation within a decision trace.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.RuleId">
+            <summary>Stable rule identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.RuleName">
+            <summary>Human-readable rule name.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.Category">
+            <summary>Category this rule belongs to.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.Outcome">
+            <summary>Outcome of this rule evaluation.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.InputSnapshot">
+            <summary>Input values that were evaluated (non-sensitive).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.Rationale">
+            <summary>Reason the rule produced this outcome.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.RemediationGuidance">
+            <summary>Remediation guidance if outcome is Fail or Warning.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.EvaluationOrder">
+            <summary>Evaluation order (1-based, deterministic).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.DurationMs">
+            <summary>Duration of this individual rule evaluation in milliseconds.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.RuleEvaluationRecord.EvidenceIds">
+            <summary>Evidence item IDs referenced by this rule.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.ComplianceErrorCategory">
+            <summary>
+            Categorizes the type of error that occurred during compliance hardening evaluation.
+            Enables callers to distinguish root cause and apply appropriate remediation.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ComplianceErrorCategory.None">
+            <summary>No error.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ComplianceErrorCategory.InvalidInput">
+            <summary>The caller supplied invalid or incomplete input data.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ComplianceErrorCategory.DependencyOutage">
+            <summary>An upstream compliance provider is unreachable or degraded.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ComplianceErrorCategory.PolicyFailure">
+            <summary>A compliance policy rule evaluated to a blocking or conditional outcome.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ComplianceErrorCategory.InternalException">
+            <summary>An unexpected internal exception occurred in the service.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.JurisdictionStatus">
+            <summary>
+            Status outcome of a jurisdiction constraint evaluation.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.JurisdictionStatus.Permitted">
+            <summary>Token launch is permitted in the requested jurisdiction.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.JurisdictionStatus.Blocked">
+            <summary>Token launch is blocked in the requested jurisdiction.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.JurisdictionStatus.RestrictedWithConditions">
+            <summary>Launch is allowed but subject to specific conditions or disclosures.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.JurisdictionStatus.NotConfigured">
+            <summary>Jurisdiction rules engine is not yet configured for this jurisdiction.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.SanctionsStatus">
+            <summary>
+            Status outcome of a sanctions / KYC readiness evaluation.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.SanctionsStatus.Clear">
+            <summary>Subject passed sanctions screening.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.SanctionsStatus.Flagged">
+            <summary>Subject has a sanctions or watchlist flag requiring human review.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.SanctionsStatus.PendingReview">
+            <summary>Sanctions check has been submitted and is awaiting provider result.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.SanctionsStatus.NotConfigured">
+            <summary>Sanctions provider is not yet integrated; check was not performed.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.SanctionsStatus.ProviderUnavailable">
+            <summary>Sanctions provider is temporarily unavailable; result is degraded.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.LaunchGateStatus">
+            <summary>
+            Overall launch gate decision status.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.LaunchGateStatus.Permitted">
+            <summary>All compliance prerequisites are satisfied; launch may proceed.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.LaunchGateStatus.BlockedByCompliance">
+            <summary>One or more blocking compliance reasons prevent launch.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.LaunchGateStatus.PendingReview">
+            <summary>Launch requires human review before it can proceed.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.LaunchGateStatus.NotReady">
+            <summary>Prerequisite compliance checks have not yet been completed.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.ProviderIntegrationStatus">
+            <summary>
+            Integration and health status of a compliance provider.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ProviderIntegrationStatus.Active">
+            <summary>Provider is integrated and responding normally.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ProviderIntegrationStatus.NotIntegrated">
+            <summary>Provider endpoint is configured but not yet integrated.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ProviderIntegrationStatus.Degraded">
+            <summary>Provider is responding but with degraded latency or partial results.</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceHardening.ProviderIntegrationStatus.Unavailable">
+            <summary>Provider is unreachable or returning errors.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest">
+            <summary>
+            Request to perform a full compliance hardening evaluation for a pending token launch.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest.SubjectId">
+            <summary>
+            Identifier of the subject (issuer / beneficial owner) being evaluated.
+            Required.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest.TokenId">
+            <summary>
+            Identifier for the token being launched (used for idempotency and audit trail).
+            Required.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest.JurisdictionCode">
+            <summary>
+            ISO 3166-1 alpha-2 country code of the target jurisdiction.
+            When omitted the jurisdiction check is skipped.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest.TenantId">
+            <summary>
+            Optional tenant / organisation context for multi-tenant deployments.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest.SubjectMetadata">
+            <summary>
+            Optional supplemental metadata forwarded to downstream providers.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest.IdempotencyKey">
+            <summary>
+            Caller-supplied idempotency key.  When omitted a key is derived from
+            SubjectId + TokenId.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintRequest">
+            <summary>
+            Request to evaluate a specific jurisdiction constraint.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintRequest.SubjectId">
+            <summary>Subject identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintRequest.JurisdictionCode">
+            <summary>ISO 3166-1 alpha-2 jurisdiction code (e.g. "US", "DE").</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintRequest.TokenStandard">
+            <summary>Optional token standard being considered (e.g. "ARC200", "ERC20").</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessRequest">
+            <summary>
+            Request to evaluate sanctions readiness for a subject.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessRequest.SubjectId">
+            <summary>Subject identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessRequest.SubjectMetadata">
+            <summary>Optional supplemental metadata for provider.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.LaunchGateRequest">
+            <summary>
+            Request to enforce the launch gate for a specific token.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateRequest.TokenId">
+            <summary>Token identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateRequest.SubjectId">
+            <summary>Subject (issuer) identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateRequest.ComplianceDecisionId">
+            <summary>
+            Reference to an existing compliance hardening decision ID.
+            When provided the gate reuses the cached evaluation.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult">
+            <summary>
+            Result of a jurisdiction constraint evaluation.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult.JurisdictionCode">
+            <summary>The jurisdiction code that was evaluated.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult.Status">
+            <summary>Evaluation outcome.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult.ReasonCode">
+            <summary>
+            Stable machine-readable reason code (e.g. "JURISDICTION_BLOCKED_OFAC",
+            "JURISDICTION_PERMITTED", "JURISDICTION_NOT_CONFIGURED").
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult.Description">
+            <summary>Human-readable explanation of the decision.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult.Conditions">
+            <summary>Conditions that must be met when status is RestrictedWithConditions.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult.RemediationHints">
+            <summary>Actionable remediation hints for blocked or conditional outcomes.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintResult.EvaluatedAt">
+            <summary>UTC timestamp of this evaluation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult">
+            <summary>
+            Result of a sanctions / KYC readiness evaluation.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult.SubjectId">
+            <summary>Subject identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult.Status">
+            <summary>Evaluation outcome.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult.ReasonCode">
+            <summary>Stable machine-readable reason code.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult.ProviderReferenceId">
+            <summary>Provider reference ID if a check was performed.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult.ProviderStatus">
+            <summary>Integration status of the underlying sanctions provider.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult.RemediationHints">
+            <summary>Actionable remediation hints for flagged or unavailable outcomes.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessResult.EvaluatedAt">
+            <summary>UTC timestamp of this evaluation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusReport">
+            <summary>
+            Report on the integration and health status of a compliance provider.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusReport.ProviderName">
+            <summary>Provider name.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusReport.ProviderType">
+            <summary>Provider type (e.g. "KYC", "AML", "Sanctions", "Jurisdiction").</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusReport.Status">
+            <summary>Integration and health status.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusReport.StatusMessage">
+            <summary>Brief human-readable status description.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusReport.LastCheckedAt">
+            <summary>When the status was last checked.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse">
+            <summary>
+            Comprehensive compliance hardening evaluation response.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.Success">
+            <summary>Whether the operation itself succeeded.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.EvaluationId">
+            <summary>Unique identifier for this hardening evaluation.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.LaunchGate">
+            <summary>Overall launch gate status derived from all compliance signals.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.JurisdictionResult">
+            <summary>Jurisdiction constraint evaluation result (null when jurisdiction not evaluated).</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.SanctionsResult">
+            <summary>Sanctions readiness evaluation result.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.ReasonCode">
+            <summary>Stable reason code for the overall outcome.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.ErrorCategory">
+            <summary>Error category when Success is false or the evaluation encountered errors.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.ErrorMessage">
+            <summary>Human-readable error message when Success is false.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.CorrelationId">
+            <summary>Correlation identifier propagated from the request.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.IsIdempotentReplay">
+            <summary>Whether this response was served from the idempotency cache.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.RemediationHints">
+            <summary>Ordered list of remediation hints for the caller to present to the user.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.ProviderStatuses">
+            <summary>Provider status reports included for observability.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.SchemaVersion">
+            <summary>Schema version of this response contract.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningResponse.EvaluatedAt">
+            <summary>UTC timestamp when the evaluation was performed.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse">
+            <summary>
+            Response from a launch gate enforcement operation.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.Success">
+            <summary>Whether the gate operation itself succeeded.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.GateStatus">
+            <summary>Launch gate status result.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.IsLaunchPermitted">
+            <summary>Whether the launch is permitted to proceed.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.Message">
+            <summary>Human-readable explanation.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.ReasonCode">
+            <summary>Stable reason code.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.ErrorCategory">
+            <summary>Error category when the gate operation failed.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.ErrorMessage">
+            <summary>Error message when Success is false.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.BlockingReasons">
+            <summary>Ordered blocking reasons preventing launch.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.RemediationHints">
+            <summary>Actionable remediation hints.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.CorrelationId">
+            <summary>Correlation identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.LaunchGateResponse.EvaluatedAt">
+            <summary>UTC timestamp of this gate evaluation.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusListResponse">
+            <summary>
+            Response listing the current status of all registered compliance providers.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusListResponse.Success">
+            <summary>Whether the operation succeeded.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusListResponse.Providers">
+            <summary>Provider status reports.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusListResponse.CorrelationId">
+            <summary>Correlation identifier.</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceHardening.ProviderStatusListResponse.ReportedAt">
+            <summary>UTC timestamp.</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState">
+            <summary>
+            Represents the state of a compliance decision
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Pending">
+            <summary>Check initiated but not yet complete</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Approved">
+            <summary>Subject passed all compliance checks</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Rejected">
+            <summary>Subject failed one or more compliance checks</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.NeedsReview">
+            <summary>Manual review required before a final decision</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Error">
+            <summary>An error occurred during the compliance check</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType">
+            <summary>
+            Type of compliance check to perform
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType.Kyc">
+            <summary>KYC (Know Your Customer) check only</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType.Aml">
+            <summary>AML (Anti-Money Laundering / sanctions screening) check only</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType.Combined">
+            <summary>Combined KYC + AML check</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode">
+            <summary>
+            Standardized error codes returned by compliance providers
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.None">
+            <summary>No error</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.Timeout">
+            <summary>Provider call timed out</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.ProviderUnavailable">
+            <summary>Provider service is unavailable</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.MalformedResponse">
+            <summary>Provider returned a response that could not be parsed</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.InternalError">
+            <summary>Internal error within the orchestration service</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.InvalidRequest">
+            <summary>The request sent to the provider was invalid</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent">
+            <summary>
+            Represents a single auditable event in the compliance decision lifecycle
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.OccurredAt">
+            <summary>UTC timestamp of the event</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.EventType">
+            <summary>Type/name of the event (e.g. "CheckInitiated", "KycCompleted", "AmlCompleted")</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.State">
+            <summary>State of the decision at the time of the event</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.CorrelationId">
+            <summary>Correlation ID propagated from the originating request</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.ProviderReferenceId">
+            <summary>Optional provider reference identifier</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.Message">
+            <summary>Optional reason or message associated with the event</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision">
+            <summary>
+            Normalized representation of a compliance decision stored in-memory
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.DecisionId">
+            <summary>Unique identifier for this decision</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.SubjectId">
+            <summary>Subject identifier (e.g. user ID or wallet address)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.ContextId">
+            <summary>Context identifier provided by the caller (e.g. token issuance ID)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.CheckType">
+            <summary>Type of check that was performed</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.State">
+            <summary>Current state of the decision</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.ReasonCode">
+            <summary>Reason code from the provider (if any)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.ProviderErrorCode">
+            <summary>Provider error code when state is Error</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.KycProviderReferenceId">
+            <summary>KYC provider reference ID (if KYC was performed)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.AmlProviderReferenceId">
+            <summary>AML provider reference ID (if AML was performed)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.CorrelationId">
+            <summary>Correlation ID from the originating request</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.InitiatedAt">
+            <summary>When the check was initiated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.CompletedAt">
+            <summary>When the check reached a terminal state (null if still pending)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.AuditTrail">
+            <summary>Ordered list of audit events for this decision</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.IsIdempotentReplay">
+            <summary>Whether this response was served from the idempotency cache</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest">
+            <summary>
+            Request to initiate a compliance check
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.SubjectId">
+            <summary>
+            Identifier of the subject being checked (e.g. user ID, wallet address).
+            Required.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.ContextId">
+            <summary>
+            Caller-supplied context identifier used for idempotency (e.g. token issuance ID).
+            Required.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.CheckType">
+            <summary>
+            Type of compliance check to perform.
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.SubjectMetadata">
+            <summary>
+            Optional subject metadata forwarded to providers (e.g. full_name, country).
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.IdempotencyKey">
+            <summary>
+            Optional explicit idempotency key. When not provided, a key is derived from
+            SubjectId + ContextId + CheckType.
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse">
+            <summary>
+            Response from a compliance check operation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.Success">
+            <summary>Whether the operation itself succeeded (not whether the subject passed)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.DecisionId">
+            <summary>Unique decision identifier</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.State">
+            <summary>Current state of the compliance decision</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ReasonCode">
+            <summary>Reason code from the provider (if any)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ProviderErrorCode">
+            <summary>Provider error code when state is Error</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.CorrelationId">
+            <summary>Correlation ID for end-to-end tracing</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ErrorMessage">
+            <summary>Error message when Success is false</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ErrorCode">
+            <summary>Error code when Success is false</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.IsIdempotentReplay">
+            <summary>Whether this response was served from the idempotency cache</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.InitiatedAt">
+            <summary>When the check was initiated</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.CompletedAt">
+            <summary>When the check reached a terminal state</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.AuditTrail">
+            <summary>Audit trail events for this decision</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse">
+            <summary>
+            Response for a status query on a specific decision
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.Success">
+            <summary>Whether the status retrieval succeeded</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.Decision">
+            <summary>The decision (null if not found)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.ErrorMessage">
+            <summary>Error message when Success is false</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.ErrorCode">
+            <summary>Error code when Success is false</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse">
+            <summary>
+            Response for a decision history query for a given subject
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.Success">
+            <summary>Whether the history retrieval succeeded</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.SubjectId">
+            <summary>Subject identifier that was queried</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.Decisions">
+            <summary>All decisions for this subject (ordered by InitiatedAt descending)</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.TotalCount">
+            <summary>Total number of decisions found</summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.ErrorMessage">
+            <summary>Error message when Success is false</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile">
+            <summary>
+            Represents a user's compliance profile for wallet-free enterprise onboarding
+            </summary>
+            <remarks>
+            This model stores regulatory and compliance metadata associated with a user account,
+            supporting MICA readiness and enterprise-grade compliance for regulated token issuance.
+            Uses SaaS terminology (account-based) instead of wallet terminology.
+            </remarks>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Id">
+            <summary>
+            Unique identifier for the compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UserId">
+            <summary>
+            User ID this profile belongs to
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuanceIntent">
+            <summary>
+            Issuance intent category (e.g., "equity", "debt", "asset-backed", "utility")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Onboarding readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.CreatedAt">
+            <summary>
+            Timestamp when the profile was created
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedAt">
+            <summary>
+            Timestamp when the profile was last updated
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedBy">
+            <summary>
+            User ID of who last updated the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Metadata">
+            <summary>
+            Optional additional metadata for extensibility
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IsOnboardingComplete">
+            <summary>
+            Determines if onboarding is complete based on profile completeness
+            </summary>
+            <returns>True if all required fields are filled and status is Complete or Active</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus">
+            <summary>
+            Readiness status for compliance profile
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.NotStarted">
+            <summary>
+            Profile has not been started
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.InProgress">
+            <summary>
+            Profile is in progress
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.PendingReview">
+            <summary>
+            Profile needs review
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Complete">
+            <summary>
+            Profile is complete but not yet active
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Active">
+            <summary>
+            Profile is active and ready for token issuance
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Suspended">
+            <summary>
+            Profile has been suspended
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry">
+            <summary>
+            Audit log entry for compliance profile changes
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Id">
+            <summary>
+            Unique identifier for the audit entry
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ProfileId">
+            <summary>
+            Compliance profile ID that was changed
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserId">
+            <summary>
+            User ID who owns the profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Action">
+            <summary>
+            Action performed (Created, Updated, Deleted)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Timestamp">
+            <summary>
+            Timestamp when the action occurred
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PerformedBy">
+            <summary>
+            User ID who performed the action
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ChangedFields">
+            <summary>
+            Fields that were changed (field name -> new value)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PreviousValues">
+            <summary>
+            Previous values of changed fields (for updates)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.IpAddress">
+            <summary>
+            IP address of the request (if available)
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserAgent">
+            <summary>
+            User agent of the request (if available)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest">
+            <summary>
+            Request to create or update a compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuingEntityName">
+            <summary>
+            Legal name of the issuing entity
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Jurisdiction">
+            <summary>
+            Jurisdiction/country code (ISO 3166-1 alpha-2, e.g., "US", "GB", "DE")
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuanceIntent">
+            <summary>
+            Issuance intent category
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.ReadinessStatus">
+            <summary>
+            Readiness status
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Metadata">
+            <summary>
+            Optional additional metadata
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest">
+            <summary>
+            Request to get compliance profile
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest.UserId">
+            <summary>
+            User ID to get profile for (optional, defaults to authenticated user)
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse">
+            <summary>
+            Response for compliance profile operations
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.Profile">
+            <summary>
+            The compliance profile data
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.IsOnboardingComplete">
+            <summary>
+            Indicates if onboarding is complete
+            </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError">
+            <summary>
+            Response for compliance profile validation errors
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Field">
+            <summary>
+            Field name that failed validation
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Message">
+            <summary>
+            Error message
+            </summary>
+        </member>
+        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Code">
+            <summary>
+            Error code
             </summary>
         </member>
         <member name="T:BiatecTokensApi.Models.Compliance.BlacklistEntry">
@@ -18581,475 +20529,6 @@
             Total number of pages
             </summary>
         </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState">
-            <summary>
-            Represents the state of a compliance decision
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Pending">
-            <summary>Check initiated but not yet complete</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Approved">
-            <summary>Subject passed all compliance checks</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Rejected">
-            <summary>Subject failed one or more compliance checks</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.NeedsReview">
-            <summary>Manual review required before a final decision</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionState.Error">
-            <summary>An error occurred during the compliance check</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType">
-            <summary>
-            Type of compliance check to perform
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType.Kyc">
-            <summary>KYC (Know Your Customer) check only</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType.Aml">
-            <summary>AML (Anti-Money Laundering / sanctions screening) check only</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckType.Combined">
-            <summary>Combined KYC + AML check</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode">
-            <summary>
-            Standardized error codes returned by compliance providers
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.None">
-            <summary>No error</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.Timeout">
-            <summary>Provider call timed out</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.ProviderUnavailable">
-            <summary>Provider service is unavailable</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.MalformedResponse">
-            <summary>Provider returned a response that could not be parsed</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.InternalError">
-            <summary>Internal error within the orchestration service</summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceProviderErrorCode.InvalidRequest">
-            <summary>The request sent to the provider was invalid</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent">
-            <summary>
-            Represents a single auditable event in the compliance decision lifecycle
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.OccurredAt">
-            <summary>UTC timestamp of the event</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.EventType">
-            <summary>Type/name of the event (e.g. "CheckInitiated", "KycCompleted", "AmlCompleted")</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.State">
-            <summary>State of the decision at the time of the event</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.CorrelationId">
-            <summary>Correlation ID propagated from the originating request</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.ProviderReferenceId">
-            <summary>Optional provider reference identifier</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceAuditEvent.Message">
-            <summary>Optional reason or message associated with the event</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision">
-            <summary>
-            Normalized representation of a compliance decision stored in-memory
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.DecisionId">
-            <summary>Unique identifier for this decision</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.SubjectId">
-            <summary>Subject identifier (e.g. user ID or wallet address)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.ContextId">
-            <summary>Context identifier provided by the caller (e.g. token issuance ID)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.CheckType">
-            <summary>Type of check that was performed</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.State">
-            <summary>Current state of the decision</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.ReasonCode">
-            <summary>Reason code from the provider (if any)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.ProviderErrorCode">
-            <summary>Provider error code when state is Error</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.KycProviderReferenceId">
-            <summary>KYC provider reference ID (if KYC was performed)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.AmlProviderReferenceId">
-            <summary>AML provider reference ID (if AML was performed)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.CorrelationId">
-            <summary>Correlation ID from the originating request</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.InitiatedAt">
-            <summary>When the check was initiated</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.CompletedAt">
-            <summary>When the check reached a terminal state (null if still pending)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.AuditTrail">
-            <summary>Ordered list of audit events for this decision</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.NormalizedComplianceDecision.IsIdempotentReplay">
-            <summary>Whether this response was served from the idempotency cache</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest">
-            <summary>
-            Request to initiate a compliance check
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.SubjectId">
-            <summary>
-            Identifier of the subject being checked (e.g. user ID, wallet address).
-            Required.
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.ContextId">
-            <summary>
-            Caller-supplied context identifier used for idempotency (e.g. token issuance ID).
-            Required.
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.CheckType">
-            <summary>
-            Type of compliance check to perform.
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.SubjectMetadata">
-            <summary>
-            Optional subject metadata forwarded to providers (e.g. full_name, country).
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.InitiateComplianceCheckRequest.IdempotencyKey">
-            <summary>
-            Optional explicit idempotency key. When not provided, a key is derived from
-            SubjectId + ContextId + CheckType.
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse">
-            <summary>
-            Response from a compliance check operation
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.Success">
-            <summary>Whether the operation itself succeeded (not whether the subject passed)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.DecisionId">
-            <summary>Unique decision identifier</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.State">
-            <summary>Current state of the compliance decision</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ReasonCode">
-            <summary>Reason code from the provider (if any)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ProviderErrorCode">
-            <summary>Provider error code when state is Error</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.CorrelationId">
-            <summary>Correlation ID for end-to-end tracing</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ErrorMessage">
-            <summary>Error message when Success is false</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.ErrorCode">
-            <summary>Error code when Success is false</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.IsIdempotentReplay">
-            <summary>Whether this response was served from the idempotency cache</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.InitiatedAt">
-            <summary>When the check was initiated</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.CompletedAt">
-            <summary>When the check reached a terminal state</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckResponse.AuditTrail">
-            <summary>Audit trail events for this decision</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse">
-            <summary>
-            Response for a status query on a specific decision
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.Success">
-            <summary>Whether the status retrieval succeeded</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.Decision">
-            <summary>The decision (null if not found)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.ErrorMessage">
-            <summary>Error message when Success is false</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceCheckStatusResponse.ErrorCode">
-            <summary>Error code when Success is false</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse">
-            <summary>
-            Response for a decision history query for a given subject
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.Success">
-            <summary>Whether the history retrieval succeeded</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.SubjectId">
-            <summary>Subject identifier that was queried</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.Decisions">
-            <summary>All decisions for this subject (ordered by InitiatedAt descending)</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.TotalCount">
-            <summary>Total number of decisions found</summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceOrchestration.ComplianceDecisionHistoryResponse.ErrorMessage">
-            <summary>Error message when Success is false</summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile">
-            <summary>
-            Represents a user's compliance profile for wallet-free enterprise onboarding
-            </summary>
-            <remarks>
-            This model stores regulatory and compliance metadata associated with a user account,
-            supporting MICA readiness and enterprise-grade compliance for regulated token issuance.
-            Uses SaaS terminology (account-based) instead of wallet terminology.
-            </remarks>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Id">
-            <summary>
-            Unique identifier for the compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UserId">
-            <summary>
-            User ID this profile belongs to
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuingEntityName">
-            <summary>
-            Legal name of the issuing entity
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Jurisdiction">
-            <summary>
-            Jurisdiction/country code (ISO 3166-1 alpha-2)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IssuanceIntent">
-            <summary>
-            Issuance intent category (e.g., "equity", "debt", "asset-backed", "utility")
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.ReadinessStatus">
-            <summary>
-            Onboarding readiness status
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.CreatedAt">
-            <summary>
-            Timestamp when the profile was created
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedAt">
-            <summary>
-            Timestamp when the profile was last updated
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.UpdatedBy">
-            <summary>
-            User ID of who last updated the profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.Metadata">
-            <summary>
-            Optional additional metadata for extensibility
-            </summary>
-        </member>
-        <member name="M:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfile.IsOnboardingComplete">
-            <summary>
-            Determines if onboarding is complete based on profile completeness
-            </summary>
-            <returns>True if all required fields are filled and status is Complete or Active</returns>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus">
-            <summary>
-            Readiness status for compliance profile
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.NotStarted">
-            <summary>
-            Profile has not been started
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.InProgress">
-            <summary>
-            Profile is in progress
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.PendingReview">
-            <summary>
-            Profile needs review
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Complete">
-            <summary>
-            Profile is complete but not yet active
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Active">
-            <summary>
-            Profile is active and ready for token issuance
-            </summary>
-        </member>
-        <member name="F:BiatecTokensApi.Models.ComplianceProfile.ReadinessStatus.Suspended">
-            <summary>
-            Profile has been suspended
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry">
-            <summary>
-            Audit log entry for compliance profile changes
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Id">
-            <summary>
-            Unique identifier for the audit entry
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ProfileId">
-            <summary>
-            Compliance profile ID that was changed
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserId">
-            <summary>
-            User ID who owns the profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Action">
-            <summary>
-            Action performed (Created, Updated, Deleted)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.Timestamp">
-            <summary>
-            Timestamp when the action occurred
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PerformedBy">
-            <summary>
-            User ID who performed the action
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.ChangedFields">
-            <summary>
-            Fields that were changed (field name -> new value)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.PreviousValues">
-            <summary>
-            Previous values of changed fields (for updates)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.IpAddress">
-            <summary>
-            IP address of the request (if available)
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileAuditEntry.UserAgent">
-            <summary>
-            User agent of the request (if available)
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest">
-            <summary>
-            Request to create or update a compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuingEntityName">
-            <summary>
-            Legal name of the issuing entity
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Jurisdiction">
-            <summary>
-            Jurisdiction/country code (ISO 3166-1 alpha-2, e.g., "US", "GB", "DE")
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.IssuanceIntent">
-            <summary>
-            Issuance intent category
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.ReadinessStatus">
-            <summary>
-            Readiness status
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.UpsertComplianceProfileRequest.Metadata">
-            <summary>
-            Optional additional metadata
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest">
-            <summary>
-            Request to get compliance profile
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.GetComplianceProfileRequest.UserId">
-            <summary>
-            User ID to get profile for (optional, defaults to authenticated user)
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse">
-            <summary>
-            Response for compliance profile operations
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.Profile">
-            <summary>
-            The compliance profile data
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileResponse.IsOnboardingComplete">
-            <summary>
-            Indicates if onboarding is complete
-            </summary>
-        </member>
-        <member name="T:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError">
-            <summary>
-            Response for compliance profile validation errors
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Field">
-            <summary>
-            Field name that failed validation
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Message">
-            <summary>
-            Error message
-            </summary>
-        </member>
-        <member name="P:BiatecTokensApi.Models.ComplianceProfile.ComplianceProfileValidationError.Code">
-            <summary>
-            Error code
-            </summary>
-        </member>
         <member name="T:BiatecTokensApi.Models.DecisionIntelligence.GetBenchmarkComparisonRequest">
             <summary>
             Request for benchmark comparison analysis
@@ -22182,6 +23661,15 @@
         </member>
         <member name="F:BiatecTokensApi.Models.ErrorCodes.AML_SCREENING_NEEDS_REVIEW">
             <summary>AML screening requires manual review</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.AML_RECORD_NOT_FOUND">
+            <summary>AML record not found for the given user</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.GDPR_ERASURE_FAILED">
+            <summary>GDPR erasure request failed</summary>
+        </member>
+        <member name="F:BiatecTokensApi.Models.ErrorCodes.INVALID_INPUT">
+            <summary>Invalid input parameters</summary>
         </member>
         <member name="F:BiatecTokensApi.Models.ErrorCodes.COMPLIANCE_CHECK_NOT_FOUND">
             <summary>Compliance check with the given decision ID was not found</summary>
@@ -33564,6 +35052,32 @@
             <param name="args">The command-line arguments used to configure the application.</param>
             <exception cref="T:System.Exception"></exception>
         </member>
+        <member name="T:BiatecTokensApi.Repositories.AmlRepository">
+            <summary>
+            In-memory repository implementation for AML screening records
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.AmlRepository.CreateAmlRecordAsync(BiatecTokensApi.Models.Aml.AmlRecord)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.AmlRepository.GetAmlRecordAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.AmlRepository.GetAmlRecordByUserIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.AmlRepository.GetAmlRecordByProviderReferenceIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.AmlRepository.UpdateAmlRecordAsync(BiatecTokensApi.Models.Aml.AmlRecord)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.AmlRepository.GetAmlRecordsByUserIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.AmlRepository.GetRecordsDueForRescreeningAsync(System.DateTime)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Repositories.ComplianceDecisionRepository">
             <summary>
             In-memory repository for compliance decisions
@@ -33955,6 +35469,32 @@
             </summary>
             <param name="cid">Content Identifier</param>
             <returns>True if unpinning was successful</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Repositories.Interface.IAmlRepository">
+            <summary>
+            Repository interface for AML screening record persistence
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IAmlRepository.CreateAmlRecordAsync(BiatecTokensApi.Models.Aml.AmlRecord)">
+            <summary>Creates a new AML record</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IAmlRepository.GetAmlRecordAsync(System.String)">
+            <summary>Gets an AML record by ID</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IAmlRepository.GetAmlRecordByUserIdAsync(System.String)">
+            <summary>Gets the most recent AML record for a user</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IAmlRepository.GetAmlRecordByProviderReferenceIdAsync(System.String)">
+            <summary>Gets an AML record by provider reference ID</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IAmlRepository.UpdateAmlRecordAsync(BiatecTokensApi.Models.Aml.AmlRecord)">
+            <summary>Updates an existing AML record</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IAmlRepository.GetAmlRecordsByUserIdAsync(System.String)">
+            <summary>Gets all AML records for a user</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Repositories.Interface.IAmlRepository.GetRecordsDueForRescreeningAsync(System.DateTime)">
+            <summary>Gets all AML records due for re-screening by the given cutoff date</summary>
         </member>
         <member name="T:BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository">
             <summary>
@@ -35604,6 +37144,33 @@
             Calls the Algorand testnet faucet for the given address
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.AmlService">
+            <summary>
+            Service for AML (Anti-Money Laundering) sanctions screening, PEP checks,
+            continuous monitoring webhooks, and compliance reporting.
+            </summary>
+        </member>
+        <member name="F:BiatecTokensApi.Services.AmlService.RescreeningIntervalDays">
+            <summary>Re-screening interval — AMLD5 requires at minimum periodic review.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AmlService.ScreenUserAsync(System.String,System.Collections.Generic.Dictionary{System.String,System.String},System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AmlService.GetStatusAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AmlService.HandleWebhookAsync(BiatecTokensApi.Models.Aml.AmlWebhookPayload,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AmlService.GenerateReportAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AmlService.IsUserClearedAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.AmlService.AnonymizeUserAmlDataAsync(System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.ARC1400TokenService">
             <summary>
             Provides functionality for deploying and interacting with ERC-20 token contracts on blockchain networks.
@@ -36293,6 +37860,73 @@
             <summary>
             Emits metrics for decision operations
             </summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService">
+            <summary>
+            In-memory implementation of <see cref="T:BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService"/>.
+            </summary>
+            <remarks>
+            Implements deterministic, idempotent compliance evidence evaluation and launch decision
+            logic.  All decisions are stored in-process and are reproducible for the lifetime of
+            the application.  The evaluation engine runs a fixed, ordered rule set so that traces
+            are stable across replays.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.#ctor(Microsoft.Extensions.Logging.ILogger{BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService})">
+            <summary>Initialises a new instance of <see cref="T:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService"/>.</summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.EvaluateLaunchDecisionAsync(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.GetDecisionAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.GetEvidenceBundleAsync(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.GetDecisionTraceAsync(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceRequest)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.ListDecisionsAsync(System.String,System.Int32,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.RunRuleEvaluation(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest,System.String,System.String)">
+            <summary>
+            Runs the deterministic, ordered rule evaluation pipeline.
+            Returns the list of rule evaluation records and the evidence items collected.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceEvidenceLaunchDecisionService.ShallowCopy(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse)">
+            <summary>Creates a shallow copy of a decision (for idempotent replay).</summary>
+        </member>
+        <member name="T:BiatecTokensApi.Services.ComplianceOrchestrationHardeningService">
+            <summary>
+            Hardening service for enterprise compliance orchestration.
+            </summary>
+            <remarks>
+            Aggregates jurisdiction constraint evaluation, sanctions/KYC readiness, and
+            launch gate enforcement with deterministic, auditable outcomes.  All providers
+            that are not yet fully integrated return explicit "not configured" states rather
+            than silently passing — ensuring no unsafe silent success patterns.
+            Error responses carry typed <see cref="T:BiatecTokensApi.Models.ComplianceHardening.ComplianceErrorCategory"/> values so callers
+            can distinguish invalid input, provider outages, policy failures, and internal
+            exceptions.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceOrchestrationHardeningService.EvaluateLaunchReadinessAsync(BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceOrchestrationHardeningService.GetJurisdictionConstraintAsync(BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceOrchestrationHardeningService.GetSanctionsReadinessAsync(BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceOrchestrationHardeningService.EnforceLaunchGateAsync(BiatecTokensApi.Models.ComplianceHardening.LaunchGateRequest,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:BiatecTokensApi.Services.ComplianceOrchestrationHardeningService.GetProviderStatusAsync(System.String)">
+            <inheritdoc/>
         </member>
         <member name="T:BiatecTokensApi.Services.ComplianceOrchestrationService">
             <summary>
@@ -36995,6 +38629,16 @@
             Persists compliance metadata for a deployed token
             </summary>
         </member>
+        <member name="T:BiatecTokensApi.Services.GdprErasureService">
+            <summary>
+            Service implementing GDPR Article 17 right-to-erasure for KYC and AML personal data.
+            PII is anonymized while audit record IDs, timestamps, and compliance references are
+            retained for the 5-year retention period required by AMLD5.
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.GdprErasureService.EraseUserDataAsync(BiatecTokensApi.Models.Aml.GdprErasureRequest,System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:BiatecTokensApi.Services.GuidedLaunchReliabilityService">
             <summary>
             Implements guided token launch reliability: stage-based state machine, idempotency,
@@ -37094,6 +38738,57 @@
             <returns>
             A tuple containing the current state, optional reason code, and optional error message.
             </returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IAmlService">
+            <summary>
+            Service interface for AML (Anti-Money Laundering) screening operations
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAmlService.ScreenUserAsync(System.String,System.Collections.Generic.Dictionary{System.String,System.String},System.String)">
+            <summary>
+            Screens a user against sanctions, PEP, and AML lists.
+            Creates or updates the AML record for the user.
+            </summary>
+            <param name="userId">User ID to screen</param>
+            <param name="metadata">Additional metadata to pass to the provider</param>
+            <param name="correlationId">Correlation ID for tracing</param>
+            <returns>The screening response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAmlService.GetStatusAsync(System.String)">
+            <summary>
+            Returns the current AML screening status for a user.
+            </summary>
+            <param name="userId">User ID to query</param>
+            <returns>The AML status response</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAmlService.HandleWebhookAsync(BiatecTokensApi.Models.Aml.AmlWebhookPayload,System.String)">
+            <summary>
+            Handles an inbound webhook from the AML continuous-monitoring provider.
+            </summary>
+            <param name="payload">The parsed webhook payload</param>
+            <param name="signature">HMAC signature from the provider header (may be null)</param>
+            <returns>True if the webhook was processed successfully</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAmlService.GenerateReportAsync(System.String)">
+            <summary>
+            Generates a full AML compliance report for a user, including all historical records.
+            </summary>
+            <param name="userId">User ID</param>
+            <returns>The AML compliance report</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAmlService.IsUserClearedAsync(System.String)">
+            <summary>
+            Checks whether a user has passed AML screening (cleared, low risk).
+            </summary>
+            <param name="userId">User ID to check</param>
+            <returns>True if the user is AML-cleared</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IAmlService.AnonymizeUserAmlDataAsync(System.String)">
+            <summary>
+            Anonymizes AML PII for a user as part of GDPR erasure, retaining the audit reference.
+            </summary>
+            <param name="userId">User ID to anonymize</param>
+            <returns>Number of records anonymized</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IARC1400TokenService">
             <summary>
@@ -37546,6 +39241,117 @@
             Gets expired decisions
             </summary>
             <returns>List of expired decisions</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService">
+            <summary>
+            Service interface for compliance evidence and launch decision evaluations.
+            </summary>
+            <remarks>
+            Provides deterministic, idempotent evaluation of all compliance prerequisites
+            required before a token launch is permitted.  Every evaluation produces a
+            structured decision record with blockers, warnings, and a full decision trace
+            that can be used for audit and regulatory review.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService.EvaluateLaunchDecisionAsync(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionRequest)">
+            <summary>
+            Evaluates whether a token launch is permitted, producing a structured decision.
+            </summary>
+            <param name="request">Launch decision request.</param>
+            <returns>Comprehensive decision response with status, blockers, warnings, and evidence.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService.GetDecisionAsync(System.String,System.String)">
+            <summary>
+            Retrieves a previously computed launch decision by ID.
+            </summary>
+            <param name="decisionId">Decision identifier.</param>
+            <param name="correlationId">Optional correlation ID for tracing.</param>
+            <returns>Decision response if found; null otherwise.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService.GetEvidenceBundleAsync(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceBundleRequest)">
+            <summary>
+            Retrieves a compliance evidence bundle for an owner.
+            </summary>
+            <param name="request">Evidence bundle request.</param>
+            <returns>Bundle of compliance evidence items with provenance metadata.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService.GetDecisionTraceAsync(BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.DecisionTraceRequest)">
+            <summary>
+            Retrieves the decision trace for a specific evaluation.
+            </summary>
+            <param name="request">Decision trace request.</param>
+            <returns>Structured decision trace with per-rule evaluation records.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceEvidenceLaunchDecisionService.ListDecisionsAsync(System.String,System.Int32,System.String)">
+            <summary>
+            Lists launch decisions for an owner, most recent first.
+            </summary>
+            <param name="ownerId">Owner identifier.</param>
+            <param name="limit">Maximum number of results (1–100).</param>
+            <param name="correlationId">Optional correlation ID.</param>
+            <returns>List of decision responses ordered by <see cref="P:BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.LaunchDecisionResponse.DecidedAt"/> descending.</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IComplianceOrchestrationHardeningService">
+            <summary>
+            Hardening service interface for enterprise compliance orchestration.
+            </summary>
+            <remarks>
+            Aggregates jurisdiction constraint evaluation, sanctions/KYC readiness,
+            launch gate enforcement, and provider status reporting into a single
+            deterministic, auditable surface.  All methods emit structured log events
+            carrying the supplied correlation identifier so that a complete audit trail
+            can be reconstructed from logs.
+            </remarks>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceOrchestrationHardeningService.EvaluateLaunchReadinessAsync(BiatecTokensApi.Models.ComplianceHardening.ComplianceHardeningRequest,System.String)">
+            <summary>
+            Performs a full compliance hardening evaluation for a pending token launch.
+            Aggregates jurisdiction constraints, sanctions readiness, and overall launch
+            gate status into a single deterministic response.
+            </summary>
+            <param name="request">Hardening evaluation request.</param>
+            <param name="correlationId">Correlation identifier for end-to-end tracing.</param>
+            <returns>
+            Comprehensive hardening response with launch gate status, jurisdiction result,
+            sanctions result, remediation hints, and provider statuses.
+            </returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceOrchestrationHardeningService.GetJurisdictionConstraintAsync(BiatecTokensApi.Models.ComplianceHardening.JurisdictionConstraintRequest,System.String)">
+            <summary>
+            Evaluates jurisdiction constraints for a subject in a specific jurisdiction.
+            Returns an explicit <see cref="F:BiatecTokensApi.Models.ComplianceHardening.JurisdictionStatus.NotConfigured"/> outcome
+            when the jurisdiction rules engine is not yet configured — never silently succeeds.
+            </summary>
+            <param name="request">Jurisdiction constraint request.</param>
+            <param name="correlationId">Correlation identifier.</param>
+            <returns>Jurisdiction constraint result.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceOrchestrationHardeningService.GetSanctionsReadinessAsync(BiatecTokensApi.Models.ComplianceHardening.SanctionsReadinessRequest,System.String)">
+            <summary>
+            Evaluates sanctions and KYC readiness for a subject.
+            Returns an explicit <see cref="F:BiatecTokensApi.Models.ComplianceHardening.SanctionsStatus.NotConfigured"/> outcome
+            when the provider is not integrated — never silently succeeds.
+            </summary>
+            <param name="request">Sanctions readiness request.</param>
+            <param name="correlationId">Correlation identifier.</param>
+            <returns>Sanctions readiness result.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceOrchestrationHardeningService.EnforceLaunchGateAsync(BiatecTokensApi.Models.ComplianceHardening.LaunchGateRequest,System.String)">
+            <summary>
+            Enforces the launch gate for a specific token.
+            Prevents launch execution when blocking compliance reasons exist.
+            </summary>
+            <param name="request">Launch gate enforcement request.</param>
+            <param name="correlationId">Correlation identifier.</param>
+            <returns>Launch gate response with permit/block decision and remediation hints.</returns>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IComplianceOrchestrationHardeningService.GetProviderStatusAsync(System.String)">
+            <summary>
+            Returns the current integration and health status of all registered compliance providers.
+            Provides observability into which providers are active, degraded, or not yet integrated.
+            </summary>
+            <param name="correlationId">Correlation identifier.</param>
+            <returns>List of provider status reports.</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IComplianceOrchestrationService">
             <summary>
@@ -38334,6 +40140,23 @@
             <param name="tokenType">Token type</param>
             <param name="userId">Optional user ID for JWT-authenticated requests. If provided, uses user's ARC76 account. If null, uses system account.</param>
             <returns>Response with transaction details</returns>
+        </member>
+        <member name="T:BiatecTokensApi.Services.Interface.IGdprErasureService">
+            <summary>
+            Service interface for GDPR right-to-erasure operations.
+            Anonymizes PII while retaining compliance audit references as required by AMLD5 (5-year retention).
+            </summary>
+        </member>
+        <member name="M:BiatecTokensApi.Services.Interface.IGdprErasureService.EraseUserDataAsync(BiatecTokensApi.Models.Aml.GdprErasureRequest,System.String)">
+            <summary>
+            Anonymizes all PII for the specified user while retaining audit trail references.
+            KYC and AML records are anonymized — names, documents, and personal identifiers are
+            replaced with a pseudonymous reference, but record IDs and timestamps are preserved
+            for regulatory audit compliance.
+            </summary>
+            <param name="request">Erasure request including user ID and reason</param>
+            <param name="correlationId">Correlation ID for tracing</param>
+            <returns>Erasure response with anonymization reference and record counts</returns>
         </member>
         <member name="T:BiatecTokensApi.Services.Interface.IGuidedLaunchReliabilityService">
             <summary>Service for guided token launch reliability, compliance UX, and CI determinism.</summary>

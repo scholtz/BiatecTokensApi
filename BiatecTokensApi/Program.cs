@@ -114,6 +114,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ARC76MVPPipeline types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ARC76MVPPipeline")
                         return $"ARC76MVPPipeline{type.Name}";
+                    // Use namespace-qualified names for all ComplianceHardening types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.ComplianceHardening")
+                        return $"ComplianceHardening{type.Name}";
                     // Use namespace-qualified names for all Aml types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.Aml")
                         return $"Aml{type.Name}";
@@ -329,6 +332,9 @@ namespace BiatecTokensApi
 
             // Register Compliance Evidence and Launch Decision service (Issue compliance-evidence)
             builder.Services.AddSingleton<IComplianceEvidenceLaunchDecisionService, ComplianceEvidenceLaunchDecisionService>();
+
+            // Register Compliance Orchestration Hardening service (Issue #488)
+            builder.Services.AddSingleton<IComplianceOrchestrationHardeningService, ComplianceOrchestrationHardeningService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();

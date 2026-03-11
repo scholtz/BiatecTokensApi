@@ -949,6 +949,111 @@ When adding new required configuration:
 
 **Lesson Learned**: Missing required configuration in CI causes build failures that are hard to debug. Always add new required config to ALL test and CI configurations immediately when introducing the requirement.
 
+### Two-Tier CI Strategy: Fast PR Tests + Full Main Branch Suite
+
+**CRITICAL: The CI workflow (`test-pr.yml`) uses TWO separate jobs to keep PR feedback under 10 minutes while still running the full 7390+ test suite on merge.**
+
+#### Tier 1 — `pr-tests` job (pull_request events only, < 10 min target)
+
+**What it does:**
+1. Detects changed `.cs` files using `tj-actions/changed-files`
+2. Maps changed **test files** → runs them directly by class name
+3. Maps changed **source files** → finds matching test files by searching `BiatecTokensTests/` for filenames containing the source file's base name (e.g., `TokenService.cs` → `*TokenService*Tests.cs`)
+4. If no `.cs` files changed → runs a minimal smoke test set (HealthCheck, SwaggerSpec, ApiIntegration)
+5. If infrastructure files changed (`.csproj`, `.sln`, `Program.cs`, etc.) → falls back to the full suite
+6. If > 60 test classes match → falls back to the full suite (broad refactor)
+
+**What it skips (to save time):**
+- ❌ Code coverage collection (`--collect:"XPlat Code Coverage"`)
+- ❌ Coverage threshold checks
+- ❌ OpenAPI/Swagger specification generation
+- ❌ Coverage report artifacts
+
+**Safety nets:**
+- `timeout-minutes: 15` on the job
+- `timeout-minutes: 10` on the test step
+- `--blame-hang-timeout 60s` to kill individual hanging tests
+
+#### Tier 2 — `full-tests` job (push to main/master only, ~1 hour)
+
+**What it does:**
+- Runs ALL 7390+ tests (except RealEndpoint)
+- Collects code coverage with opencover format
+- Checks coverage thresholds (line ≥ 15%, branch ≥ 8%)
+- Generates OpenAPI specification
+- Publishes coverage report and OpenAPI as artifacts
+
+**This is the authoritative test run.** PR tests are a fast gate; the full suite runs after merge.
+
+#### How the File-to-Test Mapping Works
+
+The filter script in `test-pr.yml` uses this algorithm:
+
+```
+1. For each changed file in BiatecTokensTests/*.cs:
+   → Add its filename (minus .cs) as a test class to run
+
+2. For each changed file in BiatecTokensApi/*.cs:
+   → Extract the base name (e.g., "TokenService" from "Services/TokenService.cs")
+   → Run: find BiatecTokensTests -name "*TokenService*Tests.cs"
+   → Add all matches as test classes to run
+
+3. Deduplicate, then build --filter expression:
+   (FullyQualifiedName~Class1 | FullyQualifiedName~Class2 | ...) & FullyQualifiedName!~RealEndpoint
+```
+
+**Why this is better than the previous keyword approach:**
+- Previous: `Token` keyword matched 50+ unrelated test files
+- Now: `TokenService.cs` change → only runs `TokenServiceTests.cs` (and similar)
+- Each changed source file maps to its specific test files, not a broad keyword
+
+#### Naming Convention for Test Discoverability
+
+**MANDATORY: Name test files so they contain the source file's base name.**
+
+| Source file | Test file(s) |
+|---|---|
+| `Services/TokenService.cs` | `TokenServiceTests.cs` |
+| `Services/AuthenticationService.cs` | `AuthenticationServiceTests.cs`, `AuthenticationServiceErrorHandlingTests.cs` |
+| `Controllers/TokenController.cs` | `TokenControllerTests.cs`, `TokenControllerIntegrationTests.cs` |
+
+This enables the CI file-to-test mapping to work automatically. If a test file doesn't follow this convention, it will only run when directly modified.
+
+#### Test Performance Optimization
+
+**MANDATORY: Keep individual tests under 100ms, test suites under 10 minutes for PRs.**
+
+1. **Mock External Dependencies**: Never call real APIs, blockchains, or databases
+2. **Use In-Memory Providers**: Configure services with `Hardcoded` or in-memory implementations
+3. **Avoid Sleeps/Waits**: Use immediate assertions, no Thread.Sleep
+4. **Parallel Execution**: Tests should be parallelizable (no shared state)
+5. **Minimal Setup**: Reuse test fixtures, avoid per-test database resets
+
+#### CI Test Execution Time Targets
+
+| Scope | Target | When |
+|---|---|---|
+| PR selective tests | < 10 minutes | Every PR |
+| Full suite | < 90 minutes | Push to main/master |
+
+#### Local Test Running for Efficiency
+
+```bash
+# Run only tests for a specific changed file (mimics PR behavior)
+dotnet test --filter "FullyQualifiedName~TokenServiceTests" --no-build --configuration Release
+
+# Run tests for a specific feature area
+dotnet test --filter "FullyQualifiedName~ARC76" --no-build --configuration Release
+
+# Run the minimal smoke tests (what PRs run for non-code changes)
+dotnet test --filter "FullyQualifiedName~HealthCheck | FullyQualifiedName~SwaggerSpec" --no-build --configuration Release
+
+# Run everything except slow E2E tests
+dotnet test --filter "FullyQualifiedName!~RealEndpoint" --no-build --configuration Release
+```
+
+**Lesson Learned (2026-07-XX)**: With 7390 tests taking >1 hour, PRs were taking 46+ minutes. Root cause: keyword-based filter (`Token`, `ARC76`, etc.) was too broad — a single `Token`-related file change ran all 50+ Token test files. Fix: replaced keyword matching with file-to-test-class mapping. PR tests now run only the test classes that directly correspond to changed source files. Coverage, OpenAPI generation, and threshold checks moved to main-branch-only job.
+
 ### WebApplicationFactory Integration Test Reliability
 
 **CRITICAL: Integration tests using WebApplicationFactory require multiple reliability measures for CI environments.**
@@ -999,7 +1104,14 @@ CI environments have resource constraints that don't affect local development. A
        ["EVMChains:0:Name"] = "Base",
        ["EVMChains:0:RpcUrl"] = "https://mainnet.base.org",
        ["Debug:EmptySuccessOnFailure"] = "false",
-       ["CorsSettings:AllowedOrigins:0"] = "*"
+       ["CorsSettings:AllowedOrigins:0"] = "*",
+       ["WorkflowGovernanceConfig:Enabled"] = "true",
+       ["WorkflowGovernanceConfig:EnforceValidation"] = "true",
+       ["WorkflowGovernanceConfig:EnforcePreconditions"] = "true",
+       ["WorkflowGovernanceConfig:EnforcePostCommitVerification"] = "true",
+       ["WorkflowGovernanceConfig:MaxRetryAttempts"] = "5",
+       ["WorkflowGovernanceConfig:PolicyVersion"] = "1.0.0",
+       ["WorkflowGovernanceConfig:RolloutPercentage"] = "100"
    };
    ```
 
@@ -1077,33 +1189,6 @@ dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Fea
 dotnet test --configuration Release --no-build --filter "FullyQualifiedName~{Feature}ContractTests"
 ```
 
-**Lesson Learned (2026-03-02 - Issue #462, PR #463)**: CI had 1 test failing out of 3992 because `SB5_EmptyRefreshToken_Returns401` asserted HTTP 401, but the real behavior is HTTP 400 (model validation failure for empty required field).
-
-**Root cause**: When a required JSON field is empty string `""`, ASP.NET Core model validation fires BEFORE auth processing and returns 400 Bad Request — not 401 Unauthorized. The test was overly prescriptive about the HTTP status code.
-
-**Corrective action**: When testing rejection of invalid inputs (empty, null, malformed), assert the status code as `Is.EqualTo(HttpStatusCode.BadRequest).Or.EqualTo(HttpStatusCode.Unauthorized)` because:
-- Empty/null values → 400 (model validation layer rejects before auth runs)
-- Random non-empty garbage → 401 (auth layer rejects after model validation passes)
-
-**Pattern for input rejection tests:**
-```csharp
-// WRONG: Too prescriptive - empty string hits model validation (400) not auth (401)
-Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-
-// CORRECT: Accept either rejection status - both indicate the request was correctly refused
-Assert.That(resp.StatusCode, 
-    Is.EqualTo(HttpStatusCode.BadRequest).Or.EqualTo(HttpStatusCode.Unauthorized),
-    "Invalid input must be rejected (400=validation, 401=auth), never 200 or 5xx");
-```
-
-**Always run ALL tests locally BEFORE committing by checking exit code**:
-```bash
-# Check exit code - if non-zero, a test failed even if grep shows nothing
-dotnet test BiatecTokensTests/BiatecTokensTests.csproj --configuration Release --no-build \
-  --filter "FullyQualifiedName~{Feature}" > /tmp/test.log 2>&1; echo "EXIT:$?"
-# Then: tail /tmp/test.log to see pass/fail summary
-```
-
 ## Mandatory Test Structure for Vision Milestone Issues (Lesson Learned 2026-03-03 — Issue #466, PR #467)
 
 **Root cause of PO rework request**: Initial PR for Issue #466 delivered ONLY a service unit test file (40 tests) and a contract test file (35 tests). The PO required the SAME 3-file test structure used in every previous vision milestone:
@@ -1141,7 +1226,7 @@ Create `<Feature>UserJourneyIssue{N}Tests.cs` with these required categories:
 - II: 5+ tests (null/empty/malformed/wrong-type/cross-chain)
 - BD: 5+ tests (empty collections, single items, filter exact match/no match, max values)
 - FR: 3+ tests (unknown input, multiple retries, state isolation)
-- NX: 5+ tests (message readability, no raw codes, no nulls, timestamps, descriptions)
+- NX: 5+ tests (message readability, enum names, no technical errors)
 
 ### E2E Workflow Test Pattern
 
@@ -1177,7 +1262,7 @@ Create `<Feature>E2EWorkflowIssue{N}Tests.cs` with these required sections:
 
 Issue #484 current counts: 362 unit + 286 contract + 286 journey + 220 E2E + 350 advanced = **1504 tests**.
 
-**UserJourneyTests.cs MUST include (per category):**
+**UserJourneyTests MUST include (per category):**
 - HP: 8+ happy path tests (all standards, all primary success scenarios including cancel midway)
 - II: 7+ invalid input tests (null/empty/whitespace for each field, idempotency conflict)
 - BD: 7+ boundary tests (MaxRetries=-1 as invalid, MaxRetries=1/1000 as valid bounds, all networks, all standards, large MaxRetries)
@@ -1271,4 +1356,3 @@ Missing `StoreRefreshTokenAsync` causes the response to fail silently (exception
 _mockUserRepo.Setup(r => r.UserExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
 _mockUserRepo.Setup(r => r.CreateUserAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
 _mockUserRepo.Setup(r => r.StoreRefreshTokenAsync(It.IsAny<RefreshToken>())).Returns(Task.CompletedTask);
-```
