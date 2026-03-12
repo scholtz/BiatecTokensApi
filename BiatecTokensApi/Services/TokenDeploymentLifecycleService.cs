@@ -271,13 +271,36 @@ namespace BiatecTokensApi.Services
             // In Simulation mode a null return from a non-simulated provider causes a fallback
             // to the SimulatedDeploymentEvidenceProvider.
             BlockchainDeploymentEvidence? evidence = null;
+            Exception? providerException = null;
+            bool isProviderTimeout = false;
             try
             {
                 evidence = await _evidenceProvider.ObtainEvidenceAsync(
                     deploymentId, request.TokenStandard, request.Network);
             }
+            catch (OperationCanceledException ex)
+            {
+                isProviderTimeout = true;
+                providerException = ex;
+                _logger.LogWarning(
+                    "Evidence provider timed out: DeploymentId={DeploymentId}, Error={Error}",
+                    LoggingHelper.SanitizeLogInput(deploymentId),
+                    LoggingHelper.SanitizeLogInput(ex.Message));
+                evidence = null;
+            }
+            catch (TimeoutException ex)
+            {
+                isProviderTimeout = true;
+                providerException = ex;
+                _logger.LogWarning(
+                    "Evidence provider timed out: DeploymentId={DeploymentId}, Error={Error}",
+                    LoggingHelper.SanitizeLogInput(deploymentId),
+                    LoggingHelper.SanitizeLogInput(ex.Message));
+                evidence = null;
+            }
             catch (Exception ex)
             {
+                providerException = ex;
                 _logger.LogWarning(
                     "Evidence provider threw an exception: DeploymentId={DeploymentId}, Error={Error}",
                     LoggingHelper.SanitizeLogInput(deploymentId),
@@ -290,35 +313,99 @@ namespace BiatecTokensApi.Services
                 if (request.ExecutionMode == DeploymentExecutionMode.Authoritative)
                 {
                     // Fail-closed: no evidence available and authoritative mode is required.
-                    // This is the correct behavior for production regulated issuance sign-off.
-                    response.Stage           = DeploymentStage.Failed;
-                    response.Outcome         = DeploymentOutcome.TerminalFailure;
-                    response.Message         = "Deployment failed: authoritative blockchain evidence is unavailable. " +
-                                               "The deployment cannot be confirmed without a live blockchain connection. " +
-                                               "This is a terminal failure — corrective action is required before retrying.";
-                    response.RemediationHint = "Ensure the blockchain node (algod/indexer for Algorand, RPC for EVM) is " +
-                                               "reachable and that the deployment service is configured with a live " +
-                                               "IDeploymentEvidenceProvider. Alternatively, use ExecutionMode=Simulation " +
-                                               "for non-production environments.";
+                    // Distinguish transient timeouts (retriable) from terminal failures.
+                    var isRetriable = isProviderTimeout;
+                    var errorCode = isProviderTimeout
+                        ? "BLOCKCHAIN_EVIDENCE_TIMEOUT"
+                        : "BLOCKCHAIN_EVIDENCE_UNAVAILABLE";
+                    var errorCategory = isProviderTimeout
+                        ? LifecycleErrorCategory.NetworkTimeout
+                        : (providerException != null
+                            ? LifecycleErrorCategory.ProviderException
+                            : LifecycleErrorCategory.EvidenceUnavailable);
+                    var evidenceReasonCode = isProviderTimeout
+                        ? "PROVIDER_TIMEOUT"
+                        : (providerException != null ? "PROVIDER_EXCEPTION" : "PROVIDER_NULL_RETURN");
+
+                    response.Stage   = DeploymentStage.Failed;
+                    response.Outcome = isRetriable
+                        ? DeploymentOutcome.TransientFailure
+                        : DeploymentOutcome.TerminalFailure;
+                    response.Message = isProviderTimeout
+                        ? "Deployment failed: the blockchain evidence provider timed out. " +
+                          "This is a transient failure — the deployment may be retried after a delay."
+                        : "Deployment failed: authoritative blockchain evidence is unavailable. " +
+                          "The deployment cannot be confirmed without a live blockchain connection. " +
+                          "This is a terminal failure — corrective action is required before retrying.";
+                    response.RemediationHint = isProviderTimeout
+                        ? "The blockchain node (algod/indexer for Algorand, RPC for EVM) did not respond " +
+                          "within the configured timeout. Retry after a short delay. If timeouts persist, " +
+                          "check node availability and network connectivity."
+                        : "Ensure the blockchain node (algod/indexer for Algorand, RPC for EVM) is " +
+                          "reachable and that the deployment service is configured with a live " +
+                          "IDeploymentEvidenceProvider. Alternatively, use ExecutionMode=Simulation " +
+                          "for non-production environments.";
                     response.LastUpdatedAt = DateTimeOffset.UtcNow;
                     response.Progress      = BuildProgress(DeploymentStage.Failed, 0);
+                    response.EvidenceAvailability = new EvidenceAvailabilityDetail
+                    {
+                        Status          = isProviderTimeout
+                            ? LifecycleEvidenceStatus.Pending
+                            : LifecycleEvidenceStatus.Unavailable,
+                        ReasonCode      = evidenceReasonCode,
+                        Message         = isProviderTimeout
+                            ? "Evidence provider timed out; evidence is pending confirmation."
+                            : "No authoritative evidence could be obtained from the provider.",
+                        IsRetriable     = isRetriable,
+                        DiagnosticDetail = providerException != null
+                            ? $"{LoggingHelper.SanitizeLogInput(providerException.GetType().Name)}: " +
+                              LoggingHelper.SanitizeLogInput(
+                                  providerException.Message.Length > 200
+                                      ? providerException.Message[..200]
+                                      : providerException.Message)
+                            : string.Empty,
+                    };
+                    response.ErrorDetail = new LifecycleErrorDetail
+                    {
+                        ErrorCode       = errorCode,
+                        ErrorCategory   = errorCategory,
+                        IsRetriable     = isRetriable,
+                        RemediationHint = response.RemediationHint ?? string.Empty,
+                        DiagnosticContext = providerException != null
+                            ? new Dictionary<string, string>
+                              {
+                                  ["exceptionType"] = LoggingHelper.SanitizeLogInput(providerException.GetType().Name),
+                                  ["executionMode"] = "Authoritative",
+                              }
+                            : new Dictionary<string, string> { ["executionMode"] = "Authoritative" },
+                    };
+                    response.ProviderContext = BuildProviderContext(_evidenceProvider, available: false);
 
                     EmitTelemetry(response, TelemetryEventType.DependencyFailure, DeploymentStage.Submitting,
-                        "Blockchain evidence unavailable. Authoritative mode requires confirmed on-chain data.",
+                        isProviderTimeout
+                            ? "Blockchain evidence provider timed out (transient failure)."
+                            : "Blockchain evidence unavailable. Authoritative mode requires confirmed on-chain data.",
                         new Dictionary<string, string>
                         {
-                            ["errorCode"]     = "BLOCKCHAIN_EVIDENCE_UNAVAILABLE",
-                            ["executionMode"] = "Authoritative",
+                            ["errorCode"]      = errorCode,
+                            ["executionMode"]  = "Authoritative",
+                            ["isRetriable"]    = isRetriable.ToString().ToLowerInvariant(),
+                            ["evidenceStatus"] = response.EvidenceAvailability.Status.ToString(),
                         });
 
                     EmitTelemetry(response, TelemetryEventType.TerminalFailure, DeploymentStage.Failed,
-                        "Deployment terminated: BLOCKCHAIN_EVIDENCE_UNAVAILABLE",
-                        new Dictionary<string, string> { ["errorCode"] = "BLOCKCHAIN_EVIDENCE_UNAVAILABLE" });
+                        $"Deployment terminated: {errorCode}",
+                        new Dictionary<string, string>
+                        {
+                            ["errorCode"]     = errorCode,
+                            ["errorCategory"] = errorCategory.ToString(),
+                            ["isRetriable"]   = isRetriable.ToString().ToLowerInvariant(),
+                        });
 
                     StoreIdempotent(deploymentId, response);
                     _logger.LogWarning(
-                        "Deployment failed (BLOCKCHAIN_EVIDENCE_UNAVAILABLE): DeploymentId={DeploymentId}",
-                        deploymentId);
+                        "Deployment failed ({ErrorCode}): DeploymentId={DeploymentId}, IsRetriable={IsRetriable}",
+                        errorCode, deploymentId, isRetriable);
                     return response;
                 }
 
@@ -330,6 +417,21 @@ namespace BiatecTokensApi.Services
             response.TransactionId       = evidence!.TransactionId;
             response.IsSimulatedEvidence = evidence.IsSimulated;
             response.EvidenceProvenance  = BuildEvidenceProvenance(evidence);
+            response.EvidenceAvailability = new EvidenceAvailabilityDetail
+            {
+                Status      = evidence.IsSimulated
+                    ? LifecycleEvidenceStatus.Simulated
+                    : LifecycleEvidenceStatus.Confirmed,
+                ReasonCode  = evidence.IsSimulated
+                    ? "SIMULATED_HASH_DERIVED"
+                    : "CONFIRMED_AUTHORITATIVE",
+                Message     = evidence.IsSimulated
+                    ? "Evidence derived deterministically from deployment ID hash (not blockchain-confirmed)."
+                    : $"Authoritative on-chain evidence confirmed via {evidence.EvidenceSource}.",
+                IsRetriable = false,
+                RetrievedAt = DateTimeOffset.UtcNow,
+            };
+            response.ProviderContext = BuildProviderContext(_evidenceProvider, available: true, evidence);
             response.LastUpdatedAt       = DateTimeOffset.UtcNow;
             response.Progress            = BuildProgress(DeploymentStage.Submitting, 0);
 
@@ -954,33 +1056,37 @@ namespace BiatecTokensApi.Services
             string correlationId)
         {
             // Shallow copy with updated idempotency and correlation fields.
-            // IsSimulatedEvidence and EvidenceProvenance are propagated so consumers always
-            // know the evidence type on replayed responses.
+            // IsSimulatedEvidence, EvidenceProvenance, EvidenceAvailability, ErrorDetail,
+            // and ProviderContext are propagated so consumers always know the evidence type
+            // and error detail on replayed responses.
             return new TokenDeploymentLifecycleResponse
             {
-                DeploymentId      = source.DeploymentId,
-                IdempotencyKey    = source.IdempotencyKey,
-                CorrelationId     = correlationId,
-                Stage             = source.Stage,
-                Outcome           = source.Outcome,
-                IsIdempotentReplay = true,
-                IdempotencyStatus  = IdempotencyStatus.Duplicate,
-                Message           = source.Message,
-                AssetId           = source.AssetId,
-                TransactionId     = source.TransactionId,
-                ConfirmedRound    = source.ConfirmedRound,
-                RetryCount        = source.RetryCount,
-                IsDegraded        = source.IsDegraded,
-                IsSimulatedEvidence = source.IsSimulatedEvidence,
-                EvidenceProvenance  = source.EvidenceProvenance,
-                ValidationResults  = source.ValidationResults,
-                GuardrailFindings  = source.GuardrailFindings,
-                TelemetryEvents    = new List<DeploymentTelemetryEvent>(source.TelemetryEvents),
-                Progress           = source.Progress,
-                SchemaVersion      = source.SchemaVersion,
-                InitiatedAt        = source.InitiatedAt,
-                LastUpdatedAt      = source.LastUpdatedAt,
-                RemediationHint    = source.RemediationHint,
+                DeploymentId         = source.DeploymentId,
+                IdempotencyKey       = source.IdempotencyKey,
+                CorrelationId        = correlationId,
+                Stage                = source.Stage,
+                Outcome              = source.Outcome,
+                IsIdempotentReplay   = true,
+                IdempotencyStatus    = IdempotencyStatus.Duplicate,
+                Message              = source.Message,
+                AssetId              = source.AssetId,
+                TransactionId        = source.TransactionId,
+                ConfirmedRound       = source.ConfirmedRound,
+                RetryCount           = source.RetryCount,
+                IsDegraded           = source.IsDegraded,
+                IsSimulatedEvidence  = source.IsSimulatedEvidence,
+                EvidenceProvenance   = source.EvidenceProvenance,
+                EvidenceAvailability = source.EvidenceAvailability,
+                ErrorDetail          = source.ErrorDetail,
+                ProviderContext      = source.ProviderContext,
+                ValidationResults    = source.ValidationResults,
+                GuardrailFindings    = source.GuardrailFindings,
+                TelemetryEvents      = new List<DeploymentTelemetryEvent>(source.TelemetryEvents),
+                Progress             = source.Progress,
+                SchemaVersion        = source.SchemaVersion,
+                InitiatedAt          = source.InitiatedAt,
+                LastUpdatedAt        = source.LastUpdatedAt,
+                RemediationHint      = source.RemediationHint,
             };
         }
 
@@ -991,6 +1097,7 @@ namespace BiatecTokensApi.Services
             string message,
             string code)
         {
+            var hint = $"Error code: {code}. Review the error message for details.";
             return new TokenDeploymentLifecycleResponse
             {
                 DeploymentId    = deploymentId,
@@ -999,10 +1106,74 @@ namespace BiatecTokensApi.Services
                 Stage           = DeploymentStage.Failed,
                 Outcome         = DeploymentOutcome.TerminalFailure,
                 Message         = message,
-                RemediationHint = $"Error code: {code}. Review the error message for details.",
+                RemediationHint = hint,
                 InitiatedAt     = DateTimeOffset.UtcNow,
                 LastUpdatedAt   = DateTimeOffset.UtcNow,
                 Progress        = new DeploymentProgress { PercentComplete = 0, Summary = message },
+                EvidenceAvailability = new EvidenceAvailabilityDetail
+                {
+                    Status      = LifecycleEvidenceStatus.Unavailable,
+                    ReasonCode  = code,
+                    Message     = message,
+                    IsRetriable = false,
+                },
+                ErrorDetail = new LifecycleErrorDetail
+                {
+                    ErrorCode       = code,
+                    ErrorCategory   = LifecycleErrorCategory.InternalError,
+                    IsRetriable     = false,
+                    RemediationHint = hint,
+                },
+                ProviderContext = new LifecycleProviderContext
+                {
+                    ProviderFamily = "Unknown",
+                    IsAvailable    = false,
+                },
+            };
+        }
+
+        private static LifecycleProviderContext BuildProviderContext(
+            IDeploymentEvidenceProvider provider,
+            bool available,
+            BlockchainDeploymentEvidence? evidence = null)
+        {
+            var providerTypeName = provider.GetType().Name;
+            var evidenceSource   = evidence?.EvidenceSource ?? string.Empty;
+            bool isSimulated = providerTypeName.Contains("Simulated", StringComparison.OrdinalIgnoreCase)
+                            || providerTypeName.Contains("Unavailable", StringComparison.OrdinalIgnoreCase)
+                            || (evidence?.IsSimulated ?? false);
+
+            // Determine provider family from evidence source first (most reliable),
+            // then fall back to provider type name for provider-type-based detection.
+            // Use only specific, well-known network keywords to avoid false-positive matches.
+            string family;
+            if (evidenceSource.Contains("algorand", StringComparison.OrdinalIgnoreCase) ||
+                providerTypeName.Contains("Algorand", StringComparison.OrdinalIgnoreCase))
+                family = "Algorand";
+            else if (evidenceSource.Contains("base-", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Contains("base-mainnet", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Contains("base-sepolia", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Contains("ethereum", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Contains("-rpc", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Equals("evm", StringComparison.OrdinalIgnoreCase) ||
+                     providerTypeName.Contains("EVM", StringComparison.OrdinalIgnoreCase) ||
+                     providerTypeName.Contains("Ethereum", StringComparison.OrdinalIgnoreCase))
+                family = "EVM";
+            else if (providerTypeName.Contains("Simulated", StringComparison.OrdinalIgnoreCase))
+                family = "Simulation";
+            else if (providerTypeName.Contains("Unavailable", StringComparison.OrdinalIgnoreCase))
+                family = "Unavailable";
+            else
+                // Standardise unknown providers; never use raw evidenceSource as family
+                // to avoid arbitrary URLs or connection strings leaking into the contract.
+                family = "Unknown";
+
+            return new LifecycleProviderContext
+            {
+                ProviderFamily = family,
+                ProviderSource = evidenceSource,
+                IsSimulated    = isSimulated,
+                IsAvailable    = available,
             };
         }
     }
