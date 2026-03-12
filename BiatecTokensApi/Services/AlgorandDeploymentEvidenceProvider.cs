@@ -331,8 +331,9 @@ namespace BiatecTokensApi.Services
         private static Task DelayBeforeRetry(int attempt, CancellationToken ct)
         {
             // Exponential back-off: 500 ms, 1 000 ms, ...
-            var delay = TimeSpan.FromMilliseconds(500 * Math.Pow(2, attempt - 1));
-            return Task.Delay(delay, ct);
+            // Use bit shifting instead of Math.Pow for small integer exponentiation.
+            var delayMs = 500 << (attempt - 1);
+            return Task.Delay(TimeSpan.FromMilliseconds(delayMs), ct);
         }
     }
 }
