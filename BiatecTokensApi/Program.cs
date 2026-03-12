@@ -320,15 +320,45 @@ namespace BiatecTokensApi
             // Register account management service
             builder.Services.AddSingleton<IAccountService, AccountService>();
 
-            // Register token deployment lifecycle service (Issue #470)
-            // SimulatedDeploymentEvidenceProvider returns deterministic hash-derived evidence;
-            // deployments in Authoritative mode succeed but IsSimulatedEvidence = true.
-            // For production regulated issuance, replace with a real blockchain provider
-            // (e.g. AlgorandDeploymentEvidenceProvider) that obtains confirmed on-chain data
-            // and returns IsSimulatedEvidence = false.
-            // UnavailableDeploymentEvidenceProvider returns null, which causes Authoritative
-            // mode to fail with BLOCKCHAIN_EVIDENCE_UNAVAILABLE — use in tests only.
-            builder.Services.AddSingleton<IDeploymentEvidenceProvider, SimulatedDeploymentEvidenceProvider>();
+            // Register deployment evidence configuration (Issue #507)
+            builder.Services.Configure<BiatecTokensApi.Configuration.DeploymentEvidenceConfig>(
+                builder.Configuration.GetSection("DeploymentEvidenceConfig"));
+
+            // Register token deployment lifecycle service with environment-based provider selection.
+            //
+            // Provider selection is controlled by DeploymentEvidenceConfig:Provider in
+            // appsettings.json (or environment-specific overrides):
+            //
+            //   "Simulation"  — SimulatedDeploymentEvidenceProvider: deterministic hash-derived
+            //                   evidence; IsSimulatedEvidence = true on all completions.
+            //                   Suitable for development, testing, and non-production environments.
+            //
+            //   "Algorand"    — AlgorandDeploymentEvidenceProvider: retrieves authoritative
+            //                   on-chain evidence from an Algorand indexer node.
+            //                   IsSimulatedEvidence = false on confirmed completions.
+            //                   Requires DeploymentEvidenceConfig:Algorand:IndexerUrl to be set.
+            //                   Suitable for protected staging and production environments.
+            //
+            // In Authoritative execution mode, if the active provider cannot obtain evidence
+            // (node unreachable, timeout, malformed response), the lifecycle service returns
+            // a terminal failure with BLOCKCHAIN_EVIDENCE_UNAVAILABLE rather than silently
+            // degrading to simulation.
+            var evidenceProviderName = builder.Configuration
+                .GetSection("DeploymentEvidenceConfig:Provider")
+                .Value ?? "Simulation";
+
+            if (string.Equals(evidenceProviderName, "Algorand", StringComparison.OrdinalIgnoreCase))
+            {
+                builder.Services.AddSingleton<IDeploymentEvidenceProvider,
+                    AlgorandDeploymentEvidenceProvider>();
+            }
+            else
+            {
+                // Default: Simulation provider for dev/test/non-production environments.
+                builder.Services.AddSingleton<IDeploymentEvidenceProvider,
+                    SimulatedDeploymentEvidenceProvider>();
+            }
+
             builder.Services.AddSingleton<ITokenDeploymentLifecycleService, TokenDeploymentLifecycleService>();
 
             // Register backend deployment lifecycle contract service (Issue #472)

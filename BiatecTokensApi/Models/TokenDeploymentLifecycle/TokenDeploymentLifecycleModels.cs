@@ -274,6 +274,22 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
         /// <see cref="AssetId"/> or <see cref="TransactionId"/> as production-valid evidence.
         /// </summary>
         public bool IsSimulatedEvidence { get; set; }
+
+        /// <summary>
+        /// Human-readable description of where the deployment evidence originated.
+        /// Provides traceability for operators, audit tools, and downstream dashboards.
+        ///
+        /// Representative values:
+        /// <list type="bullet">
+        ///   <item><c>"algorand-indexer"</c> — evidence retrieved from a live Algorand
+        ///     indexer node; authoritative on-chain state.</item>
+        ///   <item><c>"simulation"</c> — evidence derived deterministically from the
+        ///     deployment ID hash; not blockchain-confirmed.</item>
+        ///   <item><c>"unavailable"</c> — no evidence could be obtained; set on failure
+        ///     responses when authoritative mode is requested.</item>
+        /// </list>
+        /// </summary>
+        public string? EvidenceProvenance { get; set; }
     }
 
     /// <summary>
@@ -535,5 +551,19 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
         /// ISO-8601 timestamp when the evidence was obtained or generated.
         /// </summary>
         public DateTimeOffset ObtainedAt { get; set; } = DateTimeOffset.UtcNow;
+
+        /// <summary>
+        /// Identifies the data source that produced this evidence.
+        /// Machine-readable label for audit trails and downstream consumers.
+        ///
+        /// Representative values:
+        /// <list type="bullet">
+        ///   <item><c>"algorand-indexer"</c> — obtained from a live Algorand indexer API call;
+        ///     represents confirmed on-chain state.</item>
+        ///   <item><c>"simulation"</c> — derived deterministically from the deployment ID hash;
+        ///     not blockchain-confirmed. <see cref="IsSimulated"/> will also be <c>true</c>.</item>
+        /// </list>
+        /// </summary>
+        public string EvidenceSource { get; set; } = string.Empty;
     }
 }

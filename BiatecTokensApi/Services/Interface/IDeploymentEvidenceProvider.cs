@@ -14,9 +14,10 @@ namespace BiatecTokensApi.Services.Interface
     ///   <item><see cref="BiatecTokensApi.Services.SimulatedDeploymentEvidenceProvider"/> —
     ///     returns deterministic hash-derived evidence; sets <see cref="BlockchainDeploymentEvidence.IsSimulated"/> = <c>true</c>.
     ///     Suitable for development, testing, and non-production environments.</item>
-    ///   <item>Future: <c>AlgorandDeploymentEvidenceProvider</c> / <c>EvmDeploymentEvidenceProvider</c> —
-    ///     would call live blockchain nodes; sets <c>IsSimulated = false</c>.
-    ///     Required for production regulated issuance sign-off.</item>
+    ///   <item><see cref="BiatecTokensApi.Services.AlgorandDeploymentEvidenceProvider"/> —
+    ///     queries a live Algorand indexer node; sets <c>IsSimulated = false</c>.
+    ///     Required for production regulated issuance sign-off on Algorand-family networks.
+    ///     Enabled by setting <c>DeploymentEvidenceConfig:Provider = "Algorand"</c>.</item>
     /// </list>
     ///
     /// The <see cref="TokenDeploymentLifecycleService"/> calls this provider during the
