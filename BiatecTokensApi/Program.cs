@@ -121,6 +121,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all Aml types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.Aml")
                         return $"Aml{type.Name}";
+                    // Use namespace-qualified names for all KycWorkflow types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.KycWorkflow")
+                        return $"KycWorkflow{type.Name}";
                     return type.Name;
                 });
                 
@@ -271,6 +274,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IIssuanceRiskScoringService, IssuanceRiskScoringService>();
             builder.Services.AddSingleton<IKycProvider, MockKycProvider>();
             builder.Services.AddSingleton<IKycService, KycService>();
+            builder.Services.AddSingleton<IKycWorkflowService, KycWorkflowService>();
             builder.Services.AddSingleton<IAmlProvider, MockAmlProvider>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IAmlRepository, BiatecTokensApi.Repositories.AmlRepository>();
             builder.Services.AddSingleton<IAmlService, AmlService>();
