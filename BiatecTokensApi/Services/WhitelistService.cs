@@ -1507,5 +1507,152 @@ namespace BiatecTokensApi.Services
                 _ => "Unknown status"
             };
         }
+
+        /// <summary>
+        /// Gets a compliance overview for an asset's whitelist, including investor eligibility summary,
+        /// transfer enforcement statistics, KYC verification metrics, and MICA readiness indicators.
+        /// Designed for compliance monitoring dashboards and regulatory reporting.
+        /// </summary>
+        /// <param name="assetId">The asset ID (token ID)</param>
+        /// <param name="network">Optional network identifier for MICA-specific indicators</param>
+        /// <returns>The compliance overview response with comprehensive compliance metrics</returns>
+        public async Task<WhitelistComplianceOverviewResponse> GetComplianceOverviewAsync(ulong assetId, string? network = null)
+        {
+            try
+            {
+                // Fetch all entries for this asset directly from repository
+                var allEntries = await _repository.GetEntriesByAssetIdAsync(assetId);
+
+                // Compute investor eligibility summary
+                var active = allEntries.Count(e => e.Status == WhitelistStatus.Active);
+                var inactive = allEntries.Count(e => e.Status == WhitelistStatus.Inactive);
+                var revoked = allEntries.Count(e => e.Status == WhitelistStatus.Revoked);
+                var now = DateTime.UtcNow;
+                var expired = allEntries.Count(e =>
+                    e.ExpirationDate.HasValue && e.ExpirationDate.Value < now);
+
+                var eligibility = new InvestorEligibilitySummary
+                {
+                    TotalEntries = allEntries.Count,
+                    ActiveEntries = active,
+                    InactiveEntries = inactive,
+                    RevokedEntries = revoked,
+                    ExpiredEntries = expired
+                };
+
+                // Fetch audit log for transfer enforcement stats
+                var auditRequest = new GetWhitelistAuditLogRequest
+                {
+                    AssetId = assetId,
+                    Page = 1,
+                    PageSize = int.MaxValue
+                };
+                var allAuditEntries = await _repository.GetAuditLogAsync(auditRequest);
+
+                var transferValidations = allAuditEntries
+                    .Where(e => e.ActionType == WhitelistActionType.TransferValidation)
+                    .ToList();
+                var allowedTransfers = transferValidations.Count(e => e.TransferAllowed == true);
+                var deniedTransfers = transferValidations.Count(e => e.TransferAllowed == false);
+                var lastValidation = transferValidations
+                    .OrderByDescending(e => e.PerformedAt)
+                    .FirstOrDefault()?.PerformedAt;
+
+                var enforcement = new TransferEnforcementSummary
+                {
+                    TotalValidations = transferValidations.Count,
+                    AllowedTransfers = allowedTransfers,
+                    DeniedTransfers = deniedTransfers,
+                    LastValidationAt = lastValidation
+                };
+
+                // KYC verification summary
+                var activeEntries = allEntries.Where(e => e.Status == WhitelistStatus.Active).ToList();
+                var kycVerified = activeEntries.Count(e => e.KycVerified);
+                var activeWithoutKyc = activeEntries.Count(e => !e.KycVerified);
+                var kycProviders = activeEntries
+                    .Where(e => e.KycVerified && !string.IsNullOrEmpty(e.KycProvider))
+                    .Select(e => e.KycProvider!)
+                    .Distinct()
+                    .ToList();
+
+                var kycSummary = new KycVerificationSummary
+                {
+                    KycVerifiedEntries = kycVerified,
+                    ActiveWithoutKyc = activeWithoutKyc,
+                    KycProviderCount = kycProviders.Count,
+                    KycProviders = kycProviders
+                };
+
+                // Audit trail summary
+                var auditSummary = new AuditTrailSummary
+                {
+                    TotalAuditEntries = allAuditEntries.Count,
+                    LastAuditAt = allAuditEntries.OrderByDescending(e => e.PerformedAt).FirstOrDefault()?.PerformedAt,
+                    EarliestAuditAt = allAuditEntries.OrderBy(e => e.PerformedAt).FirstOrDefault()?.PerformedAt,
+                    MinimumRetentionYears = 7,
+                    ImmutableEntries = true
+                };
+
+                // MICA readiness (if network is provided)
+                MicaReadinessIndicators? micaReadiness = null;
+                if (!string.IsNullOrEmpty(network))
+                {
+                    var requiresMica = IsNetworkMicaApplicable(network);
+                    var allKyc = active == 0 || kycVerified == active;
+                    var retentionCompliant = auditSummary.MinimumRetentionYears >= 7;
+                    var immutableCompliant = auditSummary.ImmutableEntries;
+
+                    int readinessScore = 0;
+                    if (allKyc) readinessScore += 40;
+                    if (retentionCompliant) readinessScore += 30;
+                    if (immutableCompliant) readinessScore += 30;
+
+                    micaReadiness = new MicaReadinessIndicators
+                    {
+                        AllActiveEntriesKycVerified = allKyc,
+                        AuditRetentionCompliant = retentionCompliant,
+                        ImmutableAuditCompliant = immutableCompliant,
+                        ApplicableNetwork = network,
+                        ReadinessScore = requiresMica ? readinessScore : 100
+                    };
+                }
+
+                _logger.LogInformation(
+                    "Generated compliance overview for asset {AssetId}: {Active} active, {Total} total entries, {Validations} validations",
+                    assetId, active, allEntries.Count, transferValidations.Count);
+
+                return new WhitelistComplianceOverviewResponse
+                {
+                    Success = true,
+                    AssetId = assetId,
+                    GeneratedAt = DateTime.UtcNow,
+                    InvestorEligibility = eligibility,
+                    TransferEnforcement = enforcement,
+                    KycVerification = kycSummary,
+                    AuditTrail = auditSummary,
+                    MicaReadiness = micaReadiness
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate compliance overview for asset {AssetId}", assetId);
+                return new WhitelistComplianceOverviewResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to generate compliance overview: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Determines if a network requires MICA compliance
+        /// </summary>
+        private static bool IsNetworkMicaApplicable(string network)
+        {
+            // VOI mainnet and Aramid mainnet are MICA-applicable networks
+            return network.Contains("voimain", StringComparison.OrdinalIgnoreCase)
+                || network.Contains("aramidmain", StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

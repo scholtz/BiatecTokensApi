@@ -1707,5 +1707,69 @@ namespace BiatecTokensApi.Controllers
             public string? Network { get; set; }
             public DateTime? ExpirationDate { get; set; }
         }
+
+        /// <summary>
+        /// Gets a compliance overview for an asset's whitelist
+        /// </summary>
+        /// <param name="assetId">The asset ID (token ID)</param>
+        /// <param name="network">Optional network identifier for MICA readiness indicators (e.g., voimain-v1.0, aramidmain-v1.0)</param>
+        /// <returns>Compliance overview with investor eligibility, enforcement stats, KYC metrics, and MICA readiness</returns>
+        /// <remarks>
+        /// Returns a machine-readable compliance overview aggregating the current compliance state of
+        /// an asset's whitelist. Designed for compliance monitoring dashboards, regulatory reporting,
+        /// and downstream frontend consumers that need a single-call summary.
+        ///
+        /// **Response includes:**
+        /// - **InvestorEligibility**: Total/active/inactive/revoked/expired entry counts with percentages
+        /// - **TransferEnforcement**: Total/allowed/denied transfer validation counts with timestamps
+        /// - **KycVerification**: KYC-verified entry count, active entries without KYC, provider list
+        /// - **AuditTrail**: Total audit entries, date range, retention policy (7-year minimum, immutable)
+        /// - **MicaReadiness**: (When `network` is provided) KYC completeness, retention compliance, readiness score 0-100
+        ///
+        /// **MICA Readiness Score (0-100):**
+        /// - +40 points: All active entries have KYC verification
+        /// - +30 points: Audit retention meets 7-year minimum
+        /// - +30 points: Audit entries are immutable
+        /// - Score is 100 for non-MICA networks
+        ///
+        /// Requires ARC-0014 authentication.
+        /// </remarks>
+        [HttpGet("compliance-overview")]
+        [ProducesResponseType(typeof(WhitelistComplianceOverviewResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetComplianceOverview(
+            [FromQuery] ulong assetId,
+            [FromQuery] string? network = null)
+        {
+            try
+            {
+                var userAddress = GetUserAddress();
+                _logger.LogInformation(
+                    "Compliance overview requested by {UserAddress} for AssetId={AssetId}, Network={Network}",
+                    userAddress, assetId, network);
+
+                var result = await _whitelistService.GetComplianceOverviewAsync(assetId, network);
+
+                if (result.Success)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogError("Failed to generate compliance overview: {Error}", result.ErrorMessage);
+                    return StatusCode(StatusCodes.Status500InternalServerError, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating compliance overview for asset {AssetId}", assetId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new WhitelistComplianceOverviewResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
     }
 }

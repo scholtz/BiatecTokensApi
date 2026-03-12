@@ -1,6 +1,208 @@
 namespace BiatecTokensApi.Models.Whitelist
 {
     /// <summary>
+    /// Compliance overview response for an asset's whitelist state, suitable for compliance
+    /// monitoring dashboards. Provides a machine-readable summary of investor eligibility
+    /// metrics, enforcement statistics, and MICA readiness indicators.
+    /// </summary>
+    public class WhitelistComplianceOverviewResponse : BaseResponse
+    {
+        /// <summary>
+        /// The asset ID for which the compliance overview was generated
+        /// </summary>
+        public ulong AssetId { get; set; }
+
+        /// <summary>
+        /// Timestamp when this overview was generated
+        /// </summary>
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Investor eligibility summary
+        /// </summary>
+        public InvestorEligibilitySummary? InvestorEligibility { get; set; }
+
+        /// <summary>
+        /// Transfer enforcement summary
+        /// </summary>
+        public TransferEnforcementSummary? TransferEnforcement { get; set; }
+
+        /// <summary>
+        /// KYC verification summary
+        /// </summary>
+        public KycVerificationSummary? KycVerification { get; set; }
+
+        /// <summary>
+        /// Audit trail summary
+        /// </summary>
+        public AuditTrailSummary? AuditTrail { get; set; }
+
+        /// <summary>
+        /// MICA readiness indicators (populated when network is specified)
+        /// </summary>
+        public MicaReadinessIndicators? MicaReadiness { get; set; }
+    }
+
+    /// <summary>
+    /// Summary of investor eligibility across the whitelist for an asset
+    /// </summary>
+    public class InvestorEligibilitySummary
+    {
+        /// <summary>
+        /// Total number of whitelist entries
+        /// </summary>
+        public int TotalEntries { get; set; }
+
+        /// <summary>
+        /// Number of active (approved) entries
+        /// </summary>
+        public int ActiveEntries { get; set; }
+
+        /// <summary>
+        /// Number of inactive (pending) entries
+        /// </summary>
+        public int InactiveEntries { get; set; }
+
+        /// <summary>
+        /// Number of revoked entries
+        /// </summary>
+        public int RevokedEntries { get; set; }
+
+        /// <summary>
+        /// Number of expired entries
+        /// </summary>
+        public int ExpiredEntries { get; set; }
+
+        /// <summary>
+        /// Percentage of entries that are active
+        /// </summary>
+        public double ActivePercentage => TotalEntries > 0
+            ? Math.Round(ActiveEntries * 100.0 / TotalEntries, 2)
+            : 0.0;
+    }
+
+    /// <summary>
+    /// Summary of transfer enforcement activity for an asset
+    /// </summary>
+    public class TransferEnforcementSummary
+    {
+        /// <summary>
+        /// Total number of transfer validation events
+        /// </summary>
+        public int TotalValidations { get; set; }
+
+        /// <summary>
+        /// Number of allowed transfers
+        /// </summary>
+        public int AllowedTransfers { get; set; }
+
+        /// <summary>
+        /// Number of denied transfers
+        /// </summary>
+        public int DeniedTransfers { get; set; }
+
+        /// <summary>
+        /// Percentage of transfers that were allowed
+        /// </summary>
+        public double AllowedPercentage => TotalValidations > 0
+            ? Math.Round(AllowedTransfers * 100.0 / TotalValidations, 2)
+            : 0.0;
+
+        /// <summary>
+        /// Most recent validation timestamp
+        /// </summary>
+        public DateTime? LastValidationAt { get; set; }
+    }
+
+    /// <summary>
+    /// Summary of KYC verification across whitelist entries
+    /// </summary>
+    public class KycVerificationSummary
+    {
+        /// <summary>
+        /// Total number of entries with KYC verification
+        /// </summary>
+        public int KycVerifiedEntries { get; set; }
+
+        /// <summary>
+        /// Total number of active entries without KYC verification
+        /// </summary>
+        public int ActiveWithoutKyc { get; set; }
+
+        /// <summary>
+        /// Number of distinct KYC providers in use
+        /// </summary>
+        public int KycProviderCount { get; set; }
+
+        /// <summary>
+        /// List of KYC providers in use (for audit/reporting)
+        /// </summary>
+        public List<string> KycProviders { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Summary of audit trail completeness and retention compliance
+    /// </summary>
+    public class AuditTrailSummary
+    {
+        /// <summary>
+        /// Total number of audit log entries
+        /// </summary>
+        public int TotalAuditEntries { get; set; }
+
+        /// <summary>
+        /// Most recent audit entry timestamp
+        /// </summary>
+        public DateTime? LastAuditAt { get; set; }
+
+        /// <summary>
+        /// Earliest audit entry timestamp
+        /// </summary>
+        public DateTime? EarliestAuditAt { get; set; }
+
+        /// <summary>
+        /// Minimum retention years for audit records (MICA requirement: 7 years)
+        /// </summary>
+        public int MinimumRetentionYears { get; set; } = 7;
+
+        /// <summary>
+        /// Whether audit entries are immutable
+        /// </summary>
+        public bool ImmutableEntries { get; set; } = true;
+    }
+
+    /// <summary>
+    /// MICA readiness indicators for regulated network compliance
+    /// </summary>
+    public class MicaReadinessIndicators
+    {
+        /// <summary>
+        /// Whether all active entries have KYC verification
+        /// </summary>
+        public bool AllActiveEntriesKycVerified { get; set; }
+
+        /// <summary>
+        /// Whether audit trail retention meets MICA requirements (7+ years)
+        /// </summary>
+        public bool AuditRetentionCompliant { get; set; }
+
+        /// <summary>
+        /// Whether immutable audit entries are in place
+        /// </summary>
+        public bool ImmutableAuditCompliant { get; set; }
+
+        /// <summary>
+        /// Network-specific MICA requirements
+        /// </summary>
+        public string? ApplicableNetwork { get; set; }
+
+        /// <summary>
+        /// Overall MICA readiness score (0-100)
+        /// </summary>
+        public int ReadinessScore { get; set; }
+    }
+
+    /// <summary>
     /// Response for whitelist operations
     /// </summary>
     public class WhitelistResponse : BaseResponse

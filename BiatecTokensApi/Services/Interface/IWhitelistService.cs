@@ -73,5 +73,15 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="performedBy">The address of the user performing the verification (for audit logging)</param>
         /// <returns>The verification response with statuses and compliance disclosures</returns>
         Task<VerifyAllowlistStatusResponse> VerifyAllowlistStatusAsync(VerifyAllowlistStatusRequest request, string performedBy);
+
+        /// <summary>
+        /// Gets a compliance overview for an asset's whitelist, including investor eligibility summary,
+        /// transfer enforcement statistics, KYC verification metrics, and MICA readiness indicators.
+        /// Designed for compliance monitoring dashboards and regulatory reporting.
+        /// </summary>
+        /// <param name="assetId">The asset ID (token ID)</param>
+        /// <param name="network">Optional network identifier for MICA-specific indicators (e.g., voimain-v1.0)</param>
+        /// <returns>The compliance overview response with comprehensive compliance metrics</returns>
+        Task<WhitelistComplianceOverviewResponse> GetComplianceOverviewAsync(ulong assetId, string? network = null);
     }
 }
