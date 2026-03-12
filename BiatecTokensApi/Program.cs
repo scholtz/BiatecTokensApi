@@ -321,6 +321,14 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IAccountService, AccountService>();
 
             // Register token deployment lifecycle service (Issue #470)
+            // SimulatedDeploymentEvidenceProvider returns deterministic hash-derived evidence;
+            // deployments in Authoritative mode succeed but IsSimulatedEvidence = true.
+            // For production regulated issuance, replace with a real blockchain provider
+            // (e.g. AlgorandDeploymentEvidenceProvider) that obtains confirmed on-chain data
+            // and returns IsSimulatedEvidence = false.
+            // UnavailableDeploymentEvidenceProvider returns null, which causes Authoritative
+            // mode to fail with BLOCKCHAIN_EVIDENCE_UNAVAILABLE — use in tests only.
+            builder.Services.AddSingleton<IDeploymentEvidenceProvider, SimulatedDeploymentEvidenceProvider>();
             builder.Services.AddSingleton<ITokenDeploymentLifecycleService, TokenDeploymentLifecycleService>();
 
             // Register backend deployment lifecycle contract service (Issue #472)
