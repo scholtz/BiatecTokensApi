@@ -688,26 +688,100 @@ namespace BiatecTokensTests
             Assert.That(auditResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
 
-        // ── E2E Workflow 14: Compliance export endpoint ───────────────────────────
+        // ── E2E Workflow 14: Compliance export and overview endpoints ─────────────
 
         [Test]
-        public async Task E2E_ComplianceExport_EndpointsReturnNon5xx()
+        public async Task E2E_ComplianceExport_AndOverview_ReturnCorrectSchema()
         {
             if (_accessToken == null) { Assert.Ignore("No auth token"); return; }
 
             const ulong assetId = 30110;
 
-            // Add some data to export
+            // Add an active entry so the overview has data to report
             await _authClient.PostAsJsonAsync("/api/v1/whitelist", new AddWhitelistEntryRequest
             { AssetId = assetId, Address = AlgoAddr1, Status = WhitelistStatus.Active });
 
-            // Export whitelist
+            // Export whitelist (CSV route exists; generic /export returns 404 which is < 500)
             var export = await _authClient.GetAsync($"/api/v1/whitelist/{assetId}/export");
             Assert.That((int)export.StatusCode, Is.LessThan(500), "Export must not 5xx");
 
-            // Compliance overview
-            var overview = await _authClient.GetAsync($"/api/v1/whitelist/compliance-overview?assetId={assetId}");
-            Assert.That((int)overview.StatusCode, Is.LessThan(500), "Overview must not 5xx");
+            // Compliance overview — now a real endpoint
+            var overviewResp = await _authClient.GetAsync(
+                $"/api/v1/whitelist/compliance-overview?assetId={assetId}");
+            Assert.That(overviewResp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "Compliance overview must return 200");
+
+            var overviewBody = await overviewResp.Content.ReadAsStringAsync();
+            var overviewDoc = JsonDocument.Parse(overviewBody);
+            var root = overviewDoc.RootElement;
+
+            // success field
+            Assert.That(root.TryGetProperty("success", out var successProp), Is.True,
+                "Compliance overview must have 'success' field");
+            Assert.That(successProp.GetBoolean(), Is.True, "Compliance overview success must be true");
+
+            // assetId field
+            Assert.That(root.TryGetProperty("assetId", out var assetIdProp), Is.True,
+                "Compliance overview must have 'assetId' field");
+            Assert.That(assetIdProp.GetUInt64(), Is.EqualTo(assetId), "assetId must match request");
+
+            // generatedAt field
+            Assert.That(root.TryGetProperty("generatedAt", out _), Is.True,
+                "Compliance overview must have 'generatedAt' timestamp");
+
+            // investorEligibility section
+            Assert.That(root.TryGetProperty("investorEligibility", out var eligibility), Is.True,
+                "Compliance overview must have 'investorEligibility' section");
+            Assert.That(eligibility.TryGetProperty("totalEntries", out var totalEntries), Is.True,
+                "investorEligibility must have 'totalEntries'");
+            Assert.That(totalEntries.GetInt32(), Is.GreaterThanOrEqualTo(1),
+                "Should have at least 1 entry after adding one");
+            Assert.That(eligibility.TryGetProperty("activeEntries", out _), Is.True,
+                "investorEligibility must have 'activeEntries'");
+            Assert.That(eligibility.TryGetProperty("activePercentage", out _), Is.True,
+                "investorEligibility must have 'activePercentage'");
+
+            // transferEnforcement section
+            Assert.That(root.TryGetProperty("transferEnforcement", out var enforcement), Is.True,
+                "Compliance overview must have 'transferEnforcement' section");
+            Assert.That(enforcement.TryGetProperty("totalValidations", out _), Is.True,
+                "transferEnforcement must have 'totalValidations'");
+            Assert.That(enforcement.TryGetProperty("allowedTransfers", out _), Is.True,
+                "transferEnforcement must have 'allowedTransfers'");
+            Assert.That(enforcement.TryGetProperty("deniedTransfers", out _), Is.True,
+                "transferEnforcement must have 'deniedTransfers'");
+
+            // kycVerification section
+            Assert.That(root.TryGetProperty("kycVerification", out var kyc), Is.True,
+                "Compliance overview must have 'kycVerification' section");
+            Assert.That(kyc.TryGetProperty("kycVerifiedEntries", out _), Is.True,
+                "kycVerification must have 'kycVerifiedEntries'");
+
+            // auditTrail section
+            Assert.That(root.TryGetProperty("auditTrail", out var auditTrail), Is.True,
+                "Compliance overview must have 'auditTrail' section");
+            Assert.That(auditTrail.TryGetProperty("minimumRetentionYears", out var retentionYears), Is.True,
+                "auditTrail must have 'minimumRetentionYears'");
+            Assert.That(retentionYears.GetInt32(), Is.GreaterThanOrEqualTo(7),
+                "MICA requires 7+ year retention");
+            Assert.That(auditTrail.TryGetProperty("immutableEntries", out var immutable), Is.True,
+                "auditTrail must have 'immutableEntries'");
+            Assert.That(immutable.GetBoolean(), Is.True, "Audit entries must be immutable");
+
+            // Test with MICA network — should return micaReadiness section
+            var overviewMicaResp = await _authClient.GetAsync(
+                $"/api/v1/whitelist/compliance-overview?assetId={assetId}&network=voimain-v1.0");
+            Assert.That(overviewMicaResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            var micaDoc = JsonDocument.Parse(await overviewMicaResp.Content.ReadAsStringAsync());
+            Assert.That(micaDoc.RootElement.TryGetProperty("micaReadiness", out var micaReadiness), Is.True,
+                "Compliance overview with MICA network must have 'micaReadiness' section");
+            Assert.That(micaReadiness.ValueKind, Is.Not.EqualTo(JsonValueKind.Null),
+                "micaReadiness must not be null for MICA network");
+            Assert.That(micaReadiness.TryGetProperty("readinessScore", out var score), Is.True,
+                "micaReadiness must have 'readinessScore'");
+            Assert.That(score.GetInt32(), Is.InRange(0, 100),
+                "readinessScore must be 0-100");
 
             // Audit log retention policy
             var retentionPolicy = await _authClient.GetAsync("/api/v1/whitelist/audit-log/retention-policy");

@@ -931,6 +931,179 @@ namespace BiatecTokensTests
             }
         }
 
+        // ── Compliance Overview ───────────────────────────────────────────────────
+
+        [Test]
+        public async Task GetComplianceOverview_EmptyAsset_ReturnsZeroCounts()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_001UL;
+
+            var result = await svc.GetComplianceOverviewAsync(assetId);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.AssetId, Is.EqualTo(assetId));
+            Assert.That(result.InvestorEligibility, Is.Not.Null);
+            Assert.That(result.InvestorEligibility!.TotalEntries, Is.EqualTo(0));
+            Assert.That(result.InvestorEligibility.ActiveEntries, Is.EqualTo(0));
+            Assert.That(result.TransferEnforcement, Is.Not.Null);
+            Assert.That(result.TransferEnforcement!.TotalValidations, Is.EqualTo(0));
+            Assert.That(result.KycVerification, Is.Not.Null);
+            Assert.That(result.AuditTrail, Is.Not.Null);
+            Assert.That(result.AuditTrail!.MinimumRetentionYears, Is.GreaterThanOrEqualTo(7));
+            Assert.That(result.AuditTrail.ImmutableEntries, Is.True);
+            Assert.That(result.MicaReadiness, Is.Null, "No network = no MICA readiness");
+        }
+
+        [Test]
+        public async Task GetComplianceOverview_WithActiveEntries_ReturnsCorrectCounts()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_002UL;
+
+            await svc.AddEntryAsync(new AddWhitelistEntryRequest
+            {
+                AssetId = assetId, Address = ValidAddress1, Status = WhitelistStatus.Active
+            }, "issuer");
+            await svc.AddEntryAsync(new AddWhitelistEntryRequest
+            {
+                AssetId = assetId, Address = ValidAddress2, Status = WhitelistStatus.Active
+            }, "issuer");
+
+            var result = await svc.GetComplianceOverviewAsync(assetId);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.InvestorEligibility!.TotalEntries, Is.EqualTo(2));
+            Assert.That(result.InvestorEligibility.ActiveEntries, Is.EqualTo(2));
+            Assert.That(result.InvestorEligibility.ActivePercentage, Is.EqualTo(100.0));
+        }
+
+        [Test]
+        public async Task GetComplianceOverview_WithMicaNetwork_ReturnsMicaReadiness()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_003UL;
+
+            var result = await svc.GetComplianceOverviewAsync(assetId, "voimain-v1.0");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.MicaReadiness, Is.Not.Null, "MICA network should return readiness");
+            Assert.That(result.MicaReadiness!.ApplicableNetwork, Is.EqualTo("voimain-v1.0"));
+            Assert.That(result.MicaReadiness.ReadinessScore, Is.InRange(0, 100));
+            Assert.That(result.MicaReadiness.AuditRetentionCompliant, Is.True);
+            Assert.That(result.MicaReadiness.ImmutableAuditCompliant, Is.True);
+        }
+
+        [Test]
+        public async Task GetComplianceOverview_WithNonMicaNetwork_ReturnsFullScore()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_004UL;
+
+            var result = await svc.GetComplianceOverviewAsync(assetId, "testnet-v1.0");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.MicaReadiness, Is.Not.Null);
+            // Non-MICA networks automatically get full score
+            Assert.That(result.MicaReadiness!.ReadinessScore, Is.EqualTo(100));
+        }
+
+        [Test]
+        public async Task GetComplianceOverview_WithKycVerifiedEntries_ReportsKycMetrics()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_005UL;
+
+            await svc.AddEntryAsync(new AddWhitelistEntryRequest
+            {
+                AssetId = assetId, Address = ValidAddress1, Status = WhitelistStatus.Active,
+                KycVerified = true, KycProvider = "Jumio"
+            }, "issuer");
+            await svc.AddEntryAsync(new AddWhitelistEntryRequest
+            {
+                AssetId = assetId, Address = ValidAddress2, Status = WhitelistStatus.Active,
+                KycVerified = false
+            }, "issuer");
+
+            var result = await svc.GetComplianceOverviewAsync(assetId, "voimain-v1.0");
+
+            Assert.That(result.KycVerification!.KycVerifiedEntries, Is.EqualTo(1));
+            Assert.That(result.KycVerification.ActiveWithoutKyc, Is.EqualTo(1));
+            Assert.That(result.KycVerification.KycProviders, Contains.Item("Jumio"));
+
+            // Not all entries KYC'd → MICA readiness score < 100
+            Assert.That(result.MicaReadiness!.AllActiveEntriesKycVerified, Is.False);
+            Assert.That(result.MicaReadiness.ReadinessScore, Is.LessThan(100));
+        }
+
+        [Test]
+        public async Task GetComplianceOverview_AuditTrailSummary_IsAlwaysPresent()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_006UL;
+
+            // Add an entry to generate an audit log entry
+            await svc.AddEntryAsync(new AddWhitelistEntryRequest
+            {
+                AssetId = assetId, Address = ValidAddress1, Status = WhitelistStatus.Active
+            }, "issuer");
+
+            var result = await svc.GetComplianceOverviewAsync(assetId);
+
+            Assert.That(result.AuditTrail, Is.Not.Null);
+            Assert.That(result.AuditTrail!.TotalAuditEntries, Is.GreaterThanOrEqualTo(1),
+                "Adding an entry must produce at least one audit log entry");
+            Assert.That(result.AuditTrail.LastAuditAt, Is.Not.Null);
+            Assert.That(result.AuditTrail.EarliestAuditAt, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task GetComplianceOverview_TransferEnforcement_ReflectsValidations()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_007UL;
+
+            // Add whitelist entries
+            await svc.AddEntryAsync(new AddWhitelistEntryRequest
+            {
+                AssetId = assetId, Address = ValidAddress1, Status = WhitelistStatus.Active
+            }, "issuer");
+            await svc.AddEntryAsync(new AddWhitelistEntryRequest
+            {
+                AssetId = assetId, Address = ValidAddress2, Status = WhitelistStatus.Active
+            }, "issuer");
+
+            // Run a transfer validation
+            await svc.ValidateTransferAsync(new ValidateTransferRequest
+            {
+                AssetId = assetId,
+                FromAddress = ValidAddress1,
+                ToAddress = ValidAddress2
+            }, "compliance-officer");
+
+            var result = await svc.GetComplianceOverviewAsync(assetId);
+
+            Assert.That(result.TransferEnforcement!.TotalValidations, Is.GreaterThanOrEqualTo(1),
+                "Validation event must appear in enforcement stats");
+            Assert.That(result.TransferEnforcement.AllowedTransfers, Is.GreaterThanOrEqualTo(1),
+                "Allowed transfer must be counted");
+            Assert.That(result.TransferEnforcement.LastValidationAt, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task GetComplianceOverview_GeneratedAt_IsRecent()
+        {
+            var svc = CreateService();
+            const ulong assetId = 99_008UL;
+
+            var before = DateTime.UtcNow.AddSeconds(-1);
+            var result = await svc.GetComplianceOverviewAsync(assetId);
+            var after = DateTime.UtcNow.AddSeconds(1);
+
+            Assert.That(result.GeneratedAt, Is.InRange(before, after),
+                "GeneratedAt must be current UTC timestamp");
+        }
+
         // ── No-op stubs for unit test isolation ──────────────────────────────────
 
         private sealed class NoOpMeteringService : ISubscriptionMeteringService
