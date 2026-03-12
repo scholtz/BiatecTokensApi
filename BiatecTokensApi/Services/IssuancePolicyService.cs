@@ -492,9 +492,10 @@ namespace BiatecTokensApi.Services
             try
             {
                 const int pageSize = 100;
+                const int maxPages = 50; // Cap at 5,000 entries to prevent excessive API calls
                 int page = 1;
 
-                while (true)
+                while (page <= maxPages)
                 {
                     var listResult = await _whitelistService.ListEntriesAsync(new ListWhitelistRequest
                     {

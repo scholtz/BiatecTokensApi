@@ -224,7 +224,7 @@ namespace BiatecTokensTests
         public async Task ListPolicies_TotalCountMatchesPolicies()
         {
             var assetBase = 1200000UL + (ulong)(DateTime.UtcNow.Ticks % 100000);
-            var issuer = "LISTCOUNTTEST" + Guid.NewGuid().ToString("N")[..10];
+            var issuer = IssuerA[..20] + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
             await _service.CreatePolicyAsync(
                 new CreateIssuancePolicyRequest { AssetId = assetBase + 1, PolicyName = "Policy X" }, issuer);
             await _service.CreatePolicyAsync(
