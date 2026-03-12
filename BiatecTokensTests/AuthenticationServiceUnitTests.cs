@@ -92,7 +92,12 @@ namespace BiatecTokensTests
             {
                 UserId = Guid.NewGuid().ToString(),
                 Email = email ?? "test@biatec-test.example.com",
-                PasswordHash = "salt:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", // won't match real password
+                // Placeholder hash - does NOT match any real password.
+                // Only use this helper in tests where password verification is NOT exercised
+                // (e.g., locked-account tests, inactive-account tests, user-lookup tests).
+                // For tests that require successful password verification, register via
+                // _service.RegisterAsync() first and capture the real User from the mock callback.
+                PasswordHash = "salt:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
                 AlgorandAddress = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 EncryptedMnemonic = "encrypted_mnemonic_placeholder",
                 IsActive = isActive,
