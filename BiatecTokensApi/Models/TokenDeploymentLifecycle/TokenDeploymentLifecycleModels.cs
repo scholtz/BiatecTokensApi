@@ -88,6 +88,34 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
         Unknown
     }
 
+    /// <summary>
+    /// Controls whether the deployment lifecycle service requires authoritative blockchain
+    /// evidence or accepts deterministic simulation evidence.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum DeploymentExecutionMode
+    {
+        /// <summary>
+        /// The service requires authoritative blockchain evidence. If the evidence provider
+        /// cannot supply confirmed on-chain data (e.g. no live node available), the deployment
+        /// transitions to <see cref="DeploymentStage.Failed"/> with
+        /// <see cref="DeploymentOutcome.TerminalFailure"/> and error code
+        /// <c>BLOCKCHAIN_EVIDENCE_UNAVAILABLE</c>. This mode is required for production-grade
+        /// sign-off and enterprise regulated issuance.
+        /// </summary>
+        Authoritative,
+
+        /// <summary>
+        /// The service accepts deterministic simulation evidence when authoritative data is
+        /// unavailable. Blockchain fields (<c>AssetId</c>, <c>TransactionId</c>,
+        /// <c>ConfirmedRound</c>) are derived from the deployment ID hash.
+        /// <see cref="TokenDeploymentLifecycleResponse.IsSimulatedEvidence"/> is set to
+        /// <c>true</c> on all simulated completions. This mode is acceptable for contract-shape
+        /// validation, development, and test environments.
+        /// </summary>
+        Simulation
+    }
+
     // ── Request / Response models ─────────────────────────────────────────────
 
     /// <summary>
@@ -145,6 +173,21 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
 
         /// <summary>Timeout for the entire deployment pipeline in seconds.</summary>
         public int TimeoutSeconds { get; set; } = 120;
+
+        /// <summary>
+        /// Controls whether the deployment requires authoritative blockchain evidence or accepts
+        /// deterministic simulation evidence. Defaults to <see cref="DeploymentExecutionMode.Authoritative"/>.
+        ///
+        /// In <see cref="DeploymentExecutionMode.Authoritative"/> mode the service fails with
+        /// <c>BLOCKCHAIN_EVIDENCE_UNAVAILABLE</c> if confirmed on-chain data cannot be obtained,
+        /// making it suitable for production regulated issuance sign-off.
+        ///
+        /// In <see cref="DeploymentExecutionMode.Simulation"/> mode the service uses
+        /// deterministic hash-derived values and sets
+        /// <see cref="TokenDeploymentLifecycleResponse.IsSimulatedEvidence"/> = <c>true</c>;
+        /// suitable for development, contract-shape testing, and non-production environments.
+        /// </summary>
+        public DeploymentExecutionMode ExecutionMode { get; set; } = DeploymentExecutionMode.Authoritative;
     }
 
     /// <summary>
@@ -215,6 +258,22 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
 
         /// <summary>Human-readable remediation hint when Outcome is a failure category.</summary>
         public string? RemediationHint { get; set; }
+
+        /// <summary>
+        /// Indicates that the blockchain-side evidence fields (<see cref="AssetId"/>,
+        /// <see cref="TransactionId"/>, <see cref="ConfirmedRound"/>) are derived
+        /// deterministically from the deployment ID rather than obtained from a live blockchain
+        /// node. When <c>true</c>, these values are deterministic placeholders suitable for
+        /// contract-shape validation and sign-off workflow testing, but they do NOT represent
+        /// confirmed on-chain state.
+        ///
+        /// A value of <c>false</c> means the evidence was obtained from a real blockchain
+        /// confirmation and can be used as authoritative proof of deployment.
+        ///
+        /// Sign-off environments and frontend consumers MUST check this flag before treating
+        /// <see cref="AssetId"/> or <see cref="TransactionId"/> as production-valid evidence.
+        /// </summary>
+        public bool IsSimulatedEvidence { get; set; }
     }
 
     /// <summary>
@@ -432,5 +491,49 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
 
         /// <summary>Whether a conflicting deployment (same token name+network) is in progress.</summary>
         public bool ConflictingDeploymentDetected { get; set; }
+    }
+
+    /// <summary>
+    /// On-chain evidence returned by a <c>IDeploymentEvidenceProvider</c> for a completed
+    /// deployment transaction.
+    ///
+    /// When <see cref="IsSimulated"/> is <c>true</c> these values are deterministic hash-derived
+    /// placeholders (suitable for contract-shape validation only).
+    /// When <see cref="IsSimulated"/> is <c>false</c> these values were obtained from a live
+    /// blockchain node and represent confirmed on-chain state.
+    /// </summary>
+    public class BlockchainDeploymentEvidence
+    {
+        /// <summary>
+        /// On-chain transaction identifier. For Algorand this is the base32-encoded tx ID;
+        /// for EVM chains this is the 0x-prefixed transaction hash.
+        /// </summary>
+        public string TransactionId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// On-chain asset / contract identifier. For Algorand this is the ASA ID (uint64);
+        /// for EVM chains this is the token contract address (encoded as a uint64 for
+        /// contract-address → uint mapping support).
+        /// </summary>
+        public ulong AssetId { get; set; }
+
+        /// <summary>
+        /// Block or round number at which the deployment transaction was confirmed.
+        /// For Algorand this is the confirmed-round from the transaction confirmation object;
+        /// for EVM chains this is the block number.
+        /// </summary>
+        public ulong ConfirmedRound { get; set; }
+
+        /// <summary>
+        /// When <c>true</c>, these values are deterministic simulations derived from a hash of
+        /// the deployment ID and do NOT represent confirmed blockchain state.
+        /// Sign-off tooling MUST treat <c>IsSimulated = true</c> as non-authoritative evidence.
+        /// </summary>
+        public bool IsSimulated { get; set; }
+
+        /// <summary>
+        /// ISO-8601 timestamp when the evidence was obtained or generated.
+        /// </summary>
+        public DateTimeOffset ObtainedAt { get; set; } = DateTimeOffset.UtcNow;
     }
 }

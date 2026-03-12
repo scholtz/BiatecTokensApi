@@ -18,10 +18,23 @@ namespace BiatecTokensApi.Services
     /// - Partial upstream failures produce degraded-mode responses, not hard errors.
     /// - Every significant state transition is recorded as a telemetry event.
     /// - Guardrail checks run before submission to prevent invariant violations.
+    ///
+    /// Evidence modes:
+    /// - <see cref="DeploymentExecutionMode.Authoritative"/>: the service requires confirmed
+    ///   blockchain evidence from the injected <see cref="IDeploymentEvidenceProvider"/>.
+    ///   If the provider returns <c>null</c>, the deployment fails with
+    ///   <c>BLOCKCHAIN_EVIDENCE_UNAVAILABLE</c>. This is the default mode and the only one
+    ///   acceptable for production regulated issuance sign-off.
+    /// - <see cref="DeploymentExecutionMode.Simulation"/>: the service accepts hash-derived
+    ///   evidence from the provider when authoritative data is unavailable, marking the
+    ///   response <c>IsSimulatedEvidence = true</c>. Suitable for testing and development.
     /// </summary>
     public class TokenDeploymentLifecycleService : ITokenDeploymentLifecycleService
     {
         private readonly ILogger<TokenDeploymentLifecycleService> _logger;
+        private readonly IDeploymentEvidenceProvider _evidenceProvider;
+        // Pre-allocated fallback for Simulation mode when the configured provider returns null.
+        private readonly SimulatedDeploymentEvidenceProvider _simulatedFallback;
 
         // In-memory idempotency store (deployment-id → response).
         // In production this would be backed by a distributed cache or database.
@@ -82,9 +95,24 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Initialises a new instance of <see cref="TokenDeploymentLifecycleService"/>.
         /// </summary>
-        public TokenDeploymentLifecycleService(ILogger<TokenDeploymentLifecycleService> logger)
+        /// <param name="logger">Logger.</param>
+        /// <param name="evidenceProvider">
+        /// Provider for blockchain deployment evidence. Required; inject via DI.
+        /// <see cref="SimulatedDeploymentEvidenceProvider"/> for development and test
+        /// environments. For production regulated issuance, inject a real blockchain
+        /// provider (e.g. <c>AlgorandDeploymentEvidenceProvider</c>) that obtains
+        /// confirmed on-chain data and sets
+        /// <see cref="BlockchainDeploymentEvidence.IsSimulated"/> = <c>false</c>.
+        /// When <c>null</c> is passed (for backward compatibility only), defaults to
+        /// <see cref="SimulatedDeploymentEvidenceProvider"/>.
+        /// </param>
+        public TokenDeploymentLifecycleService(
+            ILogger<TokenDeploymentLifecycleService> logger,
+            IDeploymentEvidenceProvider? evidenceProvider = null)
         {
-            _logger = logger;
+            _logger           = logger;
+            _evidenceProvider = evidenceProvider ?? new SimulatedDeploymentEvidenceProvider();
+            _simulatedFallback = new SimulatedDeploymentEvidenceProvider();
         }
 
         /// <inheritdoc/>
@@ -237,46 +265,120 @@ namespace BiatecTokensApi.Services
                 "Deployment transaction submitted to the network.",
                 new Dictionary<string, string> { ["standard"] = request.TokenStandard });
 
-            // Simulate deterministic transaction ID derivation
-            var txId = DeriveTransactionId(deploymentId, request.TokenStandard);
-            response.TransactionId = txId;
-            response.LastUpdatedAt = DateTimeOffset.UtcNow;
-            response.Progress      = BuildProgress(DeploymentStage.Submitting, 0);
+            // ── Obtain blockchain evidence via the injected provider ─────────────
+            // In Authoritative mode the provider must return confirmed on-chain data.
+            // If it returns null the deployment fails loudly with BLOCKCHAIN_EVIDENCE_UNAVAILABLE.
+            // In Simulation mode a null return from a non-simulated provider causes a fallback
+            // to the SimulatedDeploymentEvidenceProvider.
+            BlockchainDeploymentEvidence? evidence = null;
+            try
+            {
+                evidence = await _evidenceProvider.ObtainEvidenceAsync(
+                    deploymentId, request.TokenStandard, request.Network);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    "Evidence provider threw an exception: DeploymentId={DeploymentId}, Error={Error}",
+                    LoggingHelper.SanitizeLogInput(deploymentId),
+                    LoggingHelper.SanitizeLogInput(ex.Message));
+                evidence = null;
+            }
+
+            if (evidence == null)
+            {
+                if (request.ExecutionMode == DeploymentExecutionMode.Authoritative)
+                {
+                    // Fail-closed: no evidence available and authoritative mode is required.
+                    // This is the correct behavior for production regulated issuance sign-off.
+                    response.Stage           = DeploymentStage.Failed;
+                    response.Outcome         = DeploymentOutcome.TerminalFailure;
+                    response.Message         = "Deployment failed: authoritative blockchain evidence is unavailable. " +
+                                               "The deployment cannot be confirmed without a live blockchain connection. " +
+                                               "This is a terminal failure — corrective action is required before retrying.";
+                    response.RemediationHint = "Ensure the blockchain node (algod/indexer for Algorand, RPC for EVM) is " +
+                                               "reachable and that the deployment service is configured with a live " +
+                                               "IDeploymentEvidenceProvider. Alternatively, use ExecutionMode=Simulation " +
+                                               "for non-production environments.";
+                    response.LastUpdatedAt = DateTimeOffset.UtcNow;
+                    response.Progress      = BuildProgress(DeploymentStage.Failed, 0);
+
+                    EmitTelemetry(response, TelemetryEventType.DependencyFailure, DeploymentStage.Submitting,
+                        "Blockchain evidence unavailable. Authoritative mode requires confirmed on-chain data.",
+                        new Dictionary<string, string>
+                        {
+                            ["errorCode"]     = "BLOCKCHAIN_EVIDENCE_UNAVAILABLE",
+                            ["executionMode"] = "Authoritative",
+                        });
+
+                    EmitTelemetry(response, TelemetryEventType.TerminalFailure, DeploymentStage.Failed,
+                        "Deployment terminated: BLOCKCHAIN_EVIDENCE_UNAVAILABLE",
+                        new Dictionary<string, string> { ["errorCode"] = "BLOCKCHAIN_EVIDENCE_UNAVAILABLE" });
+
+                    StoreIdempotent(deploymentId, response);
+                    _logger.LogWarning(
+                        "Deployment failed (BLOCKCHAIN_EVIDENCE_UNAVAILABLE): DeploymentId={DeploymentId}",
+                        deploymentId);
+                    return response;
+                }
+
+                // Simulation mode fallback: use pre-allocated simulated evidence provider
+                evidence = await _simulatedFallback.ObtainEvidenceAsync(
+                    deploymentId, request.TokenStandard, request.Network);
+            }
+
+            response.TransactionId       = evidence!.TransactionId;
+            response.IsSimulatedEvidence = evidence.IsSimulated;
+            response.LastUpdatedAt       = DateTimeOffset.UtcNow;
+            response.Progress            = BuildProgress(DeploymentStage.Submitting, 0);
 
             // ── Confirmation ────────────────────────────────────────────────────
             response.Stage = DeploymentStage.Confirming;
             EmitTelemetry(response, TelemetryEventType.StageTransition, DeploymentStage.Confirming,
-                "Awaiting on-chain confirmation.",
-                new Dictionary<string, string> { ["txId"] = txId });
+                evidence.IsSimulated
+                    ? "Awaiting on-chain confirmation (simulated: hash-derived evidence)."
+                    : "Awaiting on-chain confirmation (authoritative: live blockchain node).",
+                new Dictionary<string, string>
+                {
+                    ["txId"]                = evidence.TransactionId,
+                    ["isSimulatedEvidence"] = evidence.IsSimulated.ToString().ToLowerInvariant(),
+                });
 
-            // Simulate deterministic asset ID and confirmed round
-            var assetId       = DeriveAssetId(deploymentId);
-            var confirmedRound = DeriveConfirmedRound(deploymentId);
-            response.AssetId        = assetId;
-            response.ConfirmedRound = confirmedRound;
+            response.AssetId        = evidence.AssetId;
+            response.ConfirmedRound = evidence.ConfirmedRound;
             response.LastUpdatedAt  = DateTimeOffset.UtcNow;
             response.Progress       = BuildProgress(DeploymentStage.Confirming, 0);
 
             // ── Completion ──────────────────────────────────────────────────────
             response.Stage   = DeploymentStage.Completed;
             response.Outcome = DeploymentOutcome.Success;
-            response.Message = $"Token '{request.TokenName}' ({request.TokenSymbol}) deployed successfully on {request.Network}.";
+            response.Message = evidence.IsSimulated
+                ? $"Token '{request.TokenName}' ({request.TokenSymbol}) deployment lifecycle completed on {request.Network}. " +
+                  "Note: blockchain values (asset ID, transaction ID, confirmed round) are deterministic " +
+                  "simulations for testing and sign-off purposes. " +
+                  "Real blockchain confirmation requires live node integration (see IsSimulatedEvidence)."
+                : $"Token '{request.TokenName}' ({request.TokenSymbol}) deployed successfully on {request.Network}. " +
+                  $"Authoritative on-chain evidence obtained: assetId={evidence.AssetId}, " +
+                  $"txId={evidence.TransactionId}, round={evidence.ConfirmedRound}.";
             response.LastUpdatedAt = DateTimeOffset.UtcNow;
             response.Progress      = BuildProgress(DeploymentStage.Completed, 0);
 
             EmitTelemetry(response, TelemetryEventType.CompletionSuccess, DeploymentStage.Completed,
-                $"Deployment completed: assetId={assetId}, txId={txId}",
+                evidence.IsSimulated
+                    ? $"Deployment completed (simulated evidence): assetId={evidence.AssetId}, txId={evidence.TransactionId}"
+                    : $"Deployment completed (authoritative evidence): assetId={evidence.AssetId}, txId={evidence.TransactionId}",
                 new Dictionary<string, string>
                 {
-                    ["assetId"] = assetId.ToString(),
-                    ["txId"]    = txId,
-                    ["round"]   = confirmedRound.ToString(),
+                    ["assetId"]             = evidence.AssetId.ToString(),
+                    ["txId"]                = evidence.TransactionId,
+                    ["round"]               = evidence.ConfirmedRound.ToString(),
+                    ["isSimulatedEvidence"] = evidence.IsSimulated.ToString().ToLowerInvariant(),
                 });
 
             StoreIdempotent(deploymentId, response);
             _logger.LogInformation(
                 "Deployment completed: DeploymentId={DeploymentId}, AssetId={AssetId}, Duration={Duration}ms",
-                deploymentId, assetId, sw.ElapsedMilliseconds);
+                deploymentId, evidence!.AssetId, sw.ElapsedMilliseconds);
 
             await Task.CompletedTask; // preserve async signature
             return response;
@@ -764,27 +866,6 @@ namespace BiatecTokensApi.Services
             return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
         }
 
-        private static string DeriveTransactionId(string deploymentId, string standard)
-        {
-            var input = $"txid:{deploymentId}:{standard}";
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-            return Convert.ToHexString(bytes)[..32].ToLowerInvariant();
-        }
-
-        private static ulong DeriveAssetId(string deploymentId)
-        {
-            var input = $"assetid:{deploymentId}";
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-            return BitConverter.ToUInt64(bytes, 0) % 1_000_000_000UL + 1_000_000UL;
-        }
-
-        private static ulong DeriveConfirmedRound(string deploymentId)
-        {
-            var input = $"round:{deploymentId}";
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-            return BitConverter.ToUInt64(bytes, 0) % 50_000_000UL + 30_000_000UL;
-        }
-
         private bool ValidateAddress(string address, string network)
         {
             if (string.IsNullOrWhiteSpace(address)) return false;
@@ -857,7 +938,8 @@ namespace BiatecTokensApi.Services
             TokenDeploymentLifecycleResponse source,
             string correlationId)
         {
-            // Shallow copy with updated idempotency and correlation fields
+            // Shallow copy with updated idempotency and correlation fields.
+            // IsSimulatedEvidence is propagated so consumers always know the evidence type.
             return new TokenDeploymentLifecycleResponse
             {
                 DeploymentId      = source.DeploymentId,
@@ -873,6 +955,7 @@ namespace BiatecTokensApi.Services
                 ConfirmedRound    = source.ConfirmedRound,
                 RetryCount        = source.RetryCount,
                 IsDegraded        = source.IsDegraded,
+                IsSimulatedEvidence = source.IsSimulatedEvidence,
                 ValidationResults  = source.ValidationResults,
                 GuardrailFindings  = source.GuardrailFindings,
                 TelemetryEvents    = new List<DeploymentTelemetryEvent>(source.TelemetryEvents),
