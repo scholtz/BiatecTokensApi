@@ -267,6 +267,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<ITokenRegistryService, TokenRegistryService>();
             builder.Services.AddSingleton<IRegistryIngestionService, RegistryIngestionService>();
             builder.Services.AddSingleton<IJurisdictionRulesService, JurisdictionRulesService>();
+            builder.Services.AddSingleton<IIssuancePolicyService, IssuancePolicyService>();
             builder.Services.AddSingleton<ICapabilityMatrixService, CapabilityMatrixService>();
             builder.Services.AddSingleton<ITokenMetadataService, TokenMetadataService>();
             builder.Services.AddSingleton<IPolicyEvaluator, PolicyEvaluator>();
