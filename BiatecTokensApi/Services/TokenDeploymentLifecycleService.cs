@@ -329,6 +329,7 @@ namespace BiatecTokensApi.Services
 
             response.TransactionId       = evidence!.TransactionId;
             response.IsSimulatedEvidence = evidence.IsSimulated;
+            response.EvidenceProvenance  = BuildEvidenceProvenance(evidence);
             response.LastUpdatedAt       = DateTimeOffset.UtcNow;
             response.Progress            = BuildProgress(DeploymentStage.Submitting, 0);
 
@@ -342,6 +343,7 @@ namespace BiatecTokensApi.Services
                 {
                     ["txId"]                = evidence.TransactionId,
                     ["isSimulatedEvidence"] = evidence.IsSimulated.ToString().ToLowerInvariant(),
+                    ["evidenceSource"]      = evidence.EvidenceSource,
                 });
 
             response.AssetId        = evidence.AssetId;
@@ -373,6 +375,8 @@ namespace BiatecTokensApi.Services
                     ["txId"]                = evidence.TransactionId,
                     ["round"]               = evidence.ConfirmedRound.ToString(),
                     ["isSimulatedEvidence"] = evidence.IsSimulated.ToString().ToLowerInvariant(),
+                    ["evidenceSource"]      = evidence.EvidenceSource,
+                    ["evidenceProvenance"]  = response.EvidenceProvenance ?? string.Empty,
                 });
 
             StoreIdempotent(deploymentId, response);
@@ -934,12 +938,24 @@ namespace BiatecTokensApi.Services
             }
         }
 
+        private static string BuildEvidenceProvenance(BlockchainDeploymentEvidence evidence)
+        {
+            if (evidence.IsSimulated)
+                return "Simulated evidence derived deterministically from deployment ID hash (not blockchain-confirmed). " +
+                       "Set ExecutionMode=Authoritative and configure a live evidence provider for production use.";
+
+            return string.IsNullOrWhiteSpace(evidence.EvidenceSource)
+                ? "Authoritative on-chain evidence obtained from a live blockchain provider."
+                : $"Authoritative on-chain evidence retrieved from {evidence.EvidenceSource}.";
+        }
+
         private static TokenDeploymentLifecycleResponse CloneWithIdempotencyReplay(
             TokenDeploymentLifecycleResponse source,
             string correlationId)
         {
             // Shallow copy with updated idempotency and correlation fields.
-            // IsSimulatedEvidence is propagated so consumers always know the evidence type.
+            // IsSimulatedEvidence and EvidenceProvenance are propagated so consumers always
+            // know the evidence type on replayed responses.
             return new TokenDeploymentLifecycleResponse
             {
                 DeploymentId      = source.DeploymentId,
@@ -956,6 +972,7 @@ namespace BiatecTokensApi.Services
                 RetryCount        = source.RetryCount,
                 IsDegraded        = source.IsDegraded,
                 IsSimulatedEvidence = source.IsSimulatedEvidence,
+                EvidenceProvenance  = source.EvidenceProvenance,
                 ValidationResults  = source.ValidationResults,
                 GuardrailFindings  = source.GuardrailFindings,
                 TelemetryEvents    = new List<DeploymentTelemetryEvent>(source.TelemetryEvents),

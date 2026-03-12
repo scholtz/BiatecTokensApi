@@ -37,6 +37,7 @@ namespace BiatecTokensApi.Services
                 AssetId        = assetId,
                 ConfirmedRound = confirmedRound,
                 IsSimulated    = true,
+                EvidenceSource = "simulation",
                 ObtainedAt     = DateTimeOffset.UtcNow,
             };
 

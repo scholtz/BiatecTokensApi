@@ -366,6 +366,15 @@ jobs:
               "MaxRetryAttempts": 5,
               "PolicyVersion": "1.0.0",
               "RolloutPercentage": 100
+            },
+            "DeploymentEvidenceConfig": {
+              "Provider": "Simulation",
+              "Algorand": {
+                "IndexerUrl": "",
+                "ApiToken": "",
+                "TimeoutSeconds": 15,
+                "MaxRetries": 2
+              }
             }
           }
           EOF
