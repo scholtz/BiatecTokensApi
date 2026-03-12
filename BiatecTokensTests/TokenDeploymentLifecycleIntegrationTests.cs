@@ -965,7 +965,7 @@ namespace BiatecTokensTests
                 .Content.ReadFromJsonAsync<List<DeploymentTelemetryEvent>>();
             Assert.That(events, Is.Not.Empty, "Step 4: telemetry events required for audit trail.");
             Assert.That(events!.Any(e => e.EventType == TelemetryEventType.CompletionSuccess),
-                "Step 4: completion event required in telemetry.");
+                Is.True, "Step 4: completion event required in telemetry.");
 
             // Step 5: Idempotency replay proves determinism
             var replay = await (await _authClient.PostAsJsonAsync("/api/v1/token-deployment-lifecycle/initiate", initReq))

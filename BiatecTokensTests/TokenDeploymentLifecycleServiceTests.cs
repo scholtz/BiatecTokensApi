@@ -656,8 +656,7 @@ namespace BiatecTokensTests
         public async Task GetStatus_NonExistentDeployment_MessageContainsNotFound()
         {
             var status = await _service.GetDeploymentStatusAsync("nonexistent-deployment-id-xyz");
-            Assert.That(status.Message, Does.Contain("not found").IgnoreCase
-                .Or.Contain("not found").IgnoreCase);
+            Assert.That(status.Message, Does.Contain("not found").IgnoreCase);
         }
 
         [Test]
