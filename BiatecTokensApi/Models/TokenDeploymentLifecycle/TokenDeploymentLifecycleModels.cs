@@ -116,6 +116,113 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
         Simulation
     }
 
+    /// <summary>
+    /// Granular status of deployment evidence availability.
+    /// Used by downstream consumers (frontend, compliance dashboards, audit tools) to
+    /// determine the trustworthiness of reported blockchain values.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum LifecycleEvidenceStatus
+    {
+        /// <summary>
+        /// Evidence is confirmed authoritative on-chain data retrieved from a live blockchain
+        /// node or indexer. <c>AssetId</c>, <c>TransactionId</c>, and <c>ConfirmedRound</c>
+        /// can be relied upon as production-grade proof.
+        /// </summary>
+        Confirmed,
+
+        /// <summary>
+        /// Evidence is pending; the blockchain indexer or node has not yet reported the
+        /// transaction. This is a transient state during indexer lag. Callers should poll
+        /// the status endpoint and retry after a short delay.
+        /// </summary>
+        Pending,
+
+        /// <summary>
+        /// Evidence is deterministically simulated from the deployment ID hash. Not
+        /// blockchain-confirmed. Suitable for development and contract-shape testing only.
+        /// </summary>
+        Simulated,
+
+        /// <summary>
+        /// Evidence is stale; it was retrieved previously but the indexer has since reported
+        /// a newer state (e.g. the asset was destroyed after creation). Callers should
+        /// re-query for current status.
+        /// </summary>
+        Stale,
+
+        /// <summary>
+        /// Evidence is unavailable. The provider could not be reached or returned no data.
+        /// In <see cref="DeploymentExecutionMode.Authoritative"/> mode this causes a
+        /// terminal failure with error code <c>BLOCKCHAIN_EVIDENCE_UNAVAILABLE</c>.
+        /// </summary>
+        Unavailable,
+
+        /// <summary>
+        /// Evidence was returned by the provider but could not be validated or parsed.
+        /// Indicates a malformed response from the upstream blockchain node or indexer.
+        /// </summary>
+        Invalid
+    }
+
+    /// <summary>
+    /// Structured error category that classifies the root cause of a deployment failure.
+    /// Used together with error codes and remediation hints so downstream consumers can
+    /// decide whether to retry, escalate, or remediate.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum LifecycleErrorCategory
+    {
+        /// <summary>Input validation failed; the request contains invalid or missing fields.</summary>
+        ValidationFailure,
+
+        /// <summary>
+        /// Authoritative blockchain evidence could not be obtained. The provider returned
+        /// null or threw a non-transient exception.
+        /// </summary>
+        EvidenceUnavailable,
+
+        /// <summary>
+        /// The evidence provider request timed out. This is a transient failure; the
+        /// deployment may be retried after a suitable delay.
+        /// </summary>
+        NetworkTimeout,
+
+        /// <summary>
+        /// The evidence provider returned a response that could not be parsed or validated.
+        /// Indicates a malformed upstream response.
+        /// </summary>
+        MalformedProviderResponse,
+
+        /// <summary>
+        /// The target network is not supported by the configured evidence provider.
+        /// Requires operator configuration changes before retry.
+        /// </summary>
+        UnsupportedNetwork,
+
+        /// <summary>
+        /// A reliability guardrail check blocked the deployment from proceeding.
+        /// The guardrail findings in the response contain remediation guidance.
+        /// </summary>
+        GuardrailViolation,
+
+        /// <summary>
+        /// The evidence provider threw an unexpected exception that is not classified as a
+        /// timeout or malformed-response error. Requires investigation.
+        /// </summary>
+        ProviderException,
+
+        /// <summary>
+        /// An idempotency key was reused with different deployment parameters (conflict).
+        /// </summary>
+        IdempotencyConflict,
+
+        /// <summary>
+        /// An unexpected internal error occurred. Not categorised into a more specific class.
+        /// </summary>
+        InternalError
+    }
+
     // ── Request / Response models ─────────────────────────────────────────────
 
     /// <summary>
@@ -290,6 +397,143 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
         /// </list>
         /// </summary>
         public string? EvidenceProvenance { get; set; }
+
+        /// <summary>
+        /// Structured evidence availability detail. Provides fine-grained status of the
+        /// deployment evidence so downstream consumers can distinguish pending, confirmed,
+        /// simulated, stale, unavailable, and invalid states without parsing
+        /// <see cref="IsSimulatedEvidence"/> and <see cref="EvidenceProvenance"/> heuristically.
+        ///
+        /// <para>This field is always populated on responses from the lifecycle service.</para>
+        /// </summary>
+        public EvidenceAvailabilityDetail EvidenceAvailability { get; set; } = new();
+
+        /// <summary>
+        /// Structured error detail when <see cref="Outcome"/> is a failure category.
+        /// Null on successful responses.
+        /// </summary>
+        public LifecycleErrorDetail? ErrorDetail { get; set; }
+
+        /// <summary>
+        /// Context describing the evidence provider that was used for this deployment.
+        /// Supports multi-chain extensibility: consumers can determine which provider
+        /// (Algorand, EVM, Simulation, etc.) produced the evidence without inspecting
+        /// provider-specific fields.
+        /// </summary>
+        public LifecycleProviderContext ProviderContext { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Structured description of deployment evidence availability.
+    /// Enables downstream consumers (frontend, compliance dashboards, audit tools) to
+    /// reliably distinguish pending, confirmed, simulated, stale, unavailable, and invalid
+    /// evidence without heuristic string parsing.
+    /// </summary>
+    public class EvidenceAvailabilityDetail
+    {
+        /// <summary>
+        /// Machine-readable evidence status. See <see cref="LifecycleEvidenceStatus"/> for
+        /// semantics.
+        /// </summary>
+        public LifecycleEvidenceStatus Status { get; set; } = LifecycleEvidenceStatus.Unavailable;
+
+        /// <summary>
+        /// Machine-readable reason code for the current status. Examples:
+        /// <c>CONFIRMED_AUTHORITATIVE</c>, <c>SIMULATED_HASH_DERIVED</c>,
+        /// <c>PROVIDER_NULL_RETURN</c>, <c>PROVIDER_TIMEOUT</c>,
+        /// <c>PROVIDER_EXCEPTION</c>, <c>MALFORMED_RESPONSE</c>.
+        /// </summary>
+        public string ReasonCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Human-readable explanation of the evidence status. Suitable for audit logs and
+        /// operator dashboards.
+        /// </summary>
+        public string Message { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Whether the evidence failure is transient and the deployment may be retried.
+        /// <c>false</c> means the failure is terminal and requires corrective action.
+        /// Only meaningful when <see cref="Status"/> is <see cref="LifecycleEvidenceStatus.Unavailable"/>
+        /// or <see cref="LifecycleEvidenceStatus.Invalid"/>.
+        /// </summary>
+        public bool IsRetriable { get; set; }
+
+        /// <summary>
+        /// Timestamp when the evidence was retrieved from the provider (UTC).
+        /// Null if evidence could not be obtained.
+        /// </summary>
+        public DateTimeOffset? RetrievedAt { get; set; }
+
+        /// <summary>
+        /// Sanitised diagnostic detail from the provider. Empty on success.
+        /// Useful for operational debugging without exposing raw exception messages.
+        /// </summary>
+        public string DiagnosticDetail { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Structured error detail for failed lifecycle operations.
+    /// Provides machine-readable error classification plus human-readable remediation
+    /// so frontend and compliance tooling can surface actionable messages.
+    /// </summary>
+    public class LifecycleErrorDetail
+    {
+        /// <summary>Machine-readable error code (e.g. <c>BLOCKCHAIN_EVIDENCE_UNAVAILABLE</c>).</summary>
+        public string ErrorCode { get; set; } = string.Empty;
+
+        /// <summary>Structured error category for programmatic handling.</summary>
+        public LifecycleErrorCategory ErrorCategory { get; set; }
+
+        /// <summary>
+        /// Whether the failure is transient and the deployment may be retried after a delay.
+        /// <c>false</c> means the error requires corrective action before retry.
+        /// </summary>
+        public bool IsRetriable { get; set; }
+
+        /// <summary>Human-readable remediation guidance for operators and enterprise issuers.</summary>
+        public string RemediationHint { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Sanitised diagnostic context (key-value pairs) for operational debugging.
+        /// Values are sanitised to prevent log injection.
+        /// </summary>
+        public Dictionary<string, string> DiagnosticContext { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Context about the evidence provider used for a deployment.
+    /// Enables provider-neutral lifecycle contracts so future EVM or other network
+    /// evidence providers plug into the same contract without breaking fail-closed semantics.
+    /// </summary>
+    public class LifecycleProviderContext
+    {
+        /// <summary>
+        /// Name of the active evidence provider family.
+        /// Representative values: <c>"Algorand"</c>, <c>"EVM"</c>, <c>"Simulation"</c>,
+        /// <c>"Unavailable"</c>.
+        /// </summary>
+        public string ProviderFamily { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Provider-specific source identifier (e.g. indexer endpoint, network name).
+        /// May be empty if the provider did not supply one.
+        /// </summary>
+        public string ProviderSource { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Whether the provider is operating in a simulation (non-blockchain) mode.
+        /// Mirrors <see cref="TokenDeploymentLifecycleResponse.IsSimulatedEvidence"/> for
+        /// provider-oriented consumers.
+        /// </summary>
+        public bool IsSimulated { get; set; }
+
+        /// <summary>
+        /// Whether the provider is configured and reachable.
+        /// <c>false</c> means no live provider is available; failures will be terminal in
+        /// <see cref="DeploymentExecutionMode.Authoritative"/> mode.
+        /// </summary>
+        public bool IsAvailable { get; set; }
     }
 
     /// <summary>
