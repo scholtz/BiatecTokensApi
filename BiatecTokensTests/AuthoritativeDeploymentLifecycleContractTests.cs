@@ -790,8 +790,8 @@ namespace BiatecTokensTests
         {
             var svc    = WithProvider(new UnavailableDeploymentEvidenceProvider());
             var result = await svc.InitiateDeploymentAsync(BaseRequest());
-            // Provider context reflects the underlying provider type
-            Assert.That(result.ProviderContext.ProviderFamily, Is.Not.Null.And.Not.Empty);
+            Assert.That(result.ProviderContext.ProviderFamily, Is.EqualTo("Unavailable"),
+                "UnavailableDeploymentEvidenceProvider must be classified as 'Unavailable' family.");
         }
 
         [Test]
@@ -804,6 +804,9 @@ namespace BiatecTokensTests
             var result = await svc.InitiateDeploymentAsync(req);
             Assert.That(result.ProviderContext, Is.Not.Null,
                 "ProviderContext must always be populated regardless of provider family.");
+            // EvmEvidenceProvider uses evidence source "base-rpc" which should map to "EVM"
+            Assert.That(result.ProviderContext.ProviderFamily, Is.EqualTo("EVM"),
+                "EVM provider with 'base-rpc' source must be classified as 'EVM' family.");
         }
 
         [Test]

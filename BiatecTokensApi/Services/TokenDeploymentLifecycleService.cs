@@ -358,7 +358,11 @@ namespace BiatecTokensApi.Services
                             : "No authoritative evidence could be obtained from the provider.",
                         IsRetriable     = isRetriable,
                         DiagnosticDetail = providerException != null
-                            ? LoggingHelper.SanitizeLogInput(providerException.GetType().Name)
+                            ? $"{LoggingHelper.SanitizeLogInput(providerException.GetType().Name)}: " +
+                              LoggingHelper.SanitizeLogInput(
+                                  providerException.Message.Length > 200
+                                      ? providerException.Message[..200]
+                                      : providerException.Message)
                             : string.Empty,
                     };
                     response.ErrorDetail = new LifecycleErrorDetail
@@ -1141,14 +1145,17 @@ namespace BiatecTokensApi.Services
 
             // Determine provider family from evidence source first (most reliable),
             // then fall back to provider type name for provider-type-based detection.
+            // Use only specific, well-known network keywords to avoid false-positive matches.
             string family;
             if (evidenceSource.Contains("algorand", StringComparison.OrdinalIgnoreCase) ||
                 providerTypeName.Contains("Algorand", StringComparison.OrdinalIgnoreCase))
                 family = "Algorand";
-            else if (evidenceSource.Contains("base", StringComparison.OrdinalIgnoreCase) ||
+            else if (evidenceSource.Contains("base-", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Contains("base-mainnet", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Contains("base-sepolia", StringComparison.OrdinalIgnoreCase) ||
                      evidenceSource.Contains("ethereum", StringComparison.OrdinalIgnoreCase) ||
-                     evidenceSource.Contains("evm", StringComparison.OrdinalIgnoreCase) ||
-                     evidenceSource.Contains("rpc", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Contains("-rpc", StringComparison.OrdinalIgnoreCase) ||
+                     evidenceSource.Equals("evm", StringComparison.OrdinalIgnoreCase) ||
                      providerTypeName.Contains("EVM", StringComparison.OrdinalIgnoreCase) ||
                      providerTypeName.Contains("Ethereum", StringComparison.OrdinalIgnoreCase))
                 family = "EVM";
@@ -1156,10 +1163,9 @@ namespace BiatecTokensApi.Services
                 family = "Simulation";
             else if (providerTypeName.Contains("Unavailable", StringComparison.OrdinalIgnoreCase))
                 family = "Unavailable";
-            else if (evidence != null && !evidence.IsSimulated)
-                // Non-simulated evidence from an unknown provider; infer from source
-                family = string.IsNullOrWhiteSpace(evidenceSource) ? "Blockchain" : evidenceSource;
             else
+                // Standardise unknown providers; never use raw evidenceSource as family
+                // to avoid arbitrary URLs or connection strings leaking into the contract.
                 family = "Unknown";
 
             return new LifecycleProviderContext
