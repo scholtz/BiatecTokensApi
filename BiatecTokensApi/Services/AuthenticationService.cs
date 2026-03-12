@@ -386,7 +386,11 @@ namespace BiatecTokensApi.Services
                 }, out SecurityToken validatedToken);
 
                 var jwtToken = (JwtSecurityToken)validatedToken;
-                var userId = jwtToken.Claims.First(x => x.Type == ClaimTypes.NameIdentifier).Value;
+                // JwtSecurityToken.Claims returns raw JWT claim names (e.g., "nameid") not the full
+                // CLR claim type URIs (e.g., ClaimTypes.NameIdentifier). Check both for compatibility.
+                var userId = jwtToken.Claims
+                    .FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier || x.Type == "nameid")
+                    ?.Value;
 
                 return Task.FromResult<string?>(userId);
             }
