@@ -237,7 +237,8 @@ namespace BiatecTokensTests
         public async Task AC2_ProtectedEndpoint_WithValidToken_AccessGranted()
         {
             var email = UniqueEmail();
-            var loginBody = await LoginUserAsync(email, await RegisterUserAsync(email) is { } r ? "SecurePass123!" : "SecurePass123!");
+            await RegisterUserAsync(email);
+            var loginBody = await LoginUserAsync(email);
 
             using var authClient = CreateAuthClient(loginBody.AccessToken!);
             var resp = await authClient.GetAsync("/api/v1/auth/profile");
