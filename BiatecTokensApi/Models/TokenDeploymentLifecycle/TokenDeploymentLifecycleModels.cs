@@ -215,6 +215,22 @@ namespace BiatecTokensApi.Models.TokenDeploymentLifecycle
 
         /// <summary>Human-readable remediation hint when Outcome is a failure category.</summary>
         public string? RemediationHint { get; set; }
+
+        /// <summary>
+        /// Indicates that the blockchain-side evidence fields (<see cref="AssetId"/>,
+        /// <see cref="TransactionId"/>, <see cref="ConfirmedRound"/>) are derived
+        /// deterministically from the deployment ID rather than obtained from a live blockchain
+        /// node. When <c>true</c>, these values are deterministic placeholders suitable for
+        /// contract-shape validation and sign-off workflow testing, but they do NOT represent
+        /// confirmed on-chain state.
+        ///
+        /// A value of <c>false</c> means the evidence was obtained from a real blockchain
+        /// confirmation and can be used as authoritative proof of deployment.
+        ///
+        /// Sign-off environments and frontend consumers MUST check this flag before treating
+        /// <see cref="AssetId"/> or <see cref="TransactionId"/> as production-valid evidence.
+        /// </summary>
+        public bool IsSimulatedEvidence { get; set; }
     }
 
     /// <summary>

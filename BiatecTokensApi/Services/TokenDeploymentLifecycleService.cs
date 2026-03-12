@@ -237,9 +237,12 @@ namespace BiatecTokensApi.Services
                 "Deployment transaction submitted to the network.",
                 new Dictionary<string, string> { ["standard"] = request.TokenStandard });
 
-            // Simulate deterministic transaction ID derivation
+            // Simulate deterministic transaction ID derivation.
+            // NOTE: This is a placeholder simulation. IsSimulatedEvidence is set to true
+            // so consumers can distinguish this from a real blockchain-confirmed transaction.
             var txId = DeriveTransactionId(deploymentId, request.TokenStandard);
-            response.TransactionId = txId;
+            response.TransactionId    = txId;
+            response.IsSimulatedEvidence = true;
             response.LastUpdatedAt = DateTimeOffset.UtcNow;
             response.Progress      = BuildProgress(DeploymentStage.Submitting, 0);
 
@@ -249,7 +252,9 @@ namespace BiatecTokensApi.Services
                 "Awaiting on-chain confirmation.",
                 new Dictionary<string, string> { ["txId"] = txId });
 
-            // Simulate deterministic asset ID and confirmed round
+            // Simulate deterministic asset ID and confirmed round.
+            // These values are derived from the deployment ID hash and are NOT
+            // confirmed blockchain state. Consumers MUST check IsSimulatedEvidence.
             var assetId       = DeriveAssetId(deploymentId);
             var confirmedRound = DeriveConfirmedRound(deploymentId);
             response.AssetId        = assetId;
@@ -260,17 +265,21 @@ namespace BiatecTokensApi.Services
             // ── Completion ──────────────────────────────────────────────────────
             response.Stage   = DeploymentStage.Completed;
             response.Outcome = DeploymentOutcome.Success;
-            response.Message = $"Token '{request.TokenName}' ({request.TokenSymbol}) deployed successfully on {request.Network}.";
+            response.Message = $"Token '{request.TokenName}' ({request.TokenSymbol}) deployment lifecycle completed on {request.Network}. " +
+                               "Note: blockchain values (asset ID, transaction ID, confirmed round) are deterministic " +
+                               "simulations for testing and sign-off purposes. " +
+                               "Real blockchain confirmation requires live node integration (see IsSimulatedEvidence).";
             response.LastUpdatedAt = DateTimeOffset.UtcNow;
             response.Progress      = BuildProgress(DeploymentStage.Completed, 0);
 
             EmitTelemetry(response, TelemetryEventType.CompletionSuccess, DeploymentStage.Completed,
-                $"Deployment completed: assetId={assetId}, txId={txId}",
+                $"Deployment completed (simulated evidence): assetId={assetId}, txId={txId}",
                 new Dictionary<string, string>
                 {
-                    ["assetId"] = assetId.ToString(),
-                    ["txId"]    = txId,
-                    ["round"]   = confirmedRound.ToString(),
+                    ["assetId"]             = assetId.ToString(),
+                    ["txId"]                = txId,
+                    ["round"]               = confirmedRound.ToString(),
+                    ["isSimulatedEvidence"] = "true",
                 });
 
             StoreIdempotent(deploymentId, response);
@@ -857,7 +866,8 @@ namespace BiatecTokensApi.Services
             TokenDeploymentLifecycleResponse source,
             string correlationId)
         {
-            // Shallow copy with updated idempotency and correlation fields
+            // Shallow copy with updated idempotency and correlation fields.
+            // IsSimulatedEvidence is propagated so consumers always know the evidence type.
             return new TokenDeploymentLifecycleResponse
             {
                 DeploymentId      = source.DeploymentId,
@@ -873,6 +883,7 @@ namespace BiatecTokensApi.Services
                 ConfirmedRound    = source.ConfirmedRound,
                 RetryCount        = source.RetryCount,
                 IsDegraded        = source.IsDegraded,
+                IsSimulatedEvidence = source.IsSimulatedEvidence,
                 ValidationResults  = source.ValidationResults,
                 GuardrailFindings  = source.GuardrailFindings,
                 TelemetryEvents    = new List<DeploymentTelemetryEvent>(source.TelemetryEvents),

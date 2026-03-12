@@ -200,6 +200,18 @@ namespace BiatecTokensTests
         }
 
         [Test]
+        public async Task Initiate_ValidAlgorandASA_IsSimulatedEvidenceTrue()
+        {
+            // The service uses deterministic hash-derived values for AssetId, TransactionId,
+            // and ConfirmedRound. It must explicitly disclose this via IsSimulatedEvidence = true.
+            var req = BuildValidAlgorandRequest();
+            var result = await _service.InitiateDeploymentAsync(req);
+            Assert.That(result.IsSimulatedEvidence, Is.True,
+                "Simulated lifecycle contract: AssetId/TransactionId/ConfirmedRound are " +
+                "hash-derived, not real blockchain state. IsSimulatedEvidence must be true.");
+        }
+
+        [Test]
         public async Task Initiate_ValidAlgorandASA_IdempotencyStatusIsNew()
         {
             var req = BuildValidAlgorandRequest();

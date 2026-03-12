@@ -1006,6 +1006,10 @@ namespace BiatecTokensTests
             Assert.That(body.TelemetryEvents,  Is.Not.Null, "TelemetryEvents required.");
             Assert.That(body.ValidationResults, Is.Not.Null, "ValidationResults required.");
             Assert.That(body.GuardrailFindings, Is.Not.Null, "GuardrailFindings required.");
+            // Simulation disclosure: consumers must be able to detect simulated vs real evidence
+            Assert.That(body.IsSimulatedEvidence, Is.True,
+                "IsSimulatedEvidence must be present and true in the current simulated implementation; " +
+                "sign-off tooling must check this field before treating evidence as production-valid.");
         }
 
         [Test]
