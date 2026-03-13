@@ -232,6 +232,8 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceDecisionRepository, BiatecTokensApi.Repositories.ComplianceDecisionRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IKycRepository, BiatecTokensApi.Repositories.KycRepository>();
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.ITokenLaunchReadinessRepository, BiatecTokensApi.Repositories.TokenLaunchReadinessRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IIssuerWorkflowRepository, BiatecTokensApi.Repositories.IssuerWorkflowRepository>();
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceReviewRepository, BiatecTokensApi.Repositories.ComplianceReviewRepository>();
 
             // Also register non-interface repositories for ingestion service
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.TokenIssuanceRepository>();

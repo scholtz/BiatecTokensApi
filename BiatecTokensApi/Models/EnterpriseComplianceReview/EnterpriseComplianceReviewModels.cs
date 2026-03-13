@@ -597,6 +597,52 @@ namespace BiatecTokensApi.Models.EnterpriseComplianceReview
         public string? CorrelationId { get; set; }
     }
 
+    // ── Persistence Models ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Durable record of a compliance review decision.
+    /// Stored by <see cref="IComplianceReviewRepository"/> and used to reconstruct
+    /// enriched audit history after application restart.
+    /// </summary>
+    public class PersistedReviewDecision
+    {
+        /// <summary>Unique decision identifier.</summary>
+        public string DecisionId { get; init; } = Guid.NewGuid().ToString();
+
+        /// <summary>Issuer scope.</summary>
+        public string IssuerId { get; init; } = string.Empty;
+
+        /// <summary>Workflow item this decision applies to.</summary>
+        public string WorkflowId { get; init; } = string.Empty;
+
+        /// <summary>Actor who submitted the decision.</summary>
+        public string ActorId { get; init; } = string.Empty;
+
+        /// <summary>Actor's role at the time of the decision (for future audit reconstruction).</summary>
+        public IssuerTeamRole? ActorRole { get; init; }
+
+        /// <summary>Type of decision submitted.</summary>
+        public ReviewDecisionType DecisionType { get; init; }
+
+        /// <summary>Structured rationale provided by the reviewer.</summary>
+        public string? Rationale { get; init; }
+
+        /// <summary>Evidence item references cited by the reviewer.</summary>
+        public List<string> EvidenceReferences { get; init; } = new();
+
+        /// <summary>Whether the reviewer acknowledged open evidence issues.</summary>
+        public bool AcknowledgesOpenIssues { get; init; }
+
+        /// <summary>Optional reviewer note for the audit trail.</summary>
+        public string? ReviewNote { get; init; }
+
+        /// <summary>Correlation ID for distributed tracing and log correlation.</summary>
+        public string? CorrelationId { get; init; }
+
+        /// <summary>UTC timestamp when the decision was recorded.</summary>
+        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    }
+
     // ── Diagnostics Models ────────────────────────────────────────────────────
 
     /// <summary>

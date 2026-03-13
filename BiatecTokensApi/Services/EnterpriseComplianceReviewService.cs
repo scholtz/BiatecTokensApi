@@ -2,17 +2,21 @@ using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.EnterpriseComplianceReview;
 using BiatecTokensApi.Models.IssuerWorkflow;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
-using System.Collections.Concurrent;
 
 namespace BiatecTokensApi.Services
 {
     /// <summary>
-    /// In-memory implementation of the enterprise compliance review service.
+    /// Repository-backed implementation of the enterprise compliance review service.
     ///
     /// Provides role-aware reviewer queues, compliance evidence bundles, structured review
     /// decision recording, audit history export, and operational diagnostics for enterprise
     /// team operations.
+    ///
+    /// All mutable review state (decisions, diagnostics) is delegated to
+    /// <see cref="IComplianceReviewRepository"/> so that review history survives DI scope
+    /// changes and can be upgraded to persistent storage by swapping the repository.
     ///
     /// This service builds on top of <see cref="IIssuerWorkflowService"/> to add:
     ///   - Evidence bundle synthesis with contradiction detection
@@ -24,13 +28,9 @@ namespace BiatecTokensApi.Services
     public class EnterpriseComplianceReviewService : IEnterpriseComplianceReviewService
     {
         private readonly IIssuerWorkflowService _workflowService;
+        private readonly IComplianceReviewRepository _reviewRepository;
+        private readonly IIssuerWorkflowRepository _workflowRepository;
         private readonly ILogger<EnterpriseComplianceReviewService> _logger;
-
-        // Diagnostics event log (per issuer, bounded to last 200 events)
-        private readonly ConcurrentDictionary<string, List<ReviewDiagnosticsEvent>> _diagnosticsLog = new();
-
-        // Decision metadata store (enriches workflow audit entries with decision context)
-        private readonly ConcurrentDictionary<string, ReviewDecisionMetadata> _decisionMetadata = new();
 
         private static readonly IssuerTeamRole[] _approverRoles =
             { IssuerTeamRole.ComplianceReviewer, IssuerTeamRole.FinanceReviewer, IssuerTeamRole.Admin };
@@ -41,17 +41,19 @@ namespace BiatecTokensApi.Services
         private static readonly IssuerTeamRole[] _allActiveRoles =
             { IssuerTeamRole.Operator, IssuerTeamRole.ComplianceReviewer, IssuerTeamRole.FinanceReviewer, IssuerTeamRole.Admin, IssuerTeamRole.ReadOnlyObserver };
 
-        private const int MaxDiagnosticsEventsPerIssuer = 200;
-
         /// <summary>
         /// Initializes a new instance of <see cref="EnterpriseComplianceReviewService"/>.
         /// </summary>
         public EnterpriseComplianceReviewService(
             IIssuerWorkflowService workflowService,
+            IComplianceReviewRepository reviewRepository,
+            IIssuerWorkflowRepository workflowRepository,
             ILogger<EnterpriseComplianceReviewService> logger)
         {
-            _workflowService = workflowService;
-            _logger          = logger;
+            _workflowService    = workflowService;
+            _reviewRepository   = reviewRepository;
+            _workflowRepository = workflowRepository;
+            _logger             = logger;
         }
 
         // ── Review Queue ───────────────────────────────────────────────────────
@@ -314,20 +316,27 @@ namespace BiatecTokensApi.Services
             var decisionId = Guid.NewGuid().ToString();
             var decisionTimestamp = DateTime.UtcNow;
 
-            // Store decision metadata for enriched audit history
-            _decisionMetadata[decisionId] = new ReviewDecisionMetadata
+            // Get actor role for decision record enrichment using targeted lookup (avoids loading all members)
+            IssuerTeamRole? actorRole = null;
+            var actorMember = await _workflowRepository.GetMemberByUserIdAsync(issuerId, actorId);
+            actorRole = actorMember?.Role;
+
+            // Persist decision metadata for enriched audit history reconstruction
+            await _reviewRepository.SaveDecisionAsync(new PersistedReviewDecision
             {
-                DecisionId        = decisionId,
-                WorkflowId        = workflowId,
-                IssuerId          = issuerId,
-                ActorId           = actorId,
-                DecisionType      = request.DecisionType,
-                Rationale         = request.Rationale,
-                EvidenceRefs      = request.EvidenceReferences,
-                ReviewNote        = request.ReviewNote,
-                CorrelationId     = correlationId,
-                Timestamp         = decisionTimestamp
-            };
+                DecisionId          = decisionId,
+                IssuerId            = issuerId,
+                WorkflowId          = workflowId,
+                ActorId             = actorId,
+                ActorRole           = actorRole,
+                DecisionType        = request.DecisionType,
+                Rationale           = request.Rationale,
+                EvidenceReferences  = request.EvidenceReferences,
+                AcknowledgesOpenIssues = request.AcknowledgesOpenIssues,
+                ReviewNote          = request.ReviewNote,
+                CorrelationId       = correlationId,
+                Timestamp           = decisionTimestamp
+            });
 
             _logger.LogInformation(
                 "ReviewDecision recorded. IssuerId={IssuerId} WorkflowId={WorkflowId} Actor={Actor} Decision={Decision} DecisionId={DecisionId} CorrelationId={CorrelationId}",
@@ -386,13 +395,15 @@ namespace BiatecTokensApi.Services
             if (membersResponse.Success)
                 members = membersResponse.Members.ToDictionary(m => m.UserId);
 
+            // Load persisted decisions for this workflow for audit enrichment
+            var persistedDecisions = await _reviewRepository.GetDecisionsForWorkflowAsync(issuerId, workflowId);
+
             var enrichedEntries = item.AuditHistory.Select(entry =>
             {
                 members.TryGetValue(entry.ActorId, out var member);
 
-                // Try to match a stored decision for enrichment
-                var decision = _decisionMetadata.Values.FirstOrDefault(d =>
-                    d.WorkflowId == workflowId &&
+                // Match persisted decision by actor+timestamp proximity for enrichment
+                var decision = persistedDecisions.FirstOrDefault(d =>
                     d.ActorId    == entry.ActorId &&
                     Math.Abs((d.Timestamp - entry.Timestamp).TotalSeconds) < 5);
 
@@ -404,10 +415,10 @@ namespace BiatecTokensApi.Services
                     ToState           = entry.ToState,
                     ActorId           = entry.ActorId,
                     ActorDisplayName  = member?.DisplayName,
-                    ActorRole         = member?.Role,
+                    ActorRole         = decision?.ActorRole ?? member?.Role,
                     ActionDescription = DescribeTransition(entry.FromState, entry.ToState),
                     Rationale         = decision?.Rationale ?? entry.Note,
-                    EvidenceReferences = decision?.EvidenceRefs ?? new(),
+                    EvidenceReferences = decision?.EvidenceReferences ?? new(),
                     Timestamp         = entry.Timestamp,
                     CorrelationId     = entry.CorrelationId ?? correlationId
                 };
@@ -553,9 +564,7 @@ namespace BiatecTokensApi.Services
             var allItemsResponse = await _workflowService.ListWorkflowItemsAsync(issuerId, actorId);
             var items = allItemsResponse.Success ? allItemsResponse.Items : new List<WorkflowItem>();
 
-            var recentEvents = _diagnosticsLog.TryGetValue(issuerId, out var events)
-                ? events.OrderByDescending(e => e.Timestamp).Take(50).ToList()
-                : new List<ReviewDiagnosticsEvent>();
+            var recentEvents = await _reviewRepository.GetRecentDiagnosticsEventsAsync(issuerId, 50);
 
             var categoryCounts = recentEvents
                 .GroupBy(e => e.Category.ToString())
@@ -915,19 +924,18 @@ namespace BiatecTokensApi.Services
 
         private void AppendDiagnosticsEvent(string issuerId, ReviewDiagnosticsEvent ev)
         {
-            var log = _diagnosticsLog.GetOrAdd(issuerId, _ => new List<ReviewDiagnosticsEvent>());
-            lock (log)
-            {
-                log.Add(ev);
-                if (log.Count > MaxDiagnosticsEventsPerIssuer)
-                    log.RemoveAt(0);
-            }
+            // Diagnostics events are best-effort and must not block or propagate exceptions to callers.
+            _ = _reviewRepository.AppendDiagnosticsEventAsync(issuerId, ev)
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        _logger.LogWarning(t.Exception, "Failed to persist diagnostics event for issuer {IssuerId}",
+                            LoggingHelper.SanitizeLogInput(issuerId));
+                }, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         private static bool IsAuthError(string? errorCode) =>
             errorCode == ErrorCodes.UNAUTHORIZED || errorCode == "INSUFFICIENT_ROLE";
-
-        // ── Failure Factory Helpers ────────────────────────────────────────────
 
         private static ReviewQueueResponse FailQueue(string code, string msg, string actorId, string corrId) =>
             new() { Success = false, ErrorCode = code, ErrorMessage = msg, ActorId = actorId, CorrelationId = corrId };
@@ -946,21 +954,5 @@ namespace BiatecTokensApi.Services
 
         private static ReviewDiagnosticsResponse FailDiagnostics(string code, string msg, string issuerId, string corrId) =>
             new() { Success = false, ErrorCode = code, ErrorMessage = msg, IssuerId = issuerId, CorrelationId = corrId };
-
-        // ── Internal metadata type ─────────────────────────────────────────────
-
-        private sealed class ReviewDecisionMetadata
-        {
-            public string DecisionId    { get; init; } = string.Empty;
-            public string WorkflowId    { get; init; } = string.Empty;
-            public string IssuerId      { get; init; } = string.Empty;
-            public string ActorId       { get; init; } = string.Empty;
-            public ReviewDecisionType DecisionType { get; init; }
-            public string? Rationale    { get; init; }
-            public List<string> EvidenceRefs { get; init; } = new();
-            public string? ReviewNote   { get; init; }
-            public string? CorrelationId { get; init; }
-            public DateTime Timestamp   { get; init; }
-        }
     }
 }

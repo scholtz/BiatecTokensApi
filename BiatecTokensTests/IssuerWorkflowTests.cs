@@ -37,7 +37,10 @@ namespace BiatecTokensTests
         // ═══════════════════════════════════════════════════════════════════════
 
         private static IssuerWorkflowService CreateService() =>
-            new IssuerWorkflowService(NullLogger<IssuerWorkflowService>.Instance);
+            new IssuerWorkflowService(
+                NullLogger<IssuerWorkflowService>.Instance,
+                new BiatecTokensApi.Repositories.IssuerWorkflowRepository(
+                    NullLogger<BiatecTokensApi.Repositories.IssuerWorkflowRepository>.Instance));
 
         // ── Transition validation ──────────────────────────────────────────────
 
