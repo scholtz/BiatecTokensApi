@@ -124,6 +124,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all KycWorkflow types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.KycWorkflow")
                         return $"KycWorkflow{type.Name}";
+                    // Use namespace-qualified names for all DeploymentSignOff types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.DeploymentSignOff")
+                        return $"DeploymentSignOff{type.Name}";
                     return type.Name;
                 });
                 
@@ -379,6 +382,9 @@ namespace BiatecTokensApi
 
             // Register Compliance Orchestration Hardening service (Issue #488)
             builder.Services.AddSingleton<IComplianceOrchestrationHardeningService, ComplianceOrchestrationHardeningService>();
+
+            // Register Deployment Sign-Off service for enterprise sign-off journey hardening
+            builder.Services.AddSingleton<IDeploymentSignOffService, DeploymentSignOffService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
