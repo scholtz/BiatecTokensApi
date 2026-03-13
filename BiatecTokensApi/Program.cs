@@ -133,6 +133,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ProtectedSignOff types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ProtectedSignOff")
                         return $"ProtectedSignOff{type.Name}";
+                    // Use namespace-qualified names for all EnterpriseComplianceReview types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.EnterpriseComplianceReview")
+                        return $"EnterpriseComplianceReview{type.Name}";
                     return type.Name;
                 });
                 
@@ -398,6 +401,10 @@ namespace BiatecTokensApi
 
             // Register Issuer Workflow service for team roles and approval-state management
             builder.Services.AddSingleton<IIssuerWorkflowService, IssuerWorkflowService>();
+
+            // Register Enterprise Compliance Review service for role-aware review queues, evidence bundles,
+            // structured decisions, audit history/export, and operational diagnostics
+            builder.Services.AddSingleton<IEnterpriseComplianceReviewService, EnterpriseComplianceReviewService>();
 
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
