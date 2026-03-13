@@ -272,7 +272,7 @@ namespace BiatecTokensApi.Services
         }
 
         /// <inheritdoc/>
-        public Task<WhitelistPolicyEligibilityResult> EvaluateEligibilityAsync(WhitelistPolicyEligibilityRequest request)
+        public Task<WhitelistPolicyEligibilityResult> EvaluateEligibilityAsync(WhitelistPolicyEligibilityRequest request, string? evaluatedBy = null)
         {
             WhitelistPolicy? policy;
             lock (_lock)
@@ -316,7 +316,7 @@ namespace BiatecTokensApi.Services
                     ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.PolicyInDraftState },
                     PolicyVersionMetadata = versionMeta
                 };
-                RecordEvaluationEvent(request, policy, draftResult);
+                RecordEvaluationEvent(request, policy, draftResult, evaluatedBy);
                 return Task.FromResult(draftResult);
             }
 
@@ -333,7 +333,7 @@ namespace BiatecTokensApi.Services
                     ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.PolicyIsArchived },
                     PolicyVersionMetadata = versionMeta
                 };
-                RecordEvaluationEvent(request, policy, archivedResult);
+                RecordEvaluationEvent(request, policy, archivedResult, evaluatedBy);
                 return Task.FromResult(archivedResult);
             }
 
@@ -350,7 +350,7 @@ namespace BiatecTokensApi.Services
                     ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.PolicyHasNoRules },
                     PolicyVersionMetadata = versionMeta
                 };
-                RecordEvaluationEvent(request, policy, emptyResult);
+                RecordEvaluationEvent(request, policy, emptyResult, evaluatedBy);
                 return Task.FromResult(emptyResult);
             }
 
@@ -365,7 +365,7 @@ namespace BiatecTokensApi.Services
                 var denyResult = DenyResult(reasons, isFailClosed: false,
                     guidance: "Remove the address from DeniedAddresses to allow participation.",
                     reasonCodes: reasonCodes, versionMeta: versionMeta);
-                RecordEvaluationEvent(request, policy, denyResult);
+                RecordEvaluationEvent(request, policy, denyResult, evaluatedBy);
                 return Task.FromResult(denyResult);
             }
 
@@ -377,7 +377,7 @@ namespace BiatecTokensApi.Services
                 var denyResult = DenyResult(reasons, isFailClosed: false,
                     guidance: "Participation from this jurisdiction is not permitted.",
                     reasonCodes: reasonCodes, versionMeta: versionMeta);
-                RecordEvaluationEvent(request, policy, denyResult);
+                RecordEvaluationEvent(request, policy, denyResult, evaluatedBy);
                 return Task.FromResult(denyResult);
             }
 
@@ -396,7 +396,7 @@ namespace BiatecTokensApi.Services
                     var denyResult = DenyResult(reasons, isFailClosed: false,
                         guidance: "Participant must be from an allowed jurisdiction to participate.",
                         reasonCodes: reasonCodes, versionMeta: versionMeta);
-                    RecordEvaluationEvent(request, policy, denyResult);
+                    RecordEvaluationEvent(request, policy, denyResult, evaluatedBy);
                     return Task.FromResult(denyResult);
                 }
             }
@@ -411,7 +411,7 @@ namespace BiatecTokensApi.Services
                     var denyResult = DenyResult(reasons, isFailClosed: false,
                         guidance: "Participant must meet one of the required investor category thresholds.",
                         reasonCodes: reasonCodes, versionMeta: versionMeta);
-                    RecordEvaluationEvent(request, policy, denyResult);
+                    RecordEvaluationEvent(request, policy, denyResult, evaluatedBy);
                     return Task.FromResult(denyResult);
                 }
             }
@@ -426,7 +426,7 @@ namespace BiatecTokensApi.Services
                     var denyResult = DenyResult(reasons, isFailClosed: false,
                         guidance: "Add the participant's address to AllowedAddresses.",
                         reasonCodes: reasonCodes, versionMeta: versionMeta);
-                    RecordEvaluationEvent(request, policy, denyResult);
+                    RecordEvaluationEvent(request, policy, denyResult, evaluatedBy);
                     return Task.FromResult(denyResult);
                 }
             }
@@ -446,7 +446,7 @@ namespace BiatecTokensApi.Services
                 ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.AllPolicyCriteriaSatisfied },
                 PolicyVersionMetadata = versionMeta
             };
-            RecordEvaluationEvent(request, policy, allowResult);
+            RecordEvaluationEvent(request, policy, allowResult, evaluatedBy);
             return Task.FromResult(allowResult);
         }
 
@@ -615,7 +615,7 @@ namespace BiatecTokensApi.Services
             };
         }
 
-        private void RecordEvaluationEvent(WhitelistPolicyEligibilityRequest request, WhitelistPolicy policy, WhitelistPolicyEligibilityResult result)
+        private void RecordEvaluationEvent(WhitelistPolicyEligibilityRequest request, WhitelistPolicy policy, WhitelistPolicyEligibilityResult result, string? actor = null)
         {
             lock (_lock)
             {
@@ -623,7 +623,7 @@ namespace BiatecTokensApi.Services
                 {
                     PolicyId = request.PolicyId,
                     EventType = WhitelistAuditEventType.EligibilityEvaluated,
-                    Actor = "system",
+                    Actor = actor ?? "system",
                     Description = $"Eligibility evaluation: {result.Outcome}. {string.Join("; ", result.Reasons)}",
                     PolicyVersion = policy.Version,
                     ReasonCodes = new List<WhitelistEligibilityReasonCode>(result.ReasonCodes),

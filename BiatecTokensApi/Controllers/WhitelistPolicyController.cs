@@ -223,7 +223,7 @@ namespace BiatecTokensApi.Controllers
 
             try
             {
-                var result = await _policyService.EvaluateEligibilityAsync(request);
+                var result = await _policyService.EvaluateEligibilityAsync(request, CallerIdentity);
                 if (!result.Success && result.ErrorCode == "POLICY_NOT_FOUND")
                     return NotFound(result);
                 return Ok(result);
