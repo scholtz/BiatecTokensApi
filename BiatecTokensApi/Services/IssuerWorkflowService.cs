@@ -18,15 +18,6 @@ namespace BiatecTokensApi.Services
         private readonly ConcurrentDictionary<string, IssuerTeamMember> _members = new();
         private readonly ConcurrentDictionary<string, WorkflowItem> _workflowItems = new();
 
-        // Roles that are permitted to approve/reject workflow items
-        private static readonly IReadOnlySet<IssuerTeamRole> _approverRoles =
-            new HashSet<IssuerTeamRole>
-            {
-                IssuerTeamRole.ComplianceReviewer,
-                IssuerTeamRole.FinanceReviewer,
-                IssuerTeamRole.Admin
-            };
-
         // Valid state transition graph
         private static readonly IReadOnlyDictionary<WorkflowApprovalState, IReadOnlySet<WorkflowApprovalState>> _allowedTransitions =
             new Dictionary<WorkflowApprovalState, IReadOnlySet<WorkflowApprovalState>>
@@ -377,7 +368,7 @@ namespace BiatecTokensApi.Services
             _logger.LogInformation(
                 "WorkflowItem reassigned. WorkflowId={WorkflowId} From={From} To={To} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId,
-                LoggingHelper.SanitizeLogInput(previousAssignee),
+                LoggingHelper.SanitizeLogInput(previousAssignee ?? "unassigned"),
                 LoggingHelper.SanitizeLogInput(request.NewAssigneeId),
                 LoggingHelper.SanitizeLogInput(actorId),
                 LoggingHelper.SanitizeLogInput(correlationId));
