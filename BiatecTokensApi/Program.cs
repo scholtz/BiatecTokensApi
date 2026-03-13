@@ -130,6 +130,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all IssuerWorkflow types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.IssuerWorkflow")
                         return $"IssuerWorkflow{type.Name}";
+                    // Use namespace-qualified names for all ProtectedSignOff types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.ProtectedSignOff")
+                        return $"ProtectedSignOff{type.Name}";
                     return type.Name;
                 });
                 
@@ -389,6 +392,9 @@ namespace BiatecTokensApi
 
             // Register Deployment Sign-Off service for enterprise sign-off journey hardening
             builder.Services.AddSingleton<IDeploymentSignOffService, DeploymentSignOffService>();
+
+            // Register Protected Sign-Off Environment service for protected run evidence
+            builder.Services.AddSingleton<IProtectedSignOffEnvironmentService, ProtectedSignOffEnvironmentService>();
 
             // Register Issuer Workflow service for team roles and approval-state management
             builder.Services.AddSingleton<IIssuerWorkflowService, IssuerWorkflowService>();
