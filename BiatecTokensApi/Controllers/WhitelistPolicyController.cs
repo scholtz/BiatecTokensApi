@@ -209,7 +209,16 @@ namespace BiatecTokensApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Ensure the route policyId is used (body PolicyId is optional override)
+            // Validate that the body PolicyId (if provided) matches the route policyId
+            if (!string.IsNullOrEmpty(request.PolicyId) && !string.Equals(request.PolicyId, policyId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new WhitelistPolicyEligibilityResult
+                {
+                    Success = false,
+                    ErrorMessage = $"PolicyId in the request body ('{request.PolicyId}') does not match the route parameter ('{policyId}').",
+                    ErrorCode = "POLICY_ID_MISMATCH"
+                });
+
+            // Ensure the route policyId is authoritative
             request.PolicyId = policyId;
 
             try

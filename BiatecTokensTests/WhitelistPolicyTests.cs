@@ -46,17 +46,17 @@ namespace BiatecTokensTests
             var reg = await _unauthClient.PostAsJsonAsync("/api/v1/auth/register",
                 new RegisterRequest { Email = email, Password = "PolicyTest123!", ConfirmPassword = "PolicyTest123!" });
 
-            string? token = null;
-            if (reg.IsSuccessStatusCode)
-            {
-                var body = await reg.Content.ReadFromJsonAsync<RegisterResponse>();
-                token = body?.AccessToken;
-            }
+            Assert.That(reg.IsSuccessStatusCode,
+                $"Registration failed with status {reg.StatusCode}. Authenticated tests will not work.");
+
+            var body = await reg.Content.ReadFromJsonAsync<RegisterResponse>();
+            var token = body?.AccessToken;
+            Assert.That(token, Is.Not.Null,
+                "Access token was null after successful registration. Authenticated tests will not work.");
 
             _authClient = _factory.CreateClient();
-            if (token != null)
-                _authClient.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            _authClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
         [OneTimeTearDown]

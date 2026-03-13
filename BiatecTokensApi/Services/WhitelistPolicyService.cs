@@ -207,13 +207,7 @@ namespace BiatecTokensApi.Services
             }
 
             // Warning: completely empty policy — every evaluation is fail-closed
-            bool hasAnyRule = policy.AllowedAddresses.Count > 0
-                || policy.DeniedAddresses.Count > 0
-                || policy.AllowedJurisdictions.Count > 0
-                || policy.BlockedJurisdictions.Count > 0
-                || policy.RequiredInvestorCategories.Count > 0;
-
-            if (!hasAnyRule)
+            if (IsPolicyEmpty(policy))
             {
                 issues.Add(new WhitelistPolicyValidationIssue
                 {
@@ -304,13 +298,7 @@ namespace BiatecTokensApi.Services
             }
 
             // FAIL-CLOSED: completely empty active policy — no rules defined → deny
-            bool hasAnyAllowRule = policy.AllowedAddresses.Count > 0
-                || policy.AllowedJurisdictions.Count > 0
-                || policy.RequiredInvestorCategories.Count > 0;
-
-            bool hasDenyRules = policy.DeniedAddresses.Count > 0 || policy.BlockedJurisdictions.Count > 0;
-
-            if (!hasAnyAllowRule && !hasDenyRules)
+            if (IsPolicyEmpty(policy))
             {
                 return Task.FromResult(new WhitelistPolicyEligibilityResult
                 {
@@ -389,6 +377,13 @@ namespace BiatecTokensApi.Services
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────────
+
+        private static bool IsPolicyEmpty(WhitelistPolicy policy)
+            => policy.AllowedAddresses.Count == 0
+            && policy.DeniedAddresses.Count == 0
+            && policy.AllowedJurisdictions.Count == 0
+            && policy.BlockedJurisdictions.Count == 0
+            && policy.RequiredInvestorCategories.Count == 0;
 
         private static WhitelistPolicyEligibilityResult DenyResult(List<string> reasons, bool isFailClosed, string? guidance)
         {
