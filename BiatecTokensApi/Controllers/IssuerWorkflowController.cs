@@ -35,13 +35,15 @@ namespace BiatecTokensApi.Controllers
 
         /// <summary>
         /// Adds a new member to an issuer team with the specified role.
-        /// Only Admins of the issuer should call this endpoint.
+        /// Bootstrap: if the issuer has no members yet, any authenticated caller may add the first Admin.
+        /// After bootstrap, only existing Admins may add further members.
         /// </summary>
         /// <param name="issuerId">Issuer identifier scope.</param>
         /// <param name="request">Member details and role.</param>
         [HttpPost("{issuerId}/members")]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> AddMember(string issuerId, [FromBody] AddIssuerTeamMemberRequest request)
         {
             var actorId = GetActorId();
@@ -51,6 +53,7 @@ namespace BiatecTokensApi.Controllers
                 LoggingHelper.SanitizeLogInput(actorId));
 
             var result = await _workflowService.AddMemberAsync(issuerId, request, actorId);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -63,13 +66,14 @@ namespace BiatecTokensApi.Controllers
         [HttpPut("{issuerId}/members/{memberId}")]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateMember(string issuerId, string memberId, [FromBody] UpdateIssuerTeamMemberRequest request)
         {
             var actorId = GetActorId();
             var result  = await _workflowService.UpdateMemberAsync(issuerId, memberId, request, actorId);
-            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
-                return NotFound(result);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -80,13 +84,14 @@ namespace BiatecTokensApi.Controllers
         /// <param name="memberId">Member record identifier.</param>
         [HttpDelete("{issuerId}/members/{memberId}")]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> RemoveMember(string issuerId, string memberId)
         {
             var actorId = GetActorId();
             var result  = await _workflowService.RemoveMemberAsync(issuerId, memberId, actorId);
-            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
-                return NotFound(result);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -97,37 +102,45 @@ namespace BiatecTokensApi.Controllers
         /// <param name="memberId">Member record identifier.</param>
         [HttpGet("{issuerId}/members/{memberId}")]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(IssuerTeamMemberResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetMember(string issuerId, string memberId)
         {
-            var result = await _workflowService.GetMemberAsync(issuerId, memberId);
-            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
-                return NotFound(result);
+            var actorId = GetActorId();
+            var result  = await _workflowService.GetMemberAsync(issuerId, memberId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
         /// <summary>
         /// Lists all active team members for the given issuer.
+        /// Requires actor to be an active member of the issuer.
         /// </summary>
         /// <param name="issuerId">Issuer identifier scope.</param>
         [HttpGet("{issuerId}/members")]
         [ProducesResponseType(typeof(IssuerTeamMembersResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IssuerTeamMembersResponse), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> ListMembers(string issuerId)
         {
-            var result = await _workflowService.ListMembersAsync(issuerId);
-            return Ok(result);
+            var actorId = GetActorId();
+            var result  = await _workflowService.ListMembersAsync(issuerId, actorId);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
+            return result.Success ? Ok(result) : BadRequest(result);
         }
 
         // ── Workflow Items ─────────────────────────────────────────────────────
 
         /// <summary>
         /// Creates a new workflow item in Prepared state for the given issuer.
+        /// Requires Operator or Admin role.
         /// </summary>
         /// <param name="issuerId">Issuer identifier scope.</param>
         /// <param name="request">Workflow item details.</param>
         [HttpPost("{issuerId}/workflows")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> CreateWorkflowItem(string issuerId, [FromBody] CreateWorkflowItemRequest request)
         {
             var actorId = GetActorId();
@@ -138,37 +151,45 @@ namespace BiatecTokensApi.Controllers
                 LoggingHelper.SanitizeLogInput(actorId));
 
             var result = await _workflowService.CreateWorkflowItemAsync(issuerId, request!, actorId);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
         /// <summary>
         /// Gets a single workflow item by its ID, scoped to the issuer.
+        /// Requires actor to be an active member of the issuer.
         /// </summary>
         /// <param name="issuerId">Issuer identifier scope.</param>
         /// <param name="workflowId">Workflow item identifier.</param>
         [HttpGet("{issuerId}/workflows/{workflowId}")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetWorkflowItem(string issuerId, string workflowId)
         {
-            var result = await _workflowService.GetWorkflowItemAsync(issuerId, workflowId);
-            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
-                return NotFound(result);
+            var actorId = GetActorId();
+            var result  = await _workflowService.GetWorkflowItemAsync(issuerId, workflowId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
         /// <summary>
         /// Lists workflow items for an issuer, with optional filtering by state or assignee.
+        /// Requires actor to be an active member of the issuer.
         /// </summary>
         /// <param name="issuerId">Issuer identifier scope.</param>
         /// <param name="state">Optional state filter.</param>
         /// <param name="assignedTo">Optional assignee filter.</param>
         [HttpGet("{issuerId}/workflows")]
         [ProducesResponseType(typeof(WorkflowItemListResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(WorkflowItemListResponse), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> ListWorkflowItems(string issuerId, [FromQuery] WorkflowApprovalState? state = null, [FromQuery] string? assignedTo = null)
         {
-            var result = await _workflowService.ListWorkflowItemsAsync(issuerId, state, assignedTo);
-            return Ok(result);
+            var actorId = GetActorId();
+            var result  = await _workflowService.ListWorkflowItemsAsync(issuerId, actorId, state, assignedTo);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
+            return result.Success ? Ok(result) : BadRequest(result);
         }
 
         // ── Workflow Transitions ───────────────────────────────────────────────
@@ -183,6 +204,7 @@ namespace BiatecTokensApi.Controllers
         [HttpPost("{issuerId}/workflows/{workflowId}/submit")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> SubmitForReview(string issuerId, string workflowId, [FromBody] SubmitWorkflowItemRequest? request)
         {
@@ -190,6 +212,7 @@ namespace BiatecTokensApi.Controllers
             var correlationId = HttpContext.TraceIdentifier;
             var result = await _workflowService.SubmitForReviewAsync(issuerId, workflowId, request ?? new SubmitWorkflowItemRequest(), actorId, correlationId);
             if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -203,6 +226,7 @@ namespace BiatecTokensApi.Controllers
         [HttpPost("{issuerId}/workflows/{workflowId}/approve")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Approve(string issuerId, string workflowId, [FromBody] ApproveWorkflowItemRequest? request)
         {
@@ -210,6 +234,7 @@ namespace BiatecTokensApi.Controllers
             var correlationId = HttpContext.TraceIdentifier;
             var result = await _workflowService.ApproveAsync(issuerId, workflowId, request ?? new ApproveWorkflowItemRequest(), actorId, correlationId);
             if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -223,6 +248,7 @@ namespace BiatecTokensApi.Controllers
         [HttpPost("{issuerId}/workflows/{workflowId}/reject")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Reject(string issuerId, string workflowId, [FromBody] RejectWorkflowItemRequest request)
         {
@@ -230,6 +256,7 @@ namespace BiatecTokensApi.Controllers
             var correlationId = HttpContext.TraceIdentifier;
             var result = await _workflowService.RejectAsync(issuerId, workflowId, request, actorId, correlationId);
             if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -243,6 +270,7 @@ namespace BiatecTokensApi.Controllers
         [HttpPost("{issuerId}/workflows/{workflowId}/request-changes")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> RequestChanges(string issuerId, string workflowId, [FromBody] RequestChangesRequest request)
         {
@@ -250,6 +278,7 @@ namespace BiatecTokensApi.Controllers
             var correlationId = HttpContext.TraceIdentifier;
             var result = await _workflowService.RequestChangesAsync(issuerId, workflowId, request, actorId, correlationId);
             if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -263,6 +292,7 @@ namespace BiatecTokensApi.Controllers
         [HttpPost("{issuerId}/workflows/{workflowId}/resubmit")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Resubmit(string issuerId, string workflowId, [FromBody] SubmitWorkflowItemRequest? request)
         {
@@ -270,6 +300,7 @@ namespace BiatecTokensApi.Controllers
             var correlationId = HttpContext.TraceIdentifier;
             var result = await _workflowService.ResubmitAsync(issuerId, workflowId, request ?? new SubmitWorkflowItemRequest(), actorId, correlationId);
             if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -284,6 +315,7 @@ namespace BiatecTokensApi.Controllers
         [HttpPost("{issuerId}/workflows/{workflowId}/reassign")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Reassign(string issuerId, string workflowId, [FromBody] ReassignWorkflowItemRequest request)
         {
@@ -291,6 +323,7 @@ namespace BiatecTokensApi.Controllers
             var correlationId = HttpContext.TraceIdentifier;
             var result = await _workflowService.ReassignAsync(issuerId, workflowId, request, actorId, correlationId);
             if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -304,6 +337,7 @@ namespace BiatecTokensApi.Controllers
         [HttpPost("{issuerId}/workflows/{workflowId}/complete")]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(WorkflowItemResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Complete(string issuerId, string workflowId, [FromBody] CompleteWorkflowItemRequest? request)
         {
@@ -311,6 +345,7 @@ namespace BiatecTokensApi.Controllers
             var correlationId = HttpContext.TraceIdentifier;
             var result = await _workflowService.CompleteAsync(issuerId, workflowId, request ?? new CompleteWorkflowItemRequest(), actorId, correlationId);
             if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -319,27 +354,35 @@ namespace BiatecTokensApi.Controllers
         /// <summary>
         /// Returns an approval summary for the issuer suitable for dashboard rendering.
         /// Includes counts per state, active team member count, and the five most recent pending items.
+        /// Requires actor to be an active member of the issuer.
         /// </summary>
         /// <param name="issuerId">Issuer identifier scope.</param>
         [HttpGet("{issuerId}/summary")]
         [ProducesResponseType(typeof(WorkflowApprovalSummaryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(WorkflowApprovalSummaryResponse), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetApprovalSummary(string issuerId)
         {
-            var result = await _workflowService.GetApprovalSummaryAsync(issuerId);
-            return Ok(result);
+            var actorId = GetActorId();
+            var result  = await _workflowService.GetApprovalSummaryAsync(issuerId, actorId);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
+            return result.Success ? Ok(result) : BadRequest(result);
         }
 
         /// <summary>
         /// Returns all workflow items currently assigned to a specific team member within the issuer.
+        /// Requires actor to be an active member of the issuer.
         /// </summary>
         /// <param name="issuerId">Issuer identifier scope.</param>
         /// <param name="assigneeId">User ID of the assignee to query.</param>
         [HttpGet("{issuerId}/queue/{assigneeId}")]
         [ProducesResponseType(typeof(WorkflowItemListResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(WorkflowItemListResponse), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetAssignedQueue(string issuerId, string assigneeId)
         {
-            var result = await _workflowService.GetAssignedQueueAsync(issuerId, assigneeId);
-            return Ok(result);
+            var actorId = GetActorId();
+            var result  = await _workflowService.GetAssignedQueueAsync(issuerId, assigneeId, actorId);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
+            return result.Success ? Ok(result) : BadRequest(result);
         }
 
         // ── Private helpers ────────────────────────────────────────────────────
@@ -348,5 +391,12 @@ namespace BiatecTokensApi.Controllers
             User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                 ?? User.FindFirst("nameid")?.Value
                 ?? "anonymous";
+
+        /// <summary>
+        /// Returns true for error codes that represent authorization failures.
+        /// These should map to HTTP 403 Forbidden rather than 400 Bad Request.
+        /// </summary>
+        private static bool IsAuthError(string? errorCode) =>
+            errorCode == ErrorCodes.UNAUTHORIZED || errorCode == "INSUFFICIENT_ROLE";
     }
 }

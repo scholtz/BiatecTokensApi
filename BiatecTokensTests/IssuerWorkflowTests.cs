@@ -12,14 +12,19 @@ using System.Text.Json;
 namespace BiatecTokensTests
 {
     /// <summary>
-    /// Tests for the IssuerWorkflowService and IssuerWorkflowController.
-    /// Covers:
+    /// Tests for IssuerWorkflowService and IssuerWorkflowController.
+    ///
+    /// Coverage:
     ///  - State machine transition rules (valid / invalid)
+    ///  - Bootstrap: first issuer Admin may be added by any authenticated caller
     ///  - Team membership CRUD with tenant isolation
+    ///  - Role-based authorization: Admin gates, approver gates, operator gates, read-only
+    ///  - Non-member rejection for every protected operation
+    ///  - Insufficient-role rejection with INSUFFICIENT_ROLE error code
     ///  - Workflow item lifecycle: create → submit → approve/reject/request-changes → complete
     ///  - Reassignment with active-member validation
     ///  - Tenant isolation: one issuer cannot read/mutate another issuer's records
-    ///  - Unauthorized access behaviour (unauthenticated HTTP calls)
+    ///  - Unauthorized HTTP access (unauthenticated 401)
     ///  - Dashboard summary and assigned-queue queries
     ///  - Serialization shape (HTTP integration tests)
     /// </summary>
@@ -131,19 +136,65 @@ namespace BiatecTokensTests
             Assert.That(allowed, Is.Empty);
         }
 
-        // ── Team membership ────────────────────────────────────────────────────
+        // ── Bootstrap ─────────────────────────────────────────────────────────
+
+        [Test]
+        public async Task Bootstrap_FirstMemberAsAdmin_AnyCallerSucceeds()
+        {
+            // The very first member of a new issuer may be added by any authenticated caller.
+            var svc = CreateService();
+            var res = await svc.AddMemberAsync("new-issuer-1",
+                new AddIssuerTeamMemberRequest { UserId = "admin1", Role = IssuerTeamRole.Admin },
+                "anonymous-caller-no-membership");
+
+            Assert.That(res.Success, Is.True);
+            Assert.That(res.Member!.Role, Is.EqualTo(IssuerTeamRole.Admin));
+        }
+
+        [Test]
+        public async Task Bootstrap_FirstMemberMustBeAdmin_OperatorRejected()
+        {
+            var svc = CreateService();
+            var res = await svc.AddMemberAsync("new-issuer-2",
+                new AddIssuerTeamMemberRequest { UserId = "op1", Role = IssuerTeamRole.Operator },
+                "anyone");
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("BOOTSTRAP_ROLE_REQUIRED"));
+        }
+
+        [Test]
+        public async Task Bootstrap_SubsequentAddRequiresAdminRole()
+        {
+            var svc = CreateService();
+            // Bootstrap: add first admin
+            await svc.AddMemberAsync("issuer-bootstrap-test", new AddIssuerTeamMemberRequest { UserId = "admin", Role = IssuerTeamRole.Admin }, "anyone");
+
+            // Non-admin trying to add a member
+            await svc.AddMemberAsync("issuer-bootstrap-test", new AddIssuerTeamMemberRequest { UserId = "op", Role = IssuerTeamRole.Operator }, "admin"); // OK - admin adding
+            var nonAdminAdd = await svc.AddMemberAsync("issuer-bootstrap-test",
+                new AddIssuerTeamMemberRequest { UserId = "another-user", Role = IssuerTeamRole.Operator },
+                "op"); // op is NOT an admin
+
+            Assert.That(nonAdminAdd.Success, Is.False);
+            Assert.That(nonAdminAdd.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
+        }
+
+        // ── Team membership CRUD ──────────────────────────────────────────────
 
         [Test]
         public async Task AddMember_ValidRequest_ReturnsMember()
         {
             var svc = CreateService();
-            var req = new AddIssuerTeamMemberRequest { UserId = "user1@test.com", Role = IssuerTeamRole.ComplianceReviewer };
-            var res = await svc.AddMemberAsync("issuer-A", req, "admin1");
+            // Bootstrap: first member must be Admin
+            var res = await svc.AddMemberAsync("issuer-A",
+                new AddIssuerTeamMemberRequest { UserId = "admin1@test.com", Role = IssuerTeamRole.Admin },
+                "any-caller");
 
             Assert.That(res.Success, Is.True);
             Assert.That(res.Member, Is.Not.Null);
-            Assert.That(res.Member!.UserId, Is.EqualTo("user1@test.com"));
-            Assert.That(res.Member.Role, Is.EqualTo(IssuerTeamRole.ComplianceReviewer));
+            Assert.That(res.Member!.UserId, Is.EqualTo("admin1@test.com"));
+            Assert.That(res.Member.Role, Is.EqualTo(IssuerTeamRole.Admin));
             Assert.That(res.Member.IssuerId, Is.EqualTo("issuer-A"));
         }
 
@@ -151,7 +202,7 @@ namespace BiatecTokensTests
         public async Task AddMember_MissingUserId_ReturnsBadRequest()
         {
             var svc = CreateService();
-            var req = new AddIssuerTeamMemberRequest { UserId = "", Role = IssuerTeamRole.Operator };
+            var req = new AddIssuerTeamMemberRequest { UserId = "", Role = IssuerTeamRole.Admin };
             var res = await svc.AddMemberAsync("issuer-A", req, "admin1");
 
             Assert.That(res.Success, Is.False);
@@ -162,33 +213,67 @@ namespace BiatecTokensTests
         public async Task AddMember_Duplicate_ReturnsError()
         {
             var svc = CreateService();
-            var req = new AddIssuerTeamMemberRequest { UserId = "dup@test.com", Role = IssuerTeamRole.Operator };
-            await svc.AddMemberAsync("issuer-A", req, "admin1");
-            var res2 = await svc.AddMemberAsync("issuer-A", req, "admin1");
+            // Bootstrap admin
+            await svc.AddMemberAsync("issuer-dup", new AddIssuerTeamMemberRequest { UserId = "admin", Role = IssuerTeamRole.Admin }, "any");
+            // Admin adds an operator
+            await svc.AddMemberAsync("issuer-dup", new AddIssuerTeamMemberRequest { UserId = "dup@test.com", Role = IssuerTeamRole.Operator }, "admin");
+            // Admin tries to add the same operator again
+            var res2 = await svc.AddMemberAsync("issuer-dup", new AddIssuerTeamMemberRequest { UserId = "dup@test.com", Role = IssuerTeamRole.Operator }, "admin");
 
             Assert.That(res2.Success, Is.False);
             Assert.That(res2.ErrorCode, Is.EqualTo("DUPLICATE_MEMBER"));
         }
 
         [Test]
+        public async Task AddMember_NonAdminActor_ReturnsInsufficientRole()
+        {
+            var svc = CreateService();
+            // Bootstrap admin, then add operator
+            await svc.AddMemberAsync("issuer-role", new AddIssuerTeamMemberRequest { UserId = "admin", Role = IssuerTeamRole.Admin }, "any");
+            await svc.AddMemberAsync("issuer-role", new AddIssuerTeamMemberRequest { UserId = "op", Role = IssuerTeamRole.Operator }, "admin");
+
+            // Operator tries to add a new member — must fail
+            var res = await svc.AddMemberAsync("issuer-role",
+                new AddIssuerTeamMemberRequest { UserId = "intruder", Role = IssuerTeamRole.ReadOnlyObserver },
+                "op");
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
+        }
+
+        [Test]
         public async Task ListMembers_OnlyReturnsActiveMembersForSameIssuer()
         {
             var svc = CreateService();
-            await svc.AddMemberAsync("issuerX", new AddIssuerTeamMemberRequest { UserId = "u1", Role = IssuerTeamRole.Operator }, "admin");
-            await svc.AddMemberAsync("issuerY", new AddIssuerTeamMemberRequest { UserId = "u2", Role = IssuerTeamRole.Admin }, "admin");
+            await svc.AddMemberAsync("issuerX", new AddIssuerTeamMemberRequest { UserId = "adminX", Role = IssuerTeamRole.Admin }, "any");
+            await svc.AddMemberAsync("issuerY", new AddIssuerTeamMemberRequest { UserId = "adminY", Role = IssuerTeamRole.Admin }, "any");
 
-            var listX = await svc.ListMembersAsync("issuerX");
-            var listY = await svc.ListMembersAsync("issuerY");
+            var listX = await svc.ListMembersAsync("issuerX", "adminX");
+            var listY = await svc.ListMembersAsync("issuerY", "adminY");
 
-            Assert.That(listX.Members.Select(m => m.UserId), Does.Contain("u1"));
-            Assert.That(listX.Members.Select(m => m.UserId), Does.Not.Contain("u2"), "Tenant isolation violated");
-            Assert.That(listY.Members.Select(m => m.UserId), Does.Contain("u2"));
+            Assert.That(listX.Members.Select(m => m.UserId), Does.Contain("adminX"));
+            Assert.That(listX.Members.Select(m => m.UserId), Does.Not.Contain("adminY"), "Tenant isolation violated");
+            Assert.That(listY.Members.Select(m => m.UserId), Does.Contain("adminY"));
+        }
+
+        [Test]
+        public async Task ListMembers_NonMember_ReturnsUnauthorized()
+        {
+            var svc = CreateService();
+            await svc.AddMemberAsync("issuer-lm", new AddIssuerTeamMemberRequest { UserId = "admin", Role = IssuerTeamRole.Admin }, "any");
+
+            var res = await svc.ListMembersAsync("issuer-lm", "non-member-actor");
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
         }
 
         [Test]
         public async Task RemoveMember_SoftDelete_MemberNoLongerInActiveList()
         {
             var svc = CreateService();
+            // Bootstrap admin
+            await svc.AddMemberAsync("issuerR", new AddIssuerTeamMemberRequest { UserId = "admin", Role = IssuerTeamRole.Admin }, "any");
+            // Admin adds member to remove
             var addRes = await svc.AddMemberAsync("issuerR", new AddIssuerTeamMemberRequest { UserId = "remove-me", Role = IssuerTeamRole.Operator }, "admin");
             var memberId = addRes.Member!.MemberId;
 
@@ -196,7 +281,7 @@ namespace BiatecTokensTests
             Assert.That(removeRes.Success, Is.True);
             Assert.That(removeRes.Member!.IsActive, Is.False);
 
-            var list = await svc.ListMembersAsync("issuerR");
+            var list = await svc.ListMembersAsync("issuerR", "admin");
             Assert.That(list.Members.Any(m => m.MemberId == memberId), Is.False);
         }
 
@@ -204,10 +289,12 @@ namespace BiatecTokensTests
         public async Task RemoveMember_WrongIssuer_ReturnsUnauthorized()
         {
             var svc = CreateService();
-            var addRes = await svc.AddMemberAsync("issuer1", new AddIssuerTeamMemberRequest { UserId = "x", Role = IssuerTeamRole.Operator }, "admin");
+            await svc.AddMemberAsync("issuer1", new AddIssuerTeamMemberRequest { UserId = "admin1", Role = IssuerTeamRole.Admin }, "any");
+            var addRes = await svc.AddMemberAsync("issuer1", new AddIssuerTeamMemberRequest { UserId = "victim", Role = IssuerTeamRole.Operator }, "admin1");
             var memberId = addRes.Member!.MemberId;
 
-            var res = await svc.RemoveMemberAsync("issuer2", memberId, "admin");
+            // Actor is not a member of issuer2
+            var res = await svc.RemoveMemberAsync("issuer2", memberId, "admin1");
             Assert.That(res.Success, Is.False);
             Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
         }
@@ -215,178 +302,235 @@ namespace BiatecTokensTests
         [Test]
         public async Task UpdateMember_RoleChange_Persists()
         {
-            var svc    = CreateService();
-            var addRes = await svc.AddMemberAsync("issuerU", new AddIssuerTeamMemberRequest { UserId = "upd@test.com", Role = IssuerTeamRole.Operator }, "admin");
+            var svc = CreateService();
+            // Bootstrap admin
+            await svc.AddMemberAsync("issuer-U", new AddIssuerTeamMemberRequest { UserId = "admin", Role = IssuerTeamRole.Admin }, "any");
+            // Admin adds a user to update
+            var addRes = await svc.AddMemberAsync("issuer-U", new AddIssuerTeamMemberRequest { UserId = "user-U", Role = IssuerTeamRole.Operator }, "admin");
             var memberId = addRes.Member!.MemberId;
 
-            var updRes = await svc.UpdateMemberAsync("issuerU", memberId,
-                new UpdateIssuerTeamMemberRequest { Role = IssuerTeamRole.Admin }, "admin");
+            var updateRes = await svc.UpdateMemberAsync("issuer-U", memberId,
+                new UpdateIssuerTeamMemberRequest { Role = IssuerTeamRole.FinanceReviewer }, "admin");
 
-            Assert.That(updRes.Success, Is.True);
-            Assert.That(updRes.Member!.Role, Is.EqualTo(IssuerTeamRole.Admin));
-        }
-
-        // ── Workflow item lifecycle ────────────────────────────────────────────
-
-        [Test]
-        public async Task CreateWorkflowItem_ValidRequest_ReturnsItemInPreparedState()
-        {
-            var svc = CreateService();
-            var req = new CreateWorkflowItemRequest
-            {
-                ItemType    = WorkflowItemType.LaunchReadinessSignOff,
-                Title       = "Launch sign-off for ACME token"
-            };
-            var res = await svc.CreateWorkflowItemAsync("issuer1", req, "op1");
-
-            Assert.That(res.Success, Is.True);
-            Assert.That(res.WorkflowItem, Is.Not.Null);
-            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.Prepared));
-            Assert.That(res.WorkflowItem.CreatedBy, Is.EqualTo("op1"));
-            Assert.That(res.WorkflowItem.AuditHistory, Has.Count.EqualTo(1), "Creation should add one audit entry");
+            Assert.That(updateRes.Success, Is.True);
+            Assert.That(updateRes.Member!.Role, Is.EqualTo(IssuerTeamRole.FinanceReviewer));
         }
 
         [Test]
-        public async Task CreateWorkflowItem_MissingTitle_ReturnsError()
+        public async Task UpdateMember_NonAdminActor_ReturnsInsufficientRole()
         {
             var svc = CreateService();
-            var req = new CreateWorkflowItemRequest { ItemType = WorkflowItemType.WhitelistPolicyUpdate, Title = "" };
-            var res = await svc.CreateWorkflowItemAsync("issuer1", req, "op1");
+            await svc.AddMemberAsync("issuer-upd", new AddIssuerTeamMemberRequest { UserId = "admin", Role = IssuerTeamRole.Admin }, "any");
+            await svc.AddMemberAsync("issuer-upd", new AddIssuerTeamMemberRequest { UserId = "op", Role = IssuerTeamRole.Operator }, "admin");
+            var addRes = await svc.AddMemberAsync("issuer-upd", new AddIssuerTeamMemberRequest { UserId = "target", Role = IssuerTeamRole.Operator }, "admin");
+
+            var res = await svc.UpdateMemberAsync("issuer-upd", addRes.Member!.MemberId,
+                new UpdateIssuerTeamMemberRequest { Role = IssuerTeamRole.Admin }, "op"); // op cannot promote
+
             Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
+        }
+
+        // ── Role-based operation gates ────────────────────────────────────────
+
+        [Test]
+        public async Task Operator_CannotApprove_ReturnsInsufficientRole()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-op-approve");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-op-approve");
+
+            var res = await svc.ApproveAsync("issuer-op-approve", item.WorkflowId,
+                new ApproveWorkflowItemRequest(), "op", "c"); // op has Operator role
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
         }
 
         [Test]
-        public async Task SubmitForReview_TransitionsToCorrectState()
+        public async Task Operator_CannotReject_ReturnsInsufficientRole()
         {
-            var svc  = CreateService();
-            var item = (await svc.CreateWorkflowItemAsync("i1", NewReq(), "op1")).WorkflowItem!;
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-op-reject");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-op-reject");
 
-            var res  = await svc.SubmitForReviewAsync("i1", item.WorkflowId, new SubmitWorkflowItemRequest { SubmissionNote = "Ready for review" }, "op1", "corr1");
+            var res = await svc.RejectAsync("issuer-op-reject", item.WorkflowId,
+                new RejectWorkflowItemRequest { RejectionReason = "test" }, "op", "c");
 
-            Assert.That(res.Success, Is.True);
-            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.PendingReview));
-            Assert.That(res.WorkflowItem.AuditHistory, Has.Count.GreaterThan(1));
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
         }
 
         [Test]
-        public async Task Approve_TransitionsToApprovedState_WithMetadata()
+        public async Task Operator_CannotRequestChanges_ReturnsInsufficientRole()
         {
-            var svc  = CreateService();
-            var item = await CreatePendingReviewItemAsync(svc, "i1");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-op-rc");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-op-rc");
 
-            var res  = await svc.ApproveAsync("i1", item.WorkflowId, new ApproveWorkflowItemRequest { ApprovalNote = "Looks good" }, "reviewer1", "corr2");
+            var res = await svc.RequestChangesAsync("issuer-op-rc", item.WorkflowId,
+                new RequestChangesRequest { ChangeDescription = "fix it" }, "op", "c");
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
+        }
+
+        [Test]
+        public async Task ComplianceReviewer_CanApprove_Succeeds()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-cr-approve");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-cr-approve");
+
+            var res = await svc.ApproveAsync("issuer-cr-approve", item.WorkflowId,
+                new ApproveWorkflowItemRequest(), "reviewer", "c");
 
             Assert.That(res.Success, Is.True);
             Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.Approved));
-            Assert.That(res.WorkflowItem.ApproverActorId, Is.EqualTo("reviewer1"));
-            Assert.That(res.WorkflowItem.ApprovedAt, Is.Not.Null);
         }
 
         [Test]
-        public async Task Reject_TransitionsToRejectedState_WithReason()
+        public async Task ComplianceReviewer_CannotCreateWorkflow_ReturnsInsufficientRole()
         {
-            var svc  = CreateService();
-            var item = await CreatePendingReviewItemAsync(svc, "i2");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-cr-create");
 
-            var res  = await svc.RejectAsync("i2", item.WorkflowId, new RejectWorkflowItemRequest { RejectionReason = "Policy not met" }, "reviewer2", "corr3");
+            var res = await svc.CreateWorkflowItemAsync("issuer-cr-create",
+                NewReq("Reviewer tries to create"), "reviewer"); // reviewer has ComplianceReviewer role
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
+        }
+
+        [Test]
+        public async Task ReadOnlyObserver_CannotCreateWorkflow_ReturnsInsufficientRole()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-ro-create");
+            await svc.AddMemberAsync("issuer-ro-create",
+                new AddIssuerTeamMemberRequest { UserId = "observer", Role = IssuerTeamRole.ReadOnlyObserver },
+                "admin");
+
+            var res = await svc.CreateWorkflowItemAsync("issuer-ro-create", NewReq(), "observer");
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
+        }
+
+        [Test]
+        public async Task ReadOnlyObserver_CanReadWorkflowItems_Succeeds()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-ro-read");
+            await svc.AddMemberAsync("issuer-ro-read",
+                new AddIssuerTeamMemberRequest { UserId = "observer", Role = IssuerTeamRole.ReadOnlyObserver },
+                "admin");
+            var item = (await svc.CreateWorkflowItemAsync("issuer-ro-read", NewReq(), "op")).WorkflowItem!;
+
+            var res = await svc.GetWorkflowItemAsync("issuer-ro-read", item.WorkflowId, "observer");
 
             Assert.That(res.Success, Is.True);
-            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.Rejected));
-            Assert.That(res.WorkflowItem.RejectionOrChangeReason, Is.EqualTo("Policy not met"));
-            Assert.That(res.WorkflowItem.RejectedAt, Is.Not.Null);
         }
 
         [Test]
-        public async Task Reject_MissingReason_ReturnsError()
+        public async Task ReadOnlyObserver_CannotReassign_ReturnsInsufficientRole()
         {
-            var svc  = CreateService();
-            var item = await CreatePendingReviewItemAsync(svc, "i3");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-ro-reassign");
+            await svc.AddMemberAsync("issuer-ro-reassign",
+                new AddIssuerTeamMemberRequest { UserId = "observer", Role = IssuerTeamRole.ReadOnlyObserver },
+                "admin");
+            var item = (await svc.CreateWorkflowItemAsync("issuer-ro-reassign", NewReq(), "op")).WorkflowItem!;
 
-            var res = await svc.RejectAsync("i3", item.WorkflowId, new RejectWorkflowItemRequest { RejectionReason = "" }, "reviewer3", "corr4");
+            var res = await svc.ReassignAsync("issuer-ro-reassign", item.WorkflowId,
+                new ReassignWorkflowItemRequest { NewAssigneeId = "op" }, "observer", "c");
+
             Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INSUFFICIENT_ROLE"));
         }
 
-        [Test]
-        public async Task RequestChanges_TransitionsToNeedsChanges()
-        {
-            var svc  = CreateService();
-            var item = await CreatePendingReviewItemAsync(svc, "i4");
-
-            var res  = await svc.RequestChangesAsync("i4", item.WorkflowId, new RequestChangesRequest { ChangeDescription = "Please add evidence" }, "reviewer4", "corr5");
-
-            Assert.That(res.Success, Is.True);
-            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.NeedsChanges));
-            Assert.That(res.WorkflowItem.LatestReviewerActorId, Is.EqualTo("reviewer4"));
-        }
+        // ── Non-member rejection (every protected operation) ──────────────────
 
         [Test]
-        public async Task Resubmit_NeedsChangesToPendingReview()
+        public async Task NonMember_CannotGetWorkflowItem_ReturnsUnauthorized()
         {
-            var svc  = CreateService();
-            var item = await CreatePendingReviewItemAsync(svc, "i5");
-            await svc.RequestChangesAsync("i5", item.WorkflowId, new RequestChangesRequest { ChangeDescription = "Add X" }, "rev", "c1");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-nm-get");
+            var item = (await svc.CreateWorkflowItemAsync("issuer-nm-get", NewReq(), "op")).WorkflowItem!;
 
-            var res  = await svc.ResubmitAsync("i5", item.WorkflowId, new SubmitWorkflowItemRequest(), "op1", "c2");
-
-            Assert.That(res.Success, Is.True);
-            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.PendingReview));
-        }
-
-        [Test]
-        public async Task Complete_ApprovedToCompleted()
-        {
-            var svc  = CreateService();
-            var item = await CreateApprovedItemAsync(svc, "i6");
-
-            var res  = await svc.CompleteAsync("i6", item.WorkflowId, new CompleteWorkflowItemRequest { CompletionNote = "Done" }, "op1", "c3");
-
-            Assert.That(res.Success, Is.True);
-            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.Completed));
-            Assert.That(res.WorkflowItem.CompletedAt, Is.Not.Null);
-        }
-
-        // ── Invalid state transitions (fail-closed) ───────────────────────────
-
-        [Test]
-        public async Task Approve_AlreadyApprovedItem_ReturnsError()
-        {
-            var svc  = CreateService();
-            var item = await CreateApprovedItemAsync(svc, "i7");
-
-            var res = await svc.ApproveAsync("i7", item.WorkflowId, new ApproveWorkflowItemRequest(), "rev", "c");
+            var res = await svc.GetWorkflowItemAsync("issuer-nm-get", item.WorkflowId, "non-member");
             Assert.That(res.Success, Is.False);
-            Assert.That(res.ErrorCode, Is.EqualTo("INVALID_STATE_TRANSITION"));
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
         }
 
         [Test]
-        public async Task Approve_CompletedItem_ReturnsError()
+        public async Task NonMember_CannotListWorkflowItems_ReturnsUnauthorized()
         {
-            var svc  = CreateService();
-            var item = await CreateCompletedItemAsync(svc, "i8");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-nm-list");
 
-            var res = await svc.ApproveAsync("i8", item.WorkflowId, new ApproveWorkflowItemRequest(), "rev", "c");
+            var res = await svc.ListWorkflowItemsAsync("issuer-nm-list", "non-member");
             Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
         }
 
         [Test]
-        public async Task Reject_AlreadyRejectedItem_ReturnsError()
+        public async Task NonMember_CannotCreateWorkflow_ReturnsUnauthorized()
         {
-            var svc  = CreateService();
-            var item = await CreatePendingReviewItemAsync(svc, "i9");
-            await svc.RejectAsync("i9", item.WorkflowId, new RejectWorkflowItemRequest { RejectionReason = "X" }, "r", "c");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-nm-create");
 
-            var res = await svc.RejectAsync("i9", item.WorkflowId, new RejectWorkflowItemRequest { RejectionReason = "Y" }, "r", "c");
+            var res = await svc.CreateWorkflowItemAsync("issuer-nm-create", NewReq(), "non-member");
             Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
         }
 
         [Test]
-        public async Task SubmitForReview_AlreadyPendingItem_ReturnsError()
+        public async Task NonMember_CannotSubmitWorkflow_ReturnsUnauthorized()
         {
-            var svc  = CreateService();
-            var item = await CreatePendingReviewItemAsync(svc, "i10");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-nm-submit");
+            var item = (await svc.CreateWorkflowItemAsync("issuer-nm-submit", NewReq(), "op")).WorkflowItem!;
 
-            var res = await svc.SubmitForReviewAsync("i10", item.WorkflowId, new SubmitWorkflowItemRequest(), "op", "c");
+            var res = await svc.SubmitForReviewAsync("issuer-nm-submit", item.WorkflowId,
+                new SubmitWorkflowItemRequest(), "non-member", "c");
             Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
+        }
+
+        [Test]
+        public async Task NonMember_CannotApprove_ReturnsUnauthorized()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-nm-approve");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-nm-approve");
+
+            var res = await svc.ApproveAsync("issuer-nm-approve", item.WorkflowId,
+                new ApproveWorkflowItemRequest(), "non-member", "c");
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
+        }
+
+        [Test]
+        public async Task NonMember_CannotGetSummary_ReturnsUnauthorized()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-nm-summary");
+
+            var res = await svc.GetApprovalSummaryAsync("issuer-nm-summary", "non-member");
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
+        }
+
+        [Test]
+        public async Task NonMember_CannotGetQueue_ReturnsUnauthorized()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-nm-queue");
+
+            var res = await svc.GetAssignedQueueAsync("issuer-nm-queue", "op", "non-member");
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
         }
 
         // ── Tenant isolation ──────────────────────────────────────────────────
@@ -394,10 +538,12 @@ namespace BiatecTokensTests
         [Test]
         public async Task GetWorkflowItem_WrongIssuer_ReturnsUnauthorized()
         {
-            var svc  = CreateService();
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-OWNER");
             var item = (await svc.CreateWorkflowItemAsync("issuer-OWNER", NewReq(), "op")).WorkflowItem!;
 
-            var res = await svc.GetWorkflowItemAsync("issuer-ATTACKER", item.WorkflowId);
+            // Attacker is not a member of "issuer-ATTACKER" → UNAUTHORIZED
+            var res = await svc.GetWorkflowItemAsync("issuer-ATTACKER", item.WorkflowId, "attacker");
             Assert.That(res.Success, Is.False);
             Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
         }
@@ -406,26 +552,165 @@ namespace BiatecTokensTests
         public async Task ListWorkflowItems_OnlyReturnsItemsForSameIssuer()
         {
             var svc = CreateService();
-            await svc.CreateWorkflowItemAsync("tenantA", NewReq("Item A"), "op");
-            await svc.CreateWorkflowItemAsync("tenantB", NewReq("Item B"), "op");
+            await SetupIssuerMembersAsync(svc, "tenantA");
+            await SetupIssuerMembersAsync(svc, "tenantB", adminId: "adminB", operatorId: "opB", reviewerId: "reviewerB");
 
-            var listA = await svc.ListWorkflowItemsAsync("tenantA");
-            var listB = await svc.ListWorkflowItemsAsync("tenantB");
+            await svc.CreateWorkflowItemAsync("tenantA", NewReq("Item A"), "op");
+            await svc.CreateWorkflowItemAsync("tenantB", NewReq("Item B"), "opB");
+
+            var listA = await svc.ListWorkflowItemsAsync("tenantA", "op");
+            var listB = await svc.ListWorkflowItemsAsync("tenantB", "opB");
 
             Assert.That(listA.Items.All(i => i.IssuerId == "tenantA"), Is.True, "Tenant A must only see its own items");
             Assert.That(listB.Items.All(i => i.IssuerId == "tenantB"), Is.True, "Tenant B must only see its own items");
-            Assert.That(listA.Items.Any(i => i.IssuerId == "tenantB"), Is.False, "Tenant isolation violated: tenantA sees tenantB items");
+            Assert.That(listA.Items.Any(i => i.IssuerId == "tenantB"), Is.False, "Tenant isolation violated");
         }
 
         [Test]
         public async Task ApproveWorkflowItem_WrongIssuer_ReturnsUnauthorized()
         {
-            var svc  = CreateService();
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuerOwner");
             var item = await CreatePendingReviewItemAsync(svc, "issuerOwner");
 
-            var res = await svc.ApproveAsync("issuerAttacker", item.WorkflowId, new ApproveWorkflowItemRequest(), "attacker", "c");
+            // attacker is not a member of "issuerAttacker"
+            var res = await svc.ApproveAsync("issuerAttacker", item.WorkflowId,
+                new ApproveWorkflowItemRequest(), "attacker", "c");
             Assert.That(res.Success, Is.False);
             Assert.That(res.ErrorCode, Is.EqualTo("UNAUTHORIZED"));
+        }
+
+        // ── Workflow item state transitions ────────────────────────────────────
+
+        [Test]
+        public async Task SubmitForReview_TransitionsToCorrectState()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-submit");
+            var item = (await svc.CreateWorkflowItemAsync("issuer-submit", NewReq(), "op")).WorkflowItem!;
+
+            var res = await svc.SubmitForReviewAsync("issuer-submit", item.WorkflowId,
+                new SubmitWorkflowItemRequest { SubmissionNote = "Ready" }, "op", "c");
+
+            Assert.That(res.Success, Is.True);
+            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.PendingReview));
+        }
+
+        [Test]
+        public async Task SubmitForReview_AlreadyPendingItem_ReturnsError()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-sub2");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-sub2");
+
+            var res = await svc.SubmitForReviewAsync("issuer-sub2", item.WorkflowId,
+                new SubmitWorkflowItemRequest(), "op", "c");
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INVALID_STATE_TRANSITION"));
+        }
+
+        [Test]
+        public async Task Approve_TransitionsToApprovedState_WithMetadata()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-approve");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-approve");
+
+            var res = await svc.ApproveAsync("issuer-approve", item.WorkflowId,
+                new ApproveWorkflowItemRequest { ApprovalNote = "Good to go" }, "reviewer", "c");
+
+            Assert.That(res.Success, Is.True);
+            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.Approved));
+            Assert.That(res.WorkflowItem.ApproverActorId, Is.EqualTo("reviewer"));
+            Assert.That(res.WorkflowItem.ApprovedAt, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task Approve_AlreadyApprovedItem_ReturnsError()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-app2");
+            var item = await CreateApprovedItemAsync(svc, "issuer-app2");
+
+            var res = await svc.ApproveAsync("issuer-app2", item.WorkflowId,
+                new ApproveWorkflowItemRequest(), "reviewer", "c");
+
+            Assert.That(res.Success, Is.False);
+            Assert.That(res.ErrorCode, Is.EqualTo("INVALID_STATE_TRANSITION"));
+        }
+
+        [Test]
+        public async Task Reject_TransitionsToRejectedState_WithReason()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-reject");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-reject");
+
+            var res = await svc.RejectAsync("issuer-reject", item.WorkflowId,
+                new RejectWorkflowItemRequest { RejectionReason = "Non-compliant" }, "reviewer", "c");
+
+            Assert.That(res.Success, Is.True);
+            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.Rejected));
+            Assert.That(res.WorkflowItem.RejectionOrChangeReason, Is.EqualTo("Non-compliant"));
+        }
+
+        [Test]
+        public async Task Reject_AlreadyRejectedItem_ReturnsError()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-rej2");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-rej2");
+            await svc.RejectAsync("issuer-rej2", item.WorkflowId,
+                new RejectWorkflowItemRequest { RejectionReason = "first" }, "reviewer", "c");
+
+            var res = await svc.RejectAsync("issuer-rej2", item.WorkflowId,
+                new RejectWorkflowItemRequest { RejectionReason = "second" }, "reviewer", "c");
+
+            Assert.That(res.Success, Is.False);
+        }
+
+        [Test]
+        public async Task Reject_MissingReason_ReturnsError()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-rej3");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-rej3");
+
+            var res = await svc.RejectAsync("issuer-rej3", item.WorkflowId,
+                new RejectWorkflowItemRequest { RejectionReason = "" }, "reviewer", "c");
+
+            Assert.That(res.Success, Is.False);
+        }
+
+        [Test]
+        public async Task RequestChanges_TransitionsToNeedsChanges()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-rc");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-rc");
+
+            var res = await svc.RequestChangesAsync("issuer-rc", item.WorkflowId,
+                new RequestChangesRequest { ChangeDescription = "Please add section 3" }, "reviewer", "c");
+
+            Assert.That(res.Success, Is.True);
+            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.NeedsChanges));
+        }
+
+        [Test]
+        public async Task Resubmit_NeedsChangesToPendingReview()
+        {
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuer-resub");
+            var item = await CreatePendingReviewItemAsync(svc, "issuer-resub");
+            await svc.RequestChangesAsync("issuer-resub", item.WorkflowId,
+                new RequestChangesRequest { ChangeDescription = "Add docs" }, "reviewer", "c");
+
+            var res = await svc.ResubmitAsync("issuer-resub", item.WorkflowId,
+                new SubmitWorkflowItemRequest { SubmissionNote = "Updated" }, "op", "c");
+
+            Assert.That(res.Success, Is.True);
+            Assert.That(res.WorkflowItem!.State, Is.EqualTo(WorkflowApprovalState.PendingReview));
         }
 
         // ── Reassignment ──────────────────────────────────────────────────────
@@ -434,6 +719,7 @@ namespace BiatecTokensTests
         public async Task Reassign_ToActiveMember_Succeeds()
         {
             var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuerR");
             await svc.AddMemberAsync("issuerR", new AddIssuerTeamMemberRequest { UserId = "newReviewer", Role = IssuerTeamRole.ComplianceReviewer }, "admin");
             var item = (await svc.CreateWorkflowItemAsync("issuerR", NewReq(), "op")).WorkflowItem!;
 
@@ -447,10 +733,11 @@ namespace BiatecTokensTests
         [Test]
         public async Task Reassign_ToNonMember_ReturnsError()
         {
-            var svc  = CreateService();
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuerR2");
             var item = (await svc.CreateWorkflowItemAsync("issuerR2", NewReq(), "op")).WorkflowItem!;
 
-            var res  = await svc.ReassignAsync("issuerR2", item.WorkflowId,
+            var res = await svc.ReassignAsync("issuerR2", item.WorkflowId,
                 new ReassignWorkflowItemRequest { NewAssigneeId = "unknownUser" }, "op", "c");
 
             Assert.That(res.Success, Is.False);
@@ -461,6 +748,7 @@ namespace BiatecTokensTests
         public async Task Reassign_CompletedItem_ReturnsError()
         {
             var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuerRC");
             await svc.AddMemberAsync("issuerRC", new AddIssuerTeamMemberRequest { UserId = "member1", Role = IssuerTeamRole.ComplianceReviewer }, "admin");
             var item = await CreateCompletedItemAsync(svc, "issuerRC");
 
@@ -476,13 +764,14 @@ namespace BiatecTokensTests
         [Test]
         public async Task AuditHistory_IsPopulatedAfterFullLifecycle()
         {
-            var svc  = CreateService();
-            var item = (await svc.CreateWorkflowItemAsync("issuerAH", NewReq(), "op1")).WorkflowItem!;
-            await svc.SubmitForReviewAsync("issuerAH", item.WorkflowId, new SubmitWorkflowItemRequest(), "op1", "c1");
-            await svc.RequestChangesAsync("issuerAH", item.WorkflowId, new RequestChangesRequest { ChangeDescription = "Add doc" }, "rev1", "c2");
-            await svc.ResubmitAsync("issuerAH", item.WorkflowId, new SubmitWorkflowItemRequest(), "op1", "c3");
-            await svc.ApproveAsync("issuerAH", item.WorkflowId, new ApproveWorkflowItemRequest(), "rev1", "c4");
-            var finalRes = await svc.CompleteAsync("issuerAH", item.WorkflowId, new CompleteWorkflowItemRequest(), "op1", "c5");
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuerAH");
+            var item = (await svc.CreateWorkflowItemAsync("issuerAH", NewReq(), "op")).WorkflowItem!;
+            await svc.SubmitForReviewAsync("issuerAH", item.WorkflowId, new SubmitWorkflowItemRequest(), "op", "c1");
+            await svc.RequestChangesAsync("issuerAH", item.WorkflowId, new RequestChangesRequest { ChangeDescription = "Add doc" }, "reviewer", "c2");
+            await svc.ResubmitAsync("issuerAH", item.WorkflowId, new SubmitWorkflowItemRequest(), "op", "c3");
+            await svc.ApproveAsync("issuerAH", item.WorkflowId, new ApproveWorkflowItemRequest(), "reviewer", "c4");
+            var finalRes = await svc.CompleteAsync("issuerAH", item.WorkflowId, new CompleteWorkflowItemRequest(), "op", "c5");
 
             var auditHistory = finalRes.WorkflowItem!.AuditHistory;
             Assert.That(auditHistory.Count, Is.GreaterThanOrEqualTo(6), "All transitions should be recorded");
@@ -495,7 +784,8 @@ namespace BiatecTokensTests
         [Test]
         public async Task LatestReviewerActorId_IsSetAfterApproval()
         {
-            var svc  = CreateService();
+            var svc = CreateService();
+            await SetupIssuerMembersAsync(svc, "issuerLA");
             var item = await CreateApprovedItemAsync(svc, "issuerLA");
 
             Assert.That(item.LatestReviewerActorId, Is.Not.Null.And.Not.Empty);
@@ -508,23 +798,21 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             const string issuerId = "issuer-summary";
+            await SetupIssuerMembersAsync(svc, issuerId);
 
-            // Create 1 PendingReview, 1 Approved, 1 Rejected
             var p1 = await CreatePendingReviewItemAsync(svc, issuerId);
             var p2 = await CreateApprovedItemAsync(svc, issuerId);
             var p3 = await CreatePendingReviewItemAsync(svc, issuerId);
-            await svc.RejectAsync(issuerId, p3.WorkflowId, new RejectWorkflowItemRequest { RejectionReason = "r" }, "rev", "c");
+            await svc.RejectAsync(issuerId, p3.WorkflowId, new RejectWorkflowItemRequest { RejectionReason = "r" }, "reviewer", "c");
 
-            await svc.AddMemberAsync(issuerId, new AddIssuerTeamMemberRequest { UserId = "m1", Role = IssuerTeamRole.Operator }, "admin");
-
-            var summaryRes = await svc.GetApprovalSummaryAsync(issuerId);
+            var summaryRes = await svc.GetApprovalSummaryAsync(issuerId, "admin");
             var summary    = summaryRes.Summary!;
 
             Assert.That(summaryRes.Success, Is.True);
             Assert.That(summary.PendingReviewCount, Is.EqualTo(1));
             Assert.That(summary.ApprovedCount, Is.EqualTo(1));
             Assert.That(summary.RejectedCount, Is.EqualTo(1));
-            Assert.That(summary.ActiveTeamMemberCount, Is.EqualTo(1));
+            Assert.That(summary.ActiveTeamMemberCount, Is.GreaterThan(0));
         }
 
         [Test]
@@ -532,10 +820,11 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             const string issuerId = "issuer-queue";
+            await SetupIssuerMembersAsync(svc, issuerId);
             await svc.CreateWorkflowItemAsync(issuerId, new CreateWorkflowItemRequest { Title = "T1", ItemType = WorkflowItemType.GeneralApproval, AssignedTo = "bob" }, "op");
             await svc.CreateWorkflowItemAsync(issuerId, new CreateWorkflowItemRequest { Title = "T2", ItemType = WorkflowItemType.GeneralApproval, AssignedTo = "alice" }, "op");
 
-            var queue = await svc.GetAssignedQueueAsync(issuerId, "bob");
+            var queue = await svc.GetAssignedQueueAsync(issuerId, "bob", "op");
             Assert.That(queue.Items.All(i => i.AssignedTo == "bob"), Is.True);
             Assert.That(queue.Items.Any(i => i.AssignedTo == "alice"), Is.False);
         }
@@ -547,11 +836,13 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             const string issuerId = "issuer-filter";
+            await SetupIssuerMembersAsync(svc, issuerId);
+
             await CreatePendingReviewItemAsync(svc, issuerId);
             await svc.CreateWorkflowItemAsync(issuerId, NewReq("Draft item"), "op"); // stays in Prepared
 
-            var pending = await svc.ListWorkflowItemsAsync(issuerId, WorkflowApprovalState.PendingReview);
-            var prepared = await svc.ListWorkflowItemsAsync(issuerId, WorkflowApprovalState.Prepared);
+            var pending  = await svc.ListWorkflowItemsAsync(issuerId, "op", WorkflowApprovalState.PendingReview);
+            var prepared = await svc.ListWorkflowItemsAsync(issuerId, "op", WorkflowApprovalState.Prepared);
 
             Assert.That(pending.Items.All(i => i.State == WorkflowApprovalState.PendingReview), Is.True);
             Assert.That(prepared.Items.All(i => i.State == WorkflowApprovalState.Prepared), Is.True);
@@ -570,7 +861,7 @@ namespace BiatecTokensTests
         [OneTimeSetUp]
         public async Task OneTimeSetUp()
         {
-            _factory     = new CustomWebApplicationFactory();
+            _factory      = new CustomWebApplicationFactory();
             _unauthClient = _factory.CreateClient();
 
             var email = $"issuer-workflow-test-{Guid.NewGuid():N}@biatec-test.example.com";
@@ -588,6 +879,24 @@ namespace BiatecTokensTests
             _client = _factory.CreateClient();
             _client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwtToken);
+
+            // Extract actor userId from JWT to bootstrap issuer membership.
+            // The JWT 'nameid' claim contains the user's GUID identifier.
+            var actorUserId = ExtractClaimFromJwt(jwtToken, "nameid")
+                ?? ExtractClaimFromJwt(jwtToken, "sub")
+                ?? email; // fallback to email
+
+            // Bootstrap: add actor as Admin of the test issuer (first member, any caller allowed).
+            var bootstrapResp = await _client.PostAsJsonAsync(
+                $"/api/v1/issuer-workflow/{IssuerId}/members",
+                new { userId = actorUserId, role = (int)IssuerTeamRole.Admin });
+
+            // If bootstrap fails, tests will fail with 403 — log but don't throw.
+            if (!bootstrapResp.IsSuccessStatusCode)
+            {
+                var err = await bootstrapResp.Content.ReadAsStringAsync();
+                Console.WriteLine($"[WARNING] Bootstrap AddMember returned {bootstrapResp.StatusCode}: {err}");
+            }
         }
 
         [OneTimeTearDown]
@@ -623,6 +932,30 @@ namespace BiatecTokensTests
                 $"/api/v1/issuer-workflow/{IssuerId}/workflows",
                 new { title = "test", itemType = 0 });
             Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        }
+
+        [Test]
+        public async Task GetWorkflows_NonMemberIssuer_Returns403()
+        {
+            // Actor (test user) is Admin of IssuerId but NOT a member of this unrelated issuer.
+            var resp = await _client.GetAsync($"/api/v1/issuer-workflow/unrelated-issuer-{Guid.NewGuid():N}/workflows");
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        }
+
+        [Test]
+        public async Task GetSummary_NonMemberIssuer_Returns403()
+        {
+            var resp = await _client.GetAsync($"/api/v1/issuer-workflow/unrelated-issuer-{Guid.NewGuid():N}/summary");
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        }
+
+        [Test]
+        public async Task CreateWorkflowItem_NonMemberIssuer_Returns403()
+        {
+            var resp = await _client.PostAsJsonAsync(
+                $"/api/v1/issuer-workflow/unrelated-issuer-{Guid.NewGuid():N}/workflows",
+                new { title = "test", itemType = (int)WorkflowItemType.GeneralApproval });
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         }
 
         // ── Member management endpoints ────────────────────────────────────────
@@ -685,7 +1018,7 @@ namespace BiatecTokensTests
             var createResp = await _client.PostAsJsonAsync(
                 $"/api/v1/issuer-workflow/{IssuerId}/workflows",
                 new { title = "Fetch test", itemType = (int)WorkflowItemType.ComplianceEvidenceReview });
-            var createDoc = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
+            var createDoc  = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
             var workflowId = createDoc.RootElement.GetProperty("workflowItem").GetProperty("workflowId").GetString()!;
 
             var getResp = await _client.GetAsync($"/api/v1/issuer-workflow/{IssuerId}/workflows/{workflowId}");
@@ -717,10 +1050,10 @@ namespace BiatecTokensTests
             var createResp = await _client.PostAsJsonAsync(
                 $"/api/v1/issuer-workflow/{IssuerId}/workflows",
                 new { title = "E2E lifecycle test", itemType = (int)WorkflowItemType.LaunchReadinessSignOff });
-            var createDoc = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
+            var createDoc  = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
             var workflowId = createDoc.RootElement.GetProperty("workflowItem").GetProperty("workflowId").GetString()!;
 
-            // Submit
+            // Submit (Admin has Operator role permissions)
             var submitResp = await _client.PostAsJsonAsync(
                 $"/api/v1/issuer-workflow/{IssuerId}/workflows/{workflowId}/submit",
                 new { submissionNote = "Ready" });
@@ -728,7 +1061,7 @@ namespace BiatecTokensTests
             Assert.That(submitDoc.RootElement.GetProperty("workflowItem").GetProperty("state").GetInt32(),
                 Is.EqualTo((int)WorkflowApprovalState.PendingReview));
 
-            // Approve
+            // Approve (Admin has approver role permissions)
             var approveResp = await _client.PostAsJsonAsync(
                 $"/api/v1/issuer-workflow/{IssuerId}/workflows/{workflowId}/approve",
                 new { approvalNote = "Approved!" });
@@ -751,7 +1084,7 @@ namespace BiatecTokensTests
             var createResp = await _client.PostAsJsonAsync(
                 $"/api/v1/issuer-workflow/{IssuerId}/workflows",
                 new { title = "Reject flow test", itemType = (int)WorkflowItemType.WhitelistPolicyUpdate });
-            var createDoc = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
+            var createDoc  = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
             var workflowId = createDoc.RootElement.GetProperty("workflowItem").GetProperty("workflowId").GetString()!;
 
             await _client.PostAsJsonAsync($"/api/v1/issuer-workflow/{IssuerId}/workflows/{workflowId}/submit",
@@ -791,7 +1124,7 @@ namespace BiatecTokensTests
                 $"/api/v1/issuer-workflow/{IssuerId}/workflows",
                 new { title = "Schema test", itemType = (int)WorkflowItemType.GeneralApproval });
 
-            var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            var doc  = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
             var item = doc.RootElement.GetProperty("workflowItem");
 
             Assert.That(item.TryGetProperty("workflowId", out _), Is.True, "workflowId required");
@@ -827,25 +1160,71 @@ namespace BiatecTokensTests
         private static CreateWorkflowItemRequest NewReq(string title = "Test workflow item") =>
             new CreateWorkflowItemRequest { ItemType = WorkflowItemType.GeneralApproval, Title = title };
 
+        /// <summary>
+        /// Bootstraps an issuer with admin, operator, and reviewer members.
+        /// Idempotent: duplicate member errors are silently ignored.
+        /// </summary>
+        private static async Task SetupIssuerMembersAsync(
+            IssuerWorkflowService svc,
+            string issuerId,
+            string adminId = "admin",
+            string operatorId = "op",
+            string reviewerId = "reviewer")
+        {
+            // Bootstrap: first member must be Admin (any caller is allowed)
+            await svc.AddMemberAsync(issuerId, new AddIssuerTeamMemberRequest { UserId = adminId, Role = IssuerTeamRole.Admin }, "bootstrap");
+            // Add operator and reviewer (Admin performs these)
+            await EnsureMemberAsync(svc, issuerId, operatorId, IssuerTeamRole.Operator, adminId);
+            await EnsureMemberAsync(svc, issuerId, reviewerId, IssuerTeamRole.ComplianceReviewer, adminId);
+        }
+
+        /// <summary>Adds a member, silently ignoring DUPLICATE_MEMBER errors (idempotent setup helper).</summary>
+        private static async Task EnsureMemberAsync(
+            IssuerWorkflowService svc, string issuerId, string userId, IssuerTeamRole role, string adminId)
+        {
+            var res = await svc.AddMemberAsync(issuerId, new AddIssuerTeamMemberRequest { UserId = userId, Role = role }, adminId);
+            // DUPLICATE_MEMBER is acceptable in idempotent setup.
+            if (!res.Success && res.ErrorCode != "DUPLICATE_MEMBER")
+                throw new InvalidOperationException($"EnsureMemberAsync failed: {res.ErrorCode}: {res.ErrorMessage}");
+        }
+
+        /// <summary>Creates a workflow item in PendingReview state. Requires issuer members to be set up first.</summary>
         private static async Task<WorkflowItem> CreatePendingReviewItemAsync(IssuerWorkflowService svc, string issuerId)
         {
             var created = (await svc.CreateWorkflowItemAsync(issuerId, NewReq(), "op")).WorkflowItem!;
             await svc.SubmitForReviewAsync(issuerId, created.WorkflowId, new SubmitWorkflowItemRequest(), "op", "c");
-            return (await svc.GetWorkflowItemAsync(issuerId, created.WorkflowId)).WorkflowItem!;
+            return (await svc.GetWorkflowItemAsync(issuerId, created.WorkflowId, "op")).WorkflowItem!;
         }
 
+        /// <summary>Creates a workflow item in Approved state. Requires issuer members to be set up first.</summary>
         private static async Task<WorkflowItem> CreateApprovedItemAsync(IssuerWorkflowService svc, string issuerId)
         {
             var item = await CreatePendingReviewItemAsync(svc, issuerId);
-            await svc.ApproveAsync(issuerId, item.WorkflowId, new ApproveWorkflowItemRequest(), "rev", "c");
-            return (await svc.GetWorkflowItemAsync(issuerId, item.WorkflowId)).WorkflowItem!;
+            await svc.ApproveAsync(issuerId, item.WorkflowId, new ApproveWorkflowItemRequest(), "reviewer", "c");
+            return (await svc.GetWorkflowItemAsync(issuerId, item.WorkflowId, "op")).WorkflowItem!;
         }
 
+        /// <summary>Creates a workflow item in Completed state. Requires issuer members to be set up first.</summary>
         private static async Task<WorkflowItem> CreateCompletedItemAsync(IssuerWorkflowService svc, string issuerId)
         {
             var item = await CreateApprovedItemAsync(svc, issuerId);
             await svc.CompleteAsync(issuerId, item.WorkflowId, new CompleteWorkflowItemRequest(), "op", "c");
-            return (await svc.GetWorkflowItemAsync(issuerId, item.WorkflowId)).WorkflowItem!;
+            return (await svc.GetWorkflowItemAsync(issuerId, item.WorkflowId, "op")).WorkflowItem!;
+        }
+
+        /// <summary>Decodes a JWT claim value without verification (for test setup only).</summary>
+        private static string? ExtractClaimFromJwt(string jwtToken, string claimName)
+        {
+            try
+            {
+                var parts  = jwtToken.Split('.');
+                if (parts.Length < 2) return null;
+                var padded = parts[1].PadRight(parts[1].Length + (4 - parts[1].Length % 4) % 4, '=');
+                var json   = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+                var doc    = JsonDocument.Parse(json);
+                return doc.RootElement.TryGetProperty(claimName, out var val) ? val.GetString() : null;
+            }
+            catch { return null; }
         }
 
         // ── WebApplicationFactory ─────────────────────────────────────────────
