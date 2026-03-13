@@ -241,5 +241,76 @@ namespace BiatecTokensApi.Controllers
                 });
             }
         }
+        // ── AUDIT HISTORY ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Retrieves paginated audit history for a whitelist policy.
+        /// Includes policy lifecycle events and eligibility evaluation records.
+        /// </summary>
+        [HttpGet("{policyId}/audit-history")]
+        [ProducesResponseType(typeof(WhitelistAuditHistoryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetAuditHistory(
+            [FromRoute] string policyId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] WhitelistAuditEventType? eventType = null)
+        {
+            try
+            {
+                var request = new WhitelistAuditHistoryRequest
+                {
+                    Page = page,
+                    PageSize = pageSize,
+                    EventTypeFilter = eventType
+                };
+                var result = await _policyService.GetAuditHistoryAsync(policyId, request);
+                if (!result.Success && result.ErrorCode == "POLICY_NOT_FOUND")
+                    return NotFound(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception retrieving audit history for policy {PolicyId}",
+                    LoggingHelper.SanitizeLogInput(policyId));
+                return StatusCode(500, new WhitelistAuditHistoryResponse { Success = false, ErrorMessage = "Internal error." });
+            }
+        }
+
+        // ── COMPLIANCE EVIDENCE ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Generates a compliance evidence report for a whitelist policy.
+        /// Suitable for audit export and regulatory review workflows.
+        /// </summary>
+        [HttpPost("{policyId}/compliance-evidence")]
+        [ProducesResponseType(typeof(WhitelistComplianceEvidenceReport), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetComplianceEvidence(
+            [FromRoute] string policyId,
+            [FromBody] WhitelistComplianceEvidenceRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _policyService.GetComplianceEvidenceAsync(policyId, request, CallerIdentity);
+                if (!result.Success && result.ErrorCode == "POLICY_NOT_FOUND")
+                    return NotFound(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception generating compliance evidence for policy {PolicyId}",
+                    LoggingHelper.SanitizeLogInput(policyId));
+                return StatusCode(500, new WhitelistComplianceEvidenceReport { Success = false, ErrorMessage = "Internal error." });
+            }
+        }
     }
 }

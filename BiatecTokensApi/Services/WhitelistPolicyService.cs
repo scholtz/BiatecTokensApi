@@ -12,6 +12,7 @@ namespace BiatecTokensApi.Services
         private readonly Dictionary<string, WhitelistPolicy> _store = new();
         private readonly Lock _lock = new();
         private readonly ILogger<WhitelistPolicyService> _logger;
+        private readonly List<WhitelistAuditEvent> _auditLog = new();
 
         /// <summary>
         /// Initializes a new instance of <see cref="WhitelistPolicyService"/>
@@ -46,6 +47,14 @@ namespace BiatecTokensApi.Services
             lock (_lock)
             {
                 _store[policy.PolicyId] = policy;
+                _auditLog.Add(new WhitelistAuditEvent
+                {
+                    PolicyId = policy.PolicyId,
+                    EventType = WhitelistAuditEventType.PolicyCreated,
+                    Actor = createdBy,
+                    Description = $"Policy '{policy.PolicyName}' created for asset {policy.AssetId}.",
+                    PolicyVersion = policy.Version
+                });
             }
 
             _logger.LogInformation("WhitelistPolicy created: {PolicyId} for asset {AssetId} by {CreatedBy}",
@@ -127,6 +136,19 @@ namespace BiatecTokensApi.Services
                 policy.UpdatedAt = DateTime.UtcNow;
                 policy.Version++;
 
+                var auditEventType = request.Status == WhitelistPolicyStatus.Active
+                    ? WhitelistAuditEventType.PolicyActivated
+                    : WhitelistAuditEventType.PolicyUpdated;
+
+                _auditLog.Add(new WhitelistAuditEvent
+                {
+                    PolicyId = policyId,
+                    EventType = auditEventType,
+                    Actor = updatedBy,
+                    Description = $"Policy updated to version {policy.Version}.",
+                    PolicyVersion = policy.Version
+                });
+
                 _logger.LogInformation("WhitelistPolicy updated: {PolicyId} by {UpdatedBy}",
                     LoggingHelper.SanitizeLogInput(policyId),
                     LoggingHelper.SanitizeLogInput(updatedBy));
@@ -152,6 +174,15 @@ namespace BiatecTokensApi.Services
                 policy.UpdatedBy = archivedBy;
                 policy.UpdatedAt = DateTime.UtcNow;
                 policy.Version++;
+
+                _auditLog.Add(new WhitelistAuditEvent
+                {
+                    PolicyId = policyId,
+                    EventType = WhitelistAuditEventType.PolicyArchived,
+                    Actor = archivedBy,
+                    Description = $"Policy archived at version {policy.Version}.",
+                    PolicyVersion = policy.Version
+                });
 
                 _logger.LogInformation("WhitelistPolicy archived: {PolicyId} by {ArchivedBy}",
                     LoggingHelper.SanitizeLogInput(policyId),
@@ -259,13 +290,14 @@ namespace BiatecTokensApi.Services
                     Outcome = WhitelistPolicyEligibilityOutcome.Deny,
                     Reasons = new List<string> { "Policy not found." },
                     IsFailClosed = true,
-                    OperatorGuidance = "Ensure the policy exists and the policyId is correct."
+                    OperatorGuidance = "Ensure the policy exists and the policyId is correct.",
+                    ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.PolicyNotFound }
                 });
             }
 
-            var reasons = new List<string>();
             var address = (request.ParticipantAddress ?? string.Empty).Trim();
             var jurisdiction = (request.JurisdictionCode ?? string.Empty).Trim().ToUpperInvariant();
+            var versionMeta = BuildVersionMetadata(policy);
 
             // FAIL-CLOSED: Draft policies always deny
             if (policy.Status == WhitelistPolicyStatus.Draft)
@@ -274,56 +306,79 @@ namespace BiatecTokensApi.Services
                     LoggingHelper.SanitizeLogInput(request.PolicyId),
                     LoggingHelper.SanitizeLogInput(address));
 
-                return Task.FromResult(new WhitelistPolicyEligibilityResult
+                var draftResult = new WhitelistPolicyEligibilityResult
                 {
                     Success = true,
                     Outcome = WhitelistPolicyEligibilityOutcome.Deny,
                     Reasons = new List<string> { "Policy is in Draft state. Fail-closed: all evaluations are denied until the policy is activated." },
                     IsFailClosed = true,
-                    OperatorGuidance = "Activate the policy before evaluating participant eligibility."
-                });
+                    OperatorGuidance = "Activate the policy before evaluating participant eligibility.",
+                    ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.PolicyInDraftState },
+                    PolicyVersionMetadata = versionMeta
+                };
+                RecordEvaluationEvent(request, policy, draftResult);
+                return Task.FromResult(draftResult);
             }
 
             // Archived policies also deny
             if (policy.Status == WhitelistPolicyStatus.Archived)
             {
-                return Task.FromResult(new WhitelistPolicyEligibilityResult
+                var archivedResult = new WhitelistPolicyEligibilityResult
                 {
                     Success = true,
                     Outcome = WhitelistPolicyEligibilityOutcome.Deny,
                     Reasons = new List<string> { "Policy is Archived and no longer active." },
                     IsFailClosed = true,
-                    OperatorGuidance = "Create or activate a new policy for this asset."
-                });
+                    OperatorGuidance = "Create or activate a new policy for this asset.",
+                    ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.PolicyIsArchived },
+                    PolicyVersionMetadata = versionMeta
+                };
+                RecordEvaluationEvent(request, policy, archivedResult);
+                return Task.FromResult(archivedResult);
             }
 
             // FAIL-CLOSED: completely empty active policy — no rules defined → deny
             if (IsPolicyEmpty(policy))
             {
-                return Task.FromResult(new WhitelistPolicyEligibilityResult
+                var emptyResult = new WhitelistPolicyEligibilityResult
                 {
                     Success = true,
                     Outcome = WhitelistPolicyEligibilityOutcome.Deny,
                     Reasons = new List<string> { "Policy has no rules defined. Fail-closed: all evaluations are denied." },
                     IsFailClosed = true,
-                    OperatorGuidance = "Add at least one allow rule (AllowedAddresses, AllowedJurisdictions, or RequiredInvestorCategories)."
-                });
+                    OperatorGuidance = "Add at least one allow rule (AllowedAddresses, AllowedJurisdictions, or RequiredInvestorCategories).",
+                    ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.PolicyHasNoRules },
+                    PolicyVersionMetadata = versionMeta
+                };
+                RecordEvaluationEvent(request, policy, emptyResult);
+                return Task.FromResult(emptyResult);
             }
+
+            var reasons = new List<string>();
+            var reasonCodes = new List<WhitelistEligibilityReasonCode>();
 
             // Hard deny: address in denylist
             if (policy.DeniedAddresses.Contains(address, StringComparer.OrdinalIgnoreCase))
             {
                 reasons.Add("Participant address is on the explicit deny list.");
-                return Task.FromResult(DenyResult(reasons, isFailClosed: false,
-                    guidance: "Remove the address from DeniedAddresses to allow participation."));
+                reasonCodes.Add(WhitelistEligibilityReasonCode.AddressOnDenyList);
+                var denyResult = DenyResult(reasons, isFailClosed: false,
+                    guidance: "Remove the address from DeniedAddresses to allow participation.",
+                    reasonCodes: reasonCodes, versionMeta: versionMeta);
+                RecordEvaluationEvent(request, policy, denyResult);
+                return Task.FromResult(denyResult);
             }
 
             // Hard deny: jurisdiction is blocked
             if (!string.IsNullOrEmpty(jurisdiction) && policy.BlockedJurisdictions.Contains(jurisdiction, StringComparer.OrdinalIgnoreCase))
             {
                 reasons.Add($"Jurisdiction '{jurisdiction}' is blocked by this policy.");
-                return Task.FromResult(DenyResult(reasons, isFailClosed: false,
-                    guidance: "Participation from this jurisdiction is not permitted."));
+                reasonCodes.Add(WhitelistEligibilityReasonCode.RestrictedJurisdiction);
+                var denyResult = DenyResult(reasons, isFailClosed: false,
+                    guidance: "Participation from this jurisdiction is not permitted.",
+                    reasonCodes: reasonCodes, versionMeta: versionMeta);
+                RecordEvaluationEvent(request, policy, denyResult);
+                return Task.FromResult(denyResult);
             }
 
             // Jurisdiction allow check: when AllowedJurisdictions is non-empty, participant must be in it
@@ -331,11 +386,18 @@ namespace BiatecTokensApi.Services
             {
                 if (string.IsNullOrEmpty(jurisdiction) || !policy.AllowedJurisdictions.Contains(jurisdiction, StringComparer.OrdinalIgnoreCase))
                 {
+                    var code = string.IsNullOrEmpty(jurisdiction)
+                        ? WhitelistEligibilityReasonCode.JurisdictionNotProvided
+                        : WhitelistEligibilityReasonCode.JurisdictionNotAllowed;
                     reasons.Add(string.IsNullOrEmpty(jurisdiction)
                         ? "No jurisdiction provided and policy requires an allowed jurisdiction."
                         : $"Jurisdiction '{jurisdiction}' is not in the permitted jurisdictions list.");
-                    return Task.FromResult(DenyResult(reasons, isFailClosed: false,
-                        guidance: "Participant must be from an allowed jurisdiction to participate."));
+                    reasonCodes.Add(code);
+                    var denyResult = DenyResult(reasons, isFailClosed: false,
+                        guidance: "Participant must be from an allowed jurisdiction to participate.",
+                        reasonCodes: reasonCodes, versionMeta: versionMeta);
+                    RecordEvaluationEvent(request, policy, denyResult);
+                    return Task.FromResult(denyResult);
                 }
             }
 
@@ -345,8 +407,12 @@ namespace BiatecTokensApi.Services
                 if (!policy.RequiredInvestorCategories.Contains(request.InvestorCategory))
                 {
                     reasons.Add($"Investor category '{request.InvestorCategory}' is not in the required categories for this policy.");
-                    return Task.FromResult(DenyResult(reasons, isFailClosed: false,
-                        guidance: "Participant must meet one of the required investor category thresholds."));
+                    reasonCodes.Add(WhitelistEligibilityReasonCode.UnsupportedInvestorCategory);
+                    var denyResult = DenyResult(reasons, isFailClosed: false,
+                        guidance: "Participant must meet one of the required investor category thresholds.",
+                        reasonCodes: reasonCodes, versionMeta: versionMeta);
+                    RecordEvaluationEvent(request, policy, denyResult);
+                    return Task.FromResult(denyResult);
                 }
             }
 
@@ -356,8 +422,12 @@ namespace BiatecTokensApi.Services
                 if (!policy.AllowedAddresses.Contains(address, StringComparer.OrdinalIgnoreCase))
                 {
                     reasons.Add("Participant address is not on the explicit allow list.");
-                    return Task.FromResult(DenyResult(reasons, isFailClosed: false,
-                        guidance: "Add the participant's address to AllowedAddresses."));
+                    reasonCodes.Add(WhitelistEligibilityReasonCode.AddressNotOnAllowList);
+                    var denyResult = DenyResult(reasons, isFailClosed: false,
+                        guidance: "Add the participant's address to AllowedAddresses.",
+                        reasonCodes: reasonCodes, versionMeta: versionMeta);
+                    RecordEvaluationEvent(request, policy, denyResult);
+                    return Task.FromResult(denyResult);
                 }
             }
 
@@ -366,17 +436,147 @@ namespace BiatecTokensApi.Services
                 LoggingHelper.SanitizeLogInput(request.PolicyId),
                 LoggingHelper.SanitizeLogInput(address));
 
-            return Task.FromResult(new WhitelistPolicyEligibilityResult
+            var allowResult = new WhitelistPolicyEligibilityResult
             {
                 Success = true,
                 Outcome = WhitelistPolicyEligibilityOutcome.Allow,
                 Reasons = new List<string> { "All policy criteria satisfied." },
                 IsFailClosed = false,
-                OperatorGuidance = null
+                OperatorGuidance = null,
+                ReasonCodes = new List<WhitelistEligibilityReasonCode> { WhitelistEligibilityReasonCode.AllPolicyCriteriaSatisfied },
+                PolicyVersionMetadata = versionMeta
+            };
+            RecordEvaluationEvent(request, policy, allowResult);
+            return Task.FromResult(allowResult);
+        }
+
+        /// <inheritdoc/>
+        public Task<WhitelistAuditHistoryResponse> GetAuditHistoryAsync(string policyId, WhitelistAuditHistoryRequest request)
+        {
+            bool exists;
+            lock (_lock)
+            {
+                exists = _store.ContainsKey(policyId);
+            }
+
+            if (!exists)
+                return Task.FromResult(new WhitelistAuditHistoryResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Policy '{policyId}' not found.",
+                    ErrorCode = "POLICY_NOT_FOUND",
+                    PolicyId = policyId
+                });
+
+            var page = Math.Max(1, request.Page);
+            var pageSize = Math.Clamp(request.PageSize, 1, MaxAuditPageSize);
+
+            List<WhitelistAuditEvent> filtered;
+            lock (_lock)
+            {
+                filtered = _auditLog
+                    .Where(e => e.PolicyId == policyId
+                        && (request.EventTypeFilter == null || e.EventType == request.EventTypeFilter.Value))
+                    .OrderByDescending(e => e.OccurredAt)
+                    .ToList();
+            }
+
+            var total = filtered.Count;
+            var totalPages = (int)Math.Ceiling((double)total / pageSize);
+            var events = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            return Task.FromResult(new WhitelistAuditHistoryResponse
+            {
+                Success = true,
+                PolicyId = policyId,
+                Events = events,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages
             });
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
+        /// <inheritdoc/>
+        public Task<WhitelistComplianceEvidenceReport> GetComplianceEvidenceAsync(
+            string policyId,
+            WhitelistComplianceEvidenceRequest request,
+            string requestedBy)
+        {
+            WhitelistPolicy? policy;
+            lock (_lock)
+            {
+                _store.TryGetValue(policyId, out policy);
+            }
+
+            if (policy is null)
+                return Task.FromResult(new WhitelistComplianceEvidenceReport
+                {
+                    Success = false,
+                    ErrorMessage = $"Policy '{policyId}' not found.",
+                    ErrorCode = "POLICY_NOT_FOUND",
+                    PolicyId = policyId,
+                    GeneratedBy = requestedBy
+                });
+
+            List<WhitelistAuditEvent> allEvents;
+            lock (_lock)
+            {
+                allEvents = _auditLog
+                    .Where(e => e.PolicyId == policyId)
+                    .Where(e => request.FromDate == null || e.OccurredAt >= request.FromDate.Value)
+                    .Where(e => request.ToDate == null || e.OccurredAt <= request.ToDate.Value)
+                    .OrderByDescending(e => e.OccurredAt)
+                    .ToList();
+            }
+
+            var evaluationEvents = allEvents.Where(e => e.EventType == WhitelistAuditEventType.EligibilityEvaluated).ToList();
+            var changeEvents = allEvents.Where(e => e.EventType != WhitelistAuditEventType.EligibilityEvaluated).ToList();
+
+            var allowCount = evaluationEvents.Count(e => e.EligibilityOutcome == WhitelistPolicyEligibilityOutcome.Allow);
+            var denyCount = evaluationEvents.Count(e => e.EligibilityOutcome == WhitelistPolicyEligibilityOutcome.Deny);
+            var conditionalCount = evaluationEvents.Count(e => e.EligibilityOutcome == WhitelistPolicyEligibilityOutcome.ConditionalReview);
+            var failClosedCount = evaluationEvents.Count(e => e.IsFailClosed == true);
+
+            var topDenyCodes = evaluationEvents
+                .Where(e => e.EligibilityOutcome == WhitelistPolicyEligibilityOutcome.Deny)
+                .SelectMany(e => e.ReasonCodes)
+                .GroupBy(c => c)
+                .OrderByDescending(g => g.Count())
+                .Take(5)
+                .Select(g => g.Key)
+                .ToList();
+
+            var summary = new WhitelistEvaluationSummary
+            {
+                TotalEvaluations = evaluationEvents.Count,
+                AllowCount = allowCount,
+                DenyCount = denyCount,
+                ConditionalReviewCount = conditionalCount,
+                FailClosedCount = failClosedCount,
+                TopDenyReasonCodes = topDenyCodes
+            };
+
+            var report = new WhitelistComplianceEvidenceReport
+            {
+                Success = true,
+                PolicyId = policyId,
+                GeneratedAt = DateTime.UtcNow,
+                GeneratedBy = requestedBy,
+                PolicyVersionMetadata = BuildVersionMetadata(policy),
+                EvaluationSummary = summary,
+                AuditEvents = request.IncludeEvaluationHistory ? allEvents : changeEvents,
+                PolicyChangeHistory = changeEvents
+            };
+
+            _logger.LogInformation("Compliance evidence report generated for policy {PolicyId} by {RequestedBy}",
+                LoggingHelper.SanitizeLogInput(policyId),
+                LoggingHelper.SanitizeLogInput(requestedBy));
+
+            return Task.FromResult(report);
+        }
+
+        private const int MaxAuditPageSize = 200;
 
         private static bool IsPolicyEmpty(WhitelistPolicy policy)
             => policy.AllowedAddresses.Count == 0
@@ -385,7 +585,23 @@ namespace BiatecTokensApi.Services
             && policy.BlockedJurisdictions.Count == 0
             && policy.RequiredInvestorCategories.Count == 0;
 
-        private static WhitelistPolicyEligibilityResult DenyResult(List<string> reasons, bool isFailClosed, string? guidance)
+        private static WhitelistPolicyVersionMetadata BuildVersionMetadata(WhitelistPolicy policy)
+            => new WhitelistPolicyVersionMetadata
+            {
+                PolicyId = policy.PolicyId,
+                PolicyName = policy.PolicyName,
+                Version = policy.Version,
+                Status = policy.Status,
+                EffectiveAt = policy.UpdatedAt ?? policy.CreatedAt,
+                ActorIdentifier = policy.UpdatedBy ?? policy.CreatedBy
+            };
+
+        private static WhitelistPolicyEligibilityResult DenyResult(
+            List<string> reasons,
+            bool isFailClosed,
+            string? guidance,
+            List<WhitelistEligibilityReasonCode>? reasonCodes = null,
+            WhitelistPolicyVersionMetadata? versionMeta = null)
         {
             return new WhitelistPolicyEligibilityResult
             {
@@ -393,8 +609,31 @@ namespace BiatecTokensApi.Services
                 Outcome = WhitelistPolicyEligibilityOutcome.Deny,
                 Reasons = reasons,
                 IsFailClosed = isFailClosed,
-                OperatorGuidance = guidance
+                OperatorGuidance = guidance,
+                ReasonCodes = reasonCodes ?? new List<WhitelistEligibilityReasonCode>(),
+                PolicyVersionMetadata = versionMeta
             };
+        }
+
+        private void RecordEvaluationEvent(WhitelistPolicyEligibilityRequest request, WhitelistPolicy policy, WhitelistPolicyEligibilityResult result)
+        {
+            lock (_lock)
+            {
+                _auditLog.Add(new WhitelistAuditEvent
+                {
+                    PolicyId = request.PolicyId,
+                    EventType = WhitelistAuditEventType.EligibilityEvaluated,
+                    Actor = "system",
+                    Description = $"Eligibility evaluation: {result.Outcome}. {string.Join("; ", result.Reasons)}",
+                    PolicyVersion = policy.Version,
+                    ReasonCodes = new List<WhitelistEligibilityReasonCode>(result.ReasonCodes),
+                    EligibilityOutcome = result.Outcome,
+                    ParticipantAddress = LoggingHelper.SanitizeLogInput(request.ParticipantAddress ?? string.Empty),
+                    JurisdictionCode = request.JurisdictionCode,
+                    InvestorCategory = request.InvestorCategory,
+                    IsFailClosed = result.IsFailClosed
+                });
+            }
         }
 
         private static List<string> NormalizeAddresses(List<string> addresses)
@@ -404,3 +643,4 @@ namespace BiatecTokensApi.Services
             => jurisdictions.Select(j => j.Trim().ToUpperInvariant()).Where(j => !string.IsNullOrEmpty(j)).ToList();
     }
 }
+

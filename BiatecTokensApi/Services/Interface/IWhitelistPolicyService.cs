@@ -60,5 +60,22 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="request">The eligibility evaluation request</param>
         /// <returns>The eligibility result with outcome and reasons</returns>
         Task<WhitelistPolicyEligibilityResult> EvaluateEligibilityAsync(WhitelistPolicyEligibilityRequest request);
+
+        /// <summary>
+        /// Retrieves paginated audit history for a whitelist policy
+        /// </summary>
+        /// <param name="policyId">The policy ID</param>
+        /// <param name="request">Pagination and filter parameters</param>
+        /// <returns>Paginated list of audit events</returns>
+        Task<WhitelistAuditHistoryResponse> GetAuditHistoryAsync(string policyId, WhitelistAuditHistoryRequest request);
+
+        /// <summary>
+        /// Generates a compliance evidence report for a whitelist policy
+        /// </summary>
+        /// <param name="policyId">The policy ID</param>
+        /// <param name="request">Report parameters</param>
+        /// <param name="requestedBy">Identifier of the actor requesting the report</param>
+        /// <returns>The compliance evidence report</returns>
+        Task<WhitelistComplianceEvidenceReport> GetComplianceEvidenceAsync(string policyId, WhitelistComplianceEvidenceRequest request, string requestedBy);
     }
 }
