@@ -35,7 +35,7 @@ namespace BiatecTokensApi.Controllers
         private readonly ILogger<DeploymentSignOffController> _logger;
 
         /// <summary>
-        /// Initialises a new instance of <see cref="DeploymentSignOffController"/>.
+        /// Initializes a new instance of <see cref="DeploymentSignOffController"/>.
         /// </summary>
         public DeploymentSignOffController(
             IDeploymentSignOffService signOffService,

@@ -30,7 +30,7 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<DeploymentSignOffService> _logger;
 
         /// <summary>
-        /// Initialises a new instance of <see cref="DeploymentSignOffService"/>.
+        /// Initializes a new instance of <see cref="DeploymentSignOffService"/>.
         /// </summary>
         public DeploymentSignOffService(
             IBackendDeploymentLifecycleContractService contractService,
