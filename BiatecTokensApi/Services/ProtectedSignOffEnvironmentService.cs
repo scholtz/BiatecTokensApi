@@ -720,7 +720,7 @@ namespace BiatecTokensApi.Services
             try
             {
                 Models.BackendDeploymentLifecycle.BackendDeploymentContractResponse statusResponse =
-                    await _contractService.GetStatusAsync(deploymentId);
+                    await _contractService.GetStatusAsync(deploymentId, correlationId);
 
                 // Any non-null response (including not-found) confirms the status polling contract is stable.
                 bool contractStable = statusResponse != null;
@@ -763,7 +763,7 @@ namespace BiatecTokensApi.Services
             try
             {
                 Models.BackendDeploymentLifecycle.BackendDeploymentContractResponse statusResponse =
-                    await _contractService.GetStatusAsync(deploymentId);
+                    await _contractService.GetStatusAsync(deploymentId, correlationId);
 
                 bool hasStructuredResponse = statusResponse != null;
                 return new SignOffLifecycleTransition
