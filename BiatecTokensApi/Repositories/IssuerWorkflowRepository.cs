@@ -25,9 +25,12 @@ namespace BiatecTokensApi.Repositories
         // Key: "{issuerId}:{workflowId}"
         private readonly ConcurrentDictionary<string, WorkflowItem> _workflowItems = new();
 
-        // Key: "{issuerId}:{workflowId}" → lock-free append-only audit entries
-        // Using ConcurrentBag for append-only usage (no iteration order needed beyond what's recorded)
-        private readonly ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentBag<WorkflowAuditEntry>> _auditEntries = new();
+        // Key: "{issuerId}:{workflowId}" → Value: inner dict keyed by EntryId
+        // Using ConcurrentDictionary<entryId, entry> as the authoritative audit store:
+        //   - TryAdd is lock-free and idempotent — two concurrent calls with the same EntryId
+        //     are harmless; the second TryAdd is simply a no-op.
+        //   - Eliminates the check-then-add race that would exist with a plain List<T>.
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, WorkflowAuditEntry>> _auditEntries = new();
 
         /// <summary>
         /// Initializes a new instance of <see cref="IssuerWorkflowRepository"/>.
@@ -96,6 +99,17 @@ namespace BiatecTokensApi.Repositories
         {
             var key = WorkflowKey(item.IssuerId, item.WorkflowId);
             _workflowItems[key] = item;
+
+            // Seed the authoritative audit-entry store from the item's current history.
+            // This ensures entries added by service code (item.AuditHistory.Add → Upsert)
+            // are visible to AppendAuditEntryAsync callers and to GetWorkflowItemAsync.
+            if (item.AuditHistory.Count > 0)
+            {
+                var entries = _auditEntries.GetOrAdd(key, _ => new ConcurrentDictionary<string, WorkflowAuditEntry>());
+                foreach (var entry in item.AuditHistory)
+                    entries.TryAdd(entry.EntryId, entry); // idempotent: no-op if already present
+            }
+
             _logger.LogDebug(
                 "IssuerWorkflowRepository: upserted workflow item. IssuerId={IssuerId} WorkflowId={WorkflowId} State={State}",
                 item.IssuerId, item.WorkflowId, item.State);
@@ -105,8 +119,18 @@ namespace BiatecTokensApi.Repositories
         /// <inheritdoc/>
         public Task<WorkflowItem?> GetWorkflowItemAsync(string issuerId, string workflowId)
         {
-            _workflowItems.TryGetValue(WorkflowKey(issuerId, workflowId), out var item);
-            return Task.FromResult(item);
+            var key = WorkflowKey(issuerId, workflowId);
+            if (!_workflowItems.TryGetValue(key, out var item))
+                return Task.FromResult<WorkflowItem?>(null);
+
+            // Synthesize a fresh, ordered, deduplicated audit history from the authoritative
+            // entry store. This guarantees that readers always observe all entries regardless
+            // of whether they arrived via UpsertWorkflowItemAsync or AppendAuditEntryAsync,
+            // and without any concurrent List<T> mutation.
+            if (_auditEntries.TryGetValue(key, out var entries))
+                item.AuditHistory = entries.Values.OrderBy(e => e.Timestamp).ToList();
+
+            return Task.FromResult<WorkflowItem?>(item);
         }
 
         /// <inheritdoc/>
@@ -124,6 +148,15 @@ namespace BiatecTokensApi.Repositories
                 query = query.Where(i => i.AssignedTo == assignedTo);
 
             var result = query.OrderByDescending(i => i.UpdatedAt).ToList();
+
+            // Synthesize complete audit history for each item from the authoritative entry store.
+            foreach (var item in result)
+            {
+                var key = WorkflowKey(item.IssuerId, item.WorkflowId);
+                if (_auditEntries.TryGetValue(key, out var entries))
+                    item.AuditHistory = entries.Values.OrderBy(e => e.Timestamp).ToList();
+            }
+
             return Task.FromResult(result);
         }
 
@@ -131,18 +164,12 @@ namespace BiatecTokensApi.Repositories
         public Task AppendAuditEntryAsync(string issuerId, string workflowId, WorkflowAuditEntry entry)
         {
             var key = WorkflowKey(issuerId, workflowId);
-            var bag = _auditEntries.GetOrAdd(key, _ => new System.Collections.Concurrent.ConcurrentBag<WorkflowAuditEntry>());
-            bag.Add(entry);
+            var entries = _auditEntries.GetOrAdd(key, _ => new ConcurrentDictionary<string, WorkflowAuditEntry>());
 
-            // Also append to the workflow item's in-object audit trail for convenience.
-            // The workflow item is read and mutated under normal single-writer semantics
-            // (each workflow item is only mutated through service methods which check state
-            // before writing). We avoid cross-thread corruption by using a stable item reference.
-            if (_workflowItems.TryGetValue(key, out var item)
-                && !item.AuditHistory.Any(e => e.EntryId == entry.EntryId))
-            {
-                item.AuditHistory.Add(entry);
-            }
+            // TryAdd is atomic and idempotent: if two concurrent threads attempt to add the
+            // same EntryId, exactly one succeeds and the other is silently ignored.
+            // No lock required, no check-then-add race, no List<T> mutation.
+            entries.TryAdd(entry.EntryId, entry);
 
             _logger.LogDebug(
                 "IssuerWorkflowRepository: appended audit entry. IssuerId={IssuerId} WorkflowId={WorkflowId} EntryId={EntryId}",

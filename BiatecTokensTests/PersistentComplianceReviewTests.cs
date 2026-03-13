@@ -711,7 +711,193 @@ namespace BiatecTokensTests
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // 9. Repository query correctness
+        // 9. Concurrent audit entry safety (the core blocker fix)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task AuditRepository_ConcurrentAppendsToSameWorkflow_NoDuplicates()
+        {
+            // Verifies the fix for the check-then-add race on List<T>:
+            // Under concurrent calls with distinct EntryIds every entry must appear exactly once.
+            var wfRepo   = CreateWorkflowRepo();
+            var issuerId = "issuer-concurrent-audit";
+            var workflowId = "wf-concurrent";
+
+            // First create the workflow item so the repository knows about it
+            await wfRepo.UpsertWorkflowItemAsync(new WorkflowItem
+            {
+                IssuerId = issuerId, WorkflowId = workflowId,
+                Title = "Concurrent Audit Test", State = WorkflowApprovalState.PendingReview
+            });
+
+            const int threadCount = 50;
+            var entries = Enumerable.Range(0, threadCount)
+                .Select(_ => new WorkflowAuditEntry
+                {
+                    EntryId    = Guid.NewGuid().ToString(),
+                    WorkflowId = workflowId,
+                    FromState  = WorkflowApprovalState.Prepared,
+                    ToState    = WorkflowApprovalState.PendingReview,
+                    ActorId    = "actor@test.com",
+                    Timestamp  = DateTime.UtcNow
+                }).ToList();
+
+            // Fire all appends concurrently
+            var tasks = entries.Select(e => wfRepo.AppendAuditEntryAsync(issuerId, workflowId, e));
+            await Task.WhenAll(tasks);
+
+            var item = await wfRepo.GetWorkflowItemAsync(issuerId, workflowId);
+            Assert.That(item, Is.Not.Null);
+            Assert.That(item!.AuditHistory.Count, Is.EqualTo(threadCount),
+                "Every distinct audit entry must appear exactly once — no duplicates, no losses");
+
+            // All EntryIds must be unique (no duplicate due to check-then-add race)
+            var entryIds = item.AuditHistory.Select(e => e.EntryId).ToHashSet();
+            Assert.That(entryIds.Count, Is.EqualTo(threadCount),
+                "All EntryIds must be unique — concurrent adds must not produce duplicates");
+        }
+
+        [Test]
+        public async Task AuditRepository_ConcurrentAppendsWithSameEntryId_ExactlyOneEntry()
+        {
+            // Verifies idempotency: two concurrent calls with the SAME EntryId must produce
+            // exactly one entry in the audit trail — TryAdd is idempotent, no double-write.
+            var wfRepo     = CreateWorkflowRepo();
+            var issuerId   = "issuer-idempotent-audit";
+            var workflowId = "wf-idempotent";
+
+            await wfRepo.UpsertWorkflowItemAsync(new WorkflowItem
+            {
+                IssuerId = issuerId, WorkflowId = workflowId,
+                Title = "Idempotency Test", State = WorkflowApprovalState.PendingReview
+            });
+
+            var sharedEntryId = Guid.NewGuid().ToString();
+            var entry = new WorkflowAuditEntry
+            {
+                EntryId    = sharedEntryId,
+                WorkflowId = workflowId,
+                FromState  = WorkflowApprovalState.Prepared,
+                ToState    = WorkflowApprovalState.PendingReview,
+                ActorId    = "actor@test.com"
+            };
+
+            // Append the SAME entry 20 times concurrently
+            var tasks = Enumerable.Range(0, 20).Select(_ => wfRepo.AppendAuditEntryAsync(issuerId, workflowId, entry));
+            await Task.WhenAll(tasks);
+
+            var item = await wfRepo.GetWorkflowItemAsync(issuerId, workflowId);
+            Assert.That(item!.AuditHistory.Count, Is.EqualTo(1),
+                "Idempotent TryAdd: same EntryId appended 20 times must produce exactly 1 audit entry");
+            Assert.That(item.AuditHistory[0].EntryId, Is.EqualTo(sharedEntryId));
+        }
+
+        [Test]
+        public async Task AuditRepository_ConcurrentAppendsAndUpserts_NoCorruption()
+        {
+            // Simulates real concurrent usage: some threads append via AppendAuditEntryAsync,
+            // others upsert the full item via UpsertWorkflowItemAsync.
+            // The audit trail must contain ALL distinct entries from both paths.
+            var wfRepo     = CreateWorkflowRepo();
+            var issuerId   = "issuer-mixed-concurrent";
+            var workflowId = "wf-mixed";
+
+            await wfRepo.UpsertWorkflowItemAsync(new WorkflowItem
+            {
+                IssuerId = issuerId, WorkflowId = workflowId,
+                Title = "Mixed Concurrent Test", State = WorkflowApprovalState.PendingReview
+            });
+
+            const int appendCount = 25;
+            const int upsertCount = 25;
+
+            // Half the entries arrive via AppendAuditEntryAsync
+            var appendEntries = Enumerable.Range(0, appendCount)
+                .Select(_ => new WorkflowAuditEntry
+                {
+                    EntryId = Guid.NewGuid().ToString(), WorkflowId = workflowId,
+                    ActorId = "actor@test.com", Timestamp = DateTime.UtcNow
+                }).ToList();
+
+            // Other half arrive embedded in UpsertWorkflowItemAsync calls
+            var upsertEntries = Enumerable.Range(0, upsertCount)
+                .Select(_ => new WorkflowAuditEntry
+                {
+                    EntryId = Guid.NewGuid().ToString(), WorkflowId = workflowId,
+                    ActorId = "actor@test.com", Timestamp = DateTime.UtcNow.AddMilliseconds(1)
+                }).ToList();
+
+            var appendTasks = appendEntries.Select(e => wfRepo.AppendAuditEntryAsync(issuerId, workflowId, e));
+            var upsertTasks = upsertEntries.Select(e => wfRepo.UpsertWorkflowItemAsync(new WorkflowItem
+            {
+                IssuerId = issuerId, WorkflowId = workflowId,
+                Title = "Mixed Concurrent Test", State = WorkflowApprovalState.PendingReview,
+                AuditHistory = new List<WorkflowAuditEntry> { e }
+            }));
+
+            await Task.WhenAll(appendTasks.Concat(upsertTasks));
+
+            var item = await wfRepo.GetWorkflowItemAsync(issuerId, workflowId);
+
+            var allExpectedIds = appendEntries.Select(e => e.EntryId)
+                .Concat(upsertEntries.Select(e => e.EntryId)).ToHashSet();
+            var actualIds = item!.AuditHistory.Select(e => e.EntryId).ToHashSet();
+
+            Assert.That(actualIds.IsSupersetOf(allExpectedIds), Is.True,
+                "All distinct audit entries from both append and upsert paths must be present");
+
+            // No entry must appear more than once
+            var historyCount = item.AuditHistory.Count;
+            var uniqueCount  = item.AuditHistory.Select(e => e.EntryId).Distinct().Count();
+            Assert.That(historyCount, Is.EqualTo(uniqueCount),
+                "No duplicate audit entries must appear after concurrent mixed operations");
+        }
+
+        [Test]
+        public async Task AuditRepository_ReadsDuringConcurrentWrites_NoException()
+        {
+            // Verifies the implementation does not throw under read/write concurrency.
+            // With List<T>, concurrent Add + Any iteration could throw InvalidOperationException.
+            // With ConcurrentDictionary, reads and writes are safe at all times.
+            var wfRepo     = CreateWorkflowRepo();
+            var issuerId   = "issuer-readwrite";
+            var workflowId = "wf-readwrite";
+
+            await wfRepo.UpsertWorkflowItemAsync(new WorkflowItem
+            {
+                IssuerId = issuerId, WorkflowId = workflowId,
+                Title = "Read-Write Safety", State = WorkflowApprovalState.PendingReview
+            });
+
+            var writerTask = Task.Run(async () =>
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    await wfRepo.AppendAuditEntryAsync(issuerId, workflowId, new WorkflowAuditEntry
+                    {
+                        EntryId = Guid.NewGuid().ToString(), WorkflowId = workflowId,
+                        ActorId = "writer@test.com"
+                    });
+                    await Task.Yield();
+                }
+            });
+
+            var readerTask = Task.Run(async () =>
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    var item = await wfRepo.GetWorkflowItemAsync(issuerId, workflowId);
+                    _ = item?.AuditHistory.Count; // Force enumeration — must not throw
+                    await Task.Yield();
+                }
+            });
+
+            Assert.DoesNotThrowAsync(async () => await Task.WhenAll(writerTask, readerTask),
+                "Concurrent reads and writes to the audit trail must not throw any exceptions");
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 10. Repository query correctness
         // ═══════════════════════════════════════════════════════════════════════
 
         [Test]
@@ -830,7 +1016,7 @@ namespace BiatecTokensTests
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // 10. HTTP integration — DI singleton repository semantics
+        // 11. HTTP integration — DI singleton repository semantics
         // ═══════════════════════════════════════════════════════════════════════
 
         private CustomWebApplicationFactory? _factory;
