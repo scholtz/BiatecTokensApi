@@ -86,8 +86,9 @@ namespace BiatecTokensApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to connect to Algorand node at {Url}", chain.Value.Server);
-                    throw;
+                    _logger.LogWarning(ex, "Failed to connect to Algorand node at {Url}. Service will start in degraded mode; token operations on this network will fail at request time.", chain.Value.Server);
+                    // Do not throw: allow the service to start even if a node is unreachable.
+                    // Token operations will fail gracefully when an unsupported network is requested.
                 }
             }
         }

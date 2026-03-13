@@ -1,21 +1,23 @@
 using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.IssuerWorkflow;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
-using System.Collections.Concurrent;
 
 namespace BiatecTokensApi.Services
 {
     /// <summary>
-    /// In-memory implementation of the issuer workflow service providing team role management
-    /// and approval-state machine capabilities for enterprise collaboration workflows.
+    /// Repository-backed implementation of the issuer workflow service providing team role
+    /// management and approval-state machine capabilities for enterprise collaboration workflows.
+    ///
+    /// All mutable state is delegated to <see cref="IIssuerWorkflowRepository"/> so that
+    /// review records survive DI scope changes and can be upgraded to durable storage
+    /// by replacing the repository implementation.
     /// </summary>
     public class IssuerWorkflowService : IIssuerWorkflowService
     {
         private readonly ILogger<IssuerWorkflowService> _logger;
-
-        private readonly ConcurrentDictionary<string, IssuerTeamMember> _members = new();
-        private readonly ConcurrentDictionary<string, WorkflowItem> _workflowItems = new();
+        private readonly IIssuerWorkflowRepository _repository;
 
         private static readonly IReadOnlyDictionary<WorkflowApprovalState, IReadOnlySet<WorkflowApprovalState>> _allowedTransitions =
             new Dictionary<WorkflowApprovalState, IReadOnlySet<WorkflowApprovalState>>
@@ -34,9 +36,10 @@ namespace BiatecTokensApi.Services
         private static readonly IssuerTeamRole[] _allActiveRoles   = { IssuerTeamRole.Operator, IssuerTeamRole.ComplianceReviewer, IssuerTeamRole.FinanceReviewer, IssuerTeamRole.Admin, IssuerTeamRole.ReadOnlyObserver };
         private static readonly IssuerTeamRole[] _nonReadonlyRoles = { IssuerTeamRole.Operator, IssuerTeamRole.ComplianceReviewer, IssuerTeamRole.FinanceReviewer, IssuerTeamRole.Admin };
 
-        public IssuerWorkflowService(ILogger<IssuerWorkflowService> logger)
+        public IssuerWorkflowService(ILogger<IssuerWorkflowService> logger, IIssuerWorkflowRepository repository)
         {
-            _logger = logger;
+            _logger     = logger;
+            _repository = repository;
         }
 
         public WorkflowTransitionValidationResult ValidateTransition(WorkflowApprovalState from, WorkflowApprovalState to)
@@ -56,31 +59,32 @@ namespace BiatecTokensApi.Services
 
         // ── Team Membership ────────────────────────────────────────────────────
 
-        public Task<IssuerTeamMemberResponse> AddMemberAsync(string issuerId, AddIssuerTeamMemberRequest request, string actorId)
+        public async Task<IssuerTeamMemberResponse> AddMemberAsync(string issuerId, AddIssuerTeamMemberRequest request, string actorId)
         {
             if (string.IsNullOrWhiteSpace(issuerId))
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>("MISSING_ISSUER_ID", "IssuerId is required."));
+                return Fail<IssuerTeamMemberResponse>("MISSING_ISSUER_ID", "IssuerId is required.");
             if (request == null || string.IsNullOrWhiteSpace(request.UserId))
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "UserId is required."));
+                return Fail<IssuerTeamMemberResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "UserId is required.");
 
-            bool hasExistingMembers = _members.Values.Any(m => m.IssuerId == issuerId && m.IsActive);
+            bool hasExistingMembers = await _repository.HasActiveMembersAsync(issuerId);
 
             if (hasExistingMembers)
             {
-                var authResult = RequireRole<IssuerTeamMemberResponse>(issuerId, actorId, _adminOnly);
-                if (authResult != null) return Task.FromResult(authResult);
+                var authResult = await RequireRoleAsync<IssuerTeamMemberResponse>(issuerId, actorId, _adminOnly);
+                if (authResult != null) return authResult;
             }
             else
             {
                 if (request.Role != IssuerTeamRole.Admin)
-                    return Task.FromResult(Fail<IssuerTeamMemberResponse>(
+                    return Fail<IssuerTeamMemberResponse>(
                         "BOOTSTRAP_ROLE_REQUIRED",
-                        "The first member of an issuer team must have the Admin role so they can manage the team."));
+                        "The first member of an issuer team must have the Admin role so they can manage the team.");
             }
 
-            bool duplicate = _members.Values.Any(m => m.IssuerId == issuerId && m.UserId == request.UserId && m.IsActive);
+            bool duplicate = (await _repository.ListMembersAsync(issuerId))
+                .Any(m => m.UserId == request.UserId && m.IsActive);
             if (duplicate)
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>("DUPLICATE_MEMBER", $"UserId '{request.UserId}' is already an active member of this issuer team."));
+                return Fail<IssuerTeamMemberResponse>("DUPLICATE_MEMBER", $"UserId '{request.UserId}' is already an active member of this issuer team.");
 
             var member = new IssuerTeamMember
             {
@@ -92,7 +96,7 @@ namespace BiatecTokensApi.Services
                 IsActive    = true
             };
 
-            _members[member.MemberId] = member;
+            await _repository.UpsertMemberAsync(member);
 
             _logger.LogInformation(
                 "IssuerTeamMember added. MemberId={MemberId} IssuerId={IssuerId} UserId={UserId} Role={Role} Actor={Actor}",
@@ -102,39 +106,43 @@ namespace BiatecTokensApi.Services
                 member.Role,
                 LoggingHelper.SanitizeLogInput(actorId));
 
-            return Task.FromResult(new IssuerTeamMemberResponse { Success = true, Member = member });
+            return new IssuerTeamMemberResponse { Success = true, Member = member };
         }
 
-        public Task<IssuerTeamMemberResponse> UpdateMemberAsync(string issuerId, string memberId, UpdateIssuerTeamMemberRequest request, string actorId)
+        public async Task<IssuerTeamMemberResponse> UpdateMemberAsync(string issuerId, string memberId, UpdateIssuerTeamMemberRequest request, string actorId)
         {
-            var authResult = RequireRole<IssuerTeamMemberResponse>(issuerId, actorId, _adminOnly);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<IssuerTeamMemberResponse>(issuerId, actorId, _adminOnly);
+            if (authResult != null) return authResult;
 
-            if (!_members.TryGetValue(memberId, out var member))
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>(ErrorCodes.NOT_FOUND, "Team member not found."));
+            var member = await _repository.GetMemberByIdAsync(issuerId, memberId);
+            if (member == null)
+                return Fail<IssuerTeamMemberResponse>(ErrorCodes.NOT_FOUND, "Team member not found.");
             if (member.IssuerId != issuerId)
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>(ErrorCodes.UNAUTHORIZED, "Access denied: member does not belong to the specified issuer."));
+                return Fail<IssuerTeamMemberResponse>(ErrorCodes.UNAUTHORIZED, "Access denied: member does not belong to the specified issuer.");
 
             member.Role      = request.Role;
             member.UpdatedAt = DateTime.UtcNow;
             if (request.DisplayName != null)
                 member.DisplayName = request.DisplayName;
 
-            return Task.FromResult(new IssuerTeamMemberResponse { Success = true, Member = member });
+            await _repository.UpsertMemberAsync(member);
+            return new IssuerTeamMemberResponse { Success = true, Member = member };
         }
 
-        public Task<IssuerTeamMemberResponse> RemoveMemberAsync(string issuerId, string memberId, string actorId)
+        public async Task<IssuerTeamMemberResponse> RemoveMemberAsync(string issuerId, string memberId, string actorId)
         {
-            var authResult = RequireRole<IssuerTeamMemberResponse>(issuerId, actorId, _adminOnly);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<IssuerTeamMemberResponse>(issuerId, actorId, _adminOnly);
+            if (authResult != null) return authResult;
 
-            if (!_members.TryGetValue(memberId, out var member))
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>(ErrorCodes.NOT_FOUND, "Team member not found."));
+            var member = await _repository.GetMemberByIdAsync(issuerId, memberId);
+            if (member == null)
+                return Fail<IssuerTeamMemberResponse>(ErrorCodes.NOT_FOUND, "Team member not found.");
             if (member.IssuerId != issuerId)
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>(ErrorCodes.UNAUTHORIZED, "Access denied: member does not belong to the specified issuer."));
+                return Fail<IssuerTeamMemberResponse>(ErrorCodes.UNAUTHORIZED, "Access denied: member does not belong to the specified issuer.");
 
             member.IsActive  = false;
             member.UpdatedAt = DateTime.UtcNow;
+            await _repository.UpsertMemberAsync(member);
 
             _logger.LogInformation(
                 "IssuerTeamMember removed. MemberId={MemberId} IssuerId={IssuerId} Actor={Actor}",
@@ -142,46 +150,47 @@ namespace BiatecTokensApi.Services
                 LoggingHelper.SanitizeLogInput(issuerId),
                 LoggingHelper.SanitizeLogInput(actorId));
 
-            return Task.FromResult(new IssuerTeamMemberResponse { Success = true, Member = member });
+            return new IssuerTeamMemberResponse { Success = true, Member = member };
         }
 
-        public Task<IssuerTeamMemberResponse> GetMemberAsync(string issuerId, string memberId, string actorId)
+        public async Task<IssuerTeamMemberResponse> GetMemberAsync(string issuerId, string memberId, string actorId)
         {
-            var authResult = RequireRole<IssuerTeamMemberResponse>(issuerId, actorId, _allActiveRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<IssuerTeamMemberResponse>(issuerId, actorId, _allActiveRoles);
+            if (authResult != null) return authResult;
 
-            if (!_members.TryGetValue(memberId, out var member))
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>(ErrorCodes.NOT_FOUND, "Team member not found."));
+            var member = await _repository.GetMemberByIdAsync(issuerId, memberId);
+            if (member == null)
+                return Fail<IssuerTeamMemberResponse>(ErrorCodes.NOT_FOUND, "Team member not found.");
             if (member.IssuerId != issuerId)
-                return Task.FromResult(Fail<IssuerTeamMemberResponse>(ErrorCodes.UNAUTHORIZED, "Access denied."));
+                return Fail<IssuerTeamMemberResponse>(ErrorCodes.UNAUTHORIZED, "Access denied.");
 
-            return Task.FromResult(new IssuerTeamMemberResponse { Success = true, Member = member });
+            return new IssuerTeamMemberResponse { Success = true, Member = member };
         }
 
-        public Task<IssuerTeamMembersResponse> ListMembersAsync(string issuerId, string actorId)
+        public async Task<IssuerTeamMembersResponse> ListMembersAsync(string issuerId, string actorId)
         {
-            var authResult = RequireRole<IssuerTeamMembersResponse>(issuerId, actorId, _allActiveRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<IssuerTeamMembersResponse>(issuerId, actorId, _allActiveRoles);
+            if (authResult != null) return authResult;
 
-            var members = _members.Values
-                .Where(m => m.IssuerId == issuerId && m.IsActive)
+            var members = (await _repository.ListMembersAsync(issuerId))
+                .Where(m => m.IsActive)
                 .OrderBy(m => m.AddedAt)
                 .ToList();
 
-            return Task.FromResult(new IssuerTeamMembersResponse { Success = true, Members = members, TotalCount = members.Count });
+            return new IssuerTeamMembersResponse { Success = true, Members = members, TotalCount = members.Count };
         }
 
         // ── Workflow Items ─────────────────────────────────────────────────────
 
-        public Task<WorkflowItemResponse> CreateWorkflowItemAsync(string issuerId, CreateWorkflowItemRequest request, string actorId)
+        public async Task<WorkflowItemResponse> CreateWorkflowItemAsync(string issuerId, CreateWorkflowItemRequest request, string actorId)
         {
             if (string.IsNullOrWhiteSpace(issuerId))
-                return Task.FromResult(Fail<WorkflowItemResponse>("MISSING_ISSUER_ID", "IssuerId is required."));
+                return Fail<WorkflowItemResponse>("MISSING_ISSUER_ID", "IssuerId is required.");
             if (request == null || string.IsNullOrWhiteSpace(request.Title))
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "Title is required."));
+                return Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "Title is required.");
 
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
+            if (authResult != null) return authResult;
 
             var item = new WorkflowItem
             {
@@ -197,7 +206,7 @@ namespace BiatecTokensApi.Services
             };
 
             item.AuditHistory.Add(CreateAuditEntry(item.WorkflowId, WorkflowApprovalState.Prepared, WorkflowApprovalState.Prepared, actorId, "Item created.", null));
-            _workflowItems[item.WorkflowId] = item;
+            await _repository.UpsertWorkflowItemAsync(item);
 
             _logger.LogInformation(
                 "WorkflowItem created. WorkflowId={WorkflowId} IssuerId={IssuerId} ItemType={ItemType} Actor={Actor}",
@@ -206,150 +215,146 @@ namespace BiatecTokensApi.Services
                 item.ItemType,
                 LoggingHelper.SanitizeLogInput(actorId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemResponse> GetWorkflowItemAsync(string issuerId, string workflowId, string actorId)
+        public async Task<WorkflowItemResponse> GetWorkflowItemAsync(string issuerId, string workflowId, string actorId)
         {
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _allActiveRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _allActiveRoles);
+            if (authResult != null) return authResult;
 
-            if (!_workflowItems.TryGetValue(workflowId, out var item))
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.NOT_FOUND, "Workflow item not found."));
-            if (item.IssuerId != issuerId)
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.UNAUTHORIZED, "Access denied: workflow item does not belong to the specified issuer."));
+            var item = await _repository.GetWorkflowItemAsync(issuerId, workflowId);
+            if (item == null)
+                return Fail<WorkflowItemResponse>(ErrorCodes.NOT_FOUND, "Workflow item not found.");
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemListResponse> ListWorkflowItemsAsync(string issuerId, string actorId, WorkflowApprovalState? stateFilter = null, string? assignedTo = null)
+        public async Task<WorkflowItemListResponse> ListWorkflowItemsAsync(string issuerId, string actorId, WorkflowApprovalState? stateFilter = null, string? assignedTo = null)
         {
-            var authResult = RequireRole<WorkflowItemListResponse>(issuerId, actorId, _allActiveRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemListResponse>(issuerId, actorId, _allActiveRoles);
+            if (authResult != null) return authResult;
 
-            var query = _workflowItems.Values.Where(i => i.IssuerId == issuerId);
-            if (stateFilter.HasValue)
-                query = query.Where(i => i.State == stateFilter.Value);
-            if (!string.IsNullOrWhiteSpace(assignedTo))
-                query = query.Where(i => i.AssignedTo == assignedTo);
-
-            var items = query.OrderByDescending(i => i.UpdatedAt).ToList();
-            return Task.FromResult(new WorkflowItemListResponse { Success = true, Items = items, TotalCount = items.Count });
+            var items = await _repository.ListWorkflowItemsAsync(issuerId, stateFilter, assignedTo);
+            return new WorkflowItemListResponse { Success = true, Items = items, TotalCount = items.Count };
         }
 
         // ── Workflow Transitions ───────────────────────────────────────────────
 
-        public Task<WorkflowItemResponse> SubmitForReviewAsync(string issuerId, string workflowId, SubmitWorkflowItemRequest request, string actorId, string correlationId)
+        public async Task<WorkflowItemResponse> SubmitForReviewAsync(string issuerId, string workflowId, SubmitWorkflowItemRequest request, string actorId, string correlationId)
         {
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
+            if (authResult != null) return authResult;
 
-            var (item, err) = GetItemForTransition(issuerId, workflowId, WorkflowApprovalState.Prepared, WorkflowApprovalState.PendingReview);
-            if (err != null) return Task.FromResult(err);
+            var (item, err) = await GetItemForTransitionAsync(issuerId, workflowId, WorkflowApprovalState.Prepared, WorkflowApprovalState.PendingReview);
+            if (err != null) return err;
 
             ApplyTransition(item!, WorkflowApprovalState.PendingReview, actorId, request?.SubmissionNote, correlationId);
+            await _repository.UpsertWorkflowItemAsync(item!);
             _logger.LogInformation("WorkflowItem submitted for review. WorkflowId={WorkflowId} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId, LoggingHelper.SanitizeLogInput(actorId), LoggingHelper.SanitizeLogInput(correlationId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemResponse> ApproveAsync(string issuerId, string workflowId, ApproveWorkflowItemRequest request, string actorId, string correlationId)
+        public async Task<WorkflowItemResponse> ApproveAsync(string issuerId, string workflowId, ApproveWorkflowItemRequest request, string actorId, string correlationId)
         {
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _approverRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _approverRoles);
+            if (authResult != null) return authResult;
 
-            var (item, err) = GetItemForTransition(issuerId, workflowId, WorkflowApprovalState.PendingReview, WorkflowApprovalState.Approved);
-            if (err != null) return Task.FromResult(err);
+            var (item, err) = await GetItemForTransitionAsync(issuerId, workflowId, WorkflowApprovalState.PendingReview, WorkflowApprovalState.Approved);
+            if (err != null) return err;
 
             item!.ApproverActorId      = actorId;
             item.LatestReviewerActorId = actorId;
             item.ApprovedAt            = DateTime.UtcNow;
             ApplyTransition(item, WorkflowApprovalState.Approved, actorId, request?.ApprovalNote, correlationId);
+            await _repository.UpsertWorkflowItemAsync(item);
 
             _logger.LogInformation("WorkflowItem approved. WorkflowId={WorkflowId} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId, LoggingHelper.SanitizeLogInput(actorId), LoggingHelper.SanitizeLogInput(correlationId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemResponse> RejectAsync(string issuerId, string workflowId, RejectWorkflowItemRequest request, string actorId, string correlationId)
+        public async Task<WorkflowItemResponse> RejectAsync(string issuerId, string workflowId, RejectWorkflowItemRequest request, string actorId, string correlationId)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.RejectionReason))
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "RejectionReason is required."));
+                return Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "RejectionReason is required.");
 
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _approverRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _approverRoles);
+            if (authResult != null) return authResult;
 
-            var (item, err) = GetItemForTransition(issuerId, workflowId, WorkflowApprovalState.PendingReview, WorkflowApprovalState.Rejected);
-            if (err != null) return Task.FromResult(err);
+            var (item, err) = await GetItemForTransitionAsync(issuerId, workflowId, WorkflowApprovalState.PendingReview, WorkflowApprovalState.Rejected);
+            if (err != null) return err;
 
             item!.LatestReviewerActorId   = actorId;
             item.RejectedAt               = DateTime.UtcNow;
             item.RejectionOrChangeReason  = request.RejectionReason;
             ApplyTransition(item, WorkflowApprovalState.Rejected, actorId, request.RejectionReason, correlationId);
+            await _repository.UpsertWorkflowItemAsync(item);
 
             _logger.LogInformation("WorkflowItem rejected. WorkflowId={WorkflowId} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId, LoggingHelper.SanitizeLogInput(actorId), LoggingHelper.SanitizeLogInput(correlationId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemResponse> RequestChangesAsync(string issuerId, string workflowId, RequestChangesRequest request, string actorId, string correlationId)
+        public async Task<WorkflowItemResponse> RequestChangesAsync(string issuerId, string workflowId, RequestChangesRequest request, string actorId, string correlationId)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ChangeDescription))
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "ChangeDescription is required."));
+                return Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "ChangeDescription is required.");
 
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _approverRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _approverRoles);
+            if (authResult != null) return authResult;
 
-            var (item, err) = GetItemForTransition(issuerId, workflowId, WorkflowApprovalState.PendingReview, WorkflowApprovalState.NeedsChanges);
-            if (err != null) return Task.FromResult(err);
+            var (item, err) = await GetItemForTransitionAsync(issuerId, workflowId, WorkflowApprovalState.PendingReview, WorkflowApprovalState.NeedsChanges);
+            if (err != null) return err;
 
             item!.LatestReviewerActorId  = actorId;
             item.RejectionOrChangeReason = request.ChangeDescription;
             ApplyTransition(item, WorkflowApprovalState.NeedsChanges, actorId, request.ChangeDescription, correlationId);
+            await _repository.UpsertWorkflowItemAsync(item);
 
             _logger.LogInformation("WorkflowItem needs changes. WorkflowId={WorkflowId} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId, LoggingHelper.SanitizeLogInput(actorId), LoggingHelper.SanitizeLogInput(correlationId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemResponse> ResubmitAsync(string issuerId, string workflowId, SubmitWorkflowItemRequest request, string actorId, string correlationId)
+        public async Task<WorkflowItemResponse> ResubmitAsync(string issuerId, string workflowId, SubmitWorkflowItemRequest request, string actorId, string correlationId)
         {
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
+            if (authResult != null) return authResult;
 
-            var (item, err) = GetItemForTransition(issuerId, workflowId, WorkflowApprovalState.NeedsChanges, WorkflowApprovalState.PendingReview);
-            if (err != null) return Task.FromResult(err);
+            var (item, err) = await GetItemForTransitionAsync(issuerId, workflowId, WorkflowApprovalState.NeedsChanges, WorkflowApprovalState.PendingReview);
+            if (err != null) return err;
 
             ApplyTransition(item!, WorkflowApprovalState.PendingReview, actorId, request?.SubmissionNote, correlationId);
+            await _repository.UpsertWorkflowItemAsync(item!);
             _logger.LogInformation("WorkflowItem resubmitted. WorkflowId={WorkflowId} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId, LoggingHelper.SanitizeLogInput(actorId), LoggingHelper.SanitizeLogInput(correlationId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemResponse> ReassignAsync(string issuerId, string workflowId, ReassignWorkflowItemRequest request, string actorId, string correlationId)
+        public async Task<WorkflowItemResponse> ReassignAsync(string issuerId, string workflowId, ReassignWorkflowItemRequest request, string actorId, string correlationId)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.NewAssigneeId))
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "NewAssigneeId is required."));
+                return Fail<WorkflowItemResponse>(ErrorCodes.MISSING_REQUIRED_FIELD, "NewAssigneeId is required.");
 
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _nonReadonlyRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _nonReadonlyRoles);
+            if (authResult != null) return authResult;
 
-            if (!_workflowItems.TryGetValue(workflowId, out var item))
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.NOT_FOUND, "Workflow item not found."));
-            if (item.IssuerId != issuerId)
-                return Task.FromResult(Fail<WorkflowItemResponse>(ErrorCodes.UNAUTHORIZED, "Access denied: workflow item does not belong to the specified issuer."));
+            var item = await _repository.GetWorkflowItemAsync(issuerId, workflowId);
+            if (item == null)
+                return Fail<WorkflowItemResponse>(ErrorCodes.NOT_FOUND, "Workflow item not found.");
             if (item.State == WorkflowApprovalState.Completed || item.State == WorkflowApprovalState.Rejected)
-                return Task.FromResult(Fail<WorkflowItemResponse>("INVALID_STATE", $"Cannot reassign a {item.State} item."));
+                return Fail<WorkflowItemResponse>("INVALID_STATE", $"Cannot reassign a {item.State} item.");
 
-            bool assigneeIsValidMember = _members.Values.Any(m =>
-                m.IssuerId == issuerId && m.UserId == request.NewAssigneeId && m.IsActive);
+            bool assigneeIsValidMember = await _repository.IsMemberAsync(issuerId, request.NewAssigneeId);
             if (!assigneeIsValidMember)
-                return Task.FromResult(Fail<WorkflowItemResponse>("INVALID_ASSIGNEE", $"NewAssigneeId '{request.NewAssigneeId}' is not an active member of this issuer team."));
+                return Fail<WorkflowItemResponse>("INVALID_ASSIGNEE", $"NewAssigneeId '{request.NewAssigneeId}' is not an active member of this issuer team.");
 
             string? previousAssignee = item.AssignedTo;
             item.AssignedTo = request.NewAssigneeId;
@@ -360,40 +365,44 @@ namespace BiatecTokensApi.Services
                 $"Reassigned from '{previousAssignee ?? "unassigned"}' to '{request.NewAssigneeId}'. {request.ReassignmentNote}".Trim(),
                 correlationId));
 
+            await _repository.UpsertWorkflowItemAsync(item);
+
             _logger.LogInformation("WorkflowItem reassigned. WorkflowId={WorkflowId} From={From} To={To} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId, LoggingHelper.SanitizeLogInput(previousAssignee ?? "unassigned"),
                 LoggingHelper.SanitizeLogInput(request.NewAssigneeId),
                 LoggingHelper.SanitizeLogInput(actorId), LoggingHelper.SanitizeLogInput(correlationId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
-        public Task<WorkflowItemResponse> CompleteAsync(string issuerId, string workflowId, CompleteWorkflowItemRequest request, string actorId, string correlationId)
+        public async Task<WorkflowItemResponse> CompleteAsync(string issuerId, string workflowId, CompleteWorkflowItemRequest request, string actorId, string correlationId)
         {
-            var authResult = RequireRole<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemResponse>(issuerId, actorId, _operatorRoles);
+            if (authResult != null) return authResult;
 
-            var (item, err) = GetItemForTransition(issuerId, workflowId, WorkflowApprovalState.Approved, WorkflowApprovalState.Completed);
-            if (err != null) return Task.FromResult(err);
+            var (item, err) = await GetItemForTransitionAsync(issuerId, workflowId, WorkflowApprovalState.Approved, WorkflowApprovalState.Completed);
+            if (err != null) return err;
 
             item!.CompletedAt = DateTime.UtcNow;
             ApplyTransition(item, WorkflowApprovalState.Completed, actorId, request?.CompletionNote, correlationId);
+            await _repository.UpsertWorkflowItemAsync(item);
 
             _logger.LogInformation("WorkflowItem completed. WorkflowId={WorkflowId} Actor={Actor} CorrelationId={CorrelationId}",
                 workflowId, LoggingHelper.SanitizeLogInput(actorId), LoggingHelper.SanitizeLogInput(correlationId));
 
-            return Task.FromResult(new WorkflowItemResponse { Success = true, WorkflowItem = item });
+            return new WorkflowItemResponse { Success = true, WorkflowItem = item };
         }
 
         // ── Queries ────────────────────────────────────────────────────────────
 
-        public Task<WorkflowApprovalSummaryResponse> GetApprovalSummaryAsync(string issuerId, string actorId)
+        public async Task<WorkflowApprovalSummaryResponse> GetApprovalSummaryAsync(string issuerId, string actorId)
         {
-            var authResult = RequireRole<WorkflowApprovalSummaryResponse>(issuerId, actorId, _allActiveRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowApprovalSummaryResponse>(issuerId, actorId, _allActiveRoles);
+            if (authResult != null) return authResult;
 
-            var issuerItems   = _workflowItems.Values.Where(i => i.IssuerId == issuerId).ToList();
-            var activeMembers = _members.Values.Count(m => m.IssuerId == issuerId && m.IsActive);
+            var issuerItems   = await _repository.ListWorkflowItemsAsync(issuerId);
+            var allMembers    = await _repository.ListMembersAsync(issuerId);
+            int activeMembers = allMembers.Count(m => m.IsActive);
 
             var recentPending = issuerItems
                 .Where(i => i.State == WorkflowApprovalState.PendingReview)
@@ -413,20 +422,16 @@ namespace BiatecTokensApi.Services
                 RecentPendingItems    = recentPending
             };
 
-            return Task.FromResult(new WorkflowApprovalSummaryResponse { Success = true, Summary = summary });
+            return new WorkflowApprovalSummaryResponse { Success = true, Summary = summary };
         }
 
-        public Task<WorkflowItemListResponse> GetAssignedQueueAsync(string issuerId, string assigneeActorId, string actorId)
+        public async Task<WorkflowItemListResponse> GetAssignedQueueAsync(string issuerId, string assigneeActorId, string actorId)
         {
-            var authResult = RequireRole<WorkflowItemListResponse>(issuerId, actorId, _allActiveRoles);
-            if (authResult != null) return Task.FromResult(authResult);
+            var authResult = await RequireRoleAsync<WorkflowItemListResponse>(issuerId, actorId, _allActiveRoles);
+            if (authResult != null) return authResult;
 
-            var items = _workflowItems.Values
-                .Where(i => i.IssuerId == issuerId && i.AssignedTo == assigneeActorId)
-                .OrderByDescending(i => i.UpdatedAt)
-                .ToList();
-
-            return Task.FromResult(new WorkflowItemListResponse { Success = true, Items = items, TotalCount = items.Count });
+            var items = await _repository.ListWorkflowItemsAsync(issuerId, assignedTo: assigneeActorId);
+            return new WorkflowItemListResponse { Success = true, Items = items, TotalCount = items.Count };
         }
 
         // ── Private helpers ────────────────────────────────────────────────────
@@ -435,17 +440,20 @@ namespace BiatecTokensApi.Services
         /// Returns the active membership record for <paramref name="actorId"/> within the issuer,
         /// or <c>null</c> if the actor is not an active member.
         /// </summary>
-        private IssuerTeamMember? GetActorMembership(string issuerId, string actorId) =>
-            _members.Values.FirstOrDefault(m => m.IssuerId == issuerId && m.UserId == actorId && m.IsActive);
+        private async Task<IssuerTeamMember?> GetActorMembershipAsync(string issuerId, string actorId)
+        {
+            var members = await _repository.ListMembersAsync(issuerId);
+            return members.FirstOrDefault(m => m.UserId == actorId && m.IsActive);
+        }
 
         /// <summary>
         /// Verifies that <paramref name="actorId"/> is an active member of <paramref name="issuerId"/>
         /// with one of the <paramref name="allowedRoles"/>.
         /// Returns a pre-filled failure response when the check fails; <c>null</c> on success.
         /// </summary>
-        private T? RequireRole<T>(string issuerId, string actorId, IssuerTeamRole[] allowedRoles) where T : new()
+        private async Task<T?> RequireRoleAsync<T>(string issuerId, string actorId, IssuerTeamRole[] allowedRoles) where T : new()
         {
-            var membership = GetActorMembership(issuerId, actorId);
+            var membership = await GetActorMembershipAsync(issuerId, actorId);
             if (membership == null)
                 return Fail<T>(ErrorCodes.UNAUTHORIZED,
                     "You are not an active member of this issuer team. " +
@@ -459,14 +467,13 @@ namespace BiatecTokensApi.Services
             return default;
         }
 
-        private (WorkflowItem? item, WorkflowItemResponse? error) GetItemForTransition(
+        private async Task<(WorkflowItem? item, WorkflowItemResponse? error)> GetItemForTransitionAsync(
             string issuerId, string workflowId,
             WorkflowApprovalState expectedCurrentState, WorkflowApprovalState targetState)
         {
-            if (!_workflowItems.TryGetValue(workflowId, out var item))
+            var item = await _repository.GetWorkflowItemAsync(issuerId, workflowId);
+            if (item == null)
                 return (null, Fail<WorkflowItemResponse>(ErrorCodes.NOT_FOUND, "Workflow item not found."));
-            if (item.IssuerId != issuerId)
-                return (null, Fail<WorkflowItemResponse>(ErrorCodes.UNAUTHORIZED, "Access denied: workflow item does not belong to the specified issuer."));
 
             var validation = ValidateTransition(item.State, targetState);
             if (!validation.IsValid)
