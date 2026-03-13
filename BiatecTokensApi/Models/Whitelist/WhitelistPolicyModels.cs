@@ -130,6 +130,251 @@ namespace BiatecTokensApi.Models.Whitelist
         public string? Notes { get; set; }
     }
 
+    // ── Audit Enums ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Machine-readable reason codes for eligibility decisions
+    /// </summary>
+    public enum WhitelistEligibilityReasonCode
+    {
+        /// <summary>All policy criteria were satisfied; participant is allowed</summary>
+        AllPolicyCriteriaSatisfied,
+
+        /// <summary>Policy was not found</summary>
+        PolicyNotFound,
+
+        /// <summary>Policy is in Draft state; fail-closed</summary>
+        PolicyInDraftState,
+
+        /// <summary>Policy is archived and inactive</summary>
+        PolicyIsArchived,
+
+        /// <summary>Policy has no rules; fail-closed</summary>
+        PolicyHasNoRules,
+
+        /// <summary>Participant address is on the explicit deny list</summary>
+        AddressOnDenyList,
+
+        /// <summary>Participant's jurisdiction is blocked</summary>
+        RestrictedJurisdiction,
+
+        /// <summary>Participant's jurisdiction is not in the allowed list</summary>
+        JurisdictionNotAllowed,
+
+        /// <summary>No jurisdiction provided but policy requires one</summary>
+        JurisdictionNotProvided,
+
+        /// <summary>Participant's investor category is not permitted</summary>
+        UnsupportedInvestorCategory,
+
+        /// <summary>Participant address is not on the explicit allow list</summary>
+        AddressNotOnAllowList,
+
+        /// <summary>Policy is in an ambiguous or incomplete state</summary>
+        PolicyIncomplete
+    }
+
+    /// <summary>
+    /// Types of policy lifecycle events
+    /// </summary>
+    public enum WhitelistAuditEventType
+    {
+        /// <summary>A new whitelist policy was created</summary>
+        PolicyCreated,
+
+        /// <summary>A whitelist policy was updated</summary>
+        PolicyUpdated,
+
+        /// <summary>A whitelist policy was activated (set to Active status)</summary>
+        PolicyActivated,
+
+        /// <summary>A whitelist policy was archived</summary>
+        PolicyArchived,
+
+        /// <summary>A participant eligibility evaluation was performed</summary>
+        EligibilityEvaluated
+    }
+
+    // ── Audit Models ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Snapshot of policy version metadata at the time of an evaluation or event
+    /// </summary>
+    public class WhitelistPolicyVersionMetadata
+    {
+        /// <summary>Policy unique identifier</summary>
+        public string PolicyId { get; set; } = string.Empty;
+
+        /// <summary>Human-readable policy name</summary>
+        public string PolicyName { get; set; } = string.Empty;
+
+        /// <summary>Monotonically increasing version number</summary>
+        public int Version { get; set; }
+
+        /// <summary>Lifecycle status at this version</summary>
+        public WhitelistPolicyStatus Status { get; set; }
+
+        /// <summary>UTC timestamp when this version was created or last updated</summary>
+        public DateTime EffectiveAt { get; set; }
+
+        /// <summary>Actor who created or last updated this version</summary>
+        public string ActorIdentifier { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// A single immutable audit event recording a policy lifecycle action or evaluation decision
+    /// </summary>
+    public class WhitelistAuditEvent
+    {
+        /// <summary>Unique identifier for this audit event</summary>
+        public string EventId { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>The policy this event belongs to</summary>
+        public string PolicyId { get; set; } = string.Empty;
+
+        /// <summary>Type of event</summary>
+        public WhitelistAuditEventType EventType { get; set; }
+
+        /// <summary>Identifier of the actor who triggered this event</summary>
+        public string Actor { get; set; } = string.Empty;
+
+        /// <summary>UTC timestamp when the event occurred</summary>
+        public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Human-readable description of what happened</summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>Policy version number at the time of this event</summary>
+        public int PolicyVersion { get; set; }
+
+        /// <summary>Machine-readable reason codes associated with this event (populated for EligibilityEvaluated events)</summary>
+        public List<WhitelistEligibilityReasonCode> ReasonCodes { get; set; } = new();
+
+        /// <summary>Eligibility outcome (only for EligibilityEvaluated events)</summary>
+        public WhitelistPolicyEligibilityOutcome? EligibilityOutcome { get; set; }
+
+        /// <summary>Participant address evaluated (only for EligibilityEvaluated events)</summary>
+        public string? ParticipantAddress { get; set; }
+
+        /// <summary>Jurisdiction code evaluated (only for EligibilityEvaluated events)</summary>
+        public string? JurisdictionCode { get; set; }
+
+        /// <summary>Investor category evaluated (only for EligibilityEvaluated events)</summary>
+        public WhitelistPolicyInvestorCategory? InvestorCategory { get; set; }
+
+        /// <summary>Whether fail-closed semantics were applied (only for EligibilityEvaluated events)</summary>
+        public bool? IsFailClosed { get; set; }
+    }
+
+    /// <summary>
+    /// Request for paginated whitelist policy audit history
+    /// </summary>
+    public class WhitelistAuditHistoryRequest
+    {
+        /// <summary>Page number (1-based)</summary>
+        public int Page { get; set; } = 1;
+
+        /// <summary>Number of events per page (max 200)</summary>
+        public int PageSize { get; set; } = 50;
+
+        /// <summary>Optional filter to restrict results to a specific event type</summary>
+        public WhitelistAuditEventType? EventTypeFilter { get; set; }
+    }
+
+    /// <summary>
+    /// Paginated response containing whitelist policy audit history
+    /// </summary>
+    public class WhitelistAuditHistoryResponse : BaseResponse
+    {
+        /// <summary>The policy ID this history belongs to</summary>
+        public string PolicyId { get; set; } = string.Empty;
+
+        /// <summary>Audit events for the requested page (most recent first)</summary>
+        public List<WhitelistAuditEvent> Events { get; set; } = new();
+
+        /// <summary>Total number of events matching the filter</summary>
+        public int TotalCount { get; set; }
+
+        /// <summary>Current page number (1-based)</summary>
+        public int Page { get; set; }
+
+        /// <summary>Number of events per page</summary>
+        public int PageSize { get; set; }
+
+        /// <summary>Total number of pages</summary>
+        public int TotalPages { get; set; }
+    }
+
+    /// <summary>
+    /// Summary statistics of eligibility evaluations for compliance reporting
+    /// </summary>
+    public class WhitelistEvaluationSummary
+    {
+        /// <summary>Total number of evaluations recorded</summary>
+        public int TotalEvaluations { get; set; }
+
+        /// <summary>Number of Allow outcomes</summary>
+        public int AllowCount { get; set; }
+
+        /// <summary>Number of Deny outcomes</summary>
+        public int DenyCount { get; set; }
+
+        /// <summary>Number of ConditionalReview outcomes</summary>
+        public int ConditionalReviewCount { get; set; }
+
+        /// <summary>Number of fail-closed denials</summary>
+        public int FailClosedCount { get; set; }
+
+        /// <summary>Most frequent deny reason codes</summary>
+        public List<WhitelistEligibilityReasonCode> TopDenyReasonCodes { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Request for a compliance evidence report for a whitelist policy
+    /// </summary>
+    public class WhitelistComplianceEvidenceRequest
+    {
+        /// <summary>Whether to include the full evaluation history in the report</summary>
+        public bool IncludeEvaluationHistory { get; set; } = true;
+
+        /// <summary>Whether to include policy change history in the report</summary>
+        public bool IncludePolicyChangeHistory { get; set; } = true;
+
+        /// <summary>Optional start date for filtering events (UTC)</summary>
+        public DateTime? FromDate { get; set; }
+
+        /// <summary>Optional end date for filtering events (UTC)</summary>
+        public DateTime? ToDate { get; set; }
+    }
+
+    /// <summary>
+    /// Export-friendly compliance evidence report for a whitelist policy,
+    /// suitable for audit export and regulatory review workflows.
+    /// </summary>
+    public class WhitelistComplianceEvidenceReport : BaseResponse
+    {
+        /// <summary>Policy identifier this report covers</summary>
+        public string PolicyId { get; set; } = string.Empty;
+
+        /// <summary>UTC timestamp when this report was generated</summary>
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Identifier of the actor who requested this report</summary>
+        public string GeneratedBy { get; set; } = string.Empty;
+
+        /// <summary>Snapshot of the current policy version metadata</summary>
+        public WhitelistPolicyVersionMetadata? PolicyVersionMetadata { get; set; }
+
+        /// <summary>Summary statistics of eligibility evaluations</summary>
+        public WhitelistEvaluationSummary EvaluationSummary { get; set; } = new();
+
+        /// <summary>Full audit event log filtered by request parameters</summary>
+        public List<WhitelistAuditEvent> AuditEvents { get; set; } = new();
+
+        /// <summary>Policy change events only (Created, Updated, Activated, Archived)</summary>
+        public List<WhitelistAuditEvent> PolicyChangeHistory { get; set; } = new();
+    }
+
     // ── Eligibility Request / Result ─────────────────────────────────────────────
 
     /// <summary>
@@ -177,6 +422,12 @@ namespace BiatecTokensApi.Models.Whitelist
 
         /// <summary>UTC timestamp when the evaluation was performed</summary>
         public DateTime EvaluatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Machine-readable reason codes for the eligibility outcome</summary>
+        public List<WhitelistEligibilityReasonCode> ReasonCodes { get; set; } = new();
+
+        /// <summary>Policy version metadata at the time of this evaluation</summary>
+        public WhitelistPolicyVersionMetadata? PolicyVersionMetadata { get; set; }
     }
 
     // ── Validation ────────────────────────────────────────────────────────────────

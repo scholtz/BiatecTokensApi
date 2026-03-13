@@ -58,7 +58,25 @@ namespace BiatecTokensApi.Services.Interface
         /// Draft policies and ambiguous/empty policies always return Deny.
         /// </summary>
         /// <param name="request">The eligibility evaluation request</param>
+        /// <param name="evaluatedBy">Optional identifier of the caller performing the evaluation, used in audit records</param>
         /// <returns>The eligibility result with outcome and reasons</returns>
-        Task<WhitelistPolicyEligibilityResult> EvaluateEligibilityAsync(WhitelistPolicyEligibilityRequest request);
+        Task<WhitelistPolicyEligibilityResult> EvaluateEligibilityAsync(WhitelistPolicyEligibilityRequest request, string? evaluatedBy = null);
+
+        /// <summary>
+        /// Retrieves paginated audit history for a whitelist policy
+        /// </summary>
+        /// <param name="policyId">The policy ID</param>
+        /// <param name="request">Pagination and filter parameters</param>
+        /// <returns>Paginated list of audit events</returns>
+        Task<WhitelistAuditHistoryResponse> GetAuditHistoryAsync(string policyId, WhitelistAuditHistoryRequest request);
+
+        /// <summary>
+        /// Generates a compliance evidence report for a whitelist policy
+        /// </summary>
+        /// <param name="policyId">The policy ID</param>
+        /// <param name="request">Report parameters</param>
+        /// <param name="requestedBy">Identifier of the actor requesting the report</param>
+        /// <returns>The compliance evidence report</returns>
+        Task<WhitelistComplianceEvidenceReport> GetComplianceEvidenceAsync(string policyId, WhitelistComplianceEvidenceRequest request, string requestedBy);
     }
 }
