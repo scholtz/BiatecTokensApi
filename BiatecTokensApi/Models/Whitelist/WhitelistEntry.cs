@@ -79,6 +79,16 @@ namespace BiatecTokensApi.Models.Whitelist
         /// Role of the user who performed the operation (Admin or Operator)
         /// </summary>
         public WhitelistRole Role { get; set; } = WhitelistRole.Admin;
+
+        /// <summary>
+        /// Investor category classification for regulatory eligibility purposes
+        /// </summary>
+        public WhitelistPolicyInvestorCategory InvestorCategory { get; set; } = WhitelistPolicyInvestorCategory.NonEligible;
+
+        /// <summary>
+        /// ISO 3166-1 alpha-2 jurisdiction code for the investor (e.g. "US", "DE", "SG")
+        /// </summary>
+        public string? JurisdictionCode { get; set; }
     }
 
     /// <summary>

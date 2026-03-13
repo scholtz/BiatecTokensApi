@@ -256,6 +256,7 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IARC1400TokenService, ARC1400TokenService>();
             builder.Services.AddSingleton<IWhitelistService, WhitelistService>();
             builder.Services.AddSingleton<IWhitelistRulesService, WhitelistRulesService>();
+            builder.Services.AddSingleton<IWhitelistPolicyService, WhitelistPolicyService>();
             builder.Services.AddSingleton<IComplianceService, ComplianceService>();
             builder.Services.AddSingleton<IComplianceProfileService, ComplianceProfileService>();
             builder.Services.AddSingleton<IEnterpriseAuditService, EnterpriseAuditService>();
@@ -509,6 +510,7 @@ namespace BiatecTokensApi
             _ = app.Services.GetService<IWhitelistService>() ?? throw new Exception("Whitelist Service is not registered");
             _ = app.Services.GetService<IWhitelistRulesRepository>() ?? throw new Exception("Whitelist Rules Repository is not registered");
             _ = app.Services.GetService<IWhitelistRulesService>() ?? throw new Exception("Whitelist Rules Service is not registered");
+            _ = app.Services.GetService<IWhitelistPolicyService>() ?? throw new Exception("Whitelist Policy Service is not registered");
 
             app.Run();
         }
