@@ -442,8 +442,7 @@ namespace BiatecTokensApi.Services
         /// </summary>
         private async Task<IssuerTeamMember?> GetActorMembershipAsync(string issuerId, string actorId)
         {
-            var members = await _repository.ListMembersAsync(issuerId);
-            return members.FirstOrDefault(m => m.UserId == actorId && m.IsActive);
+            return await _repository.GetMemberByUserIdAsync(issuerId, actorId);
         }
 
         /// <summary>

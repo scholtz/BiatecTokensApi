@@ -44,6 +44,8 @@ namespace BiatecTokensTests
                 wf ?? CreateWorkflowService(),
                 new BiatecTokensApi.Repositories.ComplianceReviewRepository(
                     NullLogger<BiatecTokensApi.Repositories.ComplianceReviewRepository>.Instance),
+                new BiatecTokensApi.Repositories.IssuerWorkflowRepository(
+                    NullLogger<BiatecTokensApi.Repositories.IssuerWorkflowRepository>.Instance),
                 NullLogger<EnterpriseComplianceReviewService>.Instance);
 
         /// <summary>

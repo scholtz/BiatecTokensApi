@@ -104,8 +104,12 @@ namespace BiatecTokensApi.Repositories
             lock (log)
             {
                 log.Add(ev);
-                while (log.Count > MaxDiagnosticsEventsPerIssuer)
-                    log.RemoveAt(0);
+                // Evict oldest events in bulk (trim to 80% of capacity) to amortise O(n) removals.
+                if (log.Count > MaxDiagnosticsEventsPerIssuer)
+                {
+                    int removeCount = log.Count - (int)(MaxDiagnosticsEventsPerIssuer * 0.8);
+                    log.RemoveRange(0, removeCount);
+                }
             }
 
             _logger.LogDebug(

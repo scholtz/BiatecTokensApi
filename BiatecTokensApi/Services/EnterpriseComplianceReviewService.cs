@@ -29,6 +29,7 @@ namespace BiatecTokensApi.Services
     {
         private readonly IIssuerWorkflowService _workflowService;
         private readonly IComplianceReviewRepository _reviewRepository;
+        private readonly IIssuerWorkflowRepository _workflowRepository;
         private readonly ILogger<EnterpriseComplianceReviewService> _logger;
 
         private static readonly IssuerTeamRole[] _approverRoles =
@@ -46,11 +47,13 @@ namespace BiatecTokensApi.Services
         public EnterpriseComplianceReviewService(
             IIssuerWorkflowService workflowService,
             IComplianceReviewRepository reviewRepository,
+            IIssuerWorkflowRepository workflowRepository,
             ILogger<EnterpriseComplianceReviewService> logger)
         {
-            _workflowService  = workflowService;
-            _reviewRepository = reviewRepository;
-            _logger           = logger;
+            _workflowService    = workflowService;
+            _reviewRepository   = reviewRepository;
+            _workflowRepository = workflowRepository;
+            _logger             = logger;
         }
 
         // ── Review Queue ───────────────────────────────────────────────────────
@@ -313,11 +316,10 @@ namespace BiatecTokensApi.Services
             var decisionId = Guid.NewGuid().ToString();
             var decisionTimestamp = DateTime.UtcNow;
 
-            // Get actor role for decision record enrichment
+            // Get actor role for decision record enrichment using targeted lookup (avoids loading all members)
             IssuerTeamRole? actorRole = null;
-            var membersResp = await _workflowService.ListMembersAsync(issuerId, actorId);
-            if (membersResp.Success)
-                actorRole = membersResp.Members.FirstOrDefault(m => m.UserId == actorId)?.Role;
+            var actorMember = await _workflowRepository.GetMemberByUserIdAsync(issuerId, actorId);
+            actorRole = actorMember?.Role;
 
             // Persist decision metadata for enriched audit history reconstruction
             await _reviewRepository.SaveDecisionAsync(new PersistedReviewDecision
@@ -922,8 +924,14 @@ namespace BiatecTokensApi.Services
 
         private void AppendDiagnosticsEvent(string issuerId, ReviewDiagnosticsEvent ev)
         {
-            // Fire-and-forget: diagnostics events are best-effort, non-blocking
-            _ = _reviewRepository.AppendDiagnosticsEventAsync(issuerId, ev);
+            // Diagnostics events are best-effort and must not block or propagate exceptions to callers.
+            _ = _reviewRepository.AppendDiagnosticsEventAsync(issuerId, ev)
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        _logger.LogWarning(t.Exception, "Failed to persist diagnostics event for issuer {IssuerId}",
+                            LoggingHelper.SanitizeLogInput(issuerId));
+                }, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         private static bool IsAuthError(string? errorCode) =>

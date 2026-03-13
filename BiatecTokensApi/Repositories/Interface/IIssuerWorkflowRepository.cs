@@ -16,6 +16,9 @@ namespace BiatecTokensApi.Repositories.Interface
         /// <summary>Persists a new or updated team member record.</summary>
         Task UpsertMemberAsync(IssuerTeamMember member);
 
+        /// <summary>Retrieves a single active team member by (issuerId, userId).</summary>
+        Task<IssuerTeamMember?> GetMemberByUserIdAsync(string issuerId, string userId);
+
         /// <summary>Retrieves a team member by composite key (issuerId + memberId).</summary>
         Task<IssuerTeamMember?> GetMemberByIdAsync(string issuerId, string memberId);
 

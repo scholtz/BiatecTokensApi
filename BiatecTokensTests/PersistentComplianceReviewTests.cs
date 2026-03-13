@@ -54,10 +54,12 @@ namespace BiatecTokensTests
 
         private static EnterpriseComplianceReviewService CreateReviewService(
             IIssuerWorkflowService? wf = null,
-            IComplianceReviewRepository? repo = null) =>
+            IComplianceReviewRepository? repo = null,
+            IIssuerWorkflowRepository? wfRepo = null) =>
             new EnterpriseComplianceReviewService(
                 wf ?? CreateWorkflowService(),
                 repo ?? CreateReviewRepo(),
+                wfRepo ?? CreateWorkflowRepo(),
                 NullLogger<EnterpriseComplianceReviewService>.Instance);
 
         /// <summary>
@@ -91,12 +93,23 @@ namespace BiatecTokensTests
             return (wfRepo, reviewRepo, issuerId, adminId, reviewerId);
         }
 
+        // Helper that creates a review service backed by the same shared repositories as the workflow service
+        private static EnterpriseComplianceReviewService CreateSharedReviewService(
+            IssuerWorkflowRepository wfRepo,
+            ComplianceReviewRepository reviewRepo)
+        {
+            var wf = CreateWorkflowService(wfRepo);
+            return new EnterpriseComplianceReviewService(
+                wf, reviewRepo, wfRepo,
+                NullLogger<EnterpriseComplianceReviewService>.Instance);
+        }
+
         // ═══════════════════════════════════════════════════════════════════════
         // 1. Repository persistence semantics
         // ═══════════════════════════════════════════════════════════════════════
 
         [Test]
-        public async Task WorkflowRepository_MembersSurviceServiceRecreation()
+        public async Task WorkflowRepository_MembersSurviveServiceRecreation()
         {
             var wfRepo = CreateWorkflowRepo();
             var wf1    = CreateWorkflowService(wfRepo);
@@ -140,7 +153,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf1     = CreateWorkflowService(wfRepo);
-            var review1 = CreateReviewService(wf1, reviewRepo);
+            var review1 = CreateSharedReviewService(wfRepo, reviewRepo);
 
             // Create, submit, and decide on a workflow item
             var create = await wf1.CreateWorkflowItemAsync(issuerId,
@@ -174,7 +187,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "RoleCapture", Description = "d" },
@@ -197,7 +210,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "EvidenceRefs", Description = "d" },
@@ -222,7 +235,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Acknowledge", Description = "d" },
@@ -318,7 +331,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Audit Enrichment", Description = "d" },
@@ -350,7 +363,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "EvidenceAudit", Description = "d" },
@@ -380,7 +393,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             // Trigger an auth denial event by using a non-member
             await review.GetReviewQueueAsync(issuerId, "outsider@test.com", "corr-diag");
@@ -443,7 +456,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Auth Guard", Description = "d" },
@@ -508,7 +521,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Invalid Transition Guard", Description = "d" },
@@ -530,7 +543,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "No Double Approve", Description = "d" },
@@ -555,7 +568,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Full Lifecycle", Description = "d" },
@@ -583,7 +596,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Rejection Path", Description = "d" },
@@ -611,7 +624,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Changes Cycle", Description = "d" },
@@ -645,7 +658,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             // Create two items — one approved, one rejected
             var create1 = await wf.CreateWorkflowItemAsync(issuerId,
@@ -677,7 +690,7 @@ namespace BiatecTokensTests
         {
             var (wfRepo, reviewRepo, issuerId, adminId, reviewerId) = await BootstrapTeamAsync();
             var wf     = CreateWorkflowService(wfRepo);
-            var review = CreateReviewService(wf, reviewRepo);
+            var review = CreateSharedReviewService(wfRepo, reviewRepo);
 
             var create = await wf.CreateWorkflowItemAsync(issuerId,
                 new CreateWorkflowItemRequest { Title = "Filter Test", Description = "d" }, adminId);

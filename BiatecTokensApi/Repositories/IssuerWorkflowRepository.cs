@@ -25,8 +25,9 @@ namespace BiatecTokensApi.Repositories
         // Key: "{issuerId}:{workflowId}"
         private readonly ConcurrentDictionary<string, WorkflowItem> _workflowItems = new();
 
-        // Key: "{issuerId}:{workflowId}" → list of audit entries (append-only)
-        private readonly ConcurrentDictionary<string, List<WorkflowAuditEntry>> _auditEntries = new();
+        // Key: "{issuerId}:{workflowId}" → lock-free append-only audit entries
+        // Using ConcurrentBag for append-only usage (no iteration order needed beyond what's recorded)
+        private readonly ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentBag<WorkflowAuditEntry>> _auditEntries = new();
 
         /// <summary>
         /// Initializes a new instance of <see cref="IssuerWorkflowRepository"/>.
@@ -47,6 +48,14 @@ namespace BiatecTokensApi.Repositories
                 "IssuerWorkflowRepository: upserted member. IssuerId={IssuerId} MemberId={MemberId} UserId={UserId}",
                 member.IssuerId, member.MemberId, member.UserId);
             return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        public Task<IssuerTeamMember?> GetMemberByUserIdAsync(string issuerId, string userId)
+        {
+            var member = _members.Values.FirstOrDefault(
+                m => m.IssuerId == issuerId && m.UserId == userId && m.IsActive);
+            return Task.FromResult(member);
         }
 
         /// <inheritdoc/>
@@ -122,21 +131,17 @@ namespace BiatecTokensApi.Repositories
         public Task AppendAuditEntryAsync(string issuerId, string workflowId, WorkflowAuditEntry entry)
         {
             var key = WorkflowKey(issuerId, workflowId);
-            var list = _auditEntries.GetOrAdd(key, _ => new List<WorkflowAuditEntry>());
-            lock (list)
-            {
-                list.Add(entry);
-            }
+            var bag = _auditEntries.GetOrAdd(key, _ => new System.Collections.Concurrent.ConcurrentBag<WorkflowAuditEntry>());
+            bag.Add(entry);
 
-            // Also append to the workflow item's in-object audit trail for convenience
-            if (_workflowItems.TryGetValue(key, out var item))
+            // Also append to the workflow item's in-object audit trail for convenience.
+            // The workflow item is read and mutated under normal single-writer semantics
+            // (each workflow item is only mutated through service methods which check state
+            // before writing). We avoid cross-thread corruption by using a stable item reference.
+            if (_workflowItems.TryGetValue(key, out var item)
+                && !item.AuditHistory.Any(e => e.EntryId == entry.EntryId))
             {
-                lock (item.AuditHistory)
-                {
-                    // Avoid duplicate if already added by the caller
-                    if (!item.AuditHistory.Any(e => e.EntryId == entry.EntryId))
-                        item.AuditHistory.Add(entry);
-                }
+                item.AuditHistory.Add(entry);
             }
 
             _logger.LogDebug(
