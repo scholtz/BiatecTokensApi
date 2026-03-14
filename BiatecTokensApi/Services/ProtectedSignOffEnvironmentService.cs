@@ -95,6 +95,7 @@ namespace BiatecTokensApi.Services
             if (includeConfig && _config.EnforceConfigGuards)
             {
                 checks.Add(CheckRequiredConfiguration());
+                checks.Add(CheckWorkflowGovernanceConfig());
             }
 
             // ── Authentication checks ──────────────────────────────────────
@@ -665,6 +666,56 @@ namespace BiatecTokensApi.Services
                 Detail = "All required configuration keys are present and non-empty. " +
                          "The backend configuration is sufficient for a protected sign-off run.",
                 IsRequired = true
+            };
+        }
+
+        /// <summary>
+        /// Validates that the workflow governance pipeline is enabled.
+        /// Returns <see cref="EnvironmentCheckOutcome.DegradedFail"/> when governance is explicitly
+        /// disabled, which flags the run as non-qualifying for a release gate without blocking it.
+        /// </summary>
+        private EnvironmentCheck CheckWorkflowGovernanceConfig()
+        {
+            // WorkflowGovernanceConfig:Enabled defaults to true when absent.
+            // Treat absent (null/empty) as "enabled" — safe default for release gate purposes.
+            string? enabledRaw = _configuration["WorkflowGovernanceConfig:Enabled"];
+            bool governanceEnabled = string.IsNullOrWhiteSpace(enabledRaw)
+                || string.Equals(enabledRaw, "true", StringComparison.OrdinalIgnoreCase);
+
+            string policyVersion = _configuration["WorkflowGovernanceConfig:PolicyVersion"] ?? "1.0.0";
+
+            if (!governanceEnabled)
+            {
+                _logger.LogWarning(
+                    "ProtectedSignOff governance check DEGRADED. WorkflowGovernanceConfig:Enabled is false. " +
+                    "Run does not qualify as a release gate.");
+
+                return new EnvironmentCheck
+                {
+                    Name = "WorkflowGovernanceEnabled",
+                    Category = EnvironmentCheckCategory.Configuration,
+                    Description = "Verifies that the policy-driven workflow governance pipeline is active. " +
+                                  "Governance must be enabled for a protected sign-off run to qualify as an MVP release gate.",
+                    Outcome = EnvironmentCheckOutcome.DegradedFail,
+                    Detail = "WorkflowGovernanceConfig:Enabled is set to false. " +
+                             "A protected sign-off run with governance disabled does not qualify as a valid MVP release gate. " +
+                             "The environment can still produce sign-off evidence, but the result is not governance-backed.",
+                    OperatorGuidance = "Set WorkflowGovernanceConfig:Enabled to true (the default) in the protected environment " +
+                                       "configuration. For a qualifying release gate run, all governance stages " +
+                                       "(EnforceValidation, EnforcePreconditions, EnforcePostCommitVerification) should also be active.",
+                    IsRequired = false
+                };
+            }
+
+            return new EnvironmentCheck
+            {
+                Name = "WorkflowGovernanceEnabled",
+                Category = EnvironmentCheckCategory.Configuration,
+                Description = "Verifies that the policy-driven workflow governance pipeline is active for the protected run.",
+                Outcome = EnvironmentCheckOutcome.Pass,
+                Detail = $"Workflow governance is enabled (policy version: {policyVersion}). " +
+                         "The governance pipeline will enforce validation, preconditions, and post-commit verification.",
+                IsRequired = false
             };
         }
 
