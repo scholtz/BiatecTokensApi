@@ -22,6 +22,8 @@ namespace BiatecTokensApi.Models.ProtectedSignOff
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum EnvironmentCheckCategory
     {
+        /// <summary>Required configuration key presence and validity (e.g., JWT secret, App:Account mnemonic).</summary>
+        Configuration,
         /// <summary>Authentication infrastructure including JWT and ARC76 derivation.</summary>
         Authentication,
         /// <summary>Issuer workflow service and team role infrastructure.</summary>
@@ -119,6 +121,13 @@ namespace BiatecTokensApi.Models.ProtectedSignOff
     {
         /// <summary>Caller-supplied correlation ID for distributed tracing.</summary>
         public string? CorrelationId { get; set; }
+
+        /// <summary>
+        /// Whether to include required configuration guard validation in the environment check.
+        /// Defaults to <c>true</c>. When <c>true</c>, the check validates that all required
+        /// configuration keys (JWT secret, App mnemonic, etc.) are present and non-empty.
+        /// </summary>
+        public bool IncludeConfigCheck { get; set; } = true;
 
         /// <summary>
         /// Whether to include enterprise fixture validation in the environment check.

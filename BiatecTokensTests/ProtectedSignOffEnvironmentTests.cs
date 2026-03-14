@@ -40,6 +40,23 @@ namespace BiatecTokensTests
         private Mock<IDeploymentSignOffService> _signOffServiceMock = null!;
         private Mock<IBackendDeploymentLifecycleContractService> _contractServiceMock = null!;
         private ProtectedSignOffEnvironmentService _service = null!;
+        private IConfiguration _validConfiguration = null!;
+
+        /// <summary>
+        /// Builds a minimal in-memory IConfiguration containing all required keys for
+        /// a fully-configured protected sign-off environment. Used as the default configuration
+        /// for unit tests that do not specifically test missing-configuration behaviour.
+        /// </summary>
+        private static IConfiguration BuildValidConfiguration()
+        {
+            return new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["JwtConfig:SecretKey"] = "ProtectedSignOffUnitTestSecretKey32CharsMin!!",
+                    ["App:Account"] = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                })
+                .Build();
+        }
 
         [SetUp]
         public void SetUp()
@@ -47,6 +64,7 @@ namespace BiatecTokensTests
             _issuerWorkflowMock = new Mock<IIssuerWorkflowService>();
             _signOffServiceMock = new Mock<IDeploymentSignOffService>();
             _contractServiceMock = new Mock<IBackendDeploymentLifecycleContractService>();
+            _validConfiguration = BuildValidConfiguration();
 
             // Default: ListMembersAsync returns empty (no fixtures provisioned)
             _issuerWorkflowMock
@@ -105,6 +123,7 @@ namespace BiatecTokensTests
                 _issuerWorkflowMock.Object,
                 _signOffServiceMock.Object,
                 _contractServiceMock.Object,
+                _validConfiguration,
                 NullLogger<ProtectedSignOffEnvironmentService>.Instance);
         }
 
@@ -566,13 +585,15 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task GetDiagnostics_HasThreeServiceAvailabilityEntries()
+        public async Task GetDiagnostics_HasFiveServiceAvailabilityEntries()
         {
             // Act
             ProtectedSignOffDiagnosticsResponse result = await _service.GetDiagnosticsAsync(null);
 
-            // Assert: three services reported
-            Assert.That(result.ServiceAvailability.Count, Is.EqualTo(3));
+            // Assert: five availability entries reported:
+            // 3 service entries (IssuerWorkflow, DeploymentContract, DeploymentSignOff)
+            // + 2 configuration entries (JwtConfig:SecretKey, App:Account)
+            Assert.That(result.ServiceAvailability.Count, Is.EqualTo(5));
             Assert.That(result.ServiceAvailability.All(s => s.IsAvailable), Is.True);
         }
 
@@ -723,6 +744,269 @@ namespace BiatecTokensTests
             Assert.That(r2.Status, Is.EqualTo(r3.Status), "Status must be identical across runs");
             Assert.That(r1.IsReadyForProtectedRun, Is.EqualTo(r2.IsReadyForProtectedRun));
             Assert.That(r2.IsReadyForProtectedRun, Is.EqualTo(r3.IsReadyForProtectedRun));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Configuration guard tests — fail-closed behavior for missing config
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task CheckEnvironmentReadiness_MissingJwtSecretKey_ReturnsMisconfigured()
+        {
+            // Arrange: configuration missing JwtConfig:SecretKey
+            IConfiguration missingJwtConfig = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    // JwtConfig:SecretKey intentionally absent
+                    ["App:Account"] = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                })
+                .Build();
+
+            ProtectedSignOffEnvironmentService serviceWithBadConfig = new(
+                _issuerWorkflowMock.Object,
+                _signOffServiceMock.Object,
+                _contractServiceMock.Object,
+                missingJwtConfig,
+                NullLogger<ProtectedSignOffEnvironmentService>.Instance);
+
+            // Act
+            ProtectedSignOffEnvironmentResponse result = await serviceWithBadConfig.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest { CorrelationId = "config-guard-jwt-test" });
+
+            // Assert: must be Misconfigured (not Ready, not Unavailable, not Degraded)
+            Assert.That(result.Status, Is.EqualTo(ProtectedEnvironmentStatus.Misconfigured),
+                "Missing JwtConfig:SecretKey must cause Misconfigured status");
+            Assert.That(result.IsReadyForProtectedRun, Is.False);
+            Assert.That(result.ActionableGuidance, Is.Not.Null.And.Not.Empty,
+                "Actionable guidance must be provided when misconfigured");
+
+            // The configuration check must appear in the checks array
+            EnvironmentCheck? configCheck = result.Checks
+                .FirstOrDefault(c => c.Category == EnvironmentCheckCategory.Configuration);
+            Assert.That(configCheck, Is.Not.Null, "Configuration check must be present in the checks array");
+            Assert.That(configCheck!.Outcome, Is.EqualTo(EnvironmentCheckOutcome.CriticalFail));
+            Assert.That(configCheck.Detail, Does.Contain("JwtConfig:SecretKey"),
+                "Failure detail must identify the missing key");
+            Assert.That(configCheck.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "Operator guidance must be provided for the configuration check failure");
+        }
+
+        [Test]
+        public async Task CheckEnvironmentReadiness_MissingAppAccount_ReturnsMisconfigured()
+        {
+            // Arrange: configuration missing App:Account
+            IConfiguration missingAccountConfig = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["JwtConfig:SecretKey"] = "ProtectedSignOffUnitTestSecretKey32CharsMin!!",
+                    // App:Account intentionally absent
+                })
+                .Build();
+
+            ProtectedSignOffEnvironmentService serviceWithBadConfig = new(
+                _issuerWorkflowMock.Object,
+                _signOffServiceMock.Object,
+                _contractServiceMock.Object,
+                missingAccountConfig,
+                NullLogger<ProtectedSignOffEnvironmentService>.Instance);
+
+            // Act
+            ProtectedSignOffEnvironmentResponse result = await serviceWithBadConfig.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest { CorrelationId = "config-guard-account-test" });
+
+            // Assert
+            Assert.That(result.Status, Is.EqualTo(ProtectedEnvironmentStatus.Misconfigured),
+                "Missing App:Account must cause Misconfigured status");
+            Assert.That(result.IsReadyForProtectedRun, Is.False);
+
+            EnvironmentCheck? configCheck = result.Checks
+                .FirstOrDefault(c => c.Category == EnvironmentCheckCategory.Configuration);
+            Assert.That(configCheck, Is.Not.Null);
+            Assert.That(configCheck!.Detail, Does.Contain("App:Account"),
+                "Failure detail must identify the missing App:Account key");
+        }
+
+        [Test]
+        public async Task CheckEnvironmentReadiness_BothRequiredKeysMissing_ReturnsMisconfigured()
+        {
+            // Arrange: empty configuration
+            IConfiguration emptyConfig = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build();
+
+            ProtectedSignOffEnvironmentService serviceWithEmptyConfig = new(
+                _issuerWorkflowMock.Object,
+                _signOffServiceMock.Object,
+                _contractServiceMock.Object,
+                emptyConfig,
+                NullLogger<ProtectedSignOffEnvironmentService>.Instance);
+
+            // Act
+            ProtectedSignOffEnvironmentResponse result = await serviceWithEmptyConfig.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest { CorrelationId = "config-guard-empty-test" });
+
+            // Assert: Misconfigured takes precedence over Unavailable / Degraded
+            Assert.That(result.Status, Is.EqualTo(ProtectedEnvironmentStatus.Misconfigured));
+            Assert.That(result.IsReadyForProtectedRun, Is.False);
+
+            EnvironmentCheck? configCheck = result.Checks
+                .FirstOrDefault(c => c.Category == EnvironmentCheckCategory.Configuration);
+            Assert.That(configCheck, Is.Not.Null);
+            Assert.That(configCheck!.Outcome, Is.EqualTo(EnvironmentCheckOutcome.CriticalFail));
+            // Both keys should appear in the detail
+            Assert.That(configCheck.Detail, Does.Contain("JwtConfig:SecretKey"));
+            Assert.That(configCheck.Detail, Does.Contain("App:Account"));
+        }
+
+        [Test]
+        public async Task CheckEnvironmentReadiness_AllRequiredConfigPresent_PassesConfigCheck()
+        {
+            // Arrange: valid configuration already set up by SetUp()
+            // Act
+            ProtectedSignOffEnvironmentResponse result = await _service.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest { CorrelationId = "config-guard-pass-test" });
+
+            // Assert: configuration check passes
+            EnvironmentCheck? configCheck = result.Checks
+                .FirstOrDefault(c => c.Category == EnvironmentCheckCategory.Configuration);
+            Assert.That(configCheck, Is.Not.Null, "Configuration check must always be present when IncludeConfigCheck=true");
+            Assert.That(configCheck!.Outcome, Is.EqualTo(EnvironmentCheckOutcome.Pass),
+                "Configuration check must pass when all required keys are present");
+            Assert.That(configCheck.Name, Is.EqualTo("RequiredConfigurationPresent"));
+        }
+
+        [Test]
+        public async Task CheckEnvironmentReadiness_WithIncludeConfigCheckFalse_SkipsConfigCategory()
+        {
+            // Arrange: empty config but config check disabled
+            IConfiguration emptyConfig = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build();
+
+            ProtectedSignOffEnvironmentService serviceWithEmptyConfig = new(
+                _issuerWorkflowMock.Object,
+                _signOffServiceMock.Object,
+                _contractServiceMock.Object,
+                emptyConfig,
+                NullLogger<ProtectedSignOffEnvironmentService>.Instance);
+
+            // Act: explicitly disable config check
+            ProtectedSignOffEnvironmentResponse result = await serviceWithEmptyConfig.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest
+                {
+                    CorrelationId = "config-check-disabled",
+                    IncludeConfigCheck = false
+                });
+
+            // Assert: no Configuration category check present
+            Assert.That(result.Checks.Any(c => c.Category == EnvironmentCheckCategory.Configuration),
+                Is.False, "Configuration category check must be absent when IncludeConfigCheck=false");
+            // Status must NOT be Misconfigured when config check is disabled
+            Assert.That(result.Status, Is.Not.EqualTo(ProtectedEnvironmentStatus.Misconfigured));
+        }
+
+        [Test]
+        public async Task CheckEnvironmentReadiness_MisconfiguredStatus_PrecedesOtherFailures()
+        {
+            // Arrange: both missing config AND state machine failure
+            IConfiguration emptyConfig = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build();
+
+            _issuerWorkflowMock
+                .Setup(s => s.ValidateTransition(WorkflowApprovalState.Prepared, WorkflowApprovalState.PendingReview))
+                .Returns(new WorkflowTransitionValidationResult { IsValid = false, Reason = "Blocked." });
+
+            ProtectedSignOffEnvironmentService svc = new(
+                _issuerWorkflowMock.Object,
+                _signOffServiceMock.Object,
+                _contractServiceMock.Object,
+                emptyConfig,
+                NullLogger<ProtectedSignOffEnvironmentService>.Instance);
+
+            // Act
+            ProtectedSignOffEnvironmentResponse result = await svc.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest { CorrelationId = "precedence-test" });
+
+            // Assert: Misconfigured takes precedence over all other statuses
+            Assert.That(result.Status, Is.EqualTo(ProtectedEnvironmentStatus.Misconfigured),
+                "Misconfigured must take precedence over other failure types (Unavailable, Degraded)");
+        }
+
+        [Test]
+        public async Task GetDiagnostics_MissingRequiredConfig_ReportsConfigurationFailure()
+        {
+            // Arrange: configuration missing both required keys
+            IConfiguration emptyConfig = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build();
+
+            ProtectedSignOffEnvironmentService svc = new(
+                _issuerWorkflowMock.Object,
+                _signOffServiceMock.Object,
+                _contractServiceMock.Object,
+                emptyConfig,
+                NullLogger<ProtectedSignOffEnvironmentService>.Instance);
+
+            // Act
+            BiatecTokensApi.Models.ProtectedSignOff.ProtectedSignOffDiagnosticsResponse result =
+                await svc.GetDiagnosticsAsync("config-diag-test");
+
+            // Assert: configuration failure is explicitly reported
+            Assert.That(result.FailureCategories.HasConfigurationFailure, Is.True,
+                "Diagnostics must report HasConfigurationFailure when required keys are absent");
+            Assert.That(result.IsOperational, Is.False,
+                "IsOperational must be false when configuration is incomplete");
+
+            // Configuration-related diagnostic notes must be present
+            DiagnosticNote? jwtNote = result.Notes
+                .FirstOrDefault(n => n.Category == "Configuration" && n.Note.Contains("JwtConfig:SecretKey"));
+            DiagnosticNote? accountNote = result.Notes
+                .FirstOrDefault(n => n.Category == "Configuration" && n.Note.Contains("App:Account"));
+
+            Assert.That(jwtNote, Is.Not.Null, "Diagnostics must include a note about missing JwtConfig:SecretKey");
+            Assert.That(jwtNote!.IsBlocking, Is.True);
+            Assert.That(jwtNote.Remediation, Is.Not.Null.And.Not.Empty);
+
+            Assert.That(accountNote, Is.Not.Null, "Diagnostics must include a note about missing App:Account");
+            Assert.That(accountNote!.IsBlocking, Is.True);
+        }
+
+        [Test]
+        public async Task GetDiagnostics_AllConfigPresent_ReportsNoConfigurationFailure()
+        {
+            // Arrange: valid configuration from SetUp()
+            // Act
+            BiatecTokensApi.Models.ProtectedSignOff.ProtectedSignOffDiagnosticsResponse result =
+                await _service.GetDiagnosticsAsync("config-diag-pass-test");
+
+            // Assert
+            Assert.That(result.FailureCategories.HasConfigurationFailure, Is.False,
+                "Diagnostics must not report HasConfigurationFailure when all required keys are present");
+            Assert.That(result.ServiceAvailability, Is.Not.Null.And.Not.Empty);
+
+            // JwtConfig:SecretKey and App:Account availability must be reported
+            ServiceAvailabilityDiagnostic? jwtDiag = result.ServiceAvailability
+                .FirstOrDefault(s => s.ServiceName == "JwtConfig:SecretKey");
+            ServiceAvailabilityDiagnostic? accountDiag = result.ServiceAvailability
+                .FirstOrDefault(s => s.ServiceName == "App:Account");
+
+            Assert.That(jwtDiag, Is.Not.Null, "Diagnostics must include JwtConfig:SecretKey availability");
+            Assert.That(jwtDiag!.IsAvailable, Is.True);
+            Assert.That(accountDiag, Is.Not.Null, "Diagnostics must include App:Account availability");
+            Assert.That(accountDiag!.IsAvailable, Is.True);
+        }
+
+        [Test]
+        public async Task CheckEnvironmentReadiness_ConfigCheckIncludedByDefault()
+        {
+            // Act: use default request (IncludeConfigCheck defaults to true)
+            ProtectedSignOffEnvironmentResponse result = await _service.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest { CorrelationId = "default-config-check" });
+
+            // Assert: configuration check is included by default
+            Assert.That(result.Checks.Any(c => c.Category == EnvironmentCheckCategory.Configuration),
+                Is.True, "Configuration check must be included by default");
         }
 
         // ═══════════════════════════════════════════════════════════════════════
