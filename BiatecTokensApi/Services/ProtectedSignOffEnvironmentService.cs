@@ -1,8 +1,10 @@
+using BiatecTokensApi.Configuration;
 using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.IssuerWorkflow;
 using BiatecTokensApi.Models.ProtectedSignOff;
 using BiatecTokensApi.Services.Interface;
+using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -39,6 +41,8 @@ namespace BiatecTokensApi.Services
         private readonly IIssuerWorkflowService _issuerWorkflowService;
         private readonly IDeploymentSignOffService _deploymentSignOffService;
         private readonly IBackendDeploymentLifecycleContractService _contractService;
+        private readonly IConfiguration _configuration;
+        private readonly ProtectedSignOffConfig _config;
         private readonly ILogger<ProtectedSignOffEnvironmentService> _logger;
 
         /// <summary>
@@ -48,12 +52,18 @@ namespace BiatecTokensApi.Services
             IIssuerWorkflowService issuerWorkflowService,
             IDeploymentSignOffService deploymentSignOffService,
             IBackendDeploymentLifecycleContractService contractService,
+            IConfiguration configuration,
             ILogger<ProtectedSignOffEnvironmentService> logger)
         {
             _issuerWorkflowService = issuerWorkflowService ?? throw new ArgumentNullException(nameof(issuerWorkflowService));
             _deploymentSignOffService = deploymentSignOffService ?? throw new ArgumentNullException(nameof(deploymentSignOffService));
             _contractService = contractService ?? throw new ArgumentNullException(nameof(contractService));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+            // Bind optional ProtectedSignOff config section (uses defaults when absent)
+            _config = new ProtectedSignOffConfig();
+            configuration.GetSection(ProtectedSignOffConfig.SectionName).Bind(_config);
         }
 
         // ── IProtectedSignOffEnvironmentService ───────────────────────────────
@@ -67,14 +77,25 @@ namespace BiatecTokensApi.Services
             string checkedAt = DateTime.UtcNow.ToString("O");
 
             _logger.LogInformation(
-                "ProtectedSignOff environment check started. CheckId={CheckId} CorrelationId={CorrelationId}",
+                "ProtectedSignOff environment check started. CheckId={CheckId} CorrelationId={CorrelationId} Environment={Environment}",
                 LoggingHelper.SanitizeLogInput(checkId),
-                LoggingHelper.SanitizeLogInput(correlationId));
+                LoggingHelper.SanitizeLogInput(correlationId),
+                LoggingHelper.SanitizeLogInput(_config.EnvironmentLabel));
 
+            bool includeConfig = request?.IncludeConfigCheck ?? true;
             bool includeFixture = request?.IncludeFixtureCheck ?? true;
             bool includeObs = request?.IncludeObservabilityCheck ?? true;
 
             List<EnvironmentCheck> checks = new();
+
+            // ── Configuration guard checks (fail-closed) ──────────────────
+            // Must run first. Missing required configuration causes Misconfigured status,
+            // which is distinct from Unavailable (service not registered) or Degraded
+            // (non-critical optional feature absent).
+            if (includeConfig && _config.EnforceConfigGuards)
+            {
+                checks.Add(CheckRequiredConfiguration());
+            }
 
             // ── Authentication checks ──────────────────────────────────────
             checks.Add(CheckServiceAvailable(
@@ -136,12 +157,25 @@ namespace BiatecTokensApi.Services
 
             // ── Compute summary ───────────────────────────────────────────
             int passed = checks.Count(c => c.Outcome == EnvironmentCheckOutcome.Pass);
+            int configFail = checks.Count(c =>
+                c.Category == EnvironmentCheckCategory.Configuration
+                && c.Outcome == EnvironmentCheckOutcome.CriticalFail);
             int critFail = checks.Count(c => c.Outcome == EnvironmentCheckOutcome.CriticalFail && c.IsRequired);
             int degraded = checks.Count(c => c.Outcome == EnvironmentCheckOutcome.DegradedFail);
 
             ProtectedEnvironmentStatus status;
             bool ready;
-            if (critFail > 0)
+
+            // Configuration failures take precedence over other failure types:
+            // Misconfigured means the environment needs secret/config remediation before
+            // any meaningful test can be run. It is distinct from Unavailable (service
+            // not registered) and Degraded (optional feature missing).
+            if (configFail > 0)
+            {
+                status = ProtectedEnvironmentStatus.Misconfigured;
+                ready = false;
+            }
+            else if (critFail > 0)
             {
                 status = ProtectedEnvironmentStatus.Unavailable;
                 ready = false;
@@ -160,11 +194,12 @@ namespace BiatecTokensApi.Services
             string? guidance = ready ? null : BuildEnvironmentGuidance(checks);
 
             _logger.LogInformation(
-                "ProtectedSignOff environment check completed. CheckId={CheckId} Status={Status} Passed={Passed} CritFail={CritFail}",
+                "ProtectedSignOff environment check completed. CheckId={CheckId} Status={Status} Passed={Passed} CritFail={CritFail} ConfigFail={ConfigFail}",
                 LoggingHelper.SanitizeLogInput(checkId),
                 status.ToString(),
                 passed,
-                critFail);
+                critFail,
+                configFail);
 
             return new ProtectedSignOffEnvironmentResponse
             {
@@ -418,15 +453,21 @@ namespace BiatecTokensApi.Services
             string generatedAt = DateTime.UtcNow.ToString("O");
 
             _logger.LogInformation(
-                "ProtectedSignOff diagnostics requested. DiagnosticsId={DiagnosticsId} CorrelationId={CorrelationId}",
+                "ProtectedSignOff diagnostics requested. DiagnosticsId={DiagnosticsId} CorrelationId={CorrelationId} Environment={Environment}",
                 LoggingHelper.SanitizeLogInput(diagnosticsId),
-                LoggingHelper.SanitizeLogInput(cid));
+                LoggingHelper.SanitizeLogInput(cid),
+                LoggingHelper.SanitizeLogInput(_config.EnvironmentLabel));
 
             // Evaluate service availability
             bool issuerSvcAvailable = _issuerWorkflowService != null;
             bool contractSvcAvailable = _contractService != null;
             bool signOffSvcAvailable = _deploymentSignOffService != null;
             bool isOperational = issuerSvcAvailable && contractSvcAvailable && signOffSvcAvailable;
+
+            // Evaluate required configuration availability (without exposing secret values)
+            bool jwtSecretPresent = !string.IsNullOrWhiteSpace(_configuration["JwtConfig:SecretKey"]);
+            bool appAccountPresent = !string.IsNullOrWhiteSpace(_configuration["App:Account"]);
+            bool configurationComplete = jwtSecretPresent && appAccountPresent;
 
             List<ServiceAvailabilityDiagnostic> serviceAvailability = new()
             {
@@ -453,6 +494,22 @@ namespace BiatecTokensApi.Services
                     StatusDetail = signOffSvcAvailable
                         ? "Available. Sign-off proof generation and criteria evaluation are functional."
                         : "UNAVAILABLE. Cannot generate sign-off proof documents; protected run cannot proceed."
+                },
+                new ServiceAvailabilityDiagnostic
+                {
+                    ServiceName = "JwtConfig:SecretKey",
+                    IsAvailable = jwtSecretPresent,
+                    StatusDetail = jwtSecretPresent
+                        ? "Present. JWT authentication is correctly configured."
+                        : "MISSING. JWT authentication will fail. Set JwtConfig:SecretKey via environment variable or user secrets."
+                },
+                new ServiceAvailabilityDiagnostic
+                {
+                    ServiceName = "App:Account",
+                    IsAvailable = appAccountPresent,
+                    StatusDetail = appAccountPresent
+                        ? "Present. Wallet-less ARC76 mnemonic derivation is configured."
+                        : "MISSING. ARC76 address derivation will fail. Set App:Account (mnemonic phrase) via environment variable or user secrets."
                 }
             };
 
@@ -460,14 +517,37 @@ namespace BiatecTokensApi.Services
             FailureCategorySummary failureCategories = new()
             {
                 HasServiceAvailabilityFailure = !isOperational,
-                HasConfigurationFailure = false,
+                HasConfigurationFailure = !configurationComplete,
                 HasAuthorizationFailure = false,
                 HasContractFailure = false,
                 HasLifecycleFailure = false
             };
 
-            // Build diagnostic notes for unavailable services
+            // Build diagnostic notes
             List<DiagnosticNote> notes = new();
+
+            if (!jwtSecretPresent)
+            {
+                notes.Add(new DiagnosticNote
+                {
+                    Category = "Configuration",
+                    Note = "JwtConfig:SecretKey is missing or empty. Authentication endpoints will reject all tokens.",
+                    Remediation = "Set the JWT secret key: dotnet user-secrets set \"JwtConfig:SecretKey\" \"<your-secret>\" " +
+                                  "or set the environment variable JwtConfig__SecretKey. The key must be at least 32 characters.",
+                    IsBlocking = true
+                });
+            }
+            if (!appAccountPresent)
+            {
+                notes.Add(new DiagnosticNote
+                {
+                    Category = "Configuration",
+                    Note = "App:Account is missing or empty. Wallet-less ARC76 address derivation cannot function.",
+                    Remediation = "Set the Algorand account mnemonic: dotnet user-secrets set \"App:Account\" \"<your-mnemonic>\" " +
+                                  "or set the environment variable App__Account. Use a non-production mnemonic for the protected sign-off environment.",
+                    IsBlocking = true
+                });
+            }
             if (!issuerSvcAvailable)
             {
                 notes.Add(new DiagnosticNote
@@ -498,12 +578,12 @@ namespace BiatecTokensApi.Services
                     IsBlocking = true
                 });
             }
-            if (isOperational)
+            if (isOperational && configurationComplete)
             {
                 notes.Add(new DiagnosticNote
                 {
                     Category = "General",
-                    Note = "All required sign-off services are available. The backend is operational for protected sign-off runs.",
+                    Note = "All required sign-off services are available and configuration is complete. The backend is operational for protected sign-off runs.",
                     Remediation = "No action required.",
                     IsBlocking = false
                 });
@@ -513,7 +593,7 @@ namespace BiatecTokensApi.Services
             {
                 DiagnosticsId = diagnosticsId,
                 CorrelationId = cid,
-                IsOperational = isOperational,
+                IsOperational = isOperational && configurationComplete,
                 FailureCategories = failureCategories,
                 ServiceAvailability = serviceAvailability,
                 Notes = notes,
@@ -523,6 +603,70 @@ namespace BiatecTokensApi.Services
         }
 
         // ── Private helpers ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Validates that all required backend configuration keys are present and non-empty.
+        /// Returns <see cref="EnvironmentCheckOutcome.CriticalFail"/> with category
+        /// <see cref="EnvironmentCheckCategory.Configuration"/> when any required key is
+        /// absent, triggering <see cref="ProtectedEnvironmentStatus.Misconfigured"/> status.
+        /// </summary>
+        private EnvironmentCheck CheckRequiredConfiguration()
+        {
+            // Keys that must be present for the protected sign-off environment to function.
+            // JwtConfig:SecretKey is required for authentication token signing/verification.
+            // App:Account is required for wallet-less ARC76 mnemonic derivation.
+            // Add further keys here as new required dependencies are introduced.
+            (string Key, string Description)[] requiredKeys =
+            {
+                ("JwtConfig:SecretKey", "JWT secret key required for authentication token signing and verification"),
+                ("App:Account", "Algorand account mnemonic required for wallet-less ARC76 address derivation"),
+            };
+
+            List<string> missingKeys = new();
+            foreach ((string key, string description) in requiredKeys)
+            {
+                string? value = _configuration[key];
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    missingKeys.Add($"{key} ({description})");
+                }
+            }
+
+            if (missingKeys.Count > 0)
+            {
+                string missingList = string.Join("; ", missingKeys);
+                _logger.LogError(
+                    "ProtectedSignOff configuration guard FAILED. Missing required configuration keys: {MissingKeys}",
+                    missingList);
+
+                return new EnvironmentCheck
+                {
+                    Name = "RequiredConfigurationPresent",
+                    Category = EnvironmentCheckCategory.Configuration,
+                    Description = "Verifies that all required configuration keys (JWT secret, App mnemonic) are present and non-empty. " +
+                                  "Missing keys indicate the environment is misconfigured; the protected sign-off run cannot proceed.",
+                    Outcome = EnvironmentCheckOutcome.CriticalFail,
+                    Detail = $"MISCONFIGURED: The following required configuration keys are missing or empty: {missingList}. " +
+                             "A protected sign-off run cannot authenticate, initiate, or validate without these values.",
+                    OperatorGuidance = "Set the missing configuration values using environment variables (e.g., JwtConfig__SecretKey), " +
+                                       "ASP.NET User Secrets (dotnet user-secrets set), or your deployment secrets manager. " +
+                                       "Never commit secret values to source control. " +
+                                       "Once set, re-run POST /api/v1/protected-sign-off/environment/check to confirm the environment is ready.",
+                    IsRequired = true
+                };
+            }
+
+            return new EnvironmentCheck
+            {
+                Name = "RequiredConfigurationPresent",
+                Category = EnvironmentCheckCategory.Configuration,
+                Description = "Verifies that all required configuration keys (JWT secret, App mnemonic) are present and non-empty.",
+                Outcome = EnvironmentCheckOutcome.Pass,
+                Detail = "All required configuration keys are present and non-empty. " +
+                         "The backend configuration is sufficient for a protected sign-off run.",
+                IsRequired = true
+            };
+        }
 
         private static EnvironmentCheck CheckServiceAvailable(
             string name,
