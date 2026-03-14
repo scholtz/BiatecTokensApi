@@ -34,6 +34,30 @@ proceed until they are set.
 > **Never commit secrets to source control.** Use ASP.NET User Secrets for local development
 > or environment variables for CI and production deployments.
 
+### GitHub Actions Secrets (Protected CI Workflow)
+
+The `protected-sign-off.yml` workflow requires these GitHub secrets.  Secrets **must** be
+set in the `protected-sign-off` GitHub environment so that:
+
+1. Environment-scoped secrets are accessible within the environment boundary.
+2. Required-reviewer approval gates can be enforced before any secret is consumed.
+3. The workflow's prerequisite check runs after reviewer approval, not in a separate
+   pre-environment job that cannot see environment-scoped secrets.
+
+| GitHub Secret | Maps To | Purpose |
+|---|---|---|
+| `PROTECTED_SIGN_OFF_JWT_SECRET` | `JwtConfig__SecretKey` | JWT signing key (≥ 32 characters) |
+| `PROTECTED_SIGN_OFF_APP_ACCOUNT` | `App__Account` | Algorand account mnemonic (25 words) |
+
+#### How to add secrets in GitHub
+
+1. Navigate to **Settings → Environments** and create/select the `protected-sign-off` environment.
+2. Under **Environment secrets**, add `PROTECTED_SIGN_OFF_JWT_SECRET` and `PROTECTED_SIGN_OFF_APP_ACCOUNT`.
+3. Optionally configure **Required reviewers** so the business owner must approve each run.
+
+> Repository-level secrets also work (no environment required), but environment secrets
+> are preferred so required-reviewer gating applies to every protected run.
+
 ### Setting Secrets Locally
 
 ```bash
@@ -258,6 +282,7 @@ The evidence supports:
 |---|---|---|
 | Missing `JwtConfig:SecretKey` | `Misconfigured` | Set via user secrets or env var |
 | Missing `App:Account` mnemonic | `Misconfigured` | Set via user secrets or env var |
+| `WorkflowGovernanceConfig:Enabled` = false | `Degraded` | Set to `true` (or remove key for default) |
 | DI service not registered | `Unavailable` | Check `Program.cs` service registrations |
 | No active admin member in issuer | `Degraded` | Call `POST /fixtures/provision` |
 | State machine returns invalid | `Degraded` | Inspect IssuerWorkflowService implementation |
@@ -265,6 +290,97 @@ The evidence supports:
 | Initiation stage fails | `Lifecycle.Failed` | Verify issuer fixtures and state machine |
 | Status polling throws | `Lifecycle.Failed` | Verify IBackendDeploymentLifecycleContractService |
 | Validation throws | `Lifecycle.Failed` | Verify IDeploymentSignOffService configuration |
+| Missing CI secrets | Workflow fails | Add secrets to `protected-sign-off` GitHub environment |
+
+---
+
+## Protected Sign-Off CI Workflow
+
+The `.github/workflows/protected-sign-off.yml` workflow is the primary release gate for
+business-owner MVP sign-off. It runs automatically on push to `main`/`master` and can be
+triggered manually via `workflow_dispatch`.
+
+### Single-job design (environment-boundary prerequisite check)
+
+The workflow uses a **single job** with `environment: protected-sign-off`.  This is intentional:
+
+- A separate "validate-prerequisites" job running without the environment attached cannot see
+  environment-level secrets.  Storing secrets in the environment (the recommended setup for
+  required-reviewer gating) would cause a pre-environment secrets check to fail silently.
+- With a single job, the reviewer approval gate fires before any step executes.
+- The first step inside the job validates secrets (fail-closed), with the environment context
+  already active so both repository-level and environment-level secrets are resolvable.
+
+### Workflow steps
+
+1. **Step 0 — Validate prerequisites**: Checks both required secrets; fails with actionable
+   diagnostics if either is absent.  This is the first step, so the job fails early.
+2. **Step A — Tests**: Runs all ProtectedSignOff tests with real secrets. No governance env vars
+   are injected; the test application uses its own `appsettings.json` defaults.
+3. **Step B — Backend**: Starts the backend in-process with only the required secrets. No
+   `WorkflowGovernanceConfig__*` overrides are injected; governance evidence reflects the
+   application's actual runtime configuration.
+4. **Steps C–D — Evidence**: Registers a user, obtains a JWT, calls all four protected sign-off
+   endpoints.  Extracts the observed `WorkflowGovernanceEnabled` check outcome directly from the
+   environment check API response.
+5. **Steps E–H — Artifacts and summary**: Saves evidence JSON (90-day retention), sanitizes and
+   publishes test results, produces a product-owner summary showing observed (not asserted)
+   governance status.
+6. **Step I — Release gate enforcement**: Exits non-zero if `lifecycleVerified` is not `true`.
+
+### Evidence manifest — observed governance, not asserted
+
+The `00_evidence_manifest.json` artifact contains:
+```json
+{
+  "observedGovernanceCheckOutcome": "<Pass|DegradedFail|NotChecked>",
+  ...
+}
+```
+
+The value is extracted from the live environment check API response, never hardcoded by the
+workflow.  This means:
+- If governance is enabled in the environment configuration → manifest reports `"Pass"`
+- If governance is disabled in the environment configuration → manifest reports `"DegradedFail"`
+- The workflow cannot inflate the manifest to claim governance is passing when it is not
+
+### Triggering a manual run
+
+1. Navigate to **Actions → Protected Strict Sign-Off**.
+2. Click **Run workflow**.
+3. Optionally supply a correlation ID (defaults to `protected-run-<run-id>-<attempt>`).
+4. Optionally enable `dry_run` to validate prerequisites and build only.
+5. If the `protected-sign-off` environment requires reviewers, approve the run when prompted.
+
+### Artifacts produced
+
+Each successful run saves two artifacts retained for 90 days:
+
+| Artifact | Contents |
+|---|---|
+| `protected-sign-off-evidence-<corr-id>` | JSON files: evidence manifest, environment check, fixture provision, lifecycle result, diagnostics |
+| `protected-sign-off-test-results-<corr-id>` | TRX test results for all ProtectedSignOff unit and integration tests |
+
+The evidence manifest (`00_evidence_manifest.json`) contains:
+- `correlationId`, `runId`, `sha`, `ref`, `actor`, `runAt`
+- `observedGovernanceCheckOutcome` — extracted from the runtime API response, not hardcoded
+- Per-check results: `environmentStatus`, `isReadyForProtectedRun`, `fixturesProvisioned`, `lifecycleVerified`, `reachedStage`, `diagnosticsOperational`
+
+### Release gate enforcement
+
+The workflow enforces a hard pass requirement on `lifecycleVerified == true`. If lifecycle
+verification fails, the workflow exits non-zero, the run is marked failed, and no release
+gate credit is awarded. This is intentionally fail-closed.
+
+### Governance check
+
+The environment check validates `WorkflowGovernanceConfig:Enabled`. When governance is
+disabled the check returns `DegradedFail` and the environment status becomes `Degraded`,
+signalling that the run does not qualify as a governance-backed release gate. The default
+(`Enabled: true`) always passes.
+
+The workflow never injects `WorkflowGovernanceConfig__Enabled=true` as an environment variable.
+Governance evidence is therefore an observation of the real environment, not a workflow assertion.
 
 ---
 
@@ -284,12 +400,15 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The `ProtectedSignOffEnvironmentTests` test class (54 tests) locks in this contract:
+The three test classes lock in this contract (82 tests total):
 
-- **Unit tests** — verify each service method with mocked dependencies
-- **Configuration guard tests** — verify `Misconfigured` status for missing required keys
-- **Integration tests** — exercise all four HTTP endpoints via `WebApplicationFactory`
-- **Determinism tests** — verify identical outcomes across three consecutive runs
+- **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
+  endpoints, configuration guards, and lifecycle stages
+- **`ProtectedSignOffWorkflowGovernanceTests`** (16 tests) — unit tests for the
+  `WorkflowGovernanceEnabled` check across enabled/disabled/absent configurations
+- **`ProtectedSignOffEvidenceIntegrityTests`** (12 tests) — integration tests (HTTP via
+  `WebApplicationFactory`) proving that governance status and readiness are observed from
+  actual runtime configuration, not from workflow-injected values
 
 Run before every PR merge:
 
@@ -297,13 +416,14 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 54`
+Expected output: `Passed! - Failed: 0, Passed: 82`
 
 ---
 
 ## Related Resources
 
 - Business roadmap: https://github.com/scholtz/biatec-tokens/blob/main/business-owner-roadmap.md
+- Protected sign-off workflow: `.github/workflows/protected-sign-off.yml`
 - Deployment sign-off service: `DeploymentSignOffService` / `DeploymentSignOffController`
 - Backend lifecycle contract: `BackendDeploymentLifecycleContractService`
 - Issuer workflow service: `IssuerWorkflowService`
