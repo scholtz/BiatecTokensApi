@@ -84,6 +84,7 @@ jobs:
 
       - name: Run protected sign-off tests
         env:
+          # TEST-ONLY keys for CI execution — never use in production environments
           JwtConfig__SecretKey: "CIPushTestKeyMinimum32CharsPaddingXXXX"
           App__Account: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
           KeyManagementConfig__Provider: "Hardcoded"

@@ -46,7 +46,7 @@ namespace BiatecTokensTests
     /// LC27: Stage.Stage property matches the expected enum for each position in the list.
     /// LC28: Stage.Detail is non-null and non-empty for every stage (verified and skipped).
     /// LC29: ReachedStage in response matches Complete when all stages verify successfully.
-    /// LC30: HTTP 200 is returned for lifecycle/execute even when the lifecycle itself fails.
+    /// LC30: Validation fails when proof has an empty ProofId (structurally incomplete proof is rejected).
     /// </summary>
     [TestFixture]
     public class ProtectedSignOffLifecycleContractTests
