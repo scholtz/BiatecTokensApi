@@ -400,7 +400,7 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The three test classes lock in this contract (82 tests total):
+The four test classes lock in this contract (111 tests total):
 
 - **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
   endpoints, configuration guards, and lifecycle stages
@@ -409,6 +409,9 @@ The three test classes lock in this contract (82 tests total):
 - **`ProtectedSignOffEvidenceIntegrityTests`** (12 tests) — integration tests (HTTP via
   `WebApplicationFactory`) proving that governance status and readiness are observed from
   actual runtime configuration, not from workflow-injected values
+- **`ProtectedSignOffLifecycleContractTests`** (29 tests) — per-stage contract tests (LC1–LC30)
+  asserting the exact field values, ordering, count semantics, and failure-chain behaviour
+  expected by the strict Playwright suite and evidence manifest
 
 Run before every PR merge:
 
@@ -416,7 +419,30 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 82`
+Expected output: `Passed! - Failed: 0, Passed: 111`
+
+---
+
+## Two-Tier CI Design
+
+The `protected-sign-off.yml` workflow uses a two-tier design:
+
+### Tier 1 — `build-and-test` job (push to master/main)
+
+Runs automatically on every merge. Does **not** require the `protected-sign-off` GitHub environment
+or any secrets. Builds the solution and runs all 111 ProtectedSignOff tests. Never fails due to
+missing secrets — only fails on build errors or test regressions.
+
+### Tier 2 — `protected-sign-off-run` job (workflow_dispatch only)
+
+Runs only when manually triggered via `workflow_dispatch`. Requires:
+
+1. The `protected-sign-off` GitHub environment to exist (Settings → Environments).
+2. Both required secrets set in that environment.
+3. Optional: required-reviewer approval if the environment is configured with reviewers.
+
+This job performs the full evidence collection against a live backend instance and produces an
+artifact-backed evidence manifest for product-owner sign-off.
 
 ---
 
