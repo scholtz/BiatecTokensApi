@@ -35,6 +35,9 @@ namespace BiatecTokensTests
         /// <summary>
         /// Builds a minimal IConfiguration containing required keys plus optional governance keys.
         /// </summary>
+        /// <param name="governanceEnabled">Optional value for <c>WorkflowGovernanceConfig:Enabled</c>. Pass <c>null</c> to omit the key entirely.</param>
+        /// <param name="policyVersion">Optional value for <c>WorkflowGovernanceConfig:PolicyVersion</c>. Pass <c>null</c> to omit the key entirely.</param>
+        /// <returns>An <see cref="IConfiguration"/> instance with the specified governance settings.</returns>
         private static IConfiguration BuildConfiguration(
             string? governanceEnabled = null,
             string? policyVersion = null)
@@ -57,8 +60,11 @@ namespace BiatecTokensTests
         }
 
         /// <summary>
-        /// Creates a service instance using the supplied configuration.
+        /// Creates a <see cref="ProtectedSignOffEnvironmentService"/> instance using the supplied configuration
+        /// and the pre-configured mock dependencies set up in <see cref="SetUp"/>.
         /// </summary>
+        /// <param name="configuration">The configuration to inject into the service.</param>
+        /// <returns>A new <see cref="ProtectedSignOffEnvironmentService"/> instance ready for testing.</returns>
         private ProtectedSignOffEnvironmentService CreateService(IConfiguration configuration)
         {
             return new ProtectedSignOffEnvironmentService(
