@@ -535,7 +535,7 @@ namespace BiatecTokensApi.Services
         {
             "SANCTIONS_MATCH" => new List<string> { "OFAC_SDN", "EU_SANCTIONS" },
             "REVIEW_REQUIRED" => new List<string> { "PEP_WATCHLIST" },
-            _ => new List<string>()
+            _ => new List<string>(0)
         };
     }
 }

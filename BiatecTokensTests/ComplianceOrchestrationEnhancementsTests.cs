@@ -233,7 +233,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
 
-            // Create an approved decision with a very short validity window
+            // Create an approved decision with a validity window
             var req = MakeRequest(
                 checkType: ComplianceCheckType.Aml,
                 evidenceValidityHours: 1,
@@ -244,15 +244,12 @@ namespace BiatecTokensTests
 
             var decisionId = initResp.DecisionId!;
 
-            // Manually expire the decision by adjusting the stored EvidenceExpiresAt
-            // We simulate expiry by verifying the logic path works when expiry is in the past
-            // by calling GetStatus after we've set the internal expiry in the past
-            // (We test the mechanism via the EvidenceExpiresAt returned by initiate)
+            // Verify the expiry is set correctly in the future
             Assert.That(initResp.EvidenceExpiresAt, Is.Not.Null);
             Assert.That(initResp.EvidenceExpiresAt!.Value, Is.GreaterThan(DateTimeOffset.UtcNow),
                 "Evidence should not be expired immediately after initiation");
 
-            // Verify get-status still returns Approved for a non-expired decision
+            // Verify get-status returns Approved for a decision that hasn't expired yet
             var statusResp = await svc.GetCheckStatusAsync(decisionId);
             Assert.That(statusResp.State, Is.EqualTo(ComplianceDecisionState.Approved));
         }
