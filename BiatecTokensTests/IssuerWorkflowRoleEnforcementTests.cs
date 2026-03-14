@@ -693,7 +693,7 @@ namespace BiatecTokensTests
         // ═══════════════════════════════════════════════════════════════════
 
         [Test]
-        public async Task ListWorkflowItems_StateFilter_ReturnsonlyMatchingItems()
+        public async Task ListWorkflowItems_StateFilter_ReturnsOnlyMatchingItems()
         {
             var (svc, issuerId) = await SetupAsync();
 
