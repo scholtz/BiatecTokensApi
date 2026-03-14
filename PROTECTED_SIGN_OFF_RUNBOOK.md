@@ -403,7 +403,7 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The five test classes lock in this contract (133 tests total):
+The five test classes lock in this contract (134 tests total):
 
 - **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
   endpoints, configuration guards, and lifecycle stages
@@ -415,9 +415,10 @@ The five test classes lock in this contract (133 tests total):
 - **`ProtectedSignOffLifecycleContractTests`** (29 tests) — per-stage contract tests (LC1–LC30)
   asserting the exact field values, ordering, count semantics, and failure-chain behaviour
   expected by the strict Playwright suite and evidence manifest
-- **`ProtectedSignOffCIWorkflowConfigTests`** (22 tests) — CI configuration regression-prevention
-  tests (CI1–CI22) documenting the exact env var set safe for `dotnet test`, the JWT key
-  constraint, authentication failure paths, and fail-closed configuration guards
+- **`ProtectedSignOffCIWorkflowConfigTests`** (23 tests) — CI configuration regression-prevention
+  tests (CI1–CI23) documenting the exact env var set safe for `dotnet test`, the JWT key
+  constraint, authentication failure paths, fail-closed configuration guards, and workflow YAML
+  validity (CI23 verifies no column-0 Python code that would break YAML parsing)
 
 Run before every PR merge:
 
@@ -425,7 +426,7 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 133`
+Expected output: `Passed! - Failed: 0, Passed: 134`
 
 ### Critical: environment variables that must NOT be set for `dotnet test`
 
@@ -459,7 +460,7 @@ The `protected-sign-off.yml` workflow uses a two-tier design:
 ### Tier 1 — `build-and-test` job (push to master/main)
 
 Runs automatically on every merge. Does **not** require the `protected-sign-off` GitHub environment
-or any secrets. Builds the solution and runs all 111 ProtectedSignOff tests. Never fails due to
+or any secrets. Builds the solution and runs all 134 ProtectedSignOff tests. Never fails due to
 missing secrets — only fails on build errors or test regressions.
 
 ### Tier 2 — `protected-sign-off-run` job (workflow_dispatch only)
@@ -483,3 +484,57 @@ artifact-backed evidence manifest for product-owner sign-off.
 - Backend lifecycle contract: `BackendDeploymentLifecycleContractService`
 - Issuer workflow service: `IssuerWorkflowService`
 - Enterprise compliance review: `EnterpriseComplianceReviewService`
+
+---
+
+## Optional: External Live-Backend Mode
+
+The default Tier 2 job starts an in-process backend using the `PROTECTED_SIGN_OFF_JWT_SECRET` and
+`PROTECTED_SIGN_OFF_APP_ACCOUNT` secrets.  A future extension may support pointing the workflow at
+a pre-deployed external backend instead.  If that mode is added, the following additional secrets
+would be required in the `protected-sign-off` environment:
+
+| GitHub Secret | Purpose |
+|---|---|
+| `SIGNOFF_API_BASE_URL` | Base URL of the live deployed backend (e.g. `https://api.biatec.io`) |
+| `SIGNOFF_TEST_EMAIL` | Email address of a pre-registered operator account |
+| `SIGNOFF_TEST_PASSWORD` | Password for the operator account |
+
+When `SIGNOFF_API_BASE_URL` is set, the workflow would skip the in-process backend startup steps
+and call the external endpoint directly.  `SIGNOFF_TEST_EMAIL` / `SIGNOFF_TEST_PASSWORD` would
+replace the register-on-the-fly approach used by the current self-hosted path.
+
+Until external-backend mode is implemented, these three secrets are **not** required.
+
+---
+
+## Workflow YAML Maintenance Rules
+
+**CRITICAL: Never embed Python code with bare newlines at column 0 inside a YAML `run:` block.**
+
+GitHub Actions workflows use YAML literal block scalars (`run: |`) whose indentation level is set
+by the first non-empty content line (typically 10 spaces).  Any line at column 0 inside that block
+is treated by the YAML parser as a new top-level mapping key, making the entire workflow file
+invalid.  When a workflow file is invalid, GitHub marks the run as `failure` with zero jobs
+started — a symptom that can be hard to diagnose without running the YAML through a validator.
+
+**Safe patterns inside a `run: |` block:**
+
+```yaml
+# ✅  Single-line python3 -c — no bare newlines inside the quoted string
+GOV=$(echo "$DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('key',''))" 2>/dev/null) \
+  || GOV="Error"
+
+# ✅  python3 heredoc — content is indented at ≥10 spaces in YAML; GitHub strips
+#     common indentation before passing to bash, so Python sees column-0 code
+python3 - <<'PYEOF'
+import sys, json
+# ... rest of script
+PYEOF
+
+# ❌  INVALID — python3 -c with bare newline at column 0 breaks YAML parsing
+GOV=$(echo "$DATA" | python3 -c "
+import sys, json        # ← This line at column 0 invalidates the YAML file
+...
+")
+```
