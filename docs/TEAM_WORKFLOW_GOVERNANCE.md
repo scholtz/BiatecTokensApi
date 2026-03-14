@@ -174,7 +174,7 @@ A creation entry (Prepared → Prepared) is recorded when an item is first creat
 
 `GET /{issuerId}/my-permissions`
 
-Returns a `ActorPermissions` snapshot for the requesting actor. The payload lists every governance action with:
+Returns an `ActorPermissions` snapshot for the requesting actor. The payload lists every governance action with:
 
 - `actionKey`: stable machine-readable key (e.g. `"APPROVE"`, `"MANAGE_MEMBERS"`)
 - `label`: human-readable label for UI affordances

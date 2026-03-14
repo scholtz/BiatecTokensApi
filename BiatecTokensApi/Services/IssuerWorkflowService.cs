@@ -444,47 +444,47 @@ namespace BiatecTokensApi.Services
             var actions = new List<WorkflowPermittedAction>
             {
                 Permission("CREATE_WORKFLOW_ITEM",  "Create workflow item",
-                    isMember && _operatorRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires Operator or Admin role."),
 
                 Permission("SUBMIT_FOR_REVIEW",     "Submit for review",
-                    isMember && _operatorRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires Operator or Admin role."),
 
                 Permission("APPROVE",               "Approve workflow item",
-                    isMember && _approverRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _approverRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires ComplianceReviewer, FinanceReviewer, or Admin role."),
 
                 Permission("REJECT",                "Reject workflow item",
-                    isMember && _approverRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _approverRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires ComplianceReviewer, FinanceReviewer, or Admin role."),
 
                 Permission("REQUEST_CHANGES",       "Request changes",
-                    isMember && _approverRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _approverRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires ComplianceReviewer, FinanceReviewer, or Admin role."),
 
                 Permission("RESUBMIT",              "Resubmit after changes",
-                    isMember && _operatorRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires Operator or Admin role."),
 
                 Permission("COMPLETE",              "Mark item as completed",
-                    isMember && _operatorRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires Operator or Admin role."),
 
                 Permission("REASSIGN",              "Reassign workflow item",
-                    isMember && _nonReadonlyRoles.Contains(role!.Value),
+                    isMember && role.HasValue && _nonReadonlyRoles.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires Operator, ComplianceReviewer, FinanceReviewer, or Admin role."),
 
                 Permission("MANAGE_MEMBERS",        "Add / update / remove team members",
-                    isMember && _adminOnly.Contains(role!.Value),
+                    isMember && role.HasValue && _adminOnly.Contains(role.Value),
                     !isMember ? "You are not an active member of this issuer team."
                               : "Requires Admin role."),
 

@@ -267,7 +267,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task GetAuditHistory_NewItem_HasZeroEntries()
+        public async Task GetAuditHistory_NewItem_HasOneCreationEntry()
         {
             var (svc, issuerId) = await SetupIssuerAsync();
 
