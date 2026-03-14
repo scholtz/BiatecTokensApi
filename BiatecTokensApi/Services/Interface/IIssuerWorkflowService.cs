@@ -151,5 +151,21 @@ namespace BiatecTokensApi.Services.Interface
         /// Requires actor to be an active member of the issuer (any role).
         /// </summary>
         Task<WorkflowItemListResponse> GetAssignedQueueAsync(string issuerId, string assigneeActorId, string actorId);
+
+        /// <summary>
+        /// Returns a permissions snapshot for the requesting actor in the context of a specific issuer.
+        /// The snapshot lists every governance action with an <c>IsAllowed</c> flag and an optional
+        /// <c>DeniedReason</c> suitable for surfacing in the UI.
+        /// Always succeeds: non-members receive a snapshot with <c>IsMember = false</c> and all
+        /// actions denied, so the frontend can render appropriate guidance.
+        /// </summary>
+        Task<ActorPermissionsResponse> GetActorPermissionsAsync(string issuerId, string actorId);
+
+        /// <summary>
+        /// Returns the complete chronological audit trail for a workflow item.
+        /// Designed for regulator-facing evidence review and customer support investigation.
+        /// Requires actor to be an active member of the issuer (any role).
+        /// </summary>
+        Task<WorkflowAuditHistoryResponse> GetAuditHistoryAsync(string issuerId, string workflowId, string actorId);
     }
 }

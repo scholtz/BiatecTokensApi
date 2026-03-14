@@ -434,7 +434,123 @@ namespace BiatecTokensApi.Services
             return new WorkflowItemListResponse { Success = true, Items = items, TotalCount = items.Count };
         }
 
+        public async Task<ActorPermissionsResponse> GetActorPermissionsAsync(string issuerId, string actorId)
+        {
+            var membership = await GetActorMembershipAsync(issuerId, actorId);
+            bool isMember  = membership != null;
+            IssuerTeamRole? role = membership?.Role;
+
+            // Build the permissions list — always returns a response, even for non-members.
+            var actions = new List<WorkflowPermittedAction>
+            {
+                Permission("CREATE_WORKFLOW_ITEM",  "Create workflow item",
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires Operator or Admin role."),
+
+                Permission("SUBMIT_FOR_REVIEW",     "Submit for review",
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires Operator or Admin role."),
+
+                Permission("APPROVE",               "Approve workflow item",
+                    isMember && role.HasValue && _approverRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires ComplianceReviewer, FinanceReviewer, or Admin role."),
+
+                Permission("REJECT",                "Reject workflow item",
+                    isMember && role.HasValue && _approverRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires ComplianceReviewer, FinanceReviewer, or Admin role."),
+
+                Permission("REQUEST_CHANGES",       "Request changes",
+                    isMember && role.HasValue && _approverRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires ComplianceReviewer, FinanceReviewer, or Admin role."),
+
+                Permission("RESUBMIT",              "Resubmit after changes",
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires Operator or Admin role."),
+
+                Permission("COMPLETE",              "Mark item as completed",
+                    isMember && role.HasValue && _operatorRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires Operator or Admin role."),
+
+                Permission("REASSIGN",              "Reassign workflow item",
+                    isMember && role.HasValue && _nonReadonlyRoles.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires Operator, ComplianceReviewer, FinanceReviewer, or Admin role."),
+
+                Permission("MANAGE_MEMBERS",        "Add / update / remove team members",
+                    isMember && role.HasValue && _adminOnly.Contains(role.Value),
+                    !isMember ? "You are not an active member of this issuer team."
+                              : "Requires Admin role."),
+
+                Permission("VIEW_MEMBERS",          "View team members",
+                    isMember,
+                    "You are not an active member of this issuer team."),
+
+                Permission("VIEW_WORKFLOW_ITEMS",   "View workflow items and queue",
+                    isMember,
+                    "You are not an active member of this issuer team."),
+
+                Permission("VIEW_AUDIT_HISTORY",    "View audit trail",
+                    isMember,
+                    "You are not an active member of this issuer team."),
+
+                Permission("VIEW_APPROVAL_SUMMARY", "View approval dashboard summary",
+                    isMember,
+                    "You are not an active member of this issuer team.")
+            };
+
+            var permissions = new ActorPermissions
+            {
+                IssuerId        = issuerId,
+                ActorId         = actorId,
+                IsMember        = isMember,
+                Role            = role,
+                PermittedActions = actions
+            };
+
+            return new ActorPermissionsResponse { Success = true, Permissions = permissions };
+        }
+
+        public async Task<WorkflowAuditHistoryResponse> GetAuditHistoryAsync(string issuerId, string workflowId, string actorId)
+        {
+            var authResult = await RequireRoleAsync<WorkflowAuditHistoryResponse>(issuerId, actorId, _allActiveRoles);
+            if (authResult != null) return authResult;
+
+            var item = await _repository.GetWorkflowItemAsync(issuerId, workflowId);
+            if (item == null)
+                return Fail<WorkflowAuditHistoryResponse>(ErrorCodes.NOT_FOUND, "Workflow item not found.");
+            if (item.IssuerId != issuerId)
+                return Fail<WorkflowAuditHistoryResponse>(ErrorCodes.UNAUTHORIZED, "Access denied.");
+
+            var history = item.AuditHistory.OrderBy(e => e.Timestamp).ToList();
+            return new WorkflowAuditHistoryResponse
+            {
+                Success      = true,
+                IssuerId     = issuerId,
+                WorkflowId   = workflowId,
+                CurrentState = item.State,
+                AuditHistory = history,
+                EntryCount   = history.Count
+            };
+        }
+
         // ── Private helpers ────────────────────────────────────────────────────
+
+        /// <summary>Builds a <see cref="WorkflowPermittedAction"/> entry.</summary>
+        private static WorkflowPermittedAction Permission(string key, string label, bool allowed, string deniedReason) =>
+            new WorkflowPermittedAction
+            {
+                ActionKey    = key,
+                Label        = label,
+                IsAllowed    = allowed,
+                DeniedReason = allowed ? null : deniedReason
+            };
 
         /// <summary>
         /// Returns the active membership record for <paramref name="actorId"/> within the issuer,
@@ -506,6 +622,10 @@ namespace BiatecTokensApi.Services
                 return (T)(object)new WorkflowItemListResponse { Success = false, ErrorCode = errorCode, ErrorMessage = errorMessage };
             if (typeof(T) == typeof(WorkflowApprovalSummaryResponse))
                 return (T)(object)new WorkflowApprovalSummaryResponse { Success = false, ErrorCode = errorCode, ErrorMessage = errorMessage };
+            if (typeof(T) == typeof(ActorPermissionsResponse))
+                return (T)(object)new ActorPermissionsResponse { Success = false, ErrorCode = errorCode, ErrorMessage = errorMessage };
+            if (typeof(T) == typeof(WorkflowAuditHistoryResponse))
+                return (T)(object)new WorkflowAuditHistoryResponse { Success = false, ErrorCode = errorCode, ErrorMessage = errorMessage };
 
             throw new InvalidOperationException($"Unsupported response type: {typeof(T).Name}");
         }
