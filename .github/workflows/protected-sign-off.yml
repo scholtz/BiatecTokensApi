@@ -328,10 +328,21 @@ jobs:
           # environment rather than a value injected by CI.
           GOV_CHECK_OUTCOME=$(echo "$ENV_RESP" | python3 -c "
 import sys, json
-d = json.load(sys.stdin)
-checks = d.get('checks', [])
-gov = next((c for c in checks if c.get('name') == 'WorkflowGovernanceEnabled'), {})
-print(gov.get('outcome', 'NotChecked'))" 2>/dev/null || echo "NotChecked")
+try:
+    d = json.load(sys.stdin)
+    checks = d.get('checks', [])
+    gov = next((c for c in checks if c.get('name') == 'WorkflowGovernanceEnabled'), None)
+    if gov is None:
+        print('NotChecked')
+    else:
+        print(gov.get('outcome', 'Unknown'))
+except Exception as e:
+    import sys as _sys; print(f'ParseError: {e}', file=_sys.stderr)
+    print('ParseError')
+" 2>/tmp/gov_parse_err || echo "ExtractionFailed")
+          if [ -f /tmp/gov_parse_err ]; then
+            echo "  Warning: governance extraction stderr: $(cat /tmp/gov_parse_err)"
+          fi
           echo "  Governance check outcome (observed) : $GOV_CHECK_OUTCOME"
           echo "gov_check_outcome=$GOV_CHECK_OUTCOME" >> "$GITHUB_OUTPUT"
 

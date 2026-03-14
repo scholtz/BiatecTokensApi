@@ -49,7 +49,7 @@ namespace BiatecTokensTests
         /// </summary>
         private static async Task<string> GetJwtTokenAsync(HttpClient unauthClient)
         {
-            string email = $"ei-test-{Guid.NewGuid():N}@biatec-test.example.com";
+            string email = $"ei-test-{Guid.NewGuid():N}@biatec-evidence.example.com";
             object regReq = new
             {
                 Email = email,
@@ -414,8 +414,8 @@ namespace BiatecTokensTests
                     {
                         ["App:Account"] = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
                         ["KeyManagementConfig:Provider"] = "Hardcoded",
-                        ["KeyManagementConfig:HardcodedKey"] = "TestKeyForEvidenceIntegrityTests32Chars!!",
-                        ["JwtConfig:SecretKey"] = "EvidenceIntegrityTestSecretKey32CharsRequired!!",
+                        ["KeyManagementConfig:HardcodedKey"] = "TestKeyForEvidenceIntegrityTestsXX32Chars",
+                        ["JwtConfig:SecretKey"] = "EvidenceIntegrityTestSecretKey32CharsMinXX",
                         ["JwtConfig:Issuer"] = "BiatecTokensApi",
                         ["JwtConfig:Audience"] = "BiatecTokensUsers",
                         ["JwtConfig:AccessTokenExpirationMinutes"] = "60",
