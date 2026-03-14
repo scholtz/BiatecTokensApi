@@ -257,6 +257,33 @@ dotnet test BiatecTokensTests --filter "FullyQualifiedName~Swagger_IsReachable|F
    # COUNT="0\n0" → both comparisons fail → else branch → "()" (BUG)
    ```
 
+**Lesson Learned (2026-03-14 - Protected Sign-Off PR trigger, Issue #543, PR #544)**: When adding a `pull_request` trigger to a workflow that uses `EnricoMi/publish-unit-test-result-action@v2`, the action tries to post a comment on the PR. PRs from restricted actors (copilot agents, dependabot) receive HTTP 403 "Resource not accessible by integration". Without `continue-on-error: true`, this 403 cascades into a workflow job failure even when all tests passed.
+
+**MANDATORY RULE**: **Always add `continue-on-error: true` to any `publish-unit-test-result-action` step in a workflow that triggers on `pull_request`.**
+
+```yaml
+# ✅ CORRECT — 403 on comment post does not cascade into workflow failure
+- name: Publish test results
+  uses: EnricoMi/publish-unit-test-result-action@v2
+  if: always()
+  continue-on-error: true  # Required: prevents 403 from PR comment posting cascading into job failure
+  with:
+    files: '**/test-results-sanitized.trx'
+    check_name: 'My Test Results'
+
+# ❌ WRONG — 403 fails the job even when all tests pass
+- name: Publish test results
+  uses: EnricoMi/publish-unit-test-result-action@v2
+  if: always()
+  with:
+    files: '**/test-results-sanitized.trx'
+    check_name: 'My Test Results'
+```
+
+This applies to ALL workflow jobs that:
+- Run on `pull_request` events
+- Use `EnricoMi/publish-unit-test-result-action` or any action that attempts to post PR comments
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:

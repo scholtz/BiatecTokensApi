@@ -136,6 +136,11 @@ jobs:
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
+        # continue-on-error is required: the action tries to post a PR comment, which fails
+        # with 403 "Resource not accessible by integration" when triggered by copilot agents
+        # or other restricted actors.  The test run itself has already passed or failed — the
+        # publish step is informational only and must not gate the overall job outcome.
+        continue-on-error: true
         with:
           files: '**/protected-sign-off-tests-sanitized.trx'
           check_name: 'Protected Sign-Off Tests (push)'

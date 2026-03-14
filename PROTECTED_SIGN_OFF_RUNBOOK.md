@@ -485,7 +485,7 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The six test classes lock in this contract (155 tests total):
+The six test classes lock in this contract (161 tests total):
 
 - **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
   endpoints, configuration guards, and lifecycle stages
@@ -497,18 +497,22 @@ The six test classes lock in this contract (155 tests total):
 - **`ProtectedSignOffLifecycleContractTests`** (29 tests) — per-stage contract tests (LC1–LC30)
   asserting the exact field values, ordering, count semantics, and failure-chain behaviour
   expected by the strict Playwright suite and evidence manifest
-- **`ProtectedSignOffCIWorkflowConfigTests`** (28 tests) — CI configuration regression-prevention
-  tests (CI1–CI28) documenting the exact env var set safe for `dotnet test`, the JWT key
+- **`ProtectedSignOffCIWorkflowConfigTests`** (29 tests) — CI configuration regression-prevention
+  tests (CI1–CI29) documenting the exact env var set safe for `dotnet test`, the JWT key
   constraint, authentication failure paths, fail-closed configuration guards, workflow YAML
-  validity (CI23 verifies no column-0 Python), and required release gate configuration
+  validity (CI23 verifies no column-0 Python), required release gate configuration
   (CI24–CI28 validate PR trigger surfacing, release gate enforcement step, evidence manifest
-  schema contract, and artifact retention)
-- **`ProtectedSignOffEndToEndTests`** (16 tests) — canonical in-process protected strict sign-off
-  run evidence (E2E01–E2E15); exercises the full journey via HTTP through `WebApplicationFactory`
+  schema contract, and artifact retention), and CI29 which validates `continue-on-error: true`
+  is set on the publish step to prevent 403 errors from copilot/dependabot PRs cascading into
+  workflow failures
+- **`ProtectedSignOffEndToEndTests`** (21 tests) — canonical in-process protected strict sign-off
+  run evidence (E2E01–E2E20); exercises the full journey via HTTP through `WebApplicationFactory`
   (register → JWT → fixture provision → environment check → lifecycle execute → diagnostics →
   evidence manifest construction); proves determinism across 3 independent runs and includes
   negative-path tests for authentication failure, missing-config fail-closed behavior, and
-  attribution of stage failures when prerequisites are absent
+  attribution of stage failures when prerequisites are absent; E2E16–E2E20 add fixture reset
+  consistency, fixture-check surfacing, stage outcome non-nullness, diagnostics category
+  distinction, and the release gate predicate assertion
 
 Run before every PR merge:
 
@@ -516,7 +520,7 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 155`
+Expected output: `Passed! - Failed: 0, Passed: 161`
 
 ### Critical: environment variables that must NOT be set for `dotnet test`
 

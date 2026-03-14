@@ -15,7 +15,7 @@ namespace BiatecTokensTests
     /// Tests that document and enforce the CI workflow configuration requirements for
     /// the protected sign-off test suite.  These are regression-prevention tests that
     /// ensure the exact environment variable set used in <c>protected-sign-off.yml</c>
-    /// and <c>test-pr.yml</c> keeps all 155 ProtectedSignOff tests green.
+    /// and <c>test-pr.yml</c> keeps all 161 ProtectedSignOff tests green.
     ///
     /// Coverage:
     ///
@@ -47,6 +47,7 @@ namespace BiatecTokensTests
     /// CI26: Tier 2 workflow has release gate enforcement step (fail-closed on lifecycle failure).
     /// CI27: Evidence manifest includes schemaVersion field (evidence contract stability).
     /// CI28: Workflow uploads named evidence artifact with retention period (durable evidence).
+    /// CI29: Publish test results step has continue-on-error in build-and-test job (403 resilience).
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -823,6 +824,70 @@ namespace BiatecTokensTests
                 "('protected-sign-off-evidence-<corr-id>') with an explicit retention period. " +
                 "This artifact is the primary durable output for product-owner sign-off review. " +
                 "Removing it would make past runs unauditable.");
+        }
+
+        // ─── CI29: Publish test results step has continue-on-error: true ────────
+        //
+        // When the workflow is triggered by a pull_request from a restricted actor
+        // (e.g. a copilot agent), the EnricoMi/publish-unit-test-result-action tries
+        // to post a comment on the PR.  This fails with HTTP 403 "Resource not
+        // accessible by integration".  Without continue-on-error, this causes the
+        // entire workflow job to fail even though all tests passed.
+        //
+        // Lesson learned (2026-03-14, PR #543): the first PR trigger run failed because
+        // the publish step did not have continue-on-error set, causing a 403 to cascade
+        // into a workflow failure despite all 155 tests passing.
+        //
+        // This test prevents that regression from recurring.
+
+        [Test]
+        public void CI29_WorkflowYaml_PublishTestResults_HasContinueOnError_InBuildAndTestJob()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Verify the publish-unit-test-result-action step in the build-and-test job
+            // has continue-on-error: true.  We look for the two strings near each other
+            // in the Tier 1 (build-and-test) section, which ends before
+            // "protected-sign-off-run:" job.
+
+            // Find the build-and-test job section
+            int buildAndTestStart = content.IndexOf("build-and-test:", StringComparison.Ordinal);
+            int protectedRunStart = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+
+            if (buildAndTestStart < 0)
+            {
+                Assert.Fail("Could not find 'build-and-test:' job in protected-sign-off.yml");
+                return;
+            }
+
+            string buildAndTestSection = protectedRunStart > buildAndTestStart
+                ? content.Substring(buildAndTestStart, protectedRunStart - buildAndTestStart)
+                : content.Substring(buildAndTestStart);
+
+            bool hasPublishAction = buildAndTestSection.Contains("publish-unit-test-result-action");
+            bool hasContinueOnError = buildAndTestSection.Contains("continue-on-error: true");
+
+            Assert.That(hasPublishAction, Is.True,
+                "The build-and-test job must contain a publish-unit-test-result-action step.");
+
+            Assert.That(hasContinueOnError, Is.True,
+                "The publish-unit-test-result-action step in the build-and-test job must have " +
+                "'continue-on-error: true'.  When the workflow is triggered by a pull_request " +
+                "from a restricted actor (copilot agent, dependabot), the action tries to post " +
+                "a PR comment and fails with HTTP 403.  Without continue-on-error, this cascades " +
+                "into a workflow failure even when all tests passed.\n\n" +
+                "Fix: add 'continue-on-error: true' to the Publish test results step.\n" +
+                "See: Lesson learned 2026-03-14, PR #543.");
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────
