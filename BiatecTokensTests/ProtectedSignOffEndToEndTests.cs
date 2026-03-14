@@ -38,6 +38,11 @@ namespace BiatecTokensTests
     /// E2E13: CorrelationId supplied in request is echoed across all four response objects.
     /// E2E14: Environment check WorkflowGovernanceEnabled check is observable from response.
     /// E2E15: Full journey is independently repeatable — concurrent users share no mutable state.
+    /// E2E16: Fixture reset produces a consistent provisioned issuer ID across calls.
+    /// E2E17: Environment check without prior fixture provision still returns a fixture status check.
+    /// E2E18: All lifecycle stage results have non-null, concrete outcome values.
+    /// E2E19: Diagnostics distinguishes configuration failures from service failures (FailureCategories).
+    /// E2E20: Release gate predicate IsLifecycleVerified=true holds for a well-configured environment.
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -681,6 +686,146 @@ namespace BiatecTokensTests
                 Assert.That(corr1, Is.Not.EqualTo(corr2),
                     "Correlation IDs must be unique per user");
             });
+        }
+
+        // ── E2E16: Fixture reset produces a consistent provisioned issuer ─────────────
+
+        [Test]
+        public async Task E2E16_FixtureReset_ProducesConsistentProvisionedIssuer()
+        {
+            string corr = $"{CorrelationBase}-e2e16-{Guid.NewGuid():N}";
+
+            // First provision
+            EnterpriseFixtureProvisionResponse first = await PostFixtureProvisionAsync(_client, corr + "-first");
+            Assert.That(first.IsProvisioned, Is.True, "First fixture provision must succeed");
+
+            // Reset (ResetIfExists=true)
+            EnterpriseFixtureProvisionResponse reset = await PostFixtureProvisionAsync(_client, corr + "-reset");
+            Assert.That(reset.IsProvisioned, Is.True, "Fixture provision after reset must succeed");
+            Assert.That(reset.IssuerId, Is.EqualTo(first.IssuerId),
+                "IssuerId must be stable across reset — same protected tenant");
+        }
+
+        // ── E2E17: Environment check without fixture provision shows degraded fixture check ─
+
+        [Test]
+        public async Task E2E17_EnvironmentCheck_WithoutFixtureProvision_ShowsFixtureStatus()
+        {
+            // Fresh factory — no fixtures provisioned
+            using SignOffFactory freshFactory = new();
+            using HttpClient freshClient = freshFactory.CreateClient();
+            string freshJwt = await ObtainJwtAsync(freshClient, $"e2e17-{Guid.NewGuid():N}");
+            freshClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", freshJwt);
+
+            // Request environment check including fixture check
+            HttpResponseMessage resp = await freshClient.PostAsJsonAsync(
+                "/api/v1/protected-sign-off/environment/check",
+                new ProtectedSignOffEnvironmentRequest
+                {
+                    CorrelationId = $"{CorrelationBase}-e2e17",
+                    IncludeConfigCheck = true,
+                    IncludeFixtureCheck = true
+                });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            ProtectedSignOffEnvironmentResponse? body =
+                await resp.Content.ReadFromJsonAsync<ProtectedSignOffEnvironmentResponse>();
+            Assert.That(body, Is.Not.Null);
+
+            // There must be a fixture-related check in the response
+            EnvironmentCheck? fixtureCheck = body!.Checks
+                .FirstOrDefault(c => c.Category == EnvironmentCheckCategory.EnterpriseFixtures);
+            Assert.That(fixtureCheck, Is.Not.Null,
+                "When IncludeFixtureCheck=true, an EnterpriseFixtures category check must be present");
+
+            // The environment status must be deterministic (either Ready or Degraded — never Unknown)
+            Assert.That(body.Status,
+                Is.EqualTo(ProtectedEnvironmentStatus.Ready)
+                .Or.EqualTo(ProtectedEnvironmentStatus.Degraded)
+                .Or.EqualTo(ProtectedEnvironmentStatus.Misconfigured),
+                "Environment status must be a concrete value, not Unknown");
+        }
+
+        // ── E2E18: Lifecycle verify evidence fields — all stages have non-null outcomes ─
+
+        [Test]
+        public async Task E2E18_LifecycleExecute_AllStages_HaveNonNullOutcomes()
+        {
+            string corr = $"{CorrelationBase}-e2e18-{Guid.NewGuid():N}";
+
+            EnterpriseSignOffLifecycleResponse resp = await PostLifecycleExecuteAsync(_client, corr);
+
+            Assert.That(resp.Stages, Is.Not.Null.And.Not.Empty,
+                "Lifecycle stages list must not be empty");
+
+            foreach (SignOffLifecycleTransition stage in resp.Stages)
+            {
+                Assert.That(stage.Stage.ToString(), Is.Not.Null.And.Not.Empty,
+                    $"Stage name must not be null or empty");
+                Assert.That(stage.Outcome,
+                    Is.EqualTo(LifecycleStageOutcome.Verified).Or
+                    .EqualTo(LifecycleStageOutcome.Skipped).Or
+                    .EqualTo(LifecycleStageOutcome.Failed),
+                    $"Stage {stage.Stage} outcome must be a concrete enum value, not default");
+            }
+        }
+
+        // ── E2E19: Diagnostics distinguishes configuration vs service failures ─────────
+
+        [Test]
+        public async Task E2E19_Diagnostics_DistinguishesConfigurationAndServiceFailures()
+        {
+            string corr = $"{CorrelationBase}-e2e19-{Guid.NewGuid():N}";
+
+            ProtectedSignOffDiagnosticsResponse diag = await GetDiagnosticsAsync(_client, corr);
+
+            // FailureCategories must be present and structured
+            Assert.That(diag.FailureCategories, Is.Not.Null,
+                "Diagnostics must always return a FailureCategories object");
+
+            // In a well-configured factory, there should be no configuration failure
+            Assert.That(diag.FailureCategories.HasConfigurationFailure, Is.False,
+                "A properly configured factory must not report configuration failures");
+
+            // IsOperational must be true in a well-configured environment
+            Assert.That(diag.IsOperational, Is.True,
+                "Diagnostics must report IsOperational=true when the backend is correctly configured");
+        }
+
+        // ── E2E20: Release gate evidence — IsLifecycleVerified=true is the gate predicate ─
+        //
+        // This is the key predicate that the Tier 2 CI workflow checks in Step I
+        // (Enforce lifecycle pass).  Any code change that makes this return false
+        // for a well-configured environment would break the release gate.
+
+        [Test]
+        public async Task E2E20_ReleaseGatePredicate_IsLifecycleVerified_TrueForWellConfiguredEnv()
+        {
+            // Run the full happy path and assert the exact predicate that the workflow gate checks
+            string corr = $"{CorrelationBase}-e2e20-{Guid.NewGuid():N}";
+
+            // Provision fixtures (ensures issuer is ready)
+            EnterpriseFixtureProvisionResponse fixture = await PostFixtureProvisionAsync(_client, corr);
+            Assert.That(fixture.IsProvisioned, Is.True, "Prerequisites: fixtures must provision");
+
+            // Execute lifecycle
+            EnterpriseSignOffLifecycleResponse lifecycle = await PostLifecycleExecuteAsync(_client, corr);
+
+            // THE GATE PREDICATE — this is exactly what Step I in protected-sign-off.yml checks:
+            //   if [ "$LIFECYCLE_OK" != "true" ]; then exit 1; fi
+            Assert.That(lifecycle.IsLifecycleVerified, Is.True,
+                "IsLifecycleVerified must be true for a well-configured environment. " +
+                "This is the exact predicate used by the Tier 2 CI release gate enforcement step. " +
+                "A false value here means the workflow would fail at Step I and refuse to award " +
+                "release gate credit, even when all other checks pass.");
+
+            Assert.That(lifecycle.ReachedStage.ToString(), Is.EqualTo("Complete"),
+                "ReachedStage must be Complete — the release gate requires full lifecycle completion");
+
+            Assert.That(lifecycle.FailedStageCount, Is.EqualTo(0),
+                "No stages must fail in a well-configured environment");
         }
 
         // ── HTTP helpers ────────────────────────────────────────────────────────────────
