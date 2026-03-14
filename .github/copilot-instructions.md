@@ -229,6 +229,34 @@ dotnet test BiatecTokensTests --filter "FullyQualifiedName~Swagger_IsReachable|F
 - ❌ `BlockerSeverity` (conflicts with Preflight.BlockerSeverity)
 - ✅ `LaunchBlockerSeverity` (unique across the assembly)
 
+**Lesson Learned (2026-03-14 - Protected Sign-Off CI, Issue #539, PR #540)**: Two related bugs caused the CI `pr-tests` job to fail on every push when only non-`.cs` files were changed:
+
+**Bug 1 — `grep -c . || echo 0` double-output in `test-pr.yml`**:
+`grep -c pattern` outputs the count on stdout AND exits with code 1 when count is 0. With `|| echo 0`, BOTH outputs are captured, producing `"0\n0"` (a two-line string). Bash `[ "$COUNT" -eq 0 ]` cannot compare a multi-line string as an integer and exits non-zero, so both `if`/`elif` branches are treated as false. The `else` branch runs with empty `$TEST_CLASSES`, producing the invalid filter `()` which causes `dotnet test` to crash.
+
+**Bug 2 — `JwtConfig__SecretKey` env var breaks `WebApplicationFactory` integration tests**:
+`Program.cs` reads `jwtConfig.SecretKey` as a startup snapshot **before** `builder.Build()`. `WebApplicationFactory.ConfigureWebHost` injects `AddInMemoryCollection` **during** `Build()`, so the factory's JWT secret is visible to `IOptions<JwtConfig>` (used for signing) but NOT to the startup snapshot (used for validation). Setting `JwtConfig__SecretKey` via env var creates a split-brain: validation uses the env var key, signing uses the factory key → 401 Unauthorized on all authenticated integration tests.
+
+**MANDATORY RULES going forward**:
+
+1. **Never use `grep -c expr || echo 0` in CI bash scripts.** Instead use:
+   ```bash
+   COUNT=0
+   for _item in $ITEMS; do COUNT=$((COUNT + 1)); done
+   ```
+
+2. **Never inject `JwtConfig__SecretKey` as an env var into `dotnet test` steps.** The factory must own its JWT config via `AddInMemoryCollection`. The actual backend server (`dotnet run`) correctly receives it.
+
+3. **After any change to CI workflow `.yml` files, run the smoke test to confirm CI behavior**:
+   ```bash
+   # Simulate what the CI would do for non-.cs file changes
+   TEST_CLASSES=""
+   COUNT=0; for _tc in $TEST_CLASSES; do COUNT=$((COUNT + 1)); done
+   echo "COUNT=$COUNT"  # Must be 0
+   # COUNT=0 → smoke test filter (correct)
+   # COUNT="0\n0" → both comparisons fail → else branch → "()" (BUG)
+   ```
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:

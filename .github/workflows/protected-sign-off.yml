@@ -85,12 +85,24 @@ jobs:
       - name: Run protected sign-off tests
         env:
           # TEST-ONLY keys for CI execution — never use in production environments
-          JwtConfig__SecretKey: "CIPushTestKeyMinimum32CharsPaddingXXXX"
+          #
+          # NOTE: JwtConfig__SecretKey is intentionally NOT set here.
+          # The integration tests use WebApplicationFactory with their own in-memory
+          # JWT configuration.  Setting JwtConfig__SecretKey as an env var causes a
+          # key-mismatch between the startup-snapshot used for JWT validation and the
+          # IOptions<JwtConfig> live binding used by AuthenticationService — resulting
+          # in 401 Unauthorized for every authenticated test request.
+          # Each factory sets its own JwtConfig:SecretKey via AddInMemoryCollection.
+          #
+          # NOTE: ProtectedSignOff__EnforceConfigGuards is intentionally NOT set here.
+          # Setting it to "false" suppresses CheckWorkflowGovernanceConfig(), causing the
+          # Evidence Integrity (EI) tests to fail because they assert that the
+          # WorkflowGovernanceEnabled check is present in every environment-check response.
+          # The factory-level JwtConfig and App:Account settings keep the service healthy.
           App__Account: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
           KeyManagementConfig__Provider: "Hardcoded"
           KeyManagementConfig__HardcodedKey: "CIPushTestKeyMinimum32CharsPaddingXXXX"
           ProtectedSignOff__EnvironmentLabel: "ci-push"
-          ProtectedSignOff__EnforceConfigGuards: "false"
         run: |
           dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
             --configuration Release \
@@ -218,19 +230,22 @@ jobs:
         run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
 
       # ── Step A: Protected sign-off tests with real secrets ──────────────────
-      # Runs all ProtectedSignOff tests with the real JWT secret and mnemonic
-      # injected so that the integration tests exercise the full authenticated
-      # endpoint contract under production-like credentials.
+      # Runs all ProtectedSignOff tests against a WebApplicationFactory-hosted
+      # server.  The factories configure their own JWT secrets via in-memory
+      # config, so JwtConfig__SecretKey is intentionally NOT injected here
+      # (injecting it causes a key-mismatch between the startup snapshot used for
+      # JWT bearer validation and the IOptions<JwtConfig> live binding used by
+      # AuthenticationService, producing 401 Unauthorized on all protected calls).
       #
-      # Intentionally NOT injecting WorkflowGovernanceConfig overrides here:
-      # the test suite reads the application's own appsettings.json defaults.
-      # Governance evidence is therefore observed from runtime config, not
+      # App__Account and KeyManagementConfig are passed so the server can derive
+      # ARC76 addresses; governance evidence is observed from runtime config, not
       # asserted by the workflow.
       - name: Run protected sign-off tests (real secrets, observed governance)
         if: github.event.inputs.dry_run != 'true'
         env:
-          JwtConfig__SecretKey: ${{ secrets.PROTECTED_SIGN_OFF_JWT_SECRET }}
           App__Account: ${{ secrets.PROTECTED_SIGN_OFF_APP_ACCOUNT }}
+          KeyManagementConfig__Provider: "Hardcoded"
+          KeyManagementConfig__HardcodedKey: "ProtectedCIKeyMinimum32CharsPaddingXXXX"
           ProtectedSignOff__EnvironmentLabel: "protected-ci"
         run: |
           dotnet test BiatecTokensTests/BiatecTokensTests.csproj \

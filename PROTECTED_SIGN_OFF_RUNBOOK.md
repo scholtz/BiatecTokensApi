@@ -315,10 +315,13 @@ The workflow uses a **single job** with `environment: protected-sign-off`.  This
 
 1. **Step 0 — Validate prerequisites**: Checks both required secrets; fails with actionable
    diagnostics if either is absent.  This is the first step, so the job fails early.
-2. **Step A — Tests**: Runs all ProtectedSignOff tests with real secrets. No governance env vars
-   are injected; the test application uses its own `appsettings.json` defaults.
-3. **Step B — Backend**: Starts the backend in-process with only the required secrets. No
-   `WorkflowGovernanceConfig__*` overrides are injected; governance evidence reflects the
+2. **Step A — Tests**: Runs all ProtectedSignOff tests with `WebApplicationFactory`-hosted servers.
+   `JwtConfig__SecretKey` is **not** injected — integration tests use their own in-memory JWT
+   configuration to avoid a key-mismatch between the startup snapshot and the live `IOptions` binding.
+   `App__Account` and `KeyManagementConfig__*` are provided for Algorand address derivation.
+   Governance evidence comes from runtime config, not injected values.
+3. **Step B — Backend**: Starts the backend in-process with the real JWT secret and mnemonic.
+   No `WorkflowGovernanceConfig__*` overrides are injected; governance evidence reflects the
    application's actual runtime configuration.
 4. **Steps C–D — Evidence**: Registers a user, obtains a JWT, calls all four protected sign-off
    endpoints.  Extracts the observed `WorkflowGovernanceEnabled` check outcome directly from the
@@ -400,7 +403,7 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The four test classes lock in this contract (111 tests total):
+The five test classes lock in this contract (133 tests total):
 
 - **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
   endpoints, configuration guards, and lifecycle stages
@@ -412,6 +415,9 @@ The four test classes lock in this contract (111 tests total):
 - **`ProtectedSignOffLifecycleContractTests`** (29 tests) — per-stage contract tests (LC1–LC30)
   asserting the exact field values, ordering, count semantics, and failure-chain behaviour
   expected by the strict Playwright suite and evidence manifest
+- **`ProtectedSignOffCIWorkflowConfigTests`** (22 tests) — CI configuration regression-prevention
+  tests (CI1–CI22) documenting the exact env var set safe for `dotnet test`, the JWT key
+  constraint, authentication failure paths, and fail-closed configuration guards
 
 Run before every PR merge:
 
@@ -419,7 +425,30 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 111`
+Expected output: `Passed! - Failed: 0, Passed: 133`
+
+### Critical: environment variables that must NOT be set for `dotnet test`
+
+Two environment variables must **not** be passed to `dotnet test` for the ProtectedSignOff suite,
+even though they look like valid CI configuration:
+
+| Variable | Why it must NOT be set for `dotnet test` |
+|---|---|
+| `JwtConfig__SecretKey` | The integration tests use `WebApplicationFactory` with their own in-memory JWT configuration. Setting this env var causes a key-mismatch: the JWT bearer validation in `Program.cs` reads the env var value as a startup snapshot, while `IOptions<JwtConfig>` (used by `AuthenticationService` to sign tokens) reads the factory's in-memory config at runtime. The two values diverge, producing 401 Unauthorized on every authenticated call. |
+| `ProtectedSignOff__EnforceConfigGuards` set to `false` | This suppresses `CheckWorkflowGovernanceConfig()`, removing the `WorkflowGovernanceEnabled` check from the environment check response. The Evidence Integrity (EI) integration tests assert that this check is always present, so they fail with "Expected: not null, But was: null". |
+
+**Safe env vars for `dotnet test`** (these do not conflict with factory-managed configuration):
+
+```bash
+# Algorand account for ARC76 address derivation — factories accept any valid mnemonic
+App__Account="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+KeyManagementConfig__Provider="Hardcoded"
+KeyManagementConfig__HardcodedKey="<≥32 chars>"
+ProtectedSignOff__EnvironmentLabel="ci-push"  # informational label only
+```
+
+The JWT secret for the backend server (Steps B–D of the protected run) is correctly set via
+`JwtConfig__SecretKey` for the `dotnet run` invocation only, not for `dotnet test`.
 
 ---
 
