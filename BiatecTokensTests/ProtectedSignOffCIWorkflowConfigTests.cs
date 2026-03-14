@@ -7,6 +7,7 @@ using NUnit.Framework;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace BiatecTokensTests
 {
@@ -635,10 +636,10 @@ namespace BiatecTokensTests
             //   GOV=$(echo "$X" | python3 -c "
             //   import sys, json    ← this is at column 0, breaks YAML block scalar
             //   ...")
-            bool hasColumnZeroPython = System.Text.RegularExpressions.Regex.IsMatch(
+            bool hasColumnZeroPython = Regex.IsMatch(
                 content,
                 @"python3 -c ""\s*\n[^\s""']",
-                System.Text.RegularExpressions.RegexOptions.Multiline);
+                RegexOptions.Multiline);
 
             Assert.That(hasColumnZeroPython, Is.False,
                 "protected-sign-off.yml contains a python3 -c invocation with bare newlines " +

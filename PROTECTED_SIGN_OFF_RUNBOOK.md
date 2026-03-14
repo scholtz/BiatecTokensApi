@@ -521,9 +521,9 @@ started — a symptom that can be hard to diagnose without running the YAML thro
 **Safe patterns inside a `run: |` block:**
 
 ```yaml
-# ✅  Single-line python3 -c — no bare newlines inside the quoted string
-GOV=$(echo "$DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('key',''))" 2>/dev/null) \
-  || GOV="Error"
+# ✅  Single-line python3 -c — no bare newlines inside the quoted string;
+#     || fallback assigns default on error without a line-continuation character
+GOV=$(echo "$DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('key',''))" 2>/dev/null) || GOV="Error"
 
 # ✅  python3 heredoc — content is indented at ≥10 spaces in YAML; GitHub strips
 #     common indentation before passing to bash, so Python sees column-0 code
