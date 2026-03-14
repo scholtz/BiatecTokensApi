@@ -403,7 +403,7 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The five test classes lock in this contract (134 tests total):
+The six test classes lock in this contract (150 tests total):
 
 - **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
   endpoints, configuration guards, and lifecycle stages
@@ -419,6 +419,12 @@ The five test classes lock in this contract (134 tests total):
   tests (CI1–CI23) documenting the exact env var set safe for `dotnet test`, the JWT key
   constraint, authentication failure paths, fail-closed configuration guards, and workflow YAML
   validity (CI23 verifies no column-0 Python code that would break YAML parsing)
+- **`ProtectedSignOffEndToEndTests`** (16 tests) — canonical in-process protected strict sign-off
+  run evidence (E2E01–E2E15); exercises the full journey via HTTP through `WebApplicationFactory`
+  (register → JWT → fixture provision → environment check → lifecycle execute → diagnostics →
+  evidence manifest construction); proves determinism across 3 independent runs and includes
+  negative-path tests for authentication failure, missing-config fail-closed behavior, and
+  attribution of stage failures when prerequisites are absent
 
 Run before every PR merge:
 
@@ -426,7 +432,7 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 134`
+Expected output: `Passed! - Failed: 0, Passed: 150`
 
 ### Critical: environment variables that must NOT be set for `dotnet test`
 
@@ -453,6 +459,61 @@ The JWT secret for the backend server (Steps B–D of the protected run) is corr
 
 ---
 
+## Canonical In-Process Protected Sign-Off Evidence
+
+The `ProtectedSignOffEndToEndTests` test class (E2E01–E2E15) is the canonical in-process
+proof that the backend-managed issuance critical path works in a fail-closed manner.  These
+tests exercise the complete protected sign-off journey via HTTP through `WebApplicationFactory`
+and can be run locally without any external service dependencies.
+
+### What these tests prove
+
+| Test | Stage | Evidence |
+|------|-------|----------|
+| E2E01 | Full journey | Builds a structured evidence manifest with all required fields |
+| E2E02 | Lifecycle gate | `IsLifecycleVerified=true`, `ReachedStage=Complete` |
+| E2E03 | Environment | `Status=Ready`, `IsReadyForProtectedRun=true` (after fixture provision) |
+| E2E03b | Config-only | Config check alone returns Ready without fixture prerequisites |
+| E2E04 | Fixtures | `IsProvisioned=true`, issuer ID returned |
+| E2E05 | Diagnostics | `IsOperational=true`, no configuration failures |
+| E2E06 | Evidence artifact | Full manifest is JSON-serializable with all fields populated |
+| E2E07 | Determinism | Identical results across 3 independent factory instances |
+| E2E08 | Auth failure | Wrong-password returns 401, distinguishable from backend unavailability |
+| E2E09 | Stage attribution | Failed lifecycle attributes failure to specific stage with guidance |
+| E2E10 | Fail-closed | Missing required config → `Misconfigured` status (not `Ready`) |
+| E2E11 | Stage ordering | All 6 stages present in enum order with Verified outcomes |
+| E2E12 | Evidence quality | All Verified stages have null `UserGuidance` (clean artifact) |
+| E2E13 | Tracing | CorrelationId echoed across all 4 API endpoints |
+| E2E14 | Governance | `WorkflowGovernanceEnabled` check is observable in response |
+| E2E15 | Concurrency | Two parallel users each complete the full journey independently |
+
+### Running the in-process protected sign-off evidence
+
+```bash
+# Full in-process protected run (all 16 E2E tests: E2E01–E2E15 + variant E2E03b)
+dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOffEndToEndTests" \
+  --configuration Release
+
+# Expected output
+# Passed!  - Failed: 0, Passed: 16, Total: 16
+```
+
+### How this maps to the Tier 2 CI workflow
+
+| Tier 2 CI step | Corresponding E2E test | Evidence field |
+|---|---|---|
+| Step B: Environment check | E2E03, E2E03b, E2E14 | `isReadyForProtectedRun`, governance outcome |
+| Step C: Fixture provision | E2E04 | `isProvisioned`, `issuerId` |
+| Step D: Lifecycle execute | E2E02, E2E11, E2E12 | `isLifecycleVerified`, `reachedStage` |
+| Step E: Diagnostics | E2E05 | `isOperational`, failure categories |
+| Step F: Evidence manifest | E2E01, E2E06 | Full manifest JSON with all fields |
+| Step G: Determinism | E2E07 | 3 identical runs |
+| Negative: Auth failure | E2E08 | 401 vs 503 distinction |
+| Negative: Fail-closed | E2E10 | Misconfigured status on missing config |
+| Negative: Stage attribution | E2E09 | `actionableGuidance` with stage name |
+
+---
+
 ## Two-Tier CI Design
 
 The `protected-sign-off.yml` workflow uses a two-tier design:
@@ -460,7 +521,7 @@ The `protected-sign-off.yml` workflow uses a two-tier design:
 ### Tier 1 — `build-and-test` job (push to master/main)
 
 Runs automatically on every merge. Does **not** require the `protected-sign-off` GitHub environment
-or any secrets. Builds the solution and runs all 134 ProtectedSignOff tests. Never fails due to
+or any secrets. Builds the solution and runs all 150 ProtectedSignOff tests. Never fails due to
 missing secrets — only fails on build errors or test regressions.
 
 ### Tier 2 — `protected-sign-off-run` job (workflow_dispatch only)
