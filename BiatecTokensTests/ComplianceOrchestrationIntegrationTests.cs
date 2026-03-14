@@ -110,6 +110,14 @@ namespace BiatecTokensTests
             return (response, doc);
         }
 
+        private async Task<(HttpResponseMessage Response, JsonDocument? Body)> PostJsonAsyncUnauth(string url, object body)
+        {
+            var response = await _unauthClient.PostAsJsonAsync(url, body);
+            JsonDocument? doc = null;
+            try { doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync()); } catch { }
+            return (response, doc);
+        }
+
         private async Task<(HttpResponseMessage Response, JsonDocument? Body)> GetAsync(string url)
         {
             var response = await _client.GetAsync(url);
@@ -645,6 +653,147 @@ namespace BiatecTokensTests
 
             Assert.That(histA!.RootElement.GetProperty("totalCount").GetInt32(), Is.EqualTo(1));
             Assert.That(histB!.RootElement.GetProperty("totalCount").GetInt32(), Is.EqualTo(1));
+        }
+
+        // ── Reviewer notes (HTTP) ─────────────────────────────────────────────
+
+        [Test]
+        public async Task AppendNote_ValidNote_Returns200WithNote()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-subj-{Guid.NewGuid():N}", "ctx-note-1");
+            Assert.That(decisionId, Is.Not.Null);
+
+            var (noteResp, noteDoc) = await PostJsonAsync(
+                $"/api/v1/compliance-orchestration/notes/{decisionId}",
+                new { content = "Manually reviewed. Passport verified." });
+
+            Assert.That(noteResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(noteDoc, Is.Not.Null);
+
+            var note = noteDoc!.RootElement.GetProperty("note");
+            Assert.That(note.GetProperty("content").GetString(), Is.EqualTo("Manually reviewed. Passport verified."));
+            Assert.That(note.GetProperty("noteId").GetString(), Is.Not.Empty);
+            Assert.That(note.GetProperty("decisionId").GetString(), Is.EqualTo(decisionId));
+        }
+
+        [Test]
+        public async Task AppendNote_NoteAppearsInSubsequentStatusCall()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-status-{Guid.NewGuid():N}", "ctx-note-status");
+            Assert.That(decisionId, Is.Not.Null);
+
+            await PostJsonAsync(
+                $"/api/v1/compliance-orchestration/notes/{decisionId}",
+                new { content = "Evidence uploaded for status check." });
+
+            var (statusResp, statusDoc) = await GetAsync($"/api/v1/compliance-orchestration/status/{decisionId}");
+            statusResp.EnsureSuccessStatusCode();
+
+            var notes = statusDoc!.RootElement.GetProperty("reviewerNotes");
+            Assert.That(notes.GetArrayLength(), Is.EqualTo(1));
+            Assert.That(notes[0].GetProperty("content").GetString(), Is.EqualTo("Evidence uploaded for status check."));
+        }
+
+        [Test]
+        public async Task AppendNote_MultipleNotes_AllReturnedInStatus()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-multi-{Guid.NewGuid():N}", "ctx-multi-notes");
+            Assert.That(decisionId, Is.Not.Null);
+
+            await PostJsonAsync($"/api/v1/compliance-orchestration/notes/{decisionId}", new { content = "Note 1" });
+            await PostJsonAsync($"/api/v1/compliance-orchestration/notes/{decisionId}", new { content = "Note 2" });
+            await PostJsonAsync($"/api/v1/compliance-orchestration/notes/{decisionId}", new { content = "Note 3" });
+
+            var (_, statusDoc) = await GetAsync($"/api/v1/compliance-orchestration/status/{decisionId}");
+            var notes = statusDoc!.RootElement.GetProperty("reviewerNotes");
+            Assert.That(notes.GetArrayLength(), Is.EqualTo(3));
+        }
+
+        [Test]
+        public async Task AppendNote_WithEvidenceReferences_PersistedInResponse()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-evidence-{Guid.NewGuid():N}", "ctx-evidence");
+            Assert.That(decisionId, Is.Not.Null);
+
+            var (resp, doc) = await PostJsonAsync(
+                $"/api/v1/compliance-orchestration/notes/{decisionId}",
+                new
+                {
+                    content = "Passport and address proof attached.",
+                    evidenceReferences = new Dictionary<string, string>
+                    {
+                        ["passport_scan"] = "doc-001",
+                        ["address_proof"] = "doc-002"
+                    }
+                });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var refs = doc!.RootElement.GetProperty("note").GetProperty("evidenceReferences");
+            Assert.That(refs.GetProperty("passport_scan").GetString(), Is.EqualTo("doc-001"));
+            Assert.That(refs.GetProperty("address_proof").GetString(), Is.EqualTo("doc-002"));
+        }
+
+        [Test]
+        public async Task AppendNote_DecisionNotFound_Returns404()
+        {
+            var (resp, _) = await PostJsonAsync(
+                "/api/v1/compliance-orchestration/notes/nonexistent-decision-id",
+                new { content = "This should 404." });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        }
+
+        [Test]
+        public async Task AppendNote_EmptyContent_Returns400()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-empty-{Guid.NewGuid():N}", "ctx-empty-note");
+            Assert.That(decisionId, Is.Not.Null);
+
+            var (resp, _) = await PostJsonAsync(
+                $"/api/v1/compliance-orchestration/notes/{decisionId}",
+                new { content = "" });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        }
+
+        [Test]
+        public async Task AppendNote_Unauthenticated_Returns401()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-unauth-{Guid.NewGuid():N}", "ctx-unauth-note");
+
+            var (resp, _) = await PostJsonAsyncUnauth(
+                $"/api/v1/compliance-orchestration/notes/{decisionId}",
+                new { content = "Should require auth." });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        }
+
+        [Test]
+        public async Task AppendNote_AddsAuditEventToTrail()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-audit-{Guid.NewGuid():N}", "ctx-audit-note");
+            Assert.That(decisionId, Is.Not.Null);
+
+            var (_, beforeDoc) = await GetAsync($"/api/v1/compliance-orchestration/status/{decisionId}");
+            var auditBefore = beforeDoc!.RootElement.GetProperty("auditTrail").GetArrayLength();
+
+            await PostJsonAsync($"/api/v1/compliance-orchestration/notes/{decisionId}", new { content = "Audit trail note." });
+
+            var (_, afterDoc) = await GetAsync($"/api/v1/compliance-orchestration/status/{decisionId}");
+            var auditAfter = afterDoc!.RootElement.GetProperty("auditTrail").GetArrayLength();
+
+            Assert.That(auditAfter, Is.GreaterThan(auditBefore));
+        }
+
+        [Test]
+        public async Task AppendNote_NullRequestBody_Returns400()
+        {
+            var decisionId = await InitiateCheckAndGetDecisionId($"note-null-{Guid.NewGuid():N}", "ctx-null-note");
+
+            using var content = new StringContent("null", System.Text.Encoding.UTF8, "application/json");
+            var resp = await _client.PostAsync($"/api/v1/compliance-orchestration/notes/{decisionId}", content);
+
+            Assert.That((int)resp.StatusCode, Is.EqualTo(400));
         }
     }
 }

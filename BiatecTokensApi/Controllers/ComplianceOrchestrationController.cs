@@ -102,5 +102,58 @@ namespace BiatecTokensApi.Controllers
             var response = await _orchestrationService.GetDecisionHistoryAsync(subjectId);
             return Ok(response);
         }
+
+        /// <summary>
+        /// Appends a reviewer note or evidence reference to an existing compliance decision.
+        /// Notes allow operators to attach human-readable context, document references,
+        /// or evidence metadata to a decision for audit and review purposes.
+        /// </summary>
+        /// <param name="decisionId">The compliance decision to annotate.</param>
+        /// <param name="request">The note content and optional evidence references.</param>
+        /// <returns>The created reviewer note on success.</returns>
+        [HttpPost("notes/{decisionId}")]
+        [ProducesResponseType(typeof(AppendReviewerNoteResponse), 200)]
+        [ProducesResponseType(typeof(AppendReviewerNoteResponse), 400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> AppendNote(
+            [FromRoute] string decisionId,
+            [FromBody] AppendReviewerNoteRequest request)
+        {
+            if (request == null)
+                return BadRequest(new AppendReviewerNoteResponse
+                {
+                    Success = false,
+                    ErrorCode = "MISSING_REQUEST_BODY",
+                    ErrorMessage = "Request body is required."
+                });
+
+            var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                       ?? User.FindFirst("sub")?.Value;
+
+            if (string.IsNullOrWhiteSpace(actorId))
+                return Unauthorized();
+
+            var correlationId = HttpContext.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+                             ?? Guid.NewGuid().ToString("N");
+
+            _logger.LogInformation(
+                "Reviewer note append requested. DecisionId={DecisionId}, Actor={Actor}, CorrelationId={CorrelationId}",
+                LoggingHelper.SanitizeLogInput(decisionId),
+                LoggingHelper.SanitizeLogInput(actorId),
+                LoggingHelper.SanitizeLogInput(correlationId));
+
+            var response = await _orchestrationService.AppendReviewerNoteAsync(
+                decisionId, request, actorId, correlationId);
+
+            if (!response.Success)
+            {
+                if (response.ErrorCode == "COMPLIANCE_CHECK_NOT_FOUND")
+                    return NotFound(response);
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
     }
 }

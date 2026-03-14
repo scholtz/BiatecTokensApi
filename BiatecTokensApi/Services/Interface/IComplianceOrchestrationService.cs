@@ -36,5 +36,23 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="subjectId">The subject identifier to query.</param>
         /// <returns>All decisions recorded for the subject, ordered by initiation time descending.</returns>
         Task<ComplianceDecisionHistoryResponse> GetDecisionHistoryAsync(string subjectId);
+
+        /// <summary>
+        /// Appends a reviewer note or evidence reference to an existing compliance decision.
+        /// </summary>
+        /// <param name="decisionId">The decision ID to annotate.</param>
+        /// <param name="request">The note content and optional evidence references.</param>
+        /// <param name="actorId">The authenticated user/actor submitting the note.</param>
+        /// <param name="correlationId">Correlation ID for end-to-end tracing.</param>
+        /// <returns>
+        /// A <see cref="AppendReviewerNoteResponse"/> containing the created note on success,
+        /// or a failed response with error code <c>COMPLIANCE_CHECK_NOT_FOUND</c> or
+        /// <c>MISSING_REQUIRED_FIELD</c> when validation fails.
+        /// </returns>
+        Task<AppendReviewerNoteResponse> AppendReviewerNoteAsync(
+            string decisionId,
+            AppendReviewerNoteRequest request,
+            string actorId,
+            string correlationId);
     }
 }
