@@ -215,10 +215,11 @@ jobs:
 
           # ── Sanity checks (only when secrets are present) ─────────────────
           # Check JWT secret length — must be ≥ 32 characters for HS256 security
+          # Note: we do NOT log the actual length to avoid leaking secret characteristics.
           if [ -n "$JWT_SECRET" ]; then
             JWT_LEN=${#JWT_SECRET}
             if [ "$JWT_LEN" -lt 32 ]; then
-              MALFORMED+=("PROTECTED_SIGN_OFF_JWT_SECRET is only ${JWT_LEN} characters; must be ≥ 32 characters for HS256 key strength")
+              MALFORMED+=("PROTECTED_SIGN_OFF_JWT_SECRET is shorter than 32 characters; must be ≥ 32 characters for HS256 key strength")
             fi
           fi
 
@@ -227,7 +228,7 @@ jobs:
             WORD_COUNT=0
             for _w in $APP_ACCOUNT; do WORD_COUNT=$((WORD_COUNT + 1)); done
             if [ "$WORD_COUNT" -ne 25 ]; then
-              MALFORMED+=("PROTECTED_SIGN_OFF_APP_ACCOUNT has ${WORD_COUNT} words; Algorand mnemonics must be exactly 25 words")
+              MALFORMED+=("PROTECTED_SIGN_OFF_APP_ACCOUNT does not have exactly 25 words; Algorand mnemonics must be exactly 25 words")
             fi
           fi
 

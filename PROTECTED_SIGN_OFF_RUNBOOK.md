@@ -263,6 +263,11 @@ curl https://<backend>/api/v1/protected-sign-off/diagnostics?correlationId=relea
 
 **This distinction is critical for product-owner sign-off and enterprise procurement reviews.**
 
+Permissive runs use test-only in-memory secrets and do not exercise live backend paths.
+Release-grade runs use validated production-strength secrets and prove the full deployment
+lifecycle under the protected environment.  Confusing the two can lead to false confidence
+during enterprise procurement or pre-release sign-off reviews.
+
 ### Permissive developer-feedback lanes
 
 The following pipeline runs are **NOT** release-grade evidence and **MUST NOT** be used
