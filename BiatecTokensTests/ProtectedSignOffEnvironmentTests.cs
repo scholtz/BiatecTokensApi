@@ -591,8 +591,10 @@ namespace BiatecTokensTests
             ProtectedSignOffDiagnosticsResponse result = await _service.GetDiagnosticsAsync(null);
 
             // Assert: five availability entries reported:
-            // 3 service entries (IssuerWorkflow, DeploymentContract, DeploymentSignOff)
-            // + 2 configuration entries (JwtConfig:SecretKey, App:Account)
+            //   3 service entries: IIssuerWorkflowService, IBackendDeploymentLifecycleContractService,
+            //                      IDeploymentSignOffService
+            //   2 configuration entries: JwtConfig:SecretKey, App:Account
+            // Update this count if new required services or configuration keys are added.
             Assert.That(result.ServiceAvailability.Count, Is.EqualTo(5));
             Assert.That(result.ServiceAvailability.All(s => s.IsAvailable), Is.True);
         }
