@@ -7,6 +7,7 @@ using NUnit.Framework;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace BiatecTokensTests
 {
@@ -40,6 +41,7 @@ namespace BiatecTokensTests
     /// CI20: Lifecycle execute response always includes a non-empty Stages list.
     /// CI21: CorrelationId in request is echoed in the response.
     /// CI22: Environment check TotalCheckCount matches actual Checks list length.
+    /// CI23: Workflow YAML has no column-0 Python inside run: blocks (YAML validity regression).
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -601,6 +603,51 @@ namespace BiatecTokensTests
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.TotalCheckCount, Is.EqualTo(result.Checks.Count),
                 "TotalCheckCount must equal the actual number of checks in the Checks list");
+        }
+
+        // ─── CI23: Workflow YAML must not contain column-0 Python in run blocks ────
+        //
+        // Regression test for the YAML syntax error where multi-line python3 -c "..."
+        // with bare newlines at column 0 makes the protected-sign-off.yml invalid.
+        // GitHub marks invalid-YAML workflow runs as 'failure' with zero jobs started.
+        // See PROTECTED_SIGN_OFF_RUNBOOK.md §'Workflow YAML Maintenance Rules'.
+
+        [Test]
+        public void CI23_WorkflowYaml_ContainsNoColumnZeroPython_InsideRunBlocks()
+        {
+            // Locate the workflow file relative to the test binary output directory.
+            // Path: BiatecTokensTests/bin/Release/net10.0/ → ../../../../.github/workflows/
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore(
+                    $"Workflow file not found at '{workflowPath}'; skipping YAML validation.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Detect the forbidden pattern: python3 -c followed immediately by a newline
+            // then any non-whitespace character (Python code at column 0).
+            // Example of bad pattern:
+            //   GOV=$(echo "$X" | python3 -c "
+            //   import sys, json    ← this is at column 0, breaks YAML block scalar
+            //   ...")
+            bool hasColumnZeroPython = Regex.IsMatch(
+                content,
+                @"python3 -c ""\s*\n[^\s""']",
+                RegexOptions.Multiline);
+
+            Assert.That(hasColumnZeroPython, Is.False,
+                "protected-sign-off.yml contains a python3 -c invocation with bare newlines " +
+                "starting at column 0.  This makes the YAML file syntactically invalid — " +
+                "GitHub marks the workflow run as 'failure' with zero jobs started.\n\n" +
+                "Fix: use a single-line python3 -c invocation (no embedded newlines) or " +
+                "a properly-indented heredoc.  See PROTECTED_SIGN_OFF_RUNBOOK.md " +
+                "§'Workflow YAML Maintenance Rules'.");
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────

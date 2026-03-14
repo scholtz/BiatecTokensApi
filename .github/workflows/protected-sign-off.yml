@@ -432,20 +432,12 @@ jobs:
           # API response, not asserted by the workflow.  This ensures the evidence
           # manifest faithfully reflects the runtime configuration of the protected
           # environment rather than a value injected by CI.
-          GOV_CHECK_OUTCOME=$(echo "$ENV_RESP" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    checks = d.get('checks', [])
-    gov = next((c for c in checks if c.get('name') == 'WorkflowGovernanceEnabled'), None)
-    if gov is None:
-        print('NotChecked')
-    else:
-        print(gov.get('outcome', 'Unknown'))
-except Exception as e:
-    import sys as _sys; print(f'ParseError: {e}', file=_sys.stderr)
-    print('ParseError')
-" 2>/tmp/gov_parse_err || echo "ExtractionFailed")
+          # NOTE: python3 -c code must stay on a single line here (no bare newlines at column 0)
+          # to avoid a YAML literal-block-scalar parse error.  Multi-line inline Python that
+          # starts at column 0 is seen by the YAML parser as a new mapping key and makes the
+          # entire workflow file invalid (conclusion: failure, zero jobs started).
+          GOV_CHECK_OUTCOME=$(echo "$ENV_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); checks=d.get('checks',[]); gov=next((c for c in checks if c.get('name')=='WorkflowGovernanceEnabled'),None); print('NotChecked' if gov is None else gov.get('outcome','Unknown'))" 2>/tmp/gov_parse_err) \
+            || GOV_CHECK_OUTCOME="ExtractionFailed"
           if [ -f /tmp/gov_parse_err ]; then
             echo "  Warning: governance extraction stderr: $(cat /tmp/gov_parse_err)"
           fi
