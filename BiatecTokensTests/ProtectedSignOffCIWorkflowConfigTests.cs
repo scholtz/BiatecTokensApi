@@ -15,7 +15,7 @@ namespace BiatecTokensTests
     /// Tests that document and enforce the CI workflow configuration requirements for
     /// the protected sign-off test suite.  These are regression-prevention tests that
     /// ensure the exact environment variable set used in <c>protected-sign-off.yml</c>
-    /// and <c>test-pr.yml</c> keeps all 161 ProtectedSignOff tests green.
+    /// and <c>test-pr.yml</c> keeps all 168 ProtectedSignOff tests green.
     ///
     /// Coverage:
     ///
@@ -48,6 +48,13 @@ namespace BiatecTokensTests
     /// CI27: Evidence manifest includes schemaVersion field (evidence contract stability).
     /// CI28: Workflow uploads named evidence artifact with retention period (durable evidence).
     /// CI29: Publish test results step has continue-on-error in build-and-test job (403 resilience).
+    /// CI30: Step 0 preflight includes JWT secret length sanity check (≥ 32 chars).
+    /// CI31: Step 0 preflight includes APP_ACCOUNT word-count sanity check (25 words).
+    /// CI32: Step 0 preflight reports presence failures and sanity failures separately.
+    /// CI33: Evidence manifest includes isReleaseGradeEvidence field.
+    /// CI34: Evidence manifest includes releaseGradeNote field.
+    /// CI35: Tier 1 summary includes permissive-lane notice distinguishing it from release-grade evidence.
+    /// CI36: Runbook has explicit Permissive CI vs Release-Grade Evidence section.
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -888,6 +895,288 @@ namespace BiatecTokensTests
                 "into a workflow failure even when all tests passed.\n\n" +
                 "Fix: add 'continue-on-error: true' to the Publish test results step.\n" +
                 "See: Lesson learned 2026-03-14, PR #543.");
+        }
+
+        // ─── CI30: Step 0 preflight contains JWT secret length sanity check ──────
+        //
+        // The preflight step must check that the JWT secret is ≥ 32 characters.
+        // A secret shorter than 32 chars may be syntactically valid but is too weak
+        // for HS256 key strength, and would allow a misconfigured secret to bypass
+        // the length guard at startup while still failing in practice.
+        //
+        // This test prevents a regression where the sanity check is removed or weakened.
+
+        [Test]
+        public void CI30_WorkflowYaml_Preflight_ValidatesJwtSecretLength()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Extract the Tier 2 protected-sign-off-run job section (starts at the job boundary)
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            // Verify the preflight step checks JWT secret length against 32 characters
+            bool hasJwtLengthCheck = tier2Section.Contains("JWT_LEN") ||
+                                     tier2Section.Contains("-lt 32") ||
+                                     tier2Section.Contains("32 characters");
+
+            Assert.That(hasJwtLengthCheck, Is.True,
+                "The Tier 2 preflight step (Step 0) in protected-sign-off.yml must validate " +
+                "that the JWT secret is ≥ 32 characters.  A missing length check allows " +
+                "weak secrets to pass the presence gate while failing in production.  " +
+                "Add a check like: [ \"$JWT_LEN\" -lt 32 ] to the prerequisite validation step.\n\n" +
+                "This test prevents the sanity check from being silently removed.");
+        }
+
+        // ─── CI31: Step 0 preflight contains APP_ACCOUNT word-count sanity check ──
+        //
+        // The preflight step must verify the Algorand mnemonic has exactly 25 words.
+        // A 12-word or 24-word phrase would pass the empty check but fail during ARC76
+        // key derivation with a cryptic error later in the run.  Catching the wrong
+        // word count early at Step 0 produces an actionable error message.
+
+        [Test]
+        public void CI31_WorkflowYaml_Preflight_ValidatesAppAccountWordCount()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            // Verify the preflight step checks APP_ACCOUNT word count = 25
+            bool hasWordCountCheck = tier2Section.Contains("WORD_COUNT") ||
+                                     tier2Section.Contains("-ne 25") ||
+                                     tier2Section.Contains("25 words");
+
+            Assert.That(hasWordCountCheck, Is.True,
+                "The Tier 2 preflight step (Step 0) in protected-sign-off.yml must validate " +
+                "that PROTECTED_SIGN_OFF_APP_ACCOUNT contains exactly 25 words (Algorand mnemonic).  " +
+                "Without this check, a shorter or longer phrase passes the empty check but produces " +
+                "a cryptic ARC76 key derivation failure later in the run.  " +
+                "Add a word-count check like: WORD_COUNT=$(echo \"$APP_ACCOUNT\" | wc -w); [ \"$WORD_COUNT\" -ne 25 ]\n\n" +
+                "This test prevents the word-count sanity check from being silently removed.");
+        }
+
+        // ─── CI32: Step 0 preflight reports presence failures and sanity failures separately ──
+        //
+        // The preflight step must distinguish "secret missing" (MISSING array) from
+        // "secret present but invalid" (MALFORMED array).  This distinction is important
+        // for operators: a missing secret requires a completely different remediation than
+        // a malformed one.  The step summary must use separate headings for each category.
+
+        [Test]
+        public void CI32_WorkflowYaml_Preflight_ReportsMissingAndMalformedSeparately()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            // Verify separate arrays or sections for presence vs sanity failures
+            bool hasMissingArray = tier2Section.Contains("MISSING") &&
+                                   tier2Section.Contains("MALFORMED");
+            bool hasSeparateHeadings = tier2Section.Contains("Missing secrets") &&
+                                       tier2Section.Contains("Malformed secrets");
+
+            Assert.That(hasMissingArray, Is.True,
+                "The Tier 2 preflight step must track missing secrets and malformed secrets " +
+                "in separate variables (e.g. MISSING and MALFORMED arrays).  This ensures " +
+                "operators can distinguish 'secret not set' from 'secret has wrong format'.");
+
+            Assert.That(hasSeparateHeadings, Is.True,
+                "The Tier 2 preflight step summary must use separate headings for missing " +
+                "secrets (### Missing secrets) and malformed secrets (### Malformed secrets) " +
+                "so operators see actionable, categorized failure reasons.");
+        }
+
+        // ─── CI33: Evidence manifest includes isReleaseGradeEvidence field ──────
+        //
+        // The evidence manifest is the artifact reviewed by product owners for release
+        // sign-off decisions.  The `isReleaseGradeEvidence` field is the primary criterion:
+        // a manifest without this field (or with the value false) does not qualify as
+        // valid release evidence regardless of other fields.
+
+        [Test]
+        public void CI33_WorkflowYaml_EvidenceManifest_HasIsReleaseGradeEvidenceField()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("isReleaseGradeEvidence"),
+                "The evidence manifest written in protected-sign-off.yml must include an " +
+                "'isReleaseGradeEvidence' field.  This is the primary product-owner sign-off " +
+                "criterion: 'true' only when lifecycle and environment checks both pass under " +
+                "the protected-sign-off environment with validated real secrets.  " +
+                "A manifest without this field cannot be reliably used for release decisions.\n\n" +
+                "This test prevents the field from being removed from the manifest template.");
+        }
+
+        // ─── CI34: Evidence manifest includes releaseGradeNote field ─────────────
+        //
+        // The `releaseGradeNote` field provides a human-readable explanation of the
+        // conditions under which `isReleaseGradeEvidence` is `true`.  This makes the
+        // manifest self-explanatory for product owners who review it outside of the CI context.
+
+        [Test]
+        public void CI34_WorkflowYaml_EvidenceManifest_HasReleaseGradeNoteField()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("releaseGradeNote"),
+                "The evidence manifest written in protected-sign-off.yml must include a " +
+                "'releaseGradeNote' field explaining the conditions under which " +
+                "'isReleaseGradeEvidence' is 'true'.  This makes the manifest self-documenting " +
+                "for reviewers who encounter it outside of CI context and need to understand " +
+                "without referring to the runbook what the evidence represents.\n\n" +
+                "This test prevents the contextual note from being removed from the manifest.");
+        }
+
+        // ─── CI35: Tier 1 summary includes permissive-lane notice ────────────────
+        //
+        // The Tier 1 (build-and-test) job summary must explicitly state that it is a
+        // permissive developer-feedback run and NOT release-grade evidence.  This prevents
+        // a product owner or reviewer from misinterpreting a green Tier 1 run as sign-off
+        // proof when only a Tier 2 run with real secrets qualifies.
+
+        [Test]
+        public void CI35_WorkflowYaml_Tier1Summary_ContainsPermissiveLaneNotice()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Extract the Tier 1 build-and-test job section
+            int buildAndTestStart = content.IndexOf("build-and-test:", StringComparison.Ordinal);
+            int protectedRunStart = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+
+            if (buildAndTestStart < 0)
+            {
+                Assert.Fail("Could not find 'build-and-test:' job in protected-sign-off.yml");
+                return;
+            }
+
+            string buildAndTestSection = protectedRunStart > buildAndTestStart
+                ? content.Substring(buildAndTestStart, protectedRunStart - buildAndTestStart)
+                : content.Substring(buildAndTestStart);
+
+            bool hasPermissiveNotice = buildAndTestSection.Contains("permissive") ||
+                                       buildAndTestSection.Contains("NOT release-grade") ||
+                                       buildAndTestSection.Contains("not release-grade");
+
+            Assert.That(hasPermissiveNotice, Is.True,
+                "The Tier 1 'build-and-test' job summary in protected-sign-off.yml must " +
+                "explicitly state that this is a permissive developer-feedback run and NOT " +
+                "release-grade evidence.  Without this notice, a product owner reviewing the " +
+                "GitHub Actions summary might misinterpret a green Tier 1 run as valid sign-off " +
+                "evidence.\n\n" +
+                "Add text like: '⚠️ This is a permissive developer-feedback run — NOT release-grade evidence.' " +
+                "to the Tier 1 Produce summary step.\n\n" +
+                "This test prevents the permissive-lane notice from being removed from the summary.");
+        }
+
+        // ─── CI36: Runbook has explicit Permissive CI vs Release-Grade Evidence section ──
+        //
+        // The runbook is the primary operator and product-owner reference.  It must
+        // contain a section that explicitly distinguishes permissive CI lanes (Tier 1,
+        // local dotnet test) from release-grade protected evidence (Tier 2 with real
+        // validated secrets).  This ensures the distinction is documented for reviewers
+        // who consult the runbook rather than the workflow YAML.
+
+        [Test]
+        public void CI36_Runbook_HasPermissiveVsReleaseGradeSection()
+        {
+            string runbookPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../PROTECTED_SIGN_OFF_RUNBOOK.md"));
+
+            if (!File.Exists(runbookPath))
+            {
+                Assert.Ignore($"Runbook not found at '{runbookPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(runbookPath);
+
+            bool hasPermissiveSection = content.Contains("Permissive CI vs Release-Grade") ||
+                                        content.Contains("Permissive developer-feedback") ||
+                                        content.Contains("permissive developer-feedback lanes");
+
+            bool hasReleaseGradeCriteria = content.Contains("isReleaseGradeEvidence") &&
+                                           content.Contains("What makes a run release-grade");
+
+            Assert.That(hasPermissiveSection, Is.True,
+                "PROTECTED_SIGN_OFF_RUNBOOK.md must contain a section that explicitly " +
+                "distinguishes permissive CI lanes from release-grade evidence.  " +
+                "Product owners and reviewers rely on the runbook to understand what " +
+                "constitutes valid sign-off evidence.\n\n" +
+                "Add a section titled 'Permissive CI vs Release-Grade Evidence' or equivalent " +
+                "that lists which run types are NOT release-grade and explains what conditions " +
+                "must be met for a run to qualify as release-grade evidence.\n\n" +
+                "This test prevents the permissive-lane distinction from being removed from the runbook.");
+
+            Assert.That(hasReleaseGradeCriteria, Is.True,
+                "PROTECTED_SIGN_OFF_RUNBOOK.md must document the criteria that make a run " +
+                "release-grade, including the 'isReleaseGradeEvidence' manifest field and the " +
+                "conditions under which it is 'true'.  Product owners need to know exactly " +
+                "what to check in the manifest before approving a release.\n\n" +
+                "Add a 'What makes a run release-grade' subsection to the runbook.");
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────

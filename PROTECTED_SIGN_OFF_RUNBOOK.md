@@ -259,6 +259,74 @@ curl https://<backend>/api/v1/protected-sign-off/diagnostics?correlationId=relea
 
 ---
 
+## Permissive CI vs Release-Grade Evidence
+
+**This distinction is critical for product-owner sign-off and enterprise procurement reviews.**
+
+Permissive runs use test-only in-memory secrets and do not exercise live backend paths.
+Release-grade runs use validated production-strength secrets and prove the full deployment
+lifecycle under the protected environment.  Confusing the two can lead to false confidence
+during enterprise procurement or pre-release sign-off reviews.
+
+### Permissive developer-feedback lanes
+
+The following pipeline runs are **NOT** release-grade evidence and **MUST NOT** be used
+as product-owner sign-off proof:
+
+| Lane | Trigger | Evidence grade | Why it is not release-grade |
+|---|---|---|---|
+| Tier 1 `build-and-test` job | Push to master/main or PR | ❌ Permissive | Uses test-only in-memory keys; no real secrets; no live backend calls |
+| Tier 1 on PR from copilot/dependabot | Pull request | ❌ Permissive | Same as above; additionally runs with read-only permissions |
+| Any local `dotnet test` run | Developer workstation | ❌ Permissive | Uses factory-supplied JWT secrets; no protected environment |
+| Tier 2 `dry_run=true` dispatch | workflow_dispatch | ❌ Dry run | Validates secrets and builds only; no endpoint calls |
+
+All permissive runs produce a Tier 1 GitHub Actions step summary containing:
+
+> ⚠️ **This is a permissive developer-feedback run — NOT release-grade evidence.**
+
+This notice is machine-verifiable: CI30 regression test asserts it is present.
+
+### What makes a run release-grade
+
+A run is **release-grade evidence** (`isReleaseGradeEvidence: true` in the manifest) only when
+**all** of the following conditions are satisfied simultaneously:
+
+| Condition | How verified |
+|---|---|
+| Triggered via `workflow_dispatch` (Tier 2) | Workflow `if: github.event_name == 'workflow_dispatch'` |
+| Runs under `environment: protected-sign-off` | GitHub environment boundary enforces secret scoping |
+| `PROTECTED_SIGN_OFF_JWT_SECRET` is present and ≥ 32 characters | Step 0 sanity check (fails workflow if violated) |
+| `PROTECTED_SIGN_OFF_APP_ACCOUNT` is present and exactly 25 words | Step 0 sanity check (fails workflow if violated) |
+| `isReadyForProtectedRun: true` from live environment check endpoint | Step D evidence collection |
+| `isLifecycleVerified: true` and `reachedStage: "Complete"` from live lifecycle endpoint | Step D + Step I release gate enforcement |
+
+The evidence manifest (`00_evidence_manifest.json`) contains `"isReleaseGradeEvidence": true`
+only when both `lifecycleVerified` and `isReadyForProtectedRun` are true.  A manifest with
+`"isReleaseGradeEvidence": false` **does not qualify** for product-owner sign-off regardless
+of other fields.
+
+### How product owners distinguish the two
+
+1. **Tier 1 (permissive):** GitHub Actions step summary shows the ⚠️ permissive-lane notice.
+   No evidence artifact is produced.
+
+2. **Tier 2 (release-grade):** Evidence artifact `protected-sign-off-evidence-<corr-id>` is
+   produced and retained for 90 days.  Open `00_evidence_manifest.json` and confirm:
+   - `"isReleaseGradeEvidence": true`
+   - `"lifecycleVerified": true`
+   - `"reachedStage": "Complete"`
+
+   If any of these values is missing or false, the run is not acceptable release evidence.
+
+### Negative-path behavior
+
+The strict gate is fail-closed: missing secrets, malformed secrets, unreachable backend, or
+failed lifecycle verification all cause the Tier 2 job to fail.  A passing Tier 2 job with a
+`isReleaseGradeEvidence: false` manifest **cannot** occur because Step I enforces the lifecycle
+gate before the job can succeed.
+
+---
+
 ## What the Protected Run Proves
 
 A successful protected run produces evidence that:
@@ -280,6 +348,10 @@ The evidence supports:
 
 | Failure Mode | Status | Remediation |
 |---|---|---|
+| Missing `PROTECTED_SIGN_OFF_JWT_SECRET` in GitHub environment | Workflow fails (Step 0) | Add secret to `protected-sign-off` GitHub environment |
+| `PROTECTED_SIGN_OFF_JWT_SECRET` is < 32 characters | Workflow fails (Step 0 sanity check) | Replace with a ≥ 32-character secret |
+| Missing `PROTECTED_SIGN_OFF_APP_ACCOUNT` in GitHub environment | Workflow fails (Step 0) | Add 25-word Algorand mnemonic to `protected-sign-off` environment |
+| `PROTECTED_SIGN_OFF_APP_ACCOUNT` has wrong word count | Workflow fails (Step 0 sanity check) | Replace with a valid 25-word Algorand mnemonic |
 | Missing `JwtConfig:SecretKey` | `Misconfigured` | Set via user secrets or env var |
 | Missing `App:Account` mnemonic | `Misconfigured` | Set via user secrets or env var |
 | `WorkflowGovernanceConfig:Enabled` = false | `Degraded` | Set to `true` (or remove key for default) |
@@ -290,7 +362,7 @@ The evidence supports:
 | Initiation stage fails | `Lifecycle.Failed` | Verify issuer fixtures and state machine |
 | Status polling throws | `Lifecycle.Failed` | Verify IBackendDeploymentLifecycleContractService |
 | Validation throws | `Lifecycle.Failed` | Verify IDeploymentSignOffService configuration |
-| Missing CI secrets | Workflow fails | Add secrets to `protected-sign-off` GitHub environment |
+| `isReleaseGradeEvidence: false` in manifest | Not release-grade | Rerun after resolving all lifecycle and environment failures |
 
 ---
 
@@ -341,11 +413,16 @@ Before approving a release, the product owner should verify:
 | Protected sign-off tests pass | PR status checks | ✅ `Build and run protected sign-off tests` green |
 | Full evidence run completed | Actions → Protected Strict Sign-Off → Latest dispatch | ✅ Workflow completed successfully |
 | Evidence artifact present | Actions → workflow run → Artifacts | ✅ `protected-sign-off-evidence-<corr-id>` downloadable |
-| Lifecycle verified | `00_evidence_manifest.json` in artifact | `"lifecycleVerified": true`, `"reachedStage": "Complete"` |
+| **isReleaseGradeEvidence** | `00_evidence_manifest.json` in artifact | **`"isReleaseGradeEvidence": true`** — this is the primary sign-off criterion |
+| Lifecycle verified | `00_evidence_manifest.json` | `"lifecycleVerified": true`, `"reachedStage": "Complete"` |
 | Governance check passed | `00_evidence_manifest.json` | `"observedGovernanceCheckOutcome": "Pass"` |
 | Environment ready | `01_environment_check.json` in artifact | `"status": "Ready"`, `"isReadyForProtectedRun": true` |
 
-If any step shows a failure or non-passing value, **do not approve the release** until the
+> ⚠️ **If `isReleaseGradeEvidence` is `false` or absent, the run is NOT acceptable evidence**
+> regardless of what other fields show.  Do not approve the release until a run with
+> `"isReleaseGradeEvidence": true` is available.
+
+If any other step shows a failure or non-passing value, **do not approve the release** until the
 failure is remediated.  The runbook's Failure Modes section documents remediations for each
 failure type.
 
@@ -395,8 +472,13 @@ The workflow uses a **single job** with `environment: protected-sign-off`.  This
 
 ### Workflow steps
 
-1. **Step 0 — Validate prerequisites**: Checks both required secrets; fails with actionable
-   diagnostics if either is absent.  This is the first step, so the job fails early.
+1. **Step 0 — Validate prerequisites (presence + sanity)**: Checks both required secrets for
+   presence and sanity.  Fails with actionable diagnostics if either is absent **or** malformed:
+   - `PROTECTED_SIGN_OFF_JWT_SECRET` must be non-empty **and** ≥ 32 characters.
+   - `PROTECTED_SIGN_OFF_APP_ACCOUNT` must be non-empty **and** exactly 25 words.
+   Both presence and sanity failures are reported separately in the GitHub Actions step summary
+   so operators can distinguish "secret not set" from "secret has wrong format."
+   This is the first step, so the job fails early without reaching any expensive operation.
 2. **Step A — Tests**: Runs all ProtectedSignOff tests with `WebApplicationFactory`-hosted servers.
    `JwtConfig__SecretKey` is **not** injected — integration tests use their own in-memory JWT
    configuration to avoid a key-mismatch between the startup snapshot and the live `IOptions` binding.
@@ -418,16 +500,37 @@ The workflow uses a **single job** with `environment: protected-sign-off`.  This
 The `00_evidence_manifest.json` artifact contains:
 ```json
 {
+  "schemaVersion": "1.0",
+  "correlationId": "protected-run-<run-id>-<attempt>",
+  "runId": "<github-run-id>",
+  "sha": "<commit-sha>",
+  "ref": "refs/heads/main",
+  "actor": "<github-actor>",
+  "runAt": "<iso8601-timestamp>",
+  "environmentLabel": "protected-ci",
+  "isReleaseGradeEvidence": true,
+  "releaseGradeNote": "true only when lifecycleVerified=true and isReadyForProtectedRun=true under the protected-sign-off environment with validated real secrets",
   "observedGovernanceCheckOutcome": "<Pass|DegradedFail|NotChecked>",
-  ...
+  "results": {
+    "environmentStatus": "Ready",
+    "isReadyForProtectedRun": true,
+    "fixturesProvisioned": true,
+    "lifecycleVerified": true,
+    "reachedStage": "Complete",
+    "diagnosticsOperational": true
+  }
 }
 ```
 
-The value is extracted from the live environment check API response, never hardcoded by the
-workflow.  This means:
-- If governance is enabled in the environment configuration → manifest reports `"Pass"`
-- If governance is disabled in the environment configuration → manifest reports `"DegradedFail"`
-- The workflow cannot inflate the manifest to claim governance is passing when it is not
+**Key fields for product-owner review:**
+- `isReleaseGradeEvidence` — **the primary sign-off criterion**; `true` only when lifecycle and
+  environment checks both passed under the protected environment with real validated secrets.
+- `observedGovernanceCheckOutcome` — extracted from the live environment check API response,
+  never hardcoded.  The workflow cannot inflate this to claim governance is passing when it is not.
+- `lifecycleVerified` + `reachedStage` — confirm the full issuance lifecycle ran to completion.
+
+When `isReleaseGradeEvidence` is `false`, the run **does not qualify** as product-owner sign-off
+evidence, even if individual checks appear to have passed.
 
 ### Triggering a manual run
 
@@ -448,6 +551,7 @@ Each successful run saves two artifacts retained for 90 days:
 
 The evidence manifest (`00_evidence_manifest.json`) contains:
 - `correlationId`, `runId`, `sha`, `ref`, `actor`, `runAt`
+- `isReleaseGradeEvidence` — **primary sign-off criterion** (`true` only when lifecycle + environment both verified under protected secrets)
 - `observedGovernanceCheckOutcome` — extracted from the runtime API response, not hardcoded
 - Per-check results: `environmentStatus`, `isReadyForProtectedRun`, `fixturesProvisioned`, `lifecycleVerified`, `reachedStage`, `diagnosticsOperational`
 

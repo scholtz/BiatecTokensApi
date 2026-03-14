@@ -158,6 +158,12 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "✅ Solution built and ProtectedSignOff tests run." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> ⚠️ **This is a permissive developer-feedback run — NOT release-grade evidence.**" >> "$GITHUB_STEP_SUMMARY"
+          echo "> It confirms the test suite is green but does NOT prove the live backend issuance" >> "$GITHUB_STEP_SUMMARY"
+          echo "> lifecycle under protected secrets.  Only a Tier 2 \`workflow_dispatch\` run against" >> "$GITHUB_STEP_SUMMARY"
+          echo "> the \`protected-sign-off\` environment with validated real secrets produces evidence" >> "$GITHUB_STEP_SUMMARY"
+          echo "> whose \`isReleaseGradeEvidence\` manifest field is \`true\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "To run the **full** protected evidence collection (Tier 2), trigger" >> "$GITHUB_STEP_SUMMARY"
           echo "**workflow_dispatch** from the Actions tab after configuring the" >> "$GITHUB_STEP_SUMMARY"
           echo "\`protected-sign-off\` GitHub environment with the required secrets." >> "$GITHUB_STEP_SUMMARY"
@@ -197,7 +203,9 @@ jobs:
         run: |
           set -euo pipefail
           MISSING=()
+          MALFORMED=()
 
+          # ── Presence checks ───────────────────────────────────────────────
           if [ -z "$JWT_SECRET" ]; then
             MISSING+=("PROTECTED_SIGN_OFF_JWT_SECRET (JWT signing key ≥ 32 characters)")
           fi
@@ -205,18 +213,55 @@ jobs:
             MISSING+=("PROTECTED_SIGN_OFF_APP_ACCOUNT (Algorand account mnemonic, 25 words)")
           fi
 
-          if [ ${#MISSING[@]} -gt 0 ]; then
+          # ── Sanity checks (only when secrets are present) ─────────────────
+          # Check JWT secret length — must be ≥ 32 characters for HS256 security
+          # Note: we do NOT log the actual length to avoid leaking secret characteristics.
+          if [ -n "$JWT_SECRET" ]; then
+            JWT_LEN=${#JWT_SECRET}
+            if [ "$JWT_LEN" -lt 32 ]; then
+              MALFORMED+=("PROTECTED_SIGN_OFF_JWT_SECRET is shorter than 32 characters; must be ≥ 32 characters for HS256 key strength")
+            fi
+          fi
+
+          # Check APP_ACCOUNT is a 25-word Algorand mnemonic
+          if [ -n "$APP_ACCOUNT" ]; then
+            WORD_COUNT=0
+            for _w in $APP_ACCOUNT; do WORD_COUNT=$((WORD_COUNT + 1)); done
+            if [ "$WORD_COUNT" -ne 25 ]; then
+              MALFORMED+=("PROTECTED_SIGN_OFF_APP_ACCOUNT does not have exactly 25 words; Algorand mnemonics must be exactly 25 words")
+            fi
+          fi
+
+          # ── Emit diagnostics and fail if any checks failed ─────────────────
+          FAIL=0
+          if [ ${#MISSING[@]} -gt 0 ] || [ ${#MALFORMED[@]} -gt 0 ]; then
             echo "## ❌ Protected Run Prerequisites Not Met" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "The following required secrets are missing or empty.  Secrets must be set" >> "$GITHUB_STEP_SUMMARY"
-            echo "in the **protected-sign-off** GitHub environment (Settings → Environments)." >> "$GITHUB_STEP_SUMMARY"
+            echo "Secrets must be set in the **protected-sign-off** GitHub environment" >> "$GITHUB_STEP_SUMMARY"
+            echo "(Settings → Environments).  Each secret must pass both presence and sanity checks." >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "### Missing secrets" >> "$GITHUB_STEP_SUMMARY"
-            for M in "${MISSING[@]}"; do
-              echo "- ❌ \`$M\`" >> "$GITHUB_STEP_SUMMARY"
-            done
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md) for setup instructions." >> "$GITHUB_STEP_SUMMARY"
+
+            if [ ${#MISSING[@]} -gt 0 ]; then
+              echo "### Missing secrets" >> "$GITHUB_STEP_SUMMARY"
+              for M in "${MISSING[@]}"; do
+                echo "- ❌ \`$M\`" >> "$GITHUB_STEP_SUMMARY"
+              done
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            if [ ${#MALFORMED[@]} -gt 0 ]; then
+              echo "### Malformed secrets (present but invalid)" >> "$GITHUB_STEP_SUMMARY"
+              for B in "${MALFORMED[@]}"; do
+                echo "- ❌ $B" >> "$GITHUB_STEP_SUMMARY"
+              done
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            echo "See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md) §Required Secrets for setup instructions." >> "$GITHUB_STEP_SUMMARY"
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -eq 1 ]; then
             exit 1
           fi
 
@@ -225,7 +270,7 @@ jobs:
             CORR="protected-run-${{ github.run_id }}-${{ github.run_attempt }}"
           fi
           echo "correlation_id=$CORR" >> "$GITHUB_OUTPUT"
-          echo "✅ Prerequisites validated.  Correlation ID: $CORR"
+          echo "✅ Prerequisites validated (presence + sanity).  Correlation ID: $CORR"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -454,6 +499,14 @@ jobs:
           echo "gov_check_outcome=$GOV_CHECK_OUTCOME" >> "$GITHUB_OUTPUT"
 
           # ── 6. Write evidence manifest ─────────────────────────────────────
+          # isReleaseGradeEvidence: true only when all lifecycle requirements are met
+          # under a protected environment with validated secrets.  A value of false means
+          # this run MUST NOT be used as product-owner sign-off evidence.
+          IS_RELEASE_GRADE="false"
+          if [ "$LIFECYCLE_OK" = "true" ] && [ "$ENV_READY" = "true" ]; then
+            IS_RELEASE_GRADE="true"
+          fi
+
           cat > ./ProtectedRunEvidence/00_evidence_manifest.json << MANIFEST
           {
             "schemaVersion": "1.0",
@@ -465,6 +518,8 @@ jobs:
             "actor": "${{ github.actor }}",
             "runAt": "$RUN_AT",
             "environmentLabel": "protected-ci",
+            "isReleaseGradeEvidence": $IS_RELEASE_GRADE,
+            "releaseGradeNote": "true only when lifecycleVerified=true and isReadyForProtectedRun=true under the protected-sign-off environment with validated real secrets; permissive or partial runs set this to false",
             "observedGovernanceCheckOutcome": "$GOV_CHECK_OUTCOME",
             "results": {
               "environmentStatus": "$ENV_STATUS",
@@ -477,7 +532,8 @@ jobs:
           }
           MANIFEST
 
-          echo "✅ Evidence collection complete"
+          echo "isReleaseGradeEvidence=$IS_RELEASE_GRADE" >> "$GITHUB_OUTPUT"
+          echo "✅ Evidence collection complete (isReleaseGradeEvidence=$IS_RELEASE_GRADE)"
 
       # ── Step E: Stop backend ────────────────────────────────────────────────
       - name: Stop backend
@@ -565,6 +621,7 @@ jobs:
             LIFECYCLE_OK="${{ steps.evidence.outputs.lifecycle_ok }}"
             REACHED_STAGE="${{ steps.evidence.outputs.reached_stage }}"
             DIAG_OK="${{ steps.evidence.outputs.diag_ok }}"
+            IS_RELEASE_GRADE="${{ steps.evidence.outputs.isReleaseGradeEvidence }}"
 
             echo "### Evidence Results" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -583,17 +640,23 @@ jobs:
             [ "$DIAG_OK" = "true" ] && DIAG_ICON="✅" || DIAG_ICON="⚠️"
             echo "| Diagnostics operational | ${DIAG_ICON} \`$DIAG_OK\` |" >> "$GITHUB_STEP_SUMMARY"
 
+            [ "$IS_RELEASE_GRADE" = "true" ] && RG_ICON="✅ **YES**" || RG_ICON="❌ **NO**"
+            echo "| **isReleaseGradeEvidence** | ${RG_ICON} |" >> "$GITHUB_STEP_SUMMARY"
+
             echo "" >> "$GITHUB_STEP_SUMMARY"
 
             if [ "$LIFECYCLE_OK" = "true" ]; then
-              echo "### ✅ Protected run PASSED" >> "$GITHUB_STEP_SUMMARY"
+              echo "### ✅ Protected run PASSED — Release-Grade Evidence" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "The backend protected sign-off path is **operationally proven** for this commit." >> "$GITHUB_STEP_SUMMARY"
+              echo "The evidence manifest \`isReleaseGradeEvidence\` field is \`true\`." >> "$GITHUB_STEP_SUMMARY"
               echo "Download the evidence artifact \`protected-sign-off-evidence-${CORR}\` for product-owner sign-off." >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "### ❌ Protected run requires attention" >> "$GITHUB_STEP_SUMMARY"
+              echo "### ❌ Protected run requires attention — NOT release-grade evidence" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "Lifecycle verification did not reach \`Complete\`. Review the evidence artifact and backend logs." >> "$GITHUB_STEP_SUMMARY"
+              echo "Lifecycle verification did not reach \`Complete\`. The evidence manifest" >> "$GITHUB_STEP_SUMMARY"
+              echo "\`isReleaseGradeEvidence\` field is \`false\` — this run **cannot** be used for product-owner sign-off." >> "$GITHUB_STEP_SUMMARY"
+              echo "Review the evidence artifact and backend logs." >> "$GITHUB_STEP_SUMMARY"
               echo "See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md) for failure remediation." >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
