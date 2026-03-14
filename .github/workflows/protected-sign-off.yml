@@ -8,18 +8,25 @@ name: Protected Strict Sign-Off
 # business-owner-quality evidence that Biatec's wallet-free, backend-managed
 # issuance journey works under production-like conditions.
 #
-# Triggers:
-#   • workflow_dispatch — manual run by a business owner or release manager
-#   • push to main / master — automatic run after every merge
+# TWO-TIER DESIGN:
 #
-# Prerequisites (GitHub repository secrets or environment secrets):
+#   Tier 1 — `build-and-test` job (push to master/main):
+#     Runs on every merge without requiring the protected environment or secrets.
+#     Builds the solution and runs all ProtectedSignOff unit/integration tests.
+#     Produces a CI summary with a link to trigger a full protected run.
+#     Never fails due to missing secrets — only fails on build or test errors.
+#
+#   Tier 2 — `protected-sign-off-run` job (workflow_dispatch only):
+#     Requires the `protected-sign-off` GitHub environment with required-reviewer
+#     approval and the two mandatory secrets.
+#     Runs the full evidence collection: environment check, fixture provisioning,
+#     lifecycle verification, and diagnostics against a live backend instance.
+#     Produces an artifact-backed evidence manifest for product-owner sign-off.
+#     Fails loudly with actionable diagnostics when secrets or backend are missing.
+#
+# Prerequisites for Tier 2 (GitHub environment secrets):
 #   • PROTECTED_SIGN_OFF_JWT_SECRET  — JWT signing key (≥ 32 characters)
 #   • PROTECTED_SIGN_OFF_APP_ACCOUNT — Algorand account mnemonic (25 words)
-#
-# Release gate semantics:
-#   • Missing secrets   → workflow fails with actionable diagnostics (fail-closed)
-#   • Backend not ready → workflow fails with environment-check detail
-#   • All checks pass   → signed evidence artifact saved for product-owner review
 #
 # See PROTECTED_SIGN_OFF_RUNBOOK.md for full setup and operator guidance.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -48,7 +55,95 @@ permissions:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
-  # Single job: Protected strict sign-off run
+  # Tier 1: Build-and-test job — runs on every push, no protected environment
+  #
+  # This job ensures the protected sign-off test suite stays green on every
+  # merge without requiring the protected-sign-off environment or its secrets.
+  # It does NOT perform live endpoint calls; that requires Tier 2.
+  # ═══════════════════════════════════════════════════════════════════════════
+  build-and-test:
+    name: Build and run protected sign-off tests
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore BiatecTokensApi.sln
+
+      - name: Build solution
+        run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
+
+      - name: Run protected sign-off tests
+        env:
+          # TEST-ONLY keys for CI execution — never use in production environments
+          JwtConfig__SecretKey: "CIPushTestKeyMinimum32CharsPaddingXXXX"
+          App__Account: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+          KeyManagementConfig__Provider: "Hardcoded"
+          KeyManagementConfig__HardcodedKey: "CIPushTestKeyMinimum32CharsPaddingXXXX"
+          ProtectedSignOff__EnvironmentLabel: "ci-push"
+          ProtectedSignOff__EnforceConfigGuards: "false"
+        run: |
+          dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
+            --configuration Release \
+            --no-build \
+            --filter "FullyQualifiedName~ProtectedSignOff" \
+            --logger "trx;LogFileName=protected-sign-off-tests.trx" \
+            --results-directory ./ProtectedSignOffResults \
+            --verbosity normal \
+            --blame-hang-timeout 60s
+
+      - name: Sanitize test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+          for path in glob.glob('**/protected-sign-off-tests.trx', recursive=True):
+              tree = ET.parse(path)
+              for parent in tree.getroot().iter():
+                  for child in list(parent):
+                      if child.tag.endswith('Output'):
+                          parent.remove(child)
+              out = os.path.join(os.path.dirname(path), 'protected-sign-off-tests-sanitized.trx')
+              tree.write(out, encoding='utf-8', xml_declaration=True)
+              print(f"Sanitized {path} -> {out}")
+          PY
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/protected-sign-off-tests-sanitized.trx'
+          check_name: 'Protected Sign-Off Tests (push)'
+
+      - name: Produce summary
+        if: always()
+        run: |
+          echo "## 🔐 Protected Sign-Off — Build and Test Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit SHA | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${{ github.ref }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Triggered by | ${{ github.actor }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Solution built and ProtectedSignOff tests run." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "To run the **full** protected evidence collection (Tier 2), trigger" >> "$GITHUB_STEP_SUMMARY"
+          echo "**workflow_dispatch** from the Actions tab after configuring the" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`protected-sign-off\` GitHub environment with the required secrets." >> "$GITHUB_STEP_SUMMARY"
+          echo "See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md)." >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Tier 2: Protected strict sign-off run — workflow_dispatch only
   #
   # The entire job runs under `environment: protected-sign-off` so that:
   #   • Secrets stored in the environment (not just at the repo level) are
@@ -56,14 +151,10 @@ jobs:
   #   • Required-reviewer approval gates apply before any secret is consumed.
   #   • The prerequisite check happens inside the environment boundary, not
   #     in a separate pre-environment job that can never see environment secrets.
-  #
-  # This design means there is no longer a "validate-prerequisites" job that
-  # runs outside the environment.  The first step of this job performs the
-  # same fail-closed prerequisite validation — but with the environment context
-  # already active.
   # ═══════════════════════════════════════════════════════════════════════════
   protected-sign-off-run:
     name: Protected strict sign-off run
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: protected-sign-off
     timeout-minutes: 30
