@@ -471,4 +471,125 @@ namespace BiatecTokensApi.Models.IssuerWorkflow
         /// <summary>The approval summary.</summary>
         public WorkflowApprovalSummary? Summary { get; set; }
     }
+
+    // ── Permissions Discovery ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Describes a single action the actor is permitted to perform in the context
+    /// of the issuer workspace. Used by the frontend to render action affordances
+    /// and guide users without exposing them to server-side rejections.
+    /// </summary>
+    public class WorkflowPermittedAction
+    {
+        /// <summary>
+        /// Stable machine-readable action identifier (e.g. "CREATE_WORKFLOW_ITEM",
+        /// "APPROVE", "REJECT", "MANAGE_MEMBERS").
+        /// </summary>
+        public string ActionKey { get; set; } = string.Empty;
+
+        /// <summary>Short human-readable label for UI affordances.</summary>
+        public string Label { get; set; } = string.Empty;
+
+        /// <summary>Whether the actor is currently permitted to perform this action.</summary>
+        public bool IsAllowed { get; set; }
+
+        /// <summary>
+        /// Reason the action is denied, if <see cref="IsAllowed"/> is false.
+        /// Null when allowed. Should be surfaced verbatim or paraphrased in the UI
+        /// so users understand what is blocking them.
+        /// </summary>
+        public string? DeniedReason { get; set; }
+    }
+
+    /// <summary>
+    /// Payload returned by the permissions-discovery endpoint, giving the
+    /// frontend a complete picture of what the current actor may do within
+    /// a specific issuer workspace.
+    /// </summary>
+    public class ActorPermissions
+    {
+        /// <summary>Issuer this permissions snapshot applies to.</summary>
+        public string IssuerId { get; set; } = string.Empty;
+
+        /// <summary>Actor these permissions belong to.</summary>
+        public string ActorId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Whether the actor is an active member of this issuer team.
+        /// When false, all action entries will have <see cref="WorkflowPermittedAction.IsAllowed"/> = false.
+        /// </summary>
+        public bool IsMember { get; set; }
+
+        /// <summary>
+        /// The actor's current role. Null when the actor is not a member.
+        /// </summary>
+        public IssuerTeamRole? Role { get; set; }
+
+        /// <summary>
+        /// Complete list of governance actions and whether the actor may perform each one.
+        /// The frontend can iterate this list to show/hide controls without guessing.
+        /// </summary>
+        public List<WorkflowPermittedAction> PermittedActions { get; set; } = new();
+
+        /// <summary>UTC timestamp at which this snapshot was generated.</summary>
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Response wrapping an actor permissions snapshot.
+    /// </summary>
+    public class ActorPermissionsResponse
+    {
+        /// <summary>Whether the operation succeeded.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Error code if unsuccessful.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+
+        /// <summary>The permissions snapshot for the requesting actor.</summary>
+        public ActorPermissions? Permissions { get; set; }
+    }
+
+    // ── Audit History ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Response containing the complete audit trail for a single workflow item.
+    /// Designed for regulator-facing evidence and customer support investigation.
+    /// </summary>
+    public class WorkflowAuditHistoryResponse
+    {
+        /// <summary>Whether the operation succeeded.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Error code if unsuccessful.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+
+        /// <summary>Issuer scope for this audit history record.</summary>
+        public string IssuerId { get; set; } = string.Empty;
+
+        /// <summary>Workflow item whose history is returned.</summary>
+        public string WorkflowId { get; set; } = string.Empty;
+
+        /// <summary>Current state of the item at time of query.</summary>
+        public WorkflowApprovalState CurrentState { get; set; }
+
+        /// <summary>
+        /// Chronological list of state transitions recorded for this item.
+        /// Each entry captures actor identity, timestamp, before/after state, and a
+        /// human-readable note so auditors can reconstruct the full decision chain.
+        /// </summary>
+        public List<WorkflowAuditEntry> AuditHistory { get; set; } = new();
+
+        /// <summary>Total number of audit entries.</summary>
+        public int EntryCount { get; set; }
+
+        /// <summary>UTC timestamp at which this response was generated.</summary>
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+    }
 }

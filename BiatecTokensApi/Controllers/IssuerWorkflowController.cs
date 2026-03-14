@@ -385,6 +385,48 @@ namespace BiatecTokensApi.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        /// <summary>
+        /// Returns a permissions snapshot for the authenticated actor within the specified issuer.
+        /// Every governance action is listed with an <c>IsAllowed</c> flag and an optional
+        /// <c>DeniedReason</c> that the frontend can surface so users understand what is blocking them.
+        /// Non-members receive a snapshot with <c>IsMember = false</c> and all actions denied —
+        /// this endpoint always returns 200 so callers can always retrieve guidance.
+        /// </summary>
+        /// <param name="issuerId">Issuer identifier scope.</param>
+        [HttpGet("{issuerId}/my-permissions")]
+        [ProducesResponseType(typeof(ActorPermissionsResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetMyPermissions(string issuerId)
+        {
+            var actorId = GetActorId();
+            _logger.LogInformation(
+                "GetMyPermissions. IssuerId={IssuerId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(issuerId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _workflowService.GetActorPermissionsAsync(issuerId, actorId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Returns the complete chronological audit trail for a workflow item.
+        /// Designed for regulator-facing evidence review and customer support investigation.
+        /// Requires actor to be an active member of the issuer.
+        /// </summary>
+        /// <param name="issuerId">Issuer identifier scope.</param>
+        /// <param name="workflowId">Workflow item identifier.</param>
+        [HttpGet("{issuerId}/workflows/{workflowId}/audit-history")]
+        [ProducesResponseType(typeof(WorkflowAuditHistoryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(WorkflowAuditHistoryResponse), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(WorkflowAuditHistoryResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetAuditHistory(string issuerId, string workflowId)
+        {
+            var actorId = GetActorId();
+            var result  = await _workflowService.GetAuditHistoryAsync(issuerId, workflowId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            if (!result.Success && IsAuthError(result.ErrorCode)) return StatusCode(StatusCodes.Status403Forbidden, result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // ── Private helpers ────────────────────────────────────────────────────
 
         private string GetActorId() =>
