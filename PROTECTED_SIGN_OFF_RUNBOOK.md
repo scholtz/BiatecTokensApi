@@ -403,7 +403,7 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The four test classes lock in this contract (111 tests total):
+The five test classes lock in this contract (133 tests total):
 
 - **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
   endpoints, configuration guards, and lifecycle stages
@@ -415,6 +415,9 @@ The four test classes lock in this contract (111 tests total):
 - **`ProtectedSignOffLifecycleContractTests`** (29 tests) — per-stage contract tests (LC1–LC30)
   asserting the exact field values, ordering, count semantics, and failure-chain behaviour
   expected by the strict Playwright suite and evidence manifest
+- **`ProtectedSignOffCIWorkflowConfigTests`** (22 tests) — CI configuration regression-prevention
+  tests (CI1–CI22) documenting the exact env var set safe for `dotnet test`, the JWT key
+  constraint, authentication failure paths, and fail-closed configuration guards
 
 Run before every PR merge:
 
@@ -422,7 +425,7 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 111`
+Expected output: `Passed! - Failed: 0, Passed: 133`
 
 ### Critical: environment variables that must NOT be set for `dotnet test`
 

@@ -94,7 +94,19 @@ jobs:
 
           # 3. Deduplicate
           TEST_CLASSES=$(echo "$TEST_CLASSES" | tr ' ' '\n' | sort -u | grep -v '^$' || true)
-          COUNT=$(echo "$TEST_CLASSES" | grep -c . || echo 0)
+
+          # Count non-empty class names.
+          # NOTE: Do NOT use `grep -c expr || echo 0` here.
+          # `grep -c` writes the count to stdout before it exits non-zero (no matches),
+          # so when grep exits 1, the `|| echo 0` fallback also runs, producing two
+          # separate output lines — "0\n0" — a two-line string that bash integer
+          # comparisons cannot parse.  Both `[ "$COUNT" -eq 0 ]` and
+          # `[ "$COUNT" -gt 60 ]` fail silently, the else branch runs with an empty
+          # TEST_CLASSES variable, and FILTER becomes "()" — an invalid dotnet test
+          # filter expression that crashes the test runner.  Use a simple counter loop
+          # instead: it never produces output and COUNT stays a clean integer.
+          COUNT=0
+          for _tc in $TEST_CLASSES; do COUNT=$((COUNT + 1)); done
 
           echo "Matched $COUNT test class(es)"
           echo "$TEST_CLASSES"
