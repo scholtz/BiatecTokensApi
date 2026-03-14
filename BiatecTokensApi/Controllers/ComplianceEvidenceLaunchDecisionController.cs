@@ -344,7 +344,9 @@ namespace BiatecTokensApi.Controllers
         /// <param name="request">Evidence bundle request with optional filters</param>
         /// <returns>
         /// Bundle of compliance evidence items with provenance metadata, timestamps,
-        /// validation status, data integrity hashes, and source traceability.
+        /// validation status, data integrity hashes, source traceability,
+        /// release-grade classification, policy snapshot, attestation records,
+        /// audit trail references, and remediation guidance.
         /// </returns>
         /// <remarks>
         /// Evidence items include:
@@ -355,6 +357,16 @@ namespace BiatecTokensApi.Controllers
         /// - `validationStatus` – Valid, Pending, Invalid, Stale, Unavailable
         /// - `rationale` – Human-readable description
         /// - `dataHash` – SHA-256 integrity hash
+        ///
+        /// Bundle-level fields:
+        /// - `isReleaseGradeEvidence` – Whether this bundle qualifies as release-grade
+        /// - `releaseGradeNote` – Human-readable explanation of release-grade status
+        /// - `freshnessStatus` – Fresh, NearingExpiry, Stale, or Unknown
+        /// - `policySnapshot` – Active policy version at assembly time
+        /// - `attestationRecords` – Attestation records linked to the evidence
+        /// - `auditTrailReferences` – References to related audit events
+        /// - `remediationGuidance` – Ordered steps when bundle is not release-grade
+        /// - `exportManifest` – Integrity metadata for the bundle
         ///
         /// Supports filtering by category, decision ID, and timestamp range.
         /// </remarks>
@@ -392,6 +404,149 @@ namespace BiatecTokensApi.Controllers
                     Success = false,
                     ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
                     ErrorMessage = "An error occurred while retrieving the evidence bundle.",
+                    Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                });
+            }
+        }
+
+        // ── Export endpoints ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Exports a compliance evidence bundle as a downloadable JSON artifact
+        /// </summary>
+        /// <param name="request">Export request with owner ID and optional filters</param>
+        /// <returns>
+        /// Structured JSON file containing the full evidence bundle: evidence items,
+        /// policy snapshot, attestation records, audit trail references,
+        /// release-grade classification, and export manifest with integrity hash.
+        /// </returns>
+        /// <remarks>
+        /// The JSON artifact is designed for downstream consumption in enterprise
+        /// compliance workflows.  It is versioned (schemaVersion), contains an
+        /// integrity hash (exportManifest.payloadHash), and uses stable field names
+        /// aligned with the evidence bundle API contract.
+        ///
+        /// **Release-grade**: set `isReleaseGradeEvidence = true` in the manifest only
+        /// when all evidence is valid, the policy version is current, and no blockers
+        /// are outstanding.  Never label incomplete data as release-grade.
+        ///
+        /// **Fail-closed**: when OwnerId is missing or no evidence exists, returns a
+        /// 400 error with actionable diagnostics rather than an empty artifact.
+        /// </remarks>
+        [HttpPost("evidence/export/json")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportEvidenceJson([FromBody] EvidenceExportRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.OwnerId))
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.MISSING_REQUIRED_FIELD,
+                        ErrorMessage = "OwnerId is required for evidence export.",
+                        Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                    });
+                }
+
+                var result = await _service.ExportEvidenceBundleAsJsonAsync(request);
+
+                if (!result.Success || result.Content == null)
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        Success = false,
+                        ErrorCode = result.ErrorCode ?? ErrorCodes.INVALID_REQUEST,
+                        ErrorMessage = result.ErrorMessage ?? "Unable to generate JSON evidence export.",
+                        Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                    });
+                }
+
+                return File(result.Content, result.ContentType!, result.FileName!);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating JSON evidence export for owner {OwnerId}",
+                    LoggingHelper.SanitizeLogInput(request.OwnerId));
+
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiErrorResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred while generating the JSON evidence export.",
+                    Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                });
+            }
+        }
+
+        /// <summary>
+        /// Exports a compliance evidence bundle as a downloadable CSV artifact
+        /// </summary>
+        /// <param name="request">Export request with owner ID and optional filters</param>
+        /// <returns>
+        /// Tabular CSV file containing evidence items with columns:
+        /// EvidenceId, DecisionId, Category, Source, Timestamp, ValidationStatus,
+        /// Rationale, DataHash, ExpiresAt.  Also includes attestation records and
+        /// remediation guidance sections.
+        /// </returns>
+        /// <remarks>
+        /// The CSV artifact is designed for auditor, legal, and procurement reviewers
+        /// who need to inspect evidence in spreadsheet tools.  The header section
+        /// includes bundle metadata (release-grade status, policy version, freshness).
+        ///
+        /// **Column headers** are stable across schema versions for downstream automation.
+        /// **Fail-closed**: when OwnerId is missing or no evidence exists, returns 400.
+        /// </remarks>
+        [HttpPost("evidence/export/csv")]
+        [Produces("text/csv", "application/json")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportEvidenceCsv([FromBody] EvidenceExportRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.OwnerId))
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        Success = false,
+                        ErrorCode = ErrorCodes.MISSING_REQUIRED_FIELD,
+                        ErrorMessage = "OwnerId is required for evidence export.",
+                        Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                    });
+                }
+
+                var result = await _service.ExportEvidenceBundleAsCsvAsync(request);
+
+                if (!result.Success || result.Content == null)
+                {
+                    return BadRequest(new ApiErrorResponse
+                    {
+                        Success = false,
+                        ErrorCode = result.ErrorCode ?? ErrorCodes.INVALID_REQUEST,
+                        ErrorMessage = result.ErrorMessage ?? "Unable to generate CSV evidence export.",
+                        Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
+                    });
+                }
+
+                return File(result.Content, result.ContentType!, result.FileName!);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating CSV evidence export for owner {OwnerId}",
+                    LoggingHelper.SanitizeLogInput(request.OwnerId));
+
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiErrorResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR,
+                    ErrorMessage = "An error occurred while generating the CSV evidence export.",
                     Path = LoggingHelper.SanitizeLogInput(HttpContext.Request.Path)
                 });
             }

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision;
 using BiatecTokensApi.Services.Interface;
@@ -154,6 +155,11 @@ namespace BiatecTokensApi.Services
                     Success = true
                 };
 
+                // Determine release-grade eligibility
+                var (isReleaseGrade, releaseGradeNote) = DetermineReleaseGrade(decision, policyVersion);
+                decision.IsReleaseGradeEvidence = isReleaseGrade;
+                decision.ReleaseGradeNote = releaseGradeNote;
+
                 // Build the trace
                 var trace = new DecisionTraceResponse
                 {
@@ -250,13 +256,95 @@ namespace BiatecTokensApi.Services
                     all = all.Where(e => e.Timestamp >= request.FromTimestamp.Value);
 
                 var ordered = all.OrderByDescending(e => e.Timestamp).ToList();
+                var page = ordered.Take(request.Limit).ToList();
+
+                // Compute freshness
+                var freshness = ComputeFreshness(page);
+
+                // Determine release-grade eligibility
+                var (isReleaseGrade, releaseGradeNote, remediation) = DetermineReleasGradeBundle(page, freshness);
+
+                // Build audit trail references from related decisions
+                var relatedDecisionIds = page
+                    .Where(e => e.DecisionId != null)
+                    .Select(e => e.DecisionId!)
+                    .Distinct()
+                    .Take(10)
+                    .ToList();
+
+                var auditRefs = relatedDecisionIds
+                    .Where(id => _decisions.TryGetValue(id, out _))
+                    .Select(id =>
+                    {
+                        _decisions.TryGetValue(id, out var dec);
+                        return new AuditTrailReference
+                        {
+                            AuditId = id,
+                            EventType = "LAUNCH_DECISION_EVALUATED",
+                            OccurredAt = dec!.DecidedAt,
+                            PerformedBy = request.OwnerId,
+                            Description = dec.Summary,
+                            Category = "ComplianceDecision"
+                        };
+                    }).ToList();
+
+                // Build attestation records from passing decisions
+                var attestations = relatedDecisionIds
+                    .Where(id => _decisions.TryGetValue(id, out var d) && d.IsReleaseGradeEvidence)
+                    .Select(id =>
+                    {
+                        _decisions.TryGetValue(id, out var dec);
+                        return new AttestationRecord
+                        {
+                            AttestationId = $"ATT-{id[..8]}",
+                            AttestationType = "LAUNCH_DECISION_APPROVED",
+                            IssuedBy = "ComplianceEvidenceLaunchDecisionService",
+                            IssuedAt = dec!.DecidedAt,
+                            IsValid = true,
+                            Description = $"Launch decision {id[..8]}... passed all release-grade checks.",
+                            DataHash = ComputeHash(id)
+                        };
+                    }).ToList();
+
+                var policySnapshot = new PolicySnapshot
+                {
+                    PolicyVersion = CurrentPolicyVersion,
+                    PolicyName = "Biatec Token Compliance Policy",
+                    EffectiveAt = new DateTime(2026, 3, 7, 0, 0, 0, DateTimeKind.Utc),
+                    IsCurrent = true,
+                    Scope = "Token issuance compliance for ASA, ARC3, ARC200, ERC20, ARC1400 standards",
+                    PolicyHash = ComputeHash(CurrentPolicyVersion)
+                };
+
+                var manifest = new ExportManifest
+                {
+                    ExportId = Guid.NewGuid().ToString(),
+                    GeneratedAt = DateTime.UtcNow,
+                    SchemaVersion = SchemaVersion,
+                    EvidenceItemCount = page.Count,
+                    AttestationCount = attestations.Count,
+                    AuditTrailReferenceCount = auditRefs.Count,
+                    IsReleaseGradeEvidence = isReleaseGrade,
+                    ReleaseGradeNote = releaseGradeNote,
+                    FreshnessStatus = freshness,
+                    ActivePolicyVersion = CurrentPolicyVersion,
+                    PayloadHash = ComputeHash(string.Join(",", page.Select(e => e.EvidenceId)))
+                };
 
                 return Task.FromResult(new EvidenceBundleResponse
                 {
                     BundleId = Guid.NewGuid().ToString(),
                     OwnerId = request.OwnerId,
-                    Items = ordered.Take(request.Limit).ToList(),
+                    Items = page,
                     TotalCount = ordered.Count,
+                    IsReleaseGradeEvidence = isReleaseGrade,
+                    ReleaseGradeNote = releaseGradeNote,
+                    FreshnessStatus = freshness,
+                    PolicySnapshot = policySnapshot,
+                    AttestationRecords = attestations,
+                    AuditTrailReferences = auditRefs,
+                    ExportManifest = manifest,
+                    RemediationGuidance = remediation,
                     CorrelationId = request.CorrelationId,
                     AssembledAt = DateTime.UtcNow,
                     SchemaVersion = SchemaVersion,
@@ -817,6 +905,8 @@ namespace BiatecTokensApi.Services
                 EvaluationTimeMs = src.EvaluationTimeMs,
                 IsIdempotentReplay = false, // caller sets this
                 IsProvisional = src.IsProvisional,
+                IsReleaseGradeEvidence = src.IsReleaseGradeEvidence,
+                ReleaseGradeNote = src.ReleaseGradeNote,
                 Success = src.Success,
                 ErrorCode = src.ErrorCode,
                 ErrorMessage = src.ErrorMessage
@@ -827,6 +917,339 @@ namespace BiatecTokensApi.Services
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
             return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
+
+        // ── Release-grade classification ──────────────────────────────────────
+
+        /// <summary>
+        /// Determines whether a launch decision constitutes release-grade evidence.
+        /// Release-grade requires: no blockers, current policy, no Invalid/Stale evidence.
+        /// </summary>
+        private static (bool isReleaseGrade, string note) DetermineReleaseGrade(
+            LaunchDecisionResponse decision, string policyVersion)
+        {
+            var reasons = new List<string>();
+
+            if (decision.Blockers.Any(b => b.Severity >= LaunchBlockerSeverity.High))
+                reasons.Add($"{decision.Blockers.Count(b => b.Severity >= LaunchBlockerSeverity.High)} critical blocker(s) must be resolved");
+
+            if (decision.Status == LaunchDecisionStatus.Blocked ||
+                decision.Status == LaunchDecisionStatus.NeedsReview)
+                reasons.Add($"decision status is '{decision.Status}' (Ready or Warning required)");
+
+            var stalePolicyVersion = !policyVersion.Equals(CurrentPolicyVersion, StringComparison.OrdinalIgnoreCase);
+            if (stalePolicyVersion)
+                reasons.Add($"policy version '{policyVersion}' is not the current policy '{CurrentPolicyVersion}'");
+
+            var invalidEvidence = decision.EvidenceSummary
+                .Count(e => e.ValidationStatus == EvidenceValidationStatus.Invalid ||
+                             e.ValidationStatus == EvidenceValidationStatus.Stale);
+            if (invalidEvidence > 0)
+                reasons.Add($"{invalidEvidence} evidence item(s) are Invalid or Stale");
+
+            if (reasons.Count == 0)
+            {
+                return (true,
+                    $"Release-grade: all mandatory checks passed on policy {policyVersion}, " +
+                    "all evidence is valid, and no blockers are outstanding.");
+            }
+
+            return (false,
+                $"Not release-grade: {string.Join("; ", reasons)}. " +
+                "Resolve all issues before requesting release-grade sign-off.");
+        }
+
+        /// <summary>
+        /// Determines release-grade status for an evidence bundle (not a decision).
+        /// </summary>
+        private static (bool isReleaseGrade, string note, List<string> remediation) DetermineReleasGradeBundle(
+            List<ComplianceEvidenceItem> items, EvidenceFreshnessStatus freshness)
+        {
+            var reasons = new List<string>();
+            var remediation = new List<string>();
+
+            if (!items.Any())
+            {
+                reasons.Add("bundle contains no evidence items");
+                remediation.Add("Evaluate launch readiness via POST /api/v1/compliance-evidence/decision to generate evidence.");
+            }
+
+            if (freshness == EvidenceFreshnessStatus.Stale)
+            {
+                reasons.Add("evidence freshness is Stale (older than 90 days)");
+                remediation.Add("Re-run compliance evaluation to refresh evidence. Evidence older than 90 days is not release-grade.");
+            }
+
+            var invalidItems = items.Count(e => e.ValidationStatus == EvidenceValidationStatus.Invalid);
+            if (invalidItems > 0)
+            {
+                reasons.Add($"{invalidItems} evidence item(s) have Invalid validation status");
+                remediation.Add($"Resolve {invalidItems} invalid evidence item(s) before requesting release-grade status.");
+            }
+
+            var staleItems = items.Count(e => e.ValidationStatus == EvidenceValidationStatus.Stale);
+            if (staleItems > 0)
+            {
+                reasons.Add($"{staleItems} evidence item(s) are Stale");
+                remediation.Add($"Refresh {staleItems} stale evidence item(s) by re-running evaluation.");
+            }
+
+            if (reasons.Count == 0)
+            {
+                return (true,
+                    $"Release-grade: {items.Count} evidence items are current and valid on policy {CurrentPolicyVersion}.",
+                    new List<string>());
+            }
+
+            return (false,
+                $"Not release-grade: {string.Join("; ", reasons)}.",
+                remediation);
+        }
+
+        /// <summary>
+        /// Computes the freshness status of a collection of evidence items.
+        /// Evidence is considered stale when any item was collected more than 90 days ago.
+        /// </summary>
+        private static EvidenceFreshnessStatus ComputeFreshness(List<ComplianceEvidenceItem> items)
+        {
+            if (!items.Any()) return EvidenceFreshnessStatus.Unknown;
+
+            var now = DateTime.UtcNow;
+            var oldestTimestamp = items.Min(e => e.Timestamp);
+            var age = now - oldestTimestamp;
+
+            if (age.TotalDays > 90) return EvidenceFreshnessStatus.Stale;
+            if (age.TotalDays > 75) return EvidenceFreshnessStatus.NearingExpiry;
+            return EvidenceFreshnessStatus.Fresh;
+        }
+
+        // ── Export methods ────────────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public async Task<EvidenceExportResult> ExportEvidenceBundleAsJsonAsync(EvidenceExportRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.OwnerId))
+            {
+                return new EvidenceExportResult
+                {
+                    Success = false,
+                    ErrorCode = "MISSING_OWNER_ID",
+                    ErrorMessage = "OwnerId is required."
+                };
+            }
+
+            var bundleRequest = new EvidenceBundleRequest
+            {
+                OwnerId = request.OwnerId,
+                DecisionId = request.DecisionId,
+                Category = request.Category,
+                FromTimestamp = request.FromTimestamp,
+                Limit = Math.Max(1, Math.Min(request.Limit, 500)),
+                CorrelationId = request.CorrelationId
+            };
+
+            var bundle = await GetEvidenceBundleAsync(bundleRequest);
+            if (!bundle.Success)
+            {
+                return new EvidenceExportResult
+                {
+                    Success = false,
+                    ErrorCode = bundle.ErrorCode,
+                    ErrorMessage = bundle.ErrorMessage
+                };
+            }
+
+            var exportPayload = new
+            {
+                schemaVersion = bundle.SchemaVersion,
+                exportedAt = DateTime.UtcNow,
+                bundleId = bundle.BundleId,
+                ownerId = bundle.OwnerId,
+                isReleaseGradeEvidence = bundle.IsReleaseGradeEvidence,
+                releaseGradeNote = bundle.ReleaseGradeNote,
+                freshnessStatus = bundle.FreshnessStatus.ToString(),
+                policySnapshot = bundle.PolicySnapshot,
+                evidenceItems = bundle.Items,
+                attestationRecords = bundle.AttestationRecords,
+                auditTrailReferences = bundle.AuditTrailReferences,
+                remediationGuidance = bundle.RemediationGuidance,
+                exportManifest = bundle.ExportManifest
+            };
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var json = JsonSerializer.Serialize(exportPayload, jsonOptions);
+            var bytes = Encoding.UTF8.GetBytes(json);
+            var payloadHash = ComputeHash(json);
+            var dateStr = DateTime.UtcNow.ToString("yyyyMMdd");
+            var ownerSlug = request.OwnerId.Length > 8
+                ? request.OwnerId[..8].Replace("@", "").Replace(".", "")
+                : request.OwnerId.Replace("@", "").Replace(".", "");
+
+            // Update manifest payload hash
+            if (bundle.ExportManifest != null)
+                bundle.ExportManifest.PayloadHash = payloadHash;
+
+            _logger.LogInformation(
+                "Evidence bundle JSON export generated for owner {OwnerId}: {Items} items, releaseGrade={IsReleaseGrade}, hash={Hash}",
+                LoggingHelper.SanitizeLogInput(request.OwnerId),
+                bundle.Items.Count,
+                bundle.IsReleaseGradeEvidence,
+                payloadHash[..16]);
+
+            return new EvidenceExportResult
+            {
+                Success = true,
+                Content = bytes,
+                FileName = $"compliance-evidence-{ownerSlug}-{dateStr}.json",
+                ContentType = "application/json",
+                Manifest = bundle.ExportManifest
+            };
+        }
+
+        /// <inheritdoc/>
+        public async Task<EvidenceExportResult> ExportEvidenceBundleAsCsvAsync(EvidenceExportRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.OwnerId))
+            {
+                return new EvidenceExportResult
+                {
+                    Success = false,
+                    ErrorCode = "MISSING_OWNER_ID",
+                    ErrorMessage = "OwnerId is required."
+                };
+            }
+
+            var bundleRequest = new EvidenceBundleRequest
+            {
+                OwnerId = request.OwnerId,
+                DecisionId = request.DecisionId,
+                Category = request.Category,
+                FromTimestamp = request.FromTimestamp,
+                Limit = Math.Max(1, Math.Min(request.Limit, 500)),
+                CorrelationId = request.CorrelationId
+            };
+
+            var bundle = await GetEvidenceBundleAsync(bundleRequest);
+            if (!bundle.Success)
+            {
+                return new EvidenceExportResult
+                {
+                    Success = false,
+                    ErrorCode = bundle.ErrorCode,
+                    ErrorMessage = bundle.ErrorMessage
+                };
+            }
+
+            var csv = BuildCsvExport(bundle);
+            var bytes = Encoding.UTF8.GetBytes(csv);
+            var payloadHash = ComputeHash(csv);
+            var dateStr = DateTime.UtcNow.ToString("yyyyMMdd");
+            var ownerSlug = request.OwnerId.Length > 8
+                ? request.OwnerId[..8].Replace("@", "").Replace(".", "")
+                : request.OwnerId.Replace("@", "").Replace(".", "");
+
+            if (bundle.ExportManifest != null)
+                bundle.ExportManifest.PayloadHash = payloadHash;
+
+            _logger.LogInformation(
+                "Evidence bundle CSV export generated for owner {OwnerId}: {Items} items, releaseGrade={IsReleaseGrade}, hash={Hash}",
+                LoggingHelper.SanitizeLogInput(request.OwnerId),
+                bundle.Items.Count,
+                bundle.IsReleaseGradeEvidence,
+                payloadHash[..16]);
+
+            return new EvidenceExportResult
+            {
+                Success = true,
+                Content = bytes,
+                FileName = $"compliance-evidence-{ownerSlug}-{dateStr}.csv",
+                ContentType = "text/csv",
+                Manifest = bundle.ExportManifest
+            };
+        }
+
+        /// <summary>
+        /// Builds a CSV representation of the evidence bundle.
+        /// Produces two sections: a header section and a tabular evidence items section.
+        /// </summary>
+        private static string BuildCsvExport(EvidenceBundleResponse bundle)
+        {
+            var sb = new StringBuilder();
+
+            // ── Bundle header ──────────────────────────────────────────────────
+            sb.AppendLine("# Biatec Tokens Compliance Evidence Bundle");
+            sb.AppendLine($"# Generated: {DateTime.UtcNow:O}");
+            sb.AppendLine($"# Bundle ID: {bundle.BundleId}");
+            sb.AppendLine($"# Owner ID: {bundle.OwnerId}");
+            sb.AppendLine($"# Release Grade: {bundle.IsReleaseGradeEvidence}");
+            sb.AppendLine($"# Release Grade Note: {CsvEscape(bundle.ReleaseGradeNote)}");
+            sb.AppendLine($"# Evidence Freshness: {bundle.FreshnessStatus}");
+            sb.AppendLine($"# Policy Version: {bundle.PolicySnapshot?.PolicyVersion ?? "unknown"}");
+            sb.AppendLine($"# Schema Version: {bundle.SchemaVersion}");
+            sb.AppendLine();
+
+            // ── Evidence items table ───────────────────────────────────────────
+            sb.AppendLine("EvidenceId,DecisionId,Category,Source,Timestamp,ValidationStatus,Rationale,DataHash,ExpiresAt");
+            foreach (var item in bundle.Items)
+            {
+                sb.AppendLine(string.Join(",",
+                    CsvEscape(item.EvidenceId),
+                    CsvEscape(item.DecisionId ?? ""),
+                    CsvEscape(item.Category.ToString()),
+                    CsvEscape(item.Source),
+                    item.Timestamp.ToString("O"),
+                    CsvEscape(item.ValidationStatus.ToString()),
+                    CsvEscape(item.Rationale),
+                    CsvEscape(item.DataHash ?? ""),
+                    item.ExpiresAt?.ToString("O") ?? ""));
+            }
+
+            sb.AppendLine();
+
+            // ── Attestation records table ──────────────────────────────────────
+            if (bundle.AttestationRecords.Any())
+            {
+                sb.AppendLine("# Attestation Records");
+                sb.AppendLine("AttestationId,AttestationType,IssuedBy,IssuedAt,IsValid,Description");
+                foreach (var att in bundle.AttestationRecords)
+                {
+                    sb.AppendLine(string.Join(",",
+                        CsvEscape(att.AttestationId),
+                        CsvEscape(att.AttestationType),
+                        CsvEscape(att.IssuedBy),
+                        att.IssuedAt.ToString("O"),
+                        att.IsValid.ToString(),
+                        CsvEscape(att.Description)));
+                }
+                sb.AppendLine();
+            }
+
+            // ── Remediation guidance ───────────────────────────────────────────
+            if (bundle.RemediationGuidance.Any())
+            {
+                sb.AppendLine("# Remediation Guidance");
+                sb.AppendLine("Step,Guidance");
+                for (int i = 0; i < bundle.RemediationGuidance.Count; i++)
+                {
+                    sb.AppendLine($"{i + 1},{CsvEscape(bundle.RemediationGuidance[i])}");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Escapes a value for CSV output: wraps in quotes when it contains comma, newline, or double-quote.
+        /// </summary>
+        private static string CsvEscape(string value)
+        {
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
+                return $"\"{value.Replace("\"", "\"\"")}\"";
+            return value;
         }
     }
 }

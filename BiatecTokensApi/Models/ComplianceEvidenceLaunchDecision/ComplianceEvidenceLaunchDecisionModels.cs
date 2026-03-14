@@ -1,5 +1,31 @@
 namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
 {
+    // ── Export format enum ────────────────────────────────────────────────────
+
+    /// <summary>Requested artifact format for evidence export.</summary>
+    public enum EvidenceExportFormat
+    {
+        /// <summary>Structured JSON export (default).</summary>
+        Json,
+        /// <summary>Tabular CSV export.</summary>
+        Csv
+    }
+
+    // ── Evidence freshness enum ───────────────────────────────────────────────
+
+    /// <summary>Freshness classification of an evidence bundle or item.</summary>
+    public enum EvidenceFreshnessStatus
+    {
+        /// <summary>Evidence is current (collected within the policy freshness window).</summary>
+        Fresh,
+        /// <summary>Evidence is approaching staleness.</summary>
+        NearingExpiry,
+        /// <summary>Evidence has exceeded the policy freshness window and is stale.</summary>
+        Stale,
+        /// <summary>Evidence freshness cannot be determined (timestamp absent).</summary>
+        Unknown
+    }
+
     // ── Enumerations ──────────────────────────────────────────────────────────
 
     /// <summary>Top-level launch decision status.</summary>
@@ -78,6 +104,30 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
     }
 
     // ── Request models ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Request to export a compliance evidence bundle as a downloadable artifact.
+    /// </summary>
+    public class EvidenceExportRequest
+    {
+        /// <summary>Owner identifier whose evidence should be exported.</summary>
+        public string OwnerId { get; set; } = string.Empty;
+
+        /// <summary>Optional: filter to a specific launch decision ID.</summary>
+        public string? DecisionId { get; set; }
+
+        /// <summary>Optional: filter by evidence category.</summary>
+        public EvidenceCategory? Category { get; set; }
+
+        /// <summary>Optional: include only evidence items after this timestamp.</summary>
+        public DateTime? FromTimestamp { get; set; }
+
+        /// <summary>Maximum number of evidence items to include (1–500, default 100).</summary>
+        public int Limit { get; set; } = 100;
+
+        /// <summary>Correlation ID for request tracing.</summary>
+        public string? CorrelationId { get; set; }
+    }
 
     /// <summary>
     /// Request to evaluate launch readiness and produce a decision record.
@@ -200,6 +250,20 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
         /// <summary>Whether this decision requires further review and is not final.</summary>
         public bool IsProvisional { get; set; }
 
+        /// <summary>
+        /// Whether this decision constitutes release-grade evidence.
+        /// True only when all rules pass or produce only low-severity warnings,
+        /// the policy version is current, and no mandatory blockers are outstanding.
+        /// </summary>
+        public bool IsReleaseGradeEvidence { get; set; }
+
+        /// <summary>
+        /// Human-readable explanation of the release-grade determination.
+        /// For example: "Release-grade: all mandatory checks passed on policy 2026.03.07.1."
+        /// Or: "Not release-grade: entitlement check failed (ARC1400 requires Premium tier)."
+        /// </summary>
+        public string ReleaseGradeNote { get; set; } = string.Empty;
+
         /// <summary>Operation success flag.</summary>
         public bool Success { get; set; } = true;
 
@@ -313,6 +377,129 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
     // ── Evidence bundle models ────────────────────────────────────────────────
 
     /// <summary>
+    /// Snapshot of the active compliance policy at bundle generation time.
+    /// </summary>
+    public class PolicySnapshot
+    {
+        /// <summary>Policy version identifier (e.g., "2026.03.07.1").</summary>
+        public string PolicyVersion { get; set; } = string.Empty;
+
+        /// <summary>Human-readable policy name.</summary>
+        public string PolicyName { get; set; } = string.Empty;
+
+        /// <summary>UTC timestamp when this policy version took effect.</summary>
+        public DateTime EffectiveAt { get; set; }
+
+        /// <summary>UTC timestamp when this policy expires or is superseded (null = indefinite).</summary>
+        public DateTime? ExpiresAt { get; set; }
+
+        /// <summary>Whether this is the currently active policy version.</summary>
+        public bool IsCurrent { get; set; }
+
+        /// <summary>Short description of the policy's compliance scope.</summary>
+        public string Scope { get; set; } = string.Empty;
+
+        /// <summary>Hash of the policy document for integrity verification.</summary>
+        public string? PolicyHash { get; set; }
+    }
+
+    /// <summary>
+    /// Attestation record linked to a compliance evidence bundle.
+    /// </summary>
+    public class AttestationRecord
+    {
+        /// <summary>Stable attestation identifier.</summary>
+        public string AttestationId { get; set; } = string.Empty;
+
+        /// <summary>Type of attestation (e.g., "KYC_PASSED", "AML_CLEARED", "MANUAL_REVIEW").</summary>
+        public string AttestationType { get; set; } = string.Empty;
+
+        /// <summary>Actor who issued the attestation (system or human).</summary>
+        public string IssuedBy { get; set; } = string.Empty;
+
+        /// <summary>UTC timestamp when the attestation was issued.</summary>
+        public DateTime IssuedAt { get; set; }
+
+        /// <summary>UTC timestamp when the attestation expires (null = no expiry).</summary>
+        public DateTime? ExpiresAt { get; set; }
+
+        /// <summary>Whether the attestation is still valid.</summary>
+        public bool IsValid { get; set; }
+
+        /// <summary>Human-readable attestation description.</summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>Integrity hash of the attested data.</summary>
+        public string? DataHash { get; set; }
+    }
+
+    /// <summary>
+    /// Reference to an audit trail entry relevant to this evidence bundle.
+    /// </summary>
+    public class AuditTrailReference
+    {
+        /// <summary>Audit trail entry identifier.</summary>
+        public string AuditId { get; set; } = string.Empty;
+
+        /// <summary>Event type (e.g., "LAUNCH_DECISION_CREATED", "POLICY_UPDATED").</summary>
+        public string EventType { get; set; } = string.Empty;
+
+        /// <summary>UTC timestamp of the audit event.</summary>
+        public DateTime OccurredAt { get; set; }
+
+        /// <summary>Actor who triggered the event.</summary>
+        public string PerformedBy { get; set; } = string.Empty;
+
+        /// <summary>Brief description of the event.</summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>Category of audit event for filtering.</summary>
+        public string Category { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Export manifest describing what is included in a downloadable evidence artifact.
+    /// </summary>
+    public class ExportManifest
+    {
+        /// <summary>Unique export artifact identifier.</summary>
+        public string ExportId { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>UTC timestamp when the export was generated.</summary>
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Schema version of the export format.</summary>
+        public string SchemaVersion { get; set; } = "1.0.0";
+
+        /// <summary>Number of evidence items included.</summary>
+        public int EvidenceItemCount { get; set; }
+
+        /// <summary>Number of attestation records included.</summary>
+        public int AttestationCount { get; set; }
+
+        /// <summary>Number of audit trail references included.</summary>
+        public int AuditTrailReferenceCount { get; set; }
+
+        /// <summary>Whether this export is release-grade evidence.</summary>
+        public bool IsReleaseGradeEvidence { get; set; }
+
+        /// <summary>Human-readable note about release-grade eligibility.</summary>
+        public string ReleaseGradeNote { get; set; } = string.Empty;
+
+        /// <summary>Overall evidence freshness at export time.</summary>
+        public EvidenceFreshnessStatus FreshnessStatus { get; set; }
+
+        /// <summary>The policy version active at export time.</summary>
+        public string ActivePolicyVersion { get; set; } = string.Empty;
+
+        /// <summary>
+        /// SHA-256 hash of the serialized evidence payload,
+        /// enabling downstream integrity verification.
+        /// </summary>
+        public string? PayloadHash { get; set; }
+    }
+
+    /// <summary>
     /// Full compliance evidence bundle for an owner.
     /// </summary>
     public class EvidenceBundleResponse
@@ -328,6 +515,53 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
 
         /// <summary>Total evidence items available (before Limit).</summary>
         public int TotalCount { get; set; }
+
+        /// <summary>
+        /// Whether this bundle contains release-grade evidence.
+        /// Release-grade evidence requires: all evidence Valid (no Invalid/Stale),
+        /// current policy version, and no mandatory blockers outstanding.
+        /// Set to false when evidence is incomplete, permissive-only, or stale.
+        /// </summary>
+        public bool IsReleaseGradeEvidence { get; set; }
+
+        /// <summary>
+        /// Human-readable explanation of release-grade eligibility.
+        /// For example: "All evidence is current, policy version is 2026.03.07.1, and no blockers are outstanding."
+        /// Or: "Evidence is not release-grade: 2 items are stale (age > 90 days) and ARC1400 requires Premium entitlement."
+        /// </summary>
+        public string ReleaseGradeNote { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Overall freshness status of the evidence bundle.
+        /// Stale evidence cannot be release-grade.
+        /// </summary>
+        public EvidenceFreshnessStatus FreshnessStatus { get; set; }
+
+        /// <summary>
+        /// Snapshot of the compliance policy active when the bundle was assembled.
+        /// </summary>
+        public PolicySnapshot? PolicySnapshot { get; set; }
+
+        /// <summary>
+        /// Attestation records providing additional assurance for the evidence.
+        /// </summary>
+        public List<AttestationRecord> AttestationRecords { get; set; } = new();
+
+        /// <summary>
+        /// References to relevant audit trail entries.
+        /// </summary>
+        public List<AuditTrailReference> AuditTrailReferences { get; set; } = new();
+
+        /// <summary>
+        /// Export manifest describing this bundle's contents and integrity metadata.
+        /// </summary>
+        public ExportManifest? ExportManifest { get; set; }
+
+        /// <summary>
+        /// Ordered remediation steps when the bundle is not release-grade.
+        /// Empty when <see cref="IsReleaseGradeEvidence"/> is true.
+        /// </summary>
+        public List<string> RemediationGuidance { get; set; } = new();
 
         /// <summary>Correlation ID from the request.</summary>
         public string? CorrelationId { get; set; }
@@ -462,5 +696,35 @@ namespace BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision
 
         /// <summary>Evidence item IDs referenced by this rule.</summary>
         public List<string> EvidenceIds { get; set; } = new();
+    }
+
+    // ── Export result model ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Result of a compliance evidence export operation.
+    /// Contains the serialized artifact bytes, suggested filename, and MIME type.
+    /// </summary>
+    public class EvidenceExportResult
+    {
+        /// <summary>Whether the export was generated successfully.</summary>
+        public bool Success { get; set; } = true;
+
+        /// <summary>Serialized artifact content (UTF-8 for JSON/CSV).</summary>
+        public byte[]? Content { get; set; }
+
+        /// <summary>Suggested download filename (e.g., "evidence-bundle-20260314.json").</summary>
+        public string? FileName { get; set; }
+
+        /// <summary>MIME type of the content (application/json or text/csv).</summary>
+        public string? ContentType { get; set; }
+
+        /// <summary>Export manifest describing the artifact's contents.</summary>
+        public ExportManifest? Manifest { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Business-safe error message when <see cref="Success"/> is false.</summary>
+        public string? ErrorMessage { get; set; }
     }
 }
