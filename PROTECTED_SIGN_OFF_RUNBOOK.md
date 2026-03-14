@@ -294,11 +294,93 @@ The evidence supports:
 
 ---
 
+## Required Release Gate Configuration
+
+This section documents how to configure the protected strict sign-off workflow as a **required
+status check** so it becomes an unmissable, auditable gate before business-owner release approval.
+
+### Why this matters
+
+Without branch-protection enforcement, the protected sign-off check is visible but optional.
+Anyone merging to `master`/`main` could proceed even if the check fails. Configuring it as
+a required status check makes it fail-closed at the repository level — no merge proceeds
+until the protected strict sign-off tests pass.
+
+### Step 1 — Enable the required status check in branch protection
+
+1. Navigate to **Settings → Branches** in the GitHub repository.
+2. Click **Edit** next to the `master` (or `main`) branch protection rule, or create one if
+   none exists.
+3. Enable **Require status checks to pass before merging**.
+4. In the **Search for status checks** box, type **`Build and run protected sign-off tests`**.
+   This is the name of the Tier 1 job in `protected-sign-off.yml`.
+5. Select the check from the dropdown and click **Save changes**.
+
+> **Note**: The status check name must match exactly.  The check is produced by the
+> `build-and-test` job in `.github/workflows/protected-sign-off.yml` (job name: `Build and run
+> protected sign-off tests`).  If the check does not appear in the search box, trigger a PR
+> against `master`/`main` to create the first run that registers the status check name.
+
+### Step 2 — Configure the protected-sign-off environment for Tier 2 runs
+
+For the full evidence collection (Tier 2), the `protected-sign-off` GitHub environment must be
+configured with the required secrets and, optionally, required reviewers:
+
+1. Navigate to **Settings → Environments** and create or edit the `protected-sign-off` environment.
+2. Under **Environment secrets**, add `PROTECTED_SIGN_OFF_JWT_SECRET` and
+   `PROTECTED_SIGN_OFF_APP_ACCOUNT`.
+3. Optionally add **Required reviewers** (e.g., the business owner or release manager) so every
+   Tier 2 run requires explicit approval.
+
+### Step 3 — Release approval checklist for product owners
+
+Before approving a release, the product owner should verify:
+
+| Step | Where to check | Pass criterion |
+|---|---|---|
+| Protected sign-off tests pass | PR status checks | ✅ `Build and run protected sign-off tests` green |
+| Full evidence run completed | Actions → Protected Strict Sign-Off → Latest dispatch | ✅ Workflow completed successfully |
+| Evidence artifact present | Actions → workflow run → Artifacts | ✅ `protected-sign-off-evidence-<corr-id>` downloadable |
+| Lifecycle verified | `00_evidence_manifest.json` in artifact | `"lifecycleVerified": true`, `"reachedStage": "Complete"` |
+| Governance check passed | `00_evidence_manifest.json` | `"observedGovernanceCheckOutcome": "Pass"` |
+| Environment ready | `01_environment_check.json` in artifact | `"status": "Ready"`, `"isReadyForProtectedRun": true` |
+
+If any step shows a failure or non-passing value, **do not approve the release** until the
+failure is remediated.  The runbook's Failure Modes section documents remediations for each
+failure type.
+
+### Status check naming
+
+The following table maps each status check to its canonical job:
+
+| Status check name | Workflow file | Job | When it runs |
+|---|---|---|---|
+| `Build and run protected sign-off tests` | `protected-sign-off.yml` | `build-and-test` | Every PR and push to master/main |
+| `Protected strict sign-off run` | `protected-sign-off.yml` | `protected-sign-off-run` | `workflow_dispatch` only |
+| `PR Test Results` | `test-pr.yml` | `pr-tests` | Every PR |
+
+The `Build and run protected sign-off tests` check is the one that must be configured as a
+required status check.  The `Protected strict sign-off run` check is the full evidence run and
+is triggered manually — it is not suitable as an automated required check but is reviewed as
+part of the release approval checklist.
+
+---
+
 ## Protected Sign-Off CI Workflow
 
 The `.github/workflows/protected-sign-off.yml` workflow is the primary release gate for
-business-owner MVP sign-off. It runs automatically on push to `main`/`master` and can be
-triggered manually via `workflow_dispatch`.
+business-owner MVP sign-off. It runs automatically on push to `main`/`master`, on every PR
+targeting `main`/`master`, and can be triggered manually via `workflow_dispatch`.
+
+### Two-tier design with PR surfacing
+
+The Tier 1 `build-and-test` job runs on:
+- Every **push** to `master`/`main` — confirms that merges keep the sign-off suite green
+- Every **pull request** targeting `master`/`main` — surfaces the check for branch-protection enforcement
+
+This means the check name `Build and run protected sign-off tests` will appear in the PR status
+checks UI and can be added as a required branch-protection rule (see Required Release Gate
+Configuration above).
 
 ### Single-job design (environment-boundary prerequisite check)
 
@@ -403,7 +485,7 @@ These are separate product capabilities with their own sign-off paths.
 
 ## Regression Protection
 
-The six test classes lock in this contract (150 tests total):
+The six test classes lock in this contract (155 tests total):
 
 - **`ProtectedSignOffEnvironmentTests`** (54 tests) — unit + integration tests for all four HTTP
   endpoints, configuration guards, and lifecycle stages
@@ -415,10 +497,12 @@ The six test classes lock in this contract (150 tests total):
 - **`ProtectedSignOffLifecycleContractTests`** (29 tests) — per-stage contract tests (LC1–LC30)
   asserting the exact field values, ordering, count semantics, and failure-chain behaviour
   expected by the strict Playwright suite and evidence manifest
-- **`ProtectedSignOffCIWorkflowConfigTests`** (23 tests) — CI configuration regression-prevention
-  tests (CI1–CI23) documenting the exact env var set safe for `dotnet test`, the JWT key
-  constraint, authentication failure paths, fail-closed configuration guards, and workflow YAML
-  validity (CI23 verifies no column-0 Python code that would break YAML parsing)
+- **`ProtectedSignOffCIWorkflowConfigTests`** (28 tests) — CI configuration regression-prevention
+  tests (CI1–CI28) documenting the exact env var set safe for `dotnet test`, the JWT key
+  constraint, authentication failure paths, fail-closed configuration guards, workflow YAML
+  validity (CI23 verifies no column-0 Python), and required release gate configuration
+  (CI24–CI28 validate PR trigger surfacing, release gate enforcement step, evidence manifest
+  schema contract, and artifact retention)
 - **`ProtectedSignOffEndToEndTests`** (16 tests) — canonical in-process protected strict sign-off
   run evidence (E2E01–E2E15); exercises the full journey via HTTP through `WebApplicationFactory`
   (register → JWT → fixture provision → environment check → lifecycle execute → diagnostics →
@@ -432,7 +516,7 @@ Run before every PR merge:
 dotnet test BiatecTokensTests --filter "FullyQualifiedName~ProtectedSignOff" --configuration Release
 ```
 
-Expected output: `Passed! - Failed: 0, Passed: 150`
+Expected output: `Passed! - Failed: 0, Passed: 155`
 
 ### Critical: environment variables that must NOT be set for `dotnet test`
 

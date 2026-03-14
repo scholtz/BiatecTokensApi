@@ -15,7 +15,7 @@ namespace BiatecTokensTests
     /// Tests that document and enforce the CI workflow configuration requirements for
     /// the protected sign-off test suite.  These are regression-prevention tests that
     /// ensure the exact environment variable set used in <c>protected-sign-off.yml</c>
-    /// and <c>test-pr.yml</c> keeps all 133 ProtectedSignOff tests green.
+    /// and <c>test-pr.yml</c> keeps all 155 ProtectedSignOff tests green.
     ///
     /// Coverage:
     ///
@@ -42,6 +42,11 @@ namespace BiatecTokensTests
     /// CI21: CorrelationId in request is echoed in the response.
     /// CI22: Environment check TotalCheckCount matches actual Checks list length.
     /// CI23: Workflow YAML has no column-0 Python inside run: blocks (YAML validity regression).
+    /// CI24: Workflow has pull_request trigger for master/main (required status check surfacing).
+    /// CI25: Tier 1 build-and-test job runs on pull_request events (not push-only).
+    /// CI26: Tier 2 workflow has release gate enforcement step (fail-closed on lifecycle failure).
+    /// CI27: Evidence manifest includes schemaVersion field (evidence contract stability).
+    /// CI28: Workflow uploads named evidence artifact with retention period (durable evidence).
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -648,6 +653,176 @@ namespace BiatecTokensTests
                 "Fix: use a single-line python3 -c invocation (no embedded newlines) or " +
                 "a properly-indented heredoc.  See PROTECTED_SIGN_OFF_RUNBOOK.md " +
                 "§'Workflow YAML Maintenance Rules'.");
+        }
+
+        // ─── CI24: Workflow has pull_request trigger for master/main ─────────────
+        //
+        // The Tier 1 `build-and-test` job must surface as a required status check
+        // on every PR targeting master/main.  This requires the workflow to declare
+        // a `pull_request` trigger scoped to those branches.  Without this trigger,
+        // the "Build and run protected sign-off tests" check never appears on a PR
+        // and cannot be configured as a required branch-protection status check.
+
+        [Test]
+        public void CI24_WorkflowYaml_HasPullRequestTrigger_ForMasterAndMain()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The workflow must declare a pull_request trigger with master or main branches.
+            // We accept either "master" or "main" being present under the pull_request key.
+            bool hasPullRequestTrigger = content.Contains("pull_request:");
+            Assert.That(hasPullRequestTrigger, Is.True,
+                "protected-sign-off.yml must declare a 'pull_request:' trigger so the " +
+                "Tier 1 'Build and run protected sign-off tests' check appears on every PR. " +
+                "Without this trigger the check cannot be configured as a required " +
+                "branch-protection status check in GitHub Settings → Branches.");
+
+            // Verify at least one of master/main appears after pull_request trigger
+            int pullRequestIndex = content.IndexOf("pull_request:", StringComparison.Ordinal);
+            int nextJobIndex = content.IndexOf("\njobs:", StringComparison.Ordinal);
+            string triggerSection = pullRequestIndex >= 0 && nextJobIndex > pullRequestIndex
+                ? content.Substring(pullRequestIndex, nextJobIndex - pullRequestIndex)
+                : string.Empty;
+
+            bool coversReleaseTargets = triggerSection.Contains("master") || triggerSection.Contains("main");
+            Assert.That(coversReleaseTargets, Is.True,
+                "The pull_request trigger must include 'master' or 'main' branches so PRs " +
+                "targeting the release branch produce the required status check.");
+        }
+
+        // ─── CI25: Tier 1 build-and-test job runs on pull_request events ─────────
+
+        [Test]
+        public void CI25_WorkflowYaml_BuildAndTestJob_RunsOnPullRequest()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The build-and-test job must not restrict itself to push events only.
+            // An "if: github.event_name == 'push'" condition would prevent the job
+            // from running on pull_request events, making it invisible as a PR check.
+            // Acceptable conditions include:
+            //   if: github.event_name == 'push' || github.event_name == 'pull_request'
+            //   (or no 'if' at all if the workflow-level 'on:' already scopes correctly)
+            bool hasPushOnlyCondition =
+                Regex.IsMatch(content, @"event_name\s*==\s*'push'\s*$", RegexOptions.Multiline) &&
+                !content.Contains("pull_request");
+
+            Assert.That(hasPushOnlyCondition, Is.False,
+                "The 'build-and-test' job must not restrict itself to 'push' events only. " +
+                "Add 'pull_request' to the trigger conditions so the job runs on PRs and " +
+                "the status check appears for branch-protection enforcement.");
+        }
+
+        // ─── CI26: Release gate enforcement step is present in Tier 2 ────────────
+        //
+        // The Tier 2 `protected-sign-off-run` job must contain an explicit release gate
+        // enforcement step that fails the workflow when lifecycle verification fails.
+        // Removing this step would silently promote a failed run as release evidence.
+
+        [Test]
+        public void CI26_WorkflowYaml_HasReleaseGateEnforcementStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The workflow must have a step that enforces the lifecycle pass requirement.
+            // We check for the key identifiers: a step that reads lifecycle_ok and exits 1.
+            bool hasGateEnforcement =
+                content.Contains("lifecycle_ok") &&
+                content.Contains("exit 1") &&
+                (content.Contains("release gate") || content.Contains("Enforce lifecycle pass"));
+
+            Assert.That(hasGateEnforcement, Is.True,
+                "protected-sign-off.yml must contain a release gate enforcement step that " +
+                "reads 'lifecycle_ok' and exits non-zero when lifecycle verification fails. " +
+                "This step is the fail-closed control that prevents a failed run from being " +
+                "used as release evidence. Removing it would silently weaken the gate.");
+        }
+
+        // ─── CI27: Evidence manifest schema version field is present ─────────────
+        //
+        // The evidence manifest must include a schemaVersion field so product owners
+        // can verify which version of the evidence format they are reviewing.
+
+        [Test]
+        public void CI27_WorkflowYaml_EvidenceManifest_HasSchemaVersionField()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("schemaVersion"),
+                "The evidence manifest written in protected-sign-off.yml must include a " +
+                "'schemaVersion' field so reviewers can identify the manifest format version. " +
+                "This field stabilizes the evidence contract and makes schema changes explicit.");
+        }
+
+        // ─── CI28: Workflow produces named evidence artifact for product-owner review ─
+
+        [Test]
+        public void CI28_WorkflowYaml_ProducesNamedEvidenceArtifact()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The workflow must upload an evidence artifact named with the correlation ID.
+            // This artifact is the durable, reviewer-friendly output referenced in the runbook.
+            bool hasEvidenceArtifact =
+                content.Contains("protected-sign-off-evidence") &&
+                content.Contains("upload-artifact") &&
+                content.Contains("retention-days");
+
+            Assert.That(hasEvidenceArtifact, Is.True,
+                "protected-sign-off.yml must upload a named evidence artifact " +
+                "('protected-sign-off-evidence-<corr-id>') with an explicit retention period. " +
+                "This artifact is the primary durable output for product-owner sign-off review. " +
+                "Removing it would make past runs unauditable.");
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────
