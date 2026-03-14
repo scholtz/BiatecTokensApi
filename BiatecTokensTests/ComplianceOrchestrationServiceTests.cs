@@ -70,7 +70,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task InitiateCheck_NullSubjectId_ReturnsError()
+        public async Task InitiateCheck_WhitespaceSubjectId_ReturnsError()
         {
             var svc = CreateService();
             var req = MakeRequest(subjectId: "   ");
@@ -353,16 +353,19 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task CombinedCheck_KycFails_SkipsAml()
+        public async Task CombinedCheck_KycPending_AmlStillRuns_ReturnsApproved()
         {
-            // KYC pending (not auto-approve) → combined should skip AML step
+            // KYC pending (not auto-approve) is not a hard failure (Rejected/Error) so AML still runs
+            // AML with no flags returns Approved, so combined result is Approved
             var svc = CreateService(kycAutoApprove: false);
             var req = MakeRequest(checkType: ComplianceCheckType.Combined);
             var resp = await svc.InitiateCheckAsync(req, "actor", "corr-combined-skip");
 
-            // KYC pending is not a hard failure (Rejected/Error) so AML still runs
-            // State should be whatever AML returns for no-flag subject = Approved
             Assert.That(resp.Success, Is.True);
+            // KYC pending + AML approved → combined state Approved (AML approves, no hard failure)
+            Assert.That(resp.State, Is.EqualTo(ComplianceDecisionState.Approved));
+            // AML should still have run (not skipped)
+            Assert.That(resp.AuditTrail.Any(e => e.EventType == "AmlCompleted"), Is.True);
         }
 
         [Test]
@@ -653,6 +656,8 @@ namespace BiatecTokensTests
             // The service catches the exception and returns Error
             Assert.That(resp.State, Is.EqualTo(ComplianceDecisionState.Error));
             Assert.That(resp.ProviderErrorCode, Is.EqualTo(ComplianceProviderErrorCode.InternalError));
+            // AML should be skipped when KYC throws
+            Assert.That(resp.AuditTrail.Any(e => e.EventType == "AmlCompleted"), Is.False);
         }
 
         // ── MockAmlProvider adapter tests ─────────────────────────────────────
