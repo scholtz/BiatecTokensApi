@@ -48,20 +48,37 @@ permissions:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 1: Validate prerequisites
-  # Fails fast (fail-closed) when required secrets are absent so that the
-  # error is immediately visible and actionable rather than buried in logs.
+  # Single job: Protected strict sign-off run
+  #
+  # The entire job runs under `environment: protected-sign-off` so that:
+  #   • Secrets stored in the environment (not just at the repo level) are
+  #     accessible from the very first step.
+  #   • Required-reviewer approval gates apply before any secret is consumed.
+  #   • The prerequisite check happens inside the environment boundary, not
+  #     in a separate pre-environment job that can never see environment secrets.
+  #
+  # This design means there is no longer a "validate-prerequisites" job that
+  # runs outside the environment.  The first step of this job performs the
+  # same fail-closed prerequisite validation — but with the environment context
+  # already active.
   # ═══════════════════════════════════════════════════════════════════════════
-  validate-prerequisites:
-    name: Validate protected-run prerequisites
+  protected-sign-off-run:
+    name: Protected strict sign-off run
     runs-on: ubuntu-latest
-    outputs:
-      has_required_secrets: ${{ steps.check.outputs.has_required_secrets }}
-      correlation_id: ${{ steps.corr.outputs.correlation_id }}
+    environment: protected-sign-off
+    timeout-minutes: 30
 
     steps:
-      - name: Check required secrets
-        id: check
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # ── Step 0: Validate prerequisites (fail-closed) ────────────────────────
+      # This step runs inside the `protected-sign-off` environment, so both
+      # repository-level and environment-level secrets are resolvable.
+      # Reviewer-gated environments are approved before this job starts, meaning
+      # the prerequisite check happens after any required human approval.
+      - name: Validate prerequisites and set correlation ID
+        id: setup
         env:
           JWT_SECRET: ${{ secrets.PROTECTED_SIGN_OFF_JWT_SECRET }}
           APP_ACCOUNT: ${{ secrets.PROTECTED_SIGN_OFF_APP_ACCOUNT }}
@@ -77,69 +94,26 @@ jobs:
           fi
 
           if [ ${#MISSING[@]} -gt 0 ]; then
-            echo "has_required_secrets=false" >> "$GITHUB_OUTPUT"
-            echo "MISSING_LIST<<EOF" >> "$GITHUB_OUTPUT"
+            echo "## ❌ Protected Run Prerequisites Not Met" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "The following required secrets are missing or empty.  Secrets must be set" >> "$GITHUB_STEP_SUMMARY"
+            echo "in the **protected-sign-off** GitHub environment (Settings → Environments)." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Missing secrets" >> "$GITHUB_STEP_SUMMARY"
             for M in "${MISSING[@]}"; do
-              echo "$M" >> "$GITHUB_OUTPUT"
+              echo "- ❌ \`$M\`" >> "$GITHUB_STEP_SUMMARY"
             done
-            echo "EOF" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_required_secrets=true" >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md) for setup instructions." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
 
-      - name: Emit prerequisite failure summary
-        if: steps.check.outputs.has_required_secrets == 'false'
-        run: |
-          echo "## ❌ Protected Run Prerequisites Not Met" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "The following required secrets are missing.  The protected sign-off run" >> "$GITHUB_STEP_SUMMARY"
-          echo "**cannot proceed** until they are configured." >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### Missing secrets" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          while IFS= read -r line; do
-            [ -n "$line" ] && echo "- ❌ \`$line\`" >> "$GITHUB_STEP_SUMMARY"
-          done <<< "${{ steps.check.outputs.MISSING_LIST }}"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### How to add secrets" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "1. Navigate to **Settings → Environments → protected-sign-off** (or **Secrets and variables → Actions**)." >> "$GITHUB_STEP_SUMMARY"
-          echo "2. Add each missing secret with the exact name shown above." >> "$GITHUB_STEP_SUMMARY"
-          echo "3. Re-run this workflow once the secrets are in place." >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md) for full setup instructions." >> "$GITHUB_STEP_SUMMARY"
-          exit 1
-
-      - name: Set correlation ID
-        id: corr
-        run: |
           CORR="${{ github.event.inputs.correlation_id }}"
           if [ -z "$CORR" ]; then
             CORR="protected-run-${{ github.run_id }}-${{ github.run_attempt }}"
           fi
           echo "correlation_id=$CORR" >> "$GITHUB_OUTPUT"
-          echo "Correlation ID: $CORR"
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 2: Protected strict sign-off run
-  # Builds the backend, runs governance-backed unit tests with real secrets,
-  # starts the API in-process, exercises all four protected sign-off endpoints,
-  # and saves a signed evidence artifact for product-owner review.
-  # ═══════════════════════════════════════════════════════════════════════════
-  protected-sign-off-run:
-    name: Protected strict sign-off run
-    needs: validate-prerequisites
-    if: needs.validate-prerequisites.outputs.has_required_secrets == 'true'
-    runs-on: ubuntu-latest
-    environment: protected-sign-off
-    timeout-minutes: 30
-
-    env:
-      CORRELATION_ID: ${{ needs.validate-prerequisites.outputs.correlation_id }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+          echo "✅ Prerequisites validated.  Correlation ID: $CORR"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -152,21 +126,21 @@ jobs:
       - name: Build solution
         run: dotnet build BiatecTokensApi.sln --configuration Release --no-restore
 
-      # ── Step A: Governance-backed unit + integration tests ──────────────────
-      # Runs all ProtectedSignOff tests with real secrets injected via env vars.
-      # These tests use WebApplicationFactory and validate the full endpoint contract.
-      - name: Run protected sign-off tests (governance-backed)
+      # ── Step A: Protected sign-off tests with real secrets ──────────────────
+      # Runs all ProtectedSignOff tests with the real JWT secret and mnemonic
+      # injected so that the integration tests exercise the full authenticated
+      # endpoint contract under production-like credentials.
+      #
+      # Intentionally NOT injecting WorkflowGovernanceConfig overrides here:
+      # the test suite reads the application's own appsettings.json defaults.
+      # Governance evidence is therefore observed from runtime config, not
+      # asserted by the workflow.
+      - name: Run protected sign-off tests (real secrets, observed governance)
         if: github.event.inputs.dry_run != 'true'
         env:
           JwtConfig__SecretKey: ${{ secrets.PROTECTED_SIGN_OFF_JWT_SECRET }}
           App__Account: ${{ secrets.PROTECTED_SIGN_OFF_APP_ACCOUNT }}
           ProtectedSignOff__EnvironmentLabel: "protected-ci"
-          ProtectedSignOff__EnforceConfigGuards: "true"
-          WorkflowGovernanceConfig__Enabled: "true"
-          WorkflowGovernanceConfig__EnforceValidation: "true"
-          WorkflowGovernanceConfig__EnforcePreconditions: "true"
-          WorkflowGovernanceConfig__EnforcePostCommitVerification: "true"
-          WorkflowGovernanceConfig__PolicyVersion: "1.0.0"
         run: |
           dotnet test BiatecTokensTests/BiatecTokensTests.csproj \
             --configuration Release \
@@ -178,6 +152,10 @@ jobs:
             --blame-hang-timeout 60s
 
       # ── Step B: Start backend with protected configuration ──────────────────
+      # Only the required secrets are injected.  Governance configuration comes
+      # from the application's own appsettings.json so that the environment check
+      # endpoint reports the real configured state rather than a workflow-asserted
+      # value.
       - name: Start backend with protected configuration
         if: github.event.inputs.dry_run != 'true'
         env:
@@ -192,9 +170,6 @@ jobs:
           KeyManagementConfig__Provider: "Hardcoded"
           KeyManagementConfig__HardcodedKey: "ProtectedCIKeyMinimum32CharsPaddingXX"
           ProtectedSignOff__EnvironmentLabel: "protected-ci"
-          ProtectedSignOff__EnforceConfigGuards: "true"
-          WorkflowGovernanceConfig__Enabled: "true"
-          WorkflowGovernanceConfig__PolicyVersion: "1.0.0"
           DeploymentEvidenceConfig__Provider: "Simulation"
         run: |
           dotnet run \
@@ -228,7 +203,7 @@ jobs:
         if: github.event.inputs.dry_run != 'true'
         id: jwt
         run: |
-          UNIQUE_EMAIL="protected-ci-${CORRELATION_ID}@biatec-sign-off.example.com"
+          UNIQUE_EMAIL="protected-ci-${{ steps.setup.outputs.correlation_id }}@biatec-sign-off.example.com"
           echo "Registering protected sign-off user: $UNIQUE_EMAIL"
 
           REG_RESPONSE=$(curl -sf \
@@ -267,7 +242,7 @@ jobs:
           mkdir -p ./ProtectedRunEvidence
           JWT="${{ steps.jwt.outputs.access_token }}"
           BASE="http://localhost:7100/api/v1/protected-sign-off"
-          CORR="${CORRELATION_ID}"
+          CORR="${{ steps.setup.outputs.correlation_id }}"
           RUN_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
           echo "Collecting protected sign-off evidence..."
@@ -346,7 +321,21 @@ jobs:
           echo "  Diagnostics operational : $DIAG_OK"
           echo "diag_ok=$DIAG_OK" >> "$GITHUB_OUTPUT"
 
-          # ── 5. Write evidence manifest ─────────────────────────────────────
+          # ── 5. Extract observed governance status from environment check ──────
+          # The WorkflowGovernanceEnabled check outcome is read directly from the
+          # API response, not asserted by the workflow.  This ensures the evidence
+          # manifest faithfully reflects the runtime configuration of the protected
+          # environment rather than a value injected by CI.
+          GOV_CHECK_OUTCOME=$(echo "$ENV_RESP" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+checks = d.get('checks', [])
+gov = next((c for c in checks if c.get('name') == 'WorkflowGovernanceEnabled'), {})
+print(gov.get('outcome', 'NotChecked'))" 2>/dev/null || echo "NotChecked")
+          echo "  Governance check outcome (observed) : $GOV_CHECK_OUTCOME"
+          echo "gov_check_outcome=$GOV_CHECK_OUTCOME" >> "$GITHUB_OUTPUT"
+
+          # ── 6. Write evidence manifest ─────────────────────────────────────
           cat > ./ProtectedRunEvidence/00_evidence_manifest.json << MANIFEST
           {
             "schemaVersion": "1.0",
@@ -358,7 +347,7 @@ jobs:
             "actor": "${{ github.actor }}",
             "runAt": "$RUN_AT",
             "environmentLabel": "protected-ci",
-            "workflowGovernanceEnabled": true,
+            "observedGovernanceCheckOutcome": "$GOV_CHECK_OUTCOME",
             "results": {
               "environmentStatus": "$ENV_STATUS",
               "isReadyForProtectedRun": $ENV_READY,
@@ -410,7 +399,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always() && github.event.inputs.dry_run != 'true'
         with:
-          name: protected-sign-off-evidence-${{ needs.validate-prerequisites.outputs.correlation_id }}
+          name: protected-sign-off-evidence-${{ steps.setup.outputs.correlation_id }}
           path: ./ProtectedRunEvidence/
           retention-days: 90
 
@@ -418,7 +407,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always() && github.event.inputs.dry_run != 'true'
         with:
-          name: protected-sign-off-test-results-${{ needs.validate-prerequisites.outputs.correlation_id }}
+          name: protected-sign-off-test-results-${{ steps.setup.outputs.correlation_id }}
           path: ./ProtectedSignOffResults/
           retention-days: 90
 
@@ -427,7 +416,8 @@ jobs:
         if: always()
         run: |
           DRY="${{ github.event.inputs.dry_run }}"
-          CORR="${CORRELATION_ID}"
+          CORR="${{ steps.setup.outputs.correlation_id }}"
+          GOV_OUTCOME="${{ steps.evidence.outputs.gov_check_outcome }}"
 
           echo "## 🔐 Protected Strict Sign-Off Summary" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -439,7 +429,10 @@ jobs:
           echo "| Branch / Ref | \`${{ github.ref }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Triggered by | ${{ github.actor }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Environment | protected-ci |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Governance | Enabled (policy v1.0.0) |" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$GOV_OUTCOME" ] && [ "$GOV_OUTCOME" != "NotChecked" ]; then
+            [ "$GOV_OUTCOME" = "Pass" ] && GOV_ICON="✅" || GOV_ICON="⚠️"
+            echo "| Governance (observed) | ${GOV_ICON} \`$GOV_OUTCOME\` |" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$DRY" = "true" ]; then
