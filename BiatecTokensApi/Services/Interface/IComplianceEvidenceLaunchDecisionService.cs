@@ -53,5 +53,25 @@ namespace BiatecTokensApi.Services.Interface
             string ownerId,
             int limit = 20,
             string? correlationId = null);
+
+        /// <summary>
+        /// Exports a compliance evidence bundle as a downloadable JSON artifact.
+        /// </summary>
+        /// <param name="request">Export request with optional filters.</param>
+        /// <returns>
+        /// Export result containing UTF-8 JSON bytes, suggested filename,
+        /// and an export manifest with integrity hash.
+        /// </returns>
+        Task<EvidenceExportResult> ExportEvidenceBundleAsJsonAsync(EvidenceExportRequest request);
+
+        /// <summary>
+        /// Exports a compliance evidence bundle as a downloadable CSV artifact.
+        /// </summary>
+        /// <param name="request">Export request with optional filters.</param>
+        /// <returns>
+        /// Export result containing UTF-8 CSV bytes, suggested filename,
+        /// and an export manifest describing the tabular evidence summary.
+        /// </returns>
+        Task<EvidenceExportResult> ExportEvidenceBundleAsCsvAsync(EvidenceExportRequest request);
     }
 }
