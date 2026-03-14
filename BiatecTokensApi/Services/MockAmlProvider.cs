@@ -8,12 +8,13 @@ namespace BiatecTokensApi.Services
     /// Mock AML provider for testing and development.
     /// Behaviour is controlled via the <c>subjectMetadata</c> dictionary:
     /// <list type="bullet">
-    ///   <item><c>sanctions_flag=true</c>  → Rejected</item>
-    ///   <item><c>review_flag=true</c>     → NeedsReview</item>
-    ///   <item><c>simulate_timeout=true</c>      → Error / Timeout</item>
-    ///   <item><c>simulate_unavailable=true</c>  → Error / ProviderUnavailable</item>
-    ///   <item><c>simulate_malformed=true</c>    → Error / MalformedResponse</item>
-    ///   <item>(none of the above)         → Approved</item>
+    ///   <item><c>sanctions_flag=true</c>         → Rejected (reason: SANCTIONS_MATCH)</item>
+    ///   <item><c>review_flag=true</c>             → NeedsReview (reason: REVIEW_REQUIRED)</item>
+    ///   <item><c>simulate_timeout=true</c>        → Error / Timeout</item>
+    ///   <item><c>simulate_unavailable=true</c>    → ProviderUnavailable (fail-closed)</item>
+    ///   <item><c>simulate_malformed=true</c>      → Error / MalformedResponse</item>
+    ///   <item><c>simulate_insufficient_data=true</c> → InsufficientData</item>
+    ///   <item>(none of the above)                 → Approved</item>
     /// </list>
     /// </summary>
     public class MockAmlProvider : IAmlProvider
@@ -56,7 +57,7 @@ namespace BiatecTokensApi.Services
             if (GetFlag(subjectMetadata, "simulate_unavailable"))
             {
                 _logger.LogWarning("MockAmlProvider simulating unavailability for SubjectId={SubjectId}", LoggingHelper.SanitizeLogInput(subjectId));
-                result = (ComplianceDecisionState.Error, "PROVIDER_UNAVAILABLE", "Simulated provider unavailable");
+                result = (ComplianceDecisionState.ProviderUnavailable, "PROVIDER_UNAVAILABLE", "Simulated provider unavailable");
                 return Task.FromResult((refId, result.state, result.reasonCode, result.errorMessage));
             }
 
@@ -64,6 +65,13 @@ namespace BiatecTokensApi.Services
             {
                 _logger.LogWarning("MockAmlProvider simulating malformed response for SubjectId={SubjectId}", LoggingHelper.SanitizeLogInput(subjectId));
                 result = (ComplianceDecisionState.Error, "MALFORMED_RESPONSE", "Simulated malformed provider response");
+                return Task.FromResult((refId, result.state, result.reasonCode, result.errorMessage));
+            }
+
+            if (GetFlag(subjectMetadata, "simulate_insufficient_data"))
+            {
+                _logger.LogWarning("MockAmlProvider simulating insufficient data for SubjectId={SubjectId}", LoggingHelper.SanitizeLogInput(subjectId));
+                result = (ComplianceDecisionState.InsufficientData, "INSUFFICIENT_SUBJECT_DATA", "Required subject metadata is missing or incomplete");
                 return Task.FromResult((refId, result.state, result.reasonCode, result.errorMessage));
             }
 

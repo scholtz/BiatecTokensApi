@@ -36,7 +36,9 @@ Initiates a new compliance screening case for a subject.
 | `subjectId` | string | ✅ | Identifier of the subject being checked (e.g. user ID, issuer reference) |
 | `contextId` | string | ✅ | Caller-supplied context (e.g. token issuance ID); used for default idempotency derivation |
 | `checkType` | int | No | `0`=KYC only, `1`=AML only, `2`=Combined (default) |
-| `subjectMetadata` | dict | No | Optional metadata forwarded to providers (`full_name`, `date_of_birth`, `country`) |
+| `subjectType` | int | No | `0`=Individual (default), `1`=BusinessEntity |
+| `subjectMetadata` | dict | No | Optional metadata forwarded to providers (individual: `full_name`, `date_of_birth`, `country`; business: `legal_name`, `registration_number`, `jurisdiction`, `ultimate_beneficial_owner`) |
+| `evidenceValidityHours` | int | No | When set for approved decisions, the response includes `evidenceExpiresAt` set this many hours in the future; `0` = no expiry |
 | `idempotencyKey` | string | No | Explicit idempotency key; derived from `subjectId:contextId:checkType` if omitted |
 
 **Response (200 OK):**
@@ -49,8 +51,12 @@ Initiates a new compliance screening case for a subject.
   "providerErrorCode": 0,
   "correlationId": "corr-xyz",
   "isIdempotentReplay": false,
+  "subjectType": 0,
   "initiatedAt": "2026-03-14T12:00:00Z",
   "completedAt": "2026-03-14T12:00:01Z",
+  "evidenceExpiresAt": "2026-04-14T12:00:01Z",
+  "matchedWatchlistCategories": [],
+  "confidenceScore": null,
   "auditTrail": [ ... ],
   "reviewerNotes": []
 }
@@ -156,9 +162,21 @@ Appends a reviewer note or evidence reference to an existing compliance decision
 | `1` | `Approved` | Subject passed all compliance checks |
 | `2` | `Rejected` | Subject failed one or more compliance checks |
 | `3` | `NeedsReview` | Manual review required before a final decision |
-| `4` | `Error` | An operational/provider error occurred |
+| `4` | `Error` | An internal operational error occurred |
+| `5` | `ProviderUnavailable` | The screening provider was unreachable; check could not complete (fail-closed) |
+| `6` | `Expired` | A previously-approved decision has exceeded its evidence validity window |
+| `7` | `InsufficientData` | Required subject data was missing or incomplete; screening could not proceed |
 
-**State is terminal** for `Approved`, `Rejected`, `NeedsReview`, and `Error`. Terminal states set `completedAt`.
+**Terminal states** (set `completedAt`): `Approved`, `Rejected`, `NeedsReview`, `Error`, `ProviderUnavailable`, `InsufficientData`.
+
+**Expiry**: When an `Approved` decision has an `evidenceExpiresAt` timestamp and that timestamp is reached, the decision transitions to `Expired` on next retrieval via `GET /status/{decisionId}`.
+
+### `ScreeningSubjectType`
+
+| Value | Name | Description |
+|---|---|---|
+| `0` | `Individual` | Natural person (default) |
+| `1` | `BusinessEntity` | Legal entity, company, or business organisation |
 
 ### `ComplianceCheckType`
 
@@ -185,18 +203,23 @@ Appends a reviewer note or evidence reference to an existing compliance decision
 
 ```
 Initiate → Pending → [KYC + AML runs] → Approved / Rejected / NeedsReview / Error
-                                                      ↓
-                               Reviewer appends notes/evidence via POST /notes/{id}
+                                              ↓          ↑
+                               ProviderUnavailable / InsufficientData (fail-closed)
+                                              ↓
+                          Approved (with EvidenceValidityHours) → Expired (on retrieval)
+                                              ↓
+                        Reviewer appends notes/evidence via POST /notes/{id}
 ```
 
 ### Combined Check (KYC + AML) Priority Rules
 
-1. If KYC returns `Rejected` → final state is `Rejected`; AML is skipped
-2. If KYC returns `Error` → final state is `Error`; AML is skipped
-3. If AML returns `Rejected` → final state is `Rejected`
-4. If AML returns `Error` → final state is `Error`
-5. If either KYC or AML returns `NeedsReview` → final state is `NeedsReview`
-6. If both pass → final state is `Approved`
+1. If KYC returns `Rejected`, `Error`, `ProviderUnavailable`, `InsufficientData`, or `Expired` → AML is skipped; final state mirrors KYC
+2. If AML returns `Rejected` → final state is `Rejected`
+3. If AML returns `ProviderUnavailable` → final state is `ProviderUnavailable`
+4. If AML returns `InsufficientData` → final state is `InsufficientData`
+5. If AML returns `Error` → final state is `Error`
+6. If either KYC or AML returns `NeedsReview` → final state is `NeedsReview`
+7. If both pass → final state is `Approved`
 
 ### Idempotency
 
@@ -210,12 +233,13 @@ Every decision maintains a chronological `auditTrail` list of `ComplianceAuditEv
 
 | Event | Description |
 |---|---|
-| `CheckInitiated` | Decision record created |
+| `CheckInitiated` | Decision record created; records `SubjectType` |
 | `KycCompleted` | KYC provider call returned |
 | `AmlCompleted` | AML provider call returned |
 | `AmlSkipped` | AML was skipped due to hard KYC failure |
 | `CheckError` | Unexpected exception during execution |
 | `ReviewerNoteAppended` | Operator appended a reviewer note |
+| `EvidenceExpired` | Evidence validity window has elapsed; decision transitioned to `Expired` |
 
 Each event carries `occurredAt`, `state`, `correlationId`, optional `providerReferenceId`, and a `message`.
 
@@ -259,14 +283,15 @@ Task<ComplianceDecisionState>
 
 Pass these keys in `subjectMetadata` to control the mock AML provider's outcome:
 
-| Key | Value | Outcome |
-|---|---|---|
-| `simulate_sanction` | `"true"` | `Rejected` |
-| `simulate_review` | `"true"` | `NeedsReview` |
-| `simulate_timeout` | `"true"` | `Error` (Timeout) |
-| `simulate_unavailable` | `"true"` | `Error` (ProviderUnavailable) |
-| `simulate_malformed` | `"true"` | `Error` (MalformedResponse) |
-| *(none)* | — | `Approved` |
+| Key | Value | Outcome | Notes |
+|---|---|---|---|
+| `sanctions_flag` | `"true"` | `Rejected` | Populates `matchedWatchlistCategories` with `OFAC_SDN`, `EU_SANCTIONS` |
+| `review_flag` | `"true"` | `NeedsReview` | Populates `matchedWatchlistCategories` with `PEP_WATCHLIST` |
+| `simulate_timeout` | `"true"` | `Error` (Timeout) | |
+| `simulate_unavailable` | `"true"` | `ProviderUnavailable` | Distinct from Error; fail-closed |
+| `simulate_malformed` | `"true"` | `Error` (MalformedResponse) | |
+| `simulate_insufficient_data` | `"true"` | `InsufficientData` | |
+| *(none)* | — | `Approved` | |
 
 ### Mock KYC Behavior
 
@@ -305,23 +330,26 @@ Provider-specific configuration and API keys should be injected via environment 
 
 ## Error Semantics
 
-The compliance orchestration layer distinguishes between two error categories:
+The compliance orchestration layer distinguishes between three categories:
 
-1. **Compliance outcome errors** (`Rejected`, `NeedsReview`): The subject failed or requires human review. These are product-level outcomes with clear meaning.
+1. **Compliance outcome failures** (`Rejected`, `NeedsReview`): The subject failed or requires human review. These are product-level outcomes with clear compliance meaning.
 
-2. **Operational errors** (`Error` + `providerErrorCode`): The check could not be completed due to a provider outage, timeout, or malformed response. These are infrastructure concerns, not adverse compliance findings.
+2. **Operational failures** (`Error`, `ProviderUnavailable`, `InsufficientData`): The check could not be completed due to a provider issue, missing data, or internal error. These are not compliance clearance.
 
-Operators and downstream surfaces **must not** treat operational errors as compliance clearance. The service is fail-closed: an `Error` state explicitly blocks downstream approval.
+3. **Stale evidence** (`Expired`): A previously-approved decision has exceeded its validity window. Rescreening is required.
 
-### Remediation Guidance by Error Code
+Operators and downstream surfaces **must not** treat operational errors or stale evidence as compliance clearance. The service is fail-closed: `Error`, `ProviderUnavailable`, `InsufficientData`, and `Expired` states all block downstream approval.
 
-| Error Code | Meaning | Operator Action |
+### Remediation Guidance by State
+
+| State | Meaning | Operator Action |
 |---|---|---|
-| `Timeout` | Provider took too long | Retry; check provider status page |
-| `ProviderUnavailable` | Provider unreachable | Wait for provider to recover; retry |
-| `MalformedResponse` | Unparseable response | Check provider API version compatibility |
-| `InternalError` | Unexpected service error | Check application logs; contact support |
-| `InvalidRequest` | Bad request to provider | Review subject metadata for missing required fields |
+| `ProviderUnavailable` | Screening provider unreachable | Wait for provider recovery; retry screening |
+| `InsufficientData` | Required subject metadata missing | Collect additional subject information and resubmit |
+| `Expired` | Evidence validity window elapsed | Resubmit a new screening request for the subject |
+| `Error` (Timeout) | Provider took too long | Retry; check provider status page |
+| `Error` (MalformedResponse) | Unparseable provider response | Check provider API version compatibility |
+| `Error` (InternalError) | Unexpected service error | Check application logs; contact support |
 
 ---
 
@@ -334,12 +362,24 @@ File: `BiatecTokensTests/ComplianceOrchestrationServiceTests.cs`
 Covers:
 - Input validation (missing SubjectId, ContextId)
 - KYC-only, AML-only, and Combined check paths
-- All provider outcomes (Approved, Rejected, NeedsReview, Error, Timeout, Unavailable, Malformed)
+- All provider outcomes (Approved, Rejected, NeedsReview, Error, Timeout, ProviderUnavailable, MalformedResponse)
 - Combined check priority rules (KYC hard-failure skips AML)
 - Idempotency and replay semantics (3-replay determinism)
 - Audit trail correctness
 - Reviewer notes: append, persist, appear in status/history, evidence references, unique IDs
 - Fail-closed behavior for provider crashes
+
+File: `BiatecTokensTests/ComplianceOrchestrationEnhancementsTests.cs`
+
+Covers:
+- `ProviderUnavailable` state as a distinct first-class state (not Error)
+- `InsufficientData` state — fail-closed when required data is missing
+- Evidence freshness / `Expired` state via `evidenceValidityHours` and `evidenceExpiresAt`
+- `ScreeningSubjectType` (Individual vs BusinessEntity) preserved in responses and history
+- `matchedWatchlistCategories` populated for sanctions and PEP hits
+- `matchedWatchlistCategories` preserved in status retrieval
+- Combined-check fail-fast on `ProviderUnavailable` / `InsufficientData`
+- `ComplianceDecisionState` enum completeness assertions
 
 ### Integration Tests
 
@@ -359,6 +399,9 @@ Covers:
 ```bash
 # Unit tests only
 dotnet test --filter "FullyQualifiedName~ComplianceOrchestrationServiceTests" --configuration Release
+
+# Enhancement tests only
+dotnet test --filter "FullyQualifiedName~ComplianceOrchestrationEnhancementsTests" --configuration Release
 
 # Integration tests only
 dotnet test --filter "FullyQualifiedName~ComplianceOrchestrationIntegrationTests" --configuration Release
