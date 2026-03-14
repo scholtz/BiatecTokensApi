@@ -50,6 +50,72 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
     }
 
     /// <summary>
+    /// A reviewer note or evidence reference appended to a compliance decision by an operator.
+    /// </summary>
+    public class ComplianceReviewerNote
+    {
+        /// <summary>Unique identifier for this note</summary>
+        public string NoteId { get; set; } = string.Empty;
+
+        /// <summary>The decision ID this note belongs to</summary>
+        public string DecisionId { get; set; } = string.Empty;
+
+        /// <summary>Actor (user/operator) who submitted the note</summary>
+        public string ActorId { get; set; } = string.Empty;
+
+        /// <summary>Free-text content of the note</summary>
+        public string Content { get; set; } = string.Empty;
+
+        /// <summary>Optional structured evidence references (e.g. document IDs, external links)</summary>
+        public Dictionary<string, string> EvidenceReferences { get; set; } = new();
+
+        /// <summary>UTC timestamp when the note was appended</summary>
+        public DateTimeOffset AppendedAt { get; set; }
+
+        /// <summary>Correlation ID propagated from the originating request</summary>
+        public string CorrelationId { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Request to append a reviewer note or evidence reference to an existing compliance decision.
+    /// </summary>
+    public class AppendReviewerNoteRequest
+    {
+        /// <summary>
+        /// Free-text note from the reviewer/operator.
+        /// Required; must be non-empty.
+        /// </summary>
+        public string Content { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional structured evidence references keyed by label
+        /// (e.g. "passport_scan" → "doc-id-xyz", "sanction_list_version" → "2026-Q1").
+        /// </summary>
+        public Dictionary<string, string>? EvidenceReferences { get; set; }
+    }
+
+    /// <summary>
+    /// Response after successfully appending a reviewer note to a compliance decision.
+    /// </summary>
+    public class AppendReviewerNoteResponse
+    {
+        /// <summary>Whether the operation succeeded</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The newly created note (populated on success)</summary>
+        public ComplianceReviewerNote? Note { get; set; }
+
+        /// <summary>Error message when Success is false</summary>
+        public string? ErrorMessage { get; set; }
+
+        /// <summary>Error code when Success is false</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Correlation ID for end-to-end tracing</summary>
+        public string? CorrelationId { get; set; }
+    }
+
+    /// <summary>
     /// Represents a single auditable event in the compliance decision lifecycle
     /// </summary>
     public class ComplianceAuditEvent
@@ -116,6 +182,9 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
 
         /// <summary>Ordered list of audit events for this decision</summary>
         public List<ComplianceAuditEvent> AuditTrail { get; set; } = new();
+
+        /// <summary>Ordered list of reviewer notes appended by operators</summary>
+        public List<ComplianceReviewerNote> ReviewerNotes { get; set; } = new();
 
         /// <summary>Whether this response was served from the idempotency cache</summary>
         public bool IsIdempotentReplay { get; set; }
@@ -195,6 +264,9 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
 
         /// <summary>Audit trail events for this decision</summary>
         public List<ComplianceAuditEvent> AuditTrail { get; set; } = new();
+
+        /// <summary>Reviewer notes appended by operators for this decision</summary>
+        public List<ComplianceReviewerNote> ReviewerNotes { get; set; } = new();
     }
 
     /// <summary>

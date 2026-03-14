@@ -192,6 +192,82 @@ namespace BiatecTokensApi.Services
         // Private helpers
         // ---------------------------------------------------------------------------
 
+        private const int AuditMessageContentPreviewLength = 80;
+
+        /// <inheritdoc/>
+        public Task<AppendReviewerNoteResponse> AppendReviewerNoteAsync(
+            string decisionId,
+            AppendReviewerNoteRequest request,
+            string actorId,
+            string correlationId)
+        {
+            if (string.IsNullOrWhiteSpace(decisionId))
+            {
+                return Task.FromResult(new AppendReviewerNoteResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.MISSING_REQUIRED_FIELD,
+                    ErrorMessage = "DecisionId is required.",
+                    CorrelationId = correlationId
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(request?.Content))
+            {
+                return Task.FromResult(new AppendReviewerNoteResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.MISSING_REQUIRED_FIELD,
+                    ErrorMessage = "Note content is required.",
+                    CorrelationId = correlationId
+                });
+            }
+
+            if (!_decisions.TryGetValue(decisionId, out var decision))
+            {
+                return Task.FromResult(new AppendReviewerNoteResponse
+                {
+                    Success = false,
+                    ErrorCode = ErrorCodes.COMPLIANCE_CHECK_NOT_FOUND,
+                    ErrorMessage = $"Decision '{decisionId}' not found.",
+                    CorrelationId = correlationId
+                });
+            }
+
+            var note = new ComplianceReviewerNote
+            {
+                NoteId = Guid.NewGuid().ToString("N"),
+                DecisionId = decisionId,
+                ActorId = actorId,
+                Content = request.Content,
+                EvidenceReferences = request.EvidenceReferences ?? new Dictionary<string, string>(),
+                AppendedAt = DateTimeOffset.UtcNow,
+                CorrelationId = correlationId
+            };
+
+            decision.ReviewerNotes.Add(note);
+
+            var sanitizedActor = LoggingHelper.SanitizeLogInput(actorId);
+            var sanitizedPreview = LoggingHelper.SanitizeLogInput(
+                request.Content[..Math.Min(AuditMessageContentPreviewLength, request.Content.Length)]);
+            AppendAuditEvent(decision, "ReviewerNoteAppended", decision.State, correlationId, null,
+                $"Note appended by {sanitizedActor}: {sanitizedPreview}");
+
+            _logger.LogInformation(
+                "Reviewer note appended. DecisionId={DecisionId}, NoteId={NoteId}, Actor={Actor}, CorrelationId={CorrelationId}",
+                LoggingHelper.SanitizeLogInput(decisionId),
+                LoggingHelper.SanitizeLogInput(note.NoteId),
+                sanitizedActor,
+                LoggingHelper.SanitizeLogInput(correlationId));
+
+            return Task.FromResult(new AppendReviewerNoteResponse
+            {
+                Success = true,
+                Note = note,
+                CorrelationId = correlationId
+            });
+        }
+
         private async Task RunKycCheckAsync(
             NormalizedComplianceDecision decision,
             string subjectId,
@@ -380,7 +456,8 @@ namespace BiatecTokensApi.Services
                 IsIdempotentReplay = isReplay,
                 InitiatedAt = d.InitiatedAt,
                 CompletedAt = d.CompletedAt,
-                AuditTrail = d.AuditTrail.ToList()
+                AuditTrail = d.AuditTrail.ToList(),
+                ReviewerNotes = d.ReviewerNotes.ToList()
             };
 
         private static ComplianceCheckResponse ErrorResponse(string errorCode, string errorMessage, string correlationId) =>

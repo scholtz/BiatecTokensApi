@@ -1035,5 +1035,199 @@ namespace BiatecTokensTests
             public Task<(string, KycStatus, string?)> ParseWebhookAsync(KycWebhookPayload payload)
                 => Task.FromResult((payload.ProviderReferenceId, KycStatus.NotStarted, (string?)null));
         }
+
+        // ── Reviewer notes ────────────────────────────────────────────────────
+
+        [Test]
+        public async Task AppendNote_ValidNote_ReturnsSuccess()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "corr-note-1");
+
+            var noteReq = new AppendReviewerNoteRequest { Content = "Reviewed manually. Looks good." };
+            var resp = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, noteReq, "reviewer-a", "corr-note-2");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Note, Is.Not.Null);
+            Assert.That(resp.Note!.Content, Is.EqualTo("Reviewed manually. Looks good."));
+            Assert.That(resp.Note.ActorId, Is.EqualTo("reviewer-a"));
+            Assert.That(resp.Note.DecisionId, Is.EqualTo(initiated.DecisionId));
+            Assert.That(resp.Note.NoteId, Is.Not.Empty);
+        }
+
+        [Test]
+        public async Task AppendNote_NoteIdIsUniquePerNote()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "corr-noteid-1");
+
+            var n1 = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "Note 1" }, "rev", "c1");
+            var n2 = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "Note 2" }, "rev", "c2");
+
+            Assert.That(n1.Note!.NoteId, Is.Not.EqualTo(n2.Note!.NoteId));
+        }
+
+        [Test]
+        public async Task AppendNote_NotIncludedInStatusBeforeAppend_AndIncludedAfter()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "corr-notestatus-1");
+
+            var statusBefore = await svc.GetCheckStatusAsync(initiated.DecisionId!);
+            Assert.That(statusBefore.ReviewerNotes, Is.Empty);
+
+            await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "Evidence attached." }, "rev", "c");
+
+            var statusAfter = await svc.GetCheckStatusAsync(initiated.DecisionId!);
+            Assert.That(statusAfter.ReviewerNotes, Has.Count.EqualTo(1));
+            Assert.That(statusAfter.ReviewerNotes[0].Content, Is.EqualTo("Evidence attached."));
+        }
+
+        [Test]
+        public async Task AppendNote_AppendedAtIsSet()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "corr-noteat-1");
+
+            var before = DateTimeOffset.UtcNow.AddSeconds(-1);
+            var resp = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "Timestamped note." }, "rev", "c");
+            var after = DateTimeOffset.UtcNow.AddSeconds(1);
+
+            Assert.That(resp.Note!.AppendedAt, Is.GreaterThan(before).And.LessThan(after));
+        }
+
+        [Test]
+        public async Task AppendNote_CorrelationIdPropagated()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "c-init");
+
+            var resp = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "Check." }, "rev", "corr-note-propagated");
+
+            Assert.That(resp.CorrelationId, Is.EqualTo("corr-note-propagated"));
+            Assert.That(resp.Note!.CorrelationId, Is.EqualTo("corr-note-propagated"));
+        }
+
+        [Test]
+        public async Task AppendNote_WithEvidenceReferences_PersistedCorrectly()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "c-init");
+
+            var noteReq = new AppendReviewerNoteRequest
+            {
+                Content = "Passport scan uploaded.",
+                EvidenceReferences = new Dictionary<string, string>
+                {
+                    ["passport_scan"] = "doc-abc-123",
+                    ["sanction_list_version"] = "2026-Q1"
+                }
+            };
+            var resp = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, noteReq, "reviewer", "c");
+
+            Assert.That(resp.Note!.EvidenceReferences, Has.Count.EqualTo(2));
+            Assert.That(resp.Note.EvidenceReferences["passport_scan"], Is.EqualTo("doc-abc-123"));
+            Assert.That(resp.Note.EvidenceReferences["sanction_list_version"], Is.EqualTo("2026-Q1"));
+        }
+
+        [Test]
+        public async Task AppendNote_MultipleNotes_AllPreserved()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "c-init");
+
+            for (int i = 1; i <= 3; i++)
+                await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = $"Note {i}" }, "rev", $"c-{i}");
+
+            var status = await svc.GetCheckStatusAsync(initiated.DecisionId!);
+            Assert.That(status.ReviewerNotes, Has.Count.EqualTo(3));
+        }
+
+        [Test]
+        public async Task AppendNote_AddsAuditEventToTrail()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "c-init");
+            var auditCountBefore = initiated.AuditTrail.Count;
+
+            await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "Audited." }, "rev", "c");
+
+            var status = await svc.GetCheckStatusAsync(initiated.DecisionId!);
+            Assert.That(status.AuditTrail, Has.Count.GreaterThan(auditCountBefore));
+
+            var noteEvent = status.AuditTrail.LastOrDefault();
+            Assert.That(noteEvent?.EventType, Is.EqualTo("ReviewerNoteAppended"));
+        }
+
+        [Test]
+        public async Task AppendNote_DecisionNotFound_ReturnsFail()
+        {
+            var svc = CreateService();
+            var resp = await svc.AppendReviewerNoteAsync("nonexistent-id", new AppendReviewerNoteRequest { Content = "Note." }, "rev", "c");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo("COMPLIANCE_CHECK_NOT_FOUND"));
+        }
+
+        [Test]
+        public async Task AppendNote_EmptyContent_ReturnsError()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "c-init");
+
+            var resp = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "" }, "rev", "c");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo("MISSING_REQUIRED_FIELD"));
+        }
+
+        [Test]
+        public async Task AppendNote_WhitespaceContent_ReturnsError()
+        {
+            var svc = CreateService();
+            var req = MakeRequest();
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "c-init");
+
+            var resp = await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "   " }, "rev", "c");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo("MISSING_REQUIRED_FIELD"));
+        }
+
+        [Test]
+        public async Task AppendNote_EmptyDecisionId_ReturnsError()
+        {
+            var svc = CreateService();
+            var resp = await svc.AppendReviewerNoteAsync("", new AppendReviewerNoteRequest { Content = "Note." }, "rev", "c");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo("MISSING_REQUIRED_FIELD"));
+        }
+
+        [Test]
+        public async Task AppendNote_NoteAppearsInHistory()
+        {
+            var svc = CreateService();
+            var subjectId = $"hist-note-{Guid.NewGuid():N}";
+            var req = MakeRequest(subjectId: subjectId);
+            var initiated = await svc.InitiateCheckAsync(req, "actor", "c-init");
+
+            await svc.AppendReviewerNoteAsync(initiated.DecisionId!, new AppendReviewerNoteRequest { Content = "For history check." }, "rev", "c");
+
+            var history = await svc.GetDecisionHistoryAsync(subjectId);
+            var first = history.Decisions.FirstOrDefault();
+            Assert.That(first, Is.Not.Null);
+            Assert.That(first!.ReviewerNotes, Has.Count.EqualTo(1));
+            Assert.That(first.ReviewerNotes[0].Content, Is.EqualTo("For history check."));
+        }
     }
 }
