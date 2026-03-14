@@ -281,7 +281,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task AmlCheck_UnavailableSimulation_ReturnsError()
+        public async Task AmlCheck_UnavailableSimulation_ReturnsProviderUnavailable()
         {
             var svc = CreateService();
             var req = MakeRequest(
@@ -289,8 +289,8 @@ namespace BiatecTokensTests
                 metadata: new Dictionary<string, string> { ["simulate_unavailable"] = "true" });
             var resp = await svc.InitiateCheckAsync(req, "actor", "corr-aml-5");
 
-            Assert.That(resp.State, Is.EqualTo(ComplianceDecisionState.Error));
-            Assert.That(resp.ProviderErrorCode, Is.EqualTo(ComplianceProviderErrorCode.ProviderUnavailable));
+            Assert.That(resp.State, Is.EqualTo(ComplianceDecisionState.ProviderUnavailable));
+            Assert.That(resp.ReasonCode, Is.EqualTo("PROVIDER_UNAVAILABLE"));
         }
 
         [Test]
@@ -714,14 +714,14 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task MockAmlProvider_UnavailableFlag_ReturnsUnavailable()
+        public async Task MockAmlProvider_UnavailableFlag_ReturnsProviderUnavailableState()
         {
             var provider = new MockAmlProvider(NullLogger<MockAmlProvider>.Instance);
             var (_, state, reasonCode, _) =
                 await provider.ScreenSubjectAsync("user-unavailable",
                     new Dictionary<string, string> { ["simulate_unavailable"] = "true" }, "corr");
 
-            Assert.That(state, Is.EqualTo(ComplianceDecisionState.Error));
+            Assert.That(state, Is.EqualTo(ComplianceDecisionState.ProviderUnavailable));
             Assert.That(reasonCode, Is.EqualTo("PROVIDER_UNAVAILABLE"));
         }
 

@@ -13,8 +13,25 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
         Rejected = 2,
         /// <summary>Manual review required before a final decision</summary>
         NeedsReview = 3,
-        /// <summary>An error occurred during the compliance check</summary>
-        Error = 4
+        /// <summary>An internal error occurred during the compliance check</summary>
+        Error = 4,
+        /// <summary>The screening provider was unavailable; the check could not be completed (fail-closed)</summary>
+        ProviderUnavailable = 5,
+        /// <summary>A previously-approved decision has exceeded its validity window and must be renewed</summary>
+        Expired = 6,
+        /// <summary>Insufficient subject data was provided to complete the check</summary>
+        InsufficientData = 7
+    }
+
+    /// <summary>
+    /// Classifies the screening subject as an individual person or a business/legal entity.
+    /// </summary>
+    public enum ScreeningSubjectType
+    {
+        /// <summary>Natural person (default)</summary>
+        Individual = 0,
+        /// <summary>Legal entity, company, or business organisation</summary>
+        BusinessEntity = 1
     }
 
     /// <summary>
@@ -180,6 +197,28 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
         /// <summary>When the check reached a terminal state (null if still pending)</summary>
         public DateTimeOffset? CompletedAt { get; set; }
 
+        /// <summary>
+        /// UTC timestamp after which this decision evidence is considered stale and the
+        /// decision transitions to <see cref="ComplianceDecisionState.Expired"/> on next retrieval.
+        /// Null means the decision does not expire.
+        /// </summary>
+        public DateTimeOffset? EvidenceExpiresAt { get; set; }
+
+        /// <summary>Classifies the screened subject as an individual or a business entity</summary>
+        public ScreeningSubjectType SubjectType { get; set; }
+
+        /// <summary>
+        /// Watchlist or sanctions categories that were matched during AML screening
+        /// (e.g. "OFAC_SDN", "EU_SANCTIONS", "PEP_WATCHLIST"). Empty when no matches found.
+        /// </summary>
+        public List<string> MatchedWatchlistCategories { get; set; } = new();
+
+        /// <summary>
+        /// Provider-reported confidence score for the screening result (0.0–1.0).
+        /// Null when the provider does not supply a score.
+        /// </summary>
+        public decimal? ConfidenceScore { get; set; }
+
         /// <summary>Ordered list of audit events for this decision</summary>
         public List<ComplianceAuditEvent> AuditTrail { get; set; } = new();
 
@@ -214,8 +253,25 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
 
         /// <summary>
         /// Optional subject metadata forwarded to providers (e.g. full_name, country).
+        /// For business entities, include keys such as <c>legal_name</c>, <c>registration_number</c>,
+        /// <c>jurisdiction</c>, and <c>ultimate_beneficial_owner</c>.
         /// </summary>
         public Dictionary<string, string> SubjectMetadata { get; set; } = new();
+
+        /// <summary>
+        /// Classifies the subject as an individual person or a business/legal entity.
+        /// Defaults to <see cref="ScreeningSubjectType.Individual"/>.
+        /// </summary>
+        public ScreeningSubjectType SubjectType { get; set; } = ScreeningSubjectType.Individual;
+
+        /// <summary>
+        /// Optional evidence validity window in hours. When set, the completed decision will
+        /// carry an <c>EvidenceExpiresAt</c> timestamp that many hours in the future. When that
+        /// timestamp is reached the decision transitions to
+        /// <see cref="ComplianceDecisionState.Expired"/> on next retrieval.
+        /// Set to <c>0</c> or omit to disable expiry.
+        /// </summary>
+        public int? EvidenceValidityHours { get; set; }
 
         /// <summary>
         /// Optional explicit idempotency key. When not provided, a key is derived from
@@ -261,6 +317,27 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
 
         /// <summary>When the check reached a terminal state</summary>
         public DateTimeOffset? CompletedAt { get; set; }
+
+        /// <summary>
+        /// UTC timestamp after which this evidence is considered stale.
+        /// Null means the decision does not expire.
+        /// </summary>
+        public DateTimeOffset? EvidenceExpiresAt { get; set; }
+
+        /// <summary>Classifies the screened subject as an individual or a business entity</summary>
+        public ScreeningSubjectType SubjectType { get; set; }
+
+        /// <summary>
+        /// Watchlist or sanctions categories that were matched during AML screening.
+        /// Empty list when no matches were found.
+        /// </summary>
+        public List<string> MatchedWatchlistCategories { get; set; } = new();
+
+        /// <summary>
+        /// Provider-reported confidence score for the screening result (0.0–1.0).
+        /// Null when the provider does not supply a score.
+        /// </summary>
+        public decimal? ConfidenceScore { get; set; }
 
         /// <summary>Audit trail events for this decision</summary>
         public List<ComplianceAuditEvent> AuditTrail { get; set; } = new();
