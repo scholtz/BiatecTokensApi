@@ -557,8 +557,12 @@ namespace BiatecTokensApi.Services
         };
 
         // ── Idempotency index for provider callbacks ────────────────────────────
-        // callbackIdempotencyKey → true (already processed)
-        private readonly ConcurrentDictionary<string, bool> _callbackIdempotencyIndex = new();
+        // callbackIdempotencyKey → ProviderReferenceId that registered it
+        // Storing the originating ProviderReferenceId ensures that a key collision
+        // between two different callbacks (different provider references sharing the
+        // same idempotency key) is detected and rejected fail-closed, rather than
+        // silently suppressing the second, legitimate callback.
+        private readonly ConcurrentDictionary<string, string> _callbackIdempotencyIndex = new();
 
         /// <inheritdoc/>
         public async Task<RescreenResponse> RescreenAsync(
@@ -721,27 +725,60 @@ namespace BiatecTokensApi.Services
                 }
             }
 
-            // Atomic idempotency gate: attempt to register the key BEFORE processing.
-            // ConcurrentDictionary.TryAdd is thread-safe and returns false if the key
-            // was already present. This eliminates the TOCTOU race window of the previous
-            // check-then-act pattern, where two concurrent deliveries with the same key
-            // could both pass the initial check and both mutate decision state.
+            // Atomic idempotency gate: attempt to register (key → providerReferenceId) BEFORE
+            // processing. ConcurrentDictionary.TryAdd is inherently thread-safe — only the first
+            // thread to insert a key succeeds; all concurrent duplicates receive false and are
+            // routed to the replay/mismatch branch without touching decision state.
+            //
+            // Scoping the value to ProviderReferenceId closes a second security gap:
+            // a reused idempotency key that arrives for a *different* provider reference
+            // would previously be silently treated as a successful replay, suppressing the
+            // new legitimate callback. With this design:
+            //  - Same key + same ProviderReferenceId → exact replay: IsIdempotentReplay = true
+            //  - Same key + different ProviderReferenceId → fail-closed: IDEMPOTENCY_KEY_CONFLICT
             if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
             {
-                if (!_callbackIdempotencyIndex.TryAdd(request.IdempotencyKey, true))
+                if (!_callbackIdempotencyIndex.TryAdd(request.IdempotencyKey, request.ProviderReferenceId))
                 {
-                    _logger.LogInformation(
-                        "Provider callback idempotent replay detected. IdempotencyKey={Key}, ProviderRefId={RefId}, CorrelationId={CorrelationId}",
-                        LoggingHelper.SanitizeLogInput(request.IdempotencyKey),
-                        LoggingHelper.SanitizeLogInput(request.ProviderReferenceId),
-                        LoggingHelper.SanitizeLogInput(correlationId));
+                    // Key already exists — determine if this is a safe exact replay or a conflict.
+                    _callbackIdempotencyIndex.TryGetValue(request.IdempotencyKey, out var registeredProviderRef);
+                    bool isExactReplay = string.Equals(registeredProviderRef, request.ProviderReferenceId,
+                        StringComparison.Ordinal);
 
-                    return Task.FromResult(new ProviderCallbackResponse
+                    if (isExactReplay)
                     {
-                        Success = true,
-                        IsIdempotentReplay = true,
-                        CorrelationId = correlationId
-                    });
+                        _logger.LogInformation(
+                            "Provider callback idempotent replay detected. IdempotencyKey={Key}, ProviderRefId={RefId}, CorrelationId={CorrelationId}",
+                            LoggingHelper.SanitizeLogInput(request.IdempotencyKey),
+                            LoggingHelper.SanitizeLogInput(request.ProviderReferenceId),
+                            LoggingHelper.SanitizeLogInput(correlationId));
+
+                        return Task.FromResult(new ProviderCallbackResponse
+                        {
+                            Success = true,
+                            IsIdempotentReplay = true,
+                            CorrelationId = correlationId
+                        });
+                    }
+                    else
+                    {
+                        // Different ProviderReferenceId is attempting to reuse an already-registered
+                        // idempotency key. Reject fail-closed to prevent suppression of legitimate updates.
+                        _logger.LogWarning(
+                            "Provider callback rejected: idempotency key conflict. IdempotencyKey={Key} is already registered for ProviderRefId={RegisteredRefId}, incoming ProviderRefId={IncomingRefId}, CorrelationId={CorrelationId}",
+                            LoggingHelper.SanitizeLogInput(request.IdempotencyKey),
+                            LoggingHelper.SanitizeLogInput(registeredProviderRef),
+                            LoggingHelper.SanitizeLogInput(request.ProviderReferenceId),
+                            LoggingHelper.SanitizeLogInput(correlationId));
+
+                        return Task.FromResult(new ProviderCallbackResponse
+                        {
+                            Success = false,
+                            ErrorCode = "IDEMPOTENCY_KEY_CONFLICT",
+                            ErrorMessage = "The idempotency key is already registered for a different provider reference.",
+                            CorrelationId = correlationId
+                        });
+                    }
                 }
             }
 

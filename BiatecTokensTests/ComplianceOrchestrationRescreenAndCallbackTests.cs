@@ -17,6 +17,9 @@ namespace BiatecTokensTests
     ///  - Provider callback: state transitions for all outcome strings
     ///  - Provider callback idempotency (same key processed only once — sequential and concurrent)
     ///  - Provider callback atomicity regression: concurrent duplicate delivery cannot double-apply state
+    ///  - Provider callback idempotency key scoping: key is tied to ProviderReferenceId
+    ///    - Exact replay (same key + same ProviderReferenceId) → IsIdempotentReplay=true
+    ///    - Key reuse against a different ProviderReferenceId → IDEMPOTENCY_KEY_CONFLICT (fail-closed)
     ///  - Provider callback error cases: missing fields, unknown reference
     ///  - Audit trail correctness for rescreen and callback events
     ///  - Fail-closed: unrecognised outcome string maps to Error state
@@ -965,6 +968,243 @@ namespace BiatecTokensTests
                 $"Expected exactly {keysCount} processing results (one per unique key); got {processingCount}.");
             Assert.That(replayCount, Is.EqualTo(keysCount * (deliveriesPerKey - 1)),
                 $"Expected {keysCount * (deliveriesPerKey - 1)} replays; got {replayCount}.");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // PROVIDER CALLBACK — idempotency key / ProviderReferenceId scope security
+        //
+        // These tests prove that an idempotency key is scoped to the ProviderReferenceId
+        // that originally registered it. Reusing a key for a *different* provider reference
+        // must be rejected fail-closed (IDEMPOTENCY_KEY_CONFLICT) rather than silently
+        // treated as a replay — which would suppress a legitimate screening update.
+        // ─────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Exact replay (same key + same ProviderReferenceId) must still return
+        /// IsIdempotentReplay=true and Success=true after the scoped-key change.
+        /// </summary>
+        [Test]
+        public async Task ProviderCallback_ExactReplay_SameKeyAndSameProviderRef_IsIdempotentReplay()
+        {
+            var svc = CreateService();
+            var decision = await svc.InitiateCheckAsync(
+                MakeRequest(subjectId: "user-scope-1", checkType: ComplianceCheckType.Kyc),
+                "actor", "corr-scope-setup-1");
+            Assert.That(decision.Success, Is.True);
+
+            var status = await svc.GetCheckStatusAsync(decision.DecisionId!);
+            var providerRef = status.AuditTrail
+                .Where(e => e.ProviderReferenceId != null)
+                .Select(e => e.ProviderReferenceId!)
+                .FirstOrDefault();
+
+            if (string.IsNullOrEmpty(providerRef))
+            {
+                Assert.Ignore("No provider reference in audit trail.");
+                return;
+            }
+
+            var idemKey = $"scope-exact-{Guid.NewGuid():N}";
+            var req = new ProviderCallbackRequest
+            {
+                ProviderReferenceId = providerRef,
+                OutcomeStatus = "approved",
+                IdempotencyKey = idemKey
+            };
+
+            var first = await svc.ProcessProviderCallbackAsync(req, "corr-scope-1a");
+            var second = await svc.ProcessProviderCallbackAsync(req, "corr-scope-1b");
+
+            Assert.That(first.Success, Is.True, "First delivery must succeed.");
+            Assert.That(first.IsIdempotentReplay, Is.False, "First delivery must be processing, not replay.");
+            Assert.That(second.Success, Is.True, "Exact replay must succeed.");
+            Assert.That(second.IsIdempotentReplay, Is.True, "Exact replay must be flagged as replay.");
+        }
+
+        /// <summary>
+        /// Reusing the same idempotency key against a DIFFERENT ProviderReferenceId must be
+        /// rejected fail-closed with IDEMPOTENCY_KEY_CONFLICT, not silently treated as a replay.
+        /// This prevents a hostile or misdelivered message from suppressing a legitimate callback.
+        /// </summary>
+        [Test]
+        public async Task ProviderCallback_KeyConflict_SameKeyDifferentProviderRef_RejectsFailClosed()
+        {
+            var svc = CreateService();
+
+            // Create two independent decisions → two different provider reference IDs
+            var decision1 = await svc.InitiateCheckAsync(
+                MakeRequest(subjectId: "user-conflict-A", contextId: "ctx-conflict-A", checkType: ComplianceCheckType.Kyc),
+                "actor", "corr-conflict-A");
+            var decision2 = await svc.InitiateCheckAsync(
+                MakeRequest(subjectId: "user-conflict-B", contextId: "ctx-conflict-B", checkType: ComplianceCheckType.Kyc),
+                "actor", "corr-conflict-B");
+
+            Assert.That(decision1.Success, Is.True);
+            Assert.That(decision2.Success, Is.True);
+
+            var status1 = await svc.GetCheckStatusAsync(decision1.DecisionId!);
+            var status2 = await svc.GetCheckStatusAsync(decision2.DecisionId!);
+
+            var providerRef1 = status1.AuditTrail
+                .Where(e => e.ProviderReferenceId != null)
+                .Select(e => e.ProviderReferenceId!)
+                .FirstOrDefault();
+            var providerRef2 = status2.AuditTrail
+                .Where(e => e.ProviderReferenceId != null)
+                .Select(e => e.ProviderReferenceId!)
+                .FirstOrDefault();
+
+            if (string.IsNullOrEmpty(providerRef1) || string.IsNullOrEmpty(providerRef2))
+            {
+                Assert.Ignore("Could not extract two distinct provider references.");
+                return;
+            }
+
+            if (string.Equals(providerRef1, providerRef2, StringComparison.Ordinal))
+            {
+                Assert.Ignore("Both decisions share the same provider reference — cannot test key conflict.");
+                return;
+            }
+
+            var sharedKey = $"conflict-key-{Guid.NewGuid():N}";
+
+            // Register the key under providerRef1
+            var first = await svc.ProcessProviderCallbackAsync(
+                new ProviderCallbackRequest
+                {
+                    ProviderReferenceId = providerRef1,
+                    OutcomeStatus = "approved",
+                    IdempotencyKey = sharedKey
+                }, "corr-conflict-first");
+
+            // Attempt to reuse the same key for providerRef2 (different callback)
+            var second = await svc.ProcessProviderCallbackAsync(
+                new ProviderCallbackRequest
+                {
+                    ProviderReferenceId = providerRef2,
+                    OutcomeStatus = "rejected",
+                    IdempotencyKey = sharedKey
+                }, "corr-conflict-second");
+
+            Assert.That(first.Success, Is.True, "First delivery (registering key) must succeed.");
+            Assert.That(first.IsIdempotentReplay, Is.False, "First delivery must not be a replay.");
+            Assert.That(second.Success, Is.False,
+                "Cross-reference key reuse must be rejected fail-closed, not silently accepted as replay.");
+            Assert.That(second.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"),
+                "Rejection must use IDEMPOTENCY_KEY_CONFLICT error code.");
+            Assert.That(second.IsIdempotentReplay, Is.False,
+                "A conflict rejection must not be flagged as an idempotent replay.");
+        }
+
+        /// <summary>
+        /// Verifies that the second decision's state is NOT updated to the rejected outcome
+        /// when a key-conflict rejection occurs. The second callback must be a no-op on state.
+        /// </summary>
+        [Test]
+        public async Task ProviderCallback_KeyConflict_SecondDecisionStateUnchanged()
+        {
+            var svc = CreateService();
+
+            var decision1 = await svc.InitiateCheckAsync(
+                MakeRequest(subjectId: "user-state-A", contextId: "ctx-state-A", checkType: ComplianceCheckType.Kyc),
+                "actor", "corr-state-A");
+            var decision2 = await svc.InitiateCheckAsync(
+                MakeRequest(subjectId: "user-state-B", contextId: "ctx-state-B", checkType: ComplianceCheckType.Kyc),
+                "actor", "corr-state-B");
+
+            Assert.That(decision1.Success, Is.True);
+            Assert.That(decision2.Success, Is.True);
+
+            var status1Before = await svc.GetCheckStatusAsync(decision1.DecisionId!);
+            var status2Before = await svc.GetCheckStatusAsync(decision2.DecisionId!);
+
+            var providerRef1 = status1Before.AuditTrail
+                .Where(e => e.ProviderReferenceId != null)
+                .Select(e => e.ProviderReferenceId!).FirstOrDefault();
+            var providerRef2 = status2Before.AuditTrail
+                .Where(e => e.ProviderReferenceId != null)
+                .Select(e => e.ProviderReferenceId!).FirstOrDefault();
+
+            if (string.IsNullOrEmpty(providerRef1) || string.IsNullOrEmpty(providerRef2) ||
+                string.Equals(providerRef1, providerRef2, StringComparison.Ordinal))
+            {
+                Assert.Ignore("Cannot test state isolation: provider refs missing or identical.");
+                return;
+            }
+
+            var sharedKey = $"state-key-{Guid.NewGuid():N}";
+            var stateBeforeConflict = status2Before.State;
+
+            // Register key for decision1
+            await svc.ProcessProviderCallbackAsync(
+                new ProviderCallbackRequest
+                {
+                    ProviderReferenceId = providerRef1,
+                    OutcomeStatus = "approved",
+                    IdempotencyKey = sharedKey
+                }, "corr-state-first");
+
+            // Attempt to use the same key for decision2 with a different outcome
+            var conflictResult = await svc.ProcessProviderCallbackAsync(
+                new ProviderCallbackRequest
+                {
+                    ProviderReferenceId = providerRef2,
+                    OutcomeStatus = "rejected",   // This must NOT be applied
+                    IdempotencyKey = sharedKey
+                }, "corr-state-second");
+
+            Assert.That(conflictResult.ErrorCode, Is.EqualTo("IDEMPOTENCY_KEY_CONFLICT"));
+
+            var status2After = await svc.GetCheckStatusAsync(decision2.DecisionId!);
+            Assert.That(status2After.State, Is.EqualTo(stateBeforeConflict),
+                "Decision 2 state must remain unchanged after a key-conflict rejection. " +
+                "If it changed, the rejected callback was incorrectly applied.");
+        }
+
+        /// <summary>
+        /// Concurrent deliveries with the same key and same ProviderReferenceId remain race-safe
+        /// after the scoped-key change — exactly one processing, all others exact replays.
+        /// </summary>
+        [Test]
+        public async Task ProviderCallback_KeyConflict_ConcurrentExactReplays_RemainsRaceSafe()
+        {
+            var svc = CreateService();
+            var decision = await svc.InitiateCheckAsync(
+                MakeRequest(subjectId: "user-race-scoped", checkType: ComplianceCheckType.Kyc),
+                "actor", "corr-race-scoped-setup");
+            Assert.That(decision.Success, Is.True);
+
+            var status = await svc.GetCheckStatusAsync(decision.DecisionId!);
+            var providerRef = status.AuditTrail
+                .Where(e => e.ProviderReferenceId != null)
+                .Select(e => e.ProviderReferenceId!)
+                .FirstOrDefault();
+
+            if (string.IsNullOrEmpty(providerRef))
+            {
+                Assert.Ignore("No provider reference in audit trail.");
+                return;
+            }
+
+            const int concurrency = 30;
+            var sharedKey = $"race-scoped-{Guid.NewGuid():N}";
+
+            var results = await Task.WhenAll(Enumerable.Range(0, concurrency).Select(i =>
+                svc.ProcessProviderCallbackAsync(
+                    new ProviderCallbackRequest
+                    {
+                        ProviderReferenceId = providerRef,
+                        OutcomeStatus = "approved",
+                        IdempotencyKey = sharedKey
+                    }, $"corr-race-scoped-{i}")));
+
+            var processingCount = results.Count(r => r.Success && !r.IsIdempotentReplay);
+            var replayCount = results.Count(r => r.Success && r.IsIdempotentReplay);
+
+            Assert.That(processingCount, Is.EqualTo(1),
+                $"Exactly one concurrent delivery must be processed; got {processingCount}.");
+            Assert.That(replayCount, Is.EqualTo(concurrency - 1),
+                $"All others must be exact replays; got {replayCount}.");
         }
     }
 }
