@@ -16,6 +16,7 @@ namespace BiatecTokensApi.Services
         private readonly IKycProvider _kycProvider;
         private readonly IAmlProvider _amlProvider;
         private readonly ILogger<ComplianceOrchestrationService> _logger;
+        private readonly TimeProvider _timeProvider;
 
         // Primary store: decisionId → decision
         private readonly ConcurrentDictionary<string, NormalizedComplianceDecision> _decisions = new();
@@ -27,11 +28,13 @@ namespace BiatecTokensApi.Services
         public ComplianceOrchestrationService(
             IKycProvider kycProvider,
             IAmlProvider amlProvider,
-            ILogger<ComplianceOrchestrationService> logger)
+            ILogger<ComplianceOrchestrationService> logger,
+            TimeProvider? timeProvider = null)
         {
             _kycProvider = kycProvider;
             _amlProvider = amlProvider;
             _logger = logger;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -68,7 +71,7 @@ namespace BiatecTokensApi.Services
             }
 
             var decisionId = Guid.NewGuid().ToString("N");
-            var now = DateTimeOffset.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             var metadata = request.SubjectMetadata ?? new Dictionary<string, string>();
 
             var decision = new NormalizedComplianceDecision
@@ -128,7 +131,7 @@ namespace BiatecTokensApi.Services
             // Set CompletedAt for terminal states
             if (IsTerminal(decision.State))
             {
-                decision.CompletedAt = DateTimeOffset.UtcNow;
+                decision.CompletedAt = _timeProvider.GetUtcNow();
 
                 // Set evidence expiry when a validity window is requested and the check was approved
                 if (request.EvidenceValidityHours is > 0 && decision.State == ComplianceDecisionState.Approved)
@@ -153,7 +156,7 @@ namespace BiatecTokensApi.Services
             {
                 // Check freshness: if the evidence has passed its expiry window, transition to Expired
                 if (decision.EvidenceExpiresAt.HasValue
-                    && DateTimeOffset.UtcNow > decision.EvidenceExpiresAt.Value
+                    && _timeProvider.GetUtcNow() > decision.EvidenceExpiresAt.Value
                     && decision.State == ComplianceDecisionState.Approved)
                 {
                     decision.State = ComplianceDecisionState.Expired;
@@ -267,7 +270,7 @@ namespace BiatecTokensApi.Services
                 ActorId = actorId,
                 Content = request.Content,
                 EvidenceReferences = request.EvidenceReferences ?? new Dictionary<string, string>(),
-                AppendedAt = DateTimeOffset.UtcNow,
+                AppendedAt = _timeProvider.GetUtcNow(),
                 CorrelationId = correlationId
             };
 
@@ -481,7 +484,7 @@ namespace BiatecTokensApi.Services
         {
             decision.AuditTrail.Add(new ComplianceAuditEvent
             {
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = TimeProvider.System.GetUtcNow(),
                 EventType = eventType,
                 State = state,
                 CorrelationId = correlationId,
