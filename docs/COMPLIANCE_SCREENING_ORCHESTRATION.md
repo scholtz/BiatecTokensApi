@@ -152,6 +152,140 @@ Appends a reviewer note or evidence reference to an existing compliance decision
 
 ---
 
+### POST `/rescreen/{decisionId}`
+
+Initiates a rescreen for a subject whose evidence is stale or expired.
+A new compliance decision is created using the same subject and context as the original,
+with optional parameter overrides. The original decision is not modified, but receives a
+`RescreenTriggered` audit event for traceability.
+
+**Authentication:** Required (Bearer JWT).
+
+**Path parameter:**
+| Parameter | Description |
+|---|---|
+| `decisionId` | The original compliance decision ID to rescreen |
+
+**Request body (optional):**
+```json
+{
+  "checkType": 2,
+  "subjectMetadata": {
+    "full_name": "Jane Doe",
+    "country": "DE"
+  },
+  "evidenceValidityHours": 720,
+  "reason": "EvidenceExpired"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `checkType` | int | No | Override the check type. When omitted, the original check type is reused |
+| `subjectMetadata` | dict | No | Updated subject metadata. When omitted, empty metadata is used |
+| `evidenceValidityHours` | int | No | Override the evidence validity window. When omitted, no expiry is set unless specified |
+| `reason` | string | No | Human-readable reason for the rescreen (default: `"OperatorRequested"`) |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "previousDecisionId": "a1b2c3d4e5f6...",
+  "newDecision": {
+    "success": true,
+    "decisionId": "x7y8z9...",
+    "state": 1,
+    "auditTrail": [ ... ],
+    ...
+  },
+  "correlationId": "corr-xyz"
+}
+```
+
+**Error Response (404 Not Found):** Original decision not found.
+
+**Error Response (400 Bad Request):** Missing or empty decision ID.
+
+**Typical use cases:**
+- Subject's evidence expired (`state = 6 / Expired`) — trigger fresh KYC/AML checks
+- Operator manually initiates a periodic re-check regardless of expiry
+- Compliance policy change requires all subjects to be re-screened
+
+---
+
+### POST `/provider-callback`
+
+Processes an inbound provider webhook/callback event and updates the corresponding compliance decision.
+This endpoint is **anonymous** (no Bearer JWT required) — providers POST directly to it.
+Authenticity is validated via the `signature` field in the request body.
+
+Duplicate callbacks with the same `idempotencyKey` are accepted without re-processing
+(idempotent replay detection). The `isIdempotentReplay: true` flag signals this to the caller.
+
+**Request:**
+```json
+{
+  "providerName": "StripeIdentity",
+  "providerReferenceId": "vs_1234567890",
+  "eventType": "identity.verification_session.verified",
+  "outcomeStatus": "approved",
+  "reasonCode": null,
+  "message": "Document and selfie passed all checks.",
+  "signature": "sha256=abcdef...",
+  "idempotencyKey": "evt_stripe_001"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `providerName` | string | No | Provider identifier (e.g. `"StripeIdentity"`, `"ComplyAdvantage"`, `"Mock"`) |
+| `providerReferenceId` | string | ✅ | Provider-issued reference ID matching `kycProviderReferenceId` or `amlProviderReferenceId` on the decision |
+| `eventType` | string | No | Provider-specific event type string |
+| `outcomeStatus` | string | ✅ | Normalised outcome: `approved`, `rejected`, `needs_review`, `pending`, `provider_unavailable`, `insufficient_data`, `expired` (unrecognised values → `Error` / fail-closed) |
+| `reasonCode` | string | No | Optional reason code (e.g. `SANCTIONS_MATCH`) |
+| `message` | string | No | Optional human-readable description from the provider |
+| `signature` | string | No | HMAC-SHA256 signature for authenticity validation |
+| `idempotencyKey` | string | No | Idempotency key for the event — duplicate calls with the same key are not re-processed |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "decisionId": "a1b2c3d4e5f6...",
+  "newState": 1,
+  "isIdempotentReplay": false,
+  "correlationId": "corr-xyz"
+}
+```
+
+**Response (200 OK — idempotent replay):**
+```json
+{
+  "success": true,
+  "isIdempotentReplay": true,
+  "correlationId": "corr-xyz"
+}
+```
+
+**Error Response (404 Not Found):** No decision found for the given `providerReferenceId`.
+
+**Error Response (400 Bad Request):** Missing required fields.
+
+**Outcome Status Mapping:**
+
+| `outcomeStatus` value | Mapped `ComplianceDecisionState` |
+|---|---|
+| `approved`, `verified`, `passed`, `clear` | `1 (Approved)` |
+| `rejected`, `failed`, `declined`, `blocked` | `2 (Rejected)` |
+| `needs_review`, `needsreview`, `review`, `manual_review` | `3 (NeedsReview)` |
+| `pending`, `processing`, `in_progress` | `0 (Pending)` |
+| `provider_unavailable`, `unavailable`, `offline` | `5 (ProviderUnavailable)` |
+| `insufficient_data`, `insufficientdata`, `incomplete` | `7 (InsufficientData)` |
+| `expired`, `stale` | `6 (Expired)` |
+| *(any unrecognised value)* | `4 (Error)` — fail-closed |
+
+---
+
 ## Domain Model
 
 ### `ComplianceDecisionState`

@@ -155,5 +155,97 @@ namespace BiatecTokensApi.Controllers
 
             return Ok(response);
         }
+
+        /// <summary>
+        /// Initiates a rescreen for a subject whose evidence is stale or expired.
+        /// A new compliance decision is created using the same subject and context as the
+        /// original decision, optionally with updated parameters.
+        /// </summary>
+        /// <param name="decisionId">The original decision ID to rescreen.</param>
+        /// <param name="request">Optional override parameters for the rescreen.</param>
+        /// <returns>The new compliance check response on success.</returns>
+        [HttpPost("rescreen/{decisionId}")]
+        [ProducesResponseType(typeof(RescreenResponse), 200)]
+        [ProducesResponseType(typeof(RescreenResponse), 400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Rescreen(
+            [FromRoute] string decisionId,
+            [FromBody] RescreenRequest? request)
+        {
+            var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                       ?? User.FindFirst("sub")?.Value
+                       ?? "unknown";
+
+            var correlationId = HttpContext.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+                             ?? Guid.NewGuid().ToString("N");
+
+            _logger.LogInformation(
+                "Rescreen requested. DecisionId={DecisionId}, Actor={Actor}, CorrelationId={CorrelationId}",
+                LoggingHelper.SanitizeLogInput(decisionId),
+                LoggingHelper.SanitizeLogInput(actorId),
+                LoggingHelper.SanitizeLogInput(correlationId));
+
+            var response = await _orchestrationService.RescreenAsync(
+                decisionId, request ?? new RescreenRequest(), actorId, correlationId);
+
+            if (!response.Success)
+            {
+                if (response.ErrorCode == "COMPLIANCE_CHECK_NOT_FOUND")
+                    return NotFound(response);
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Processes an inbound provider webhook/callback event and updates the corresponding
+        /// compliance decision. This endpoint is anonymous but payload-authenticated via the
+        /// <c>Signature</c> field in the request body.
+        /// </summary>
+        /// <remarks>
+        /// Providers should POST to this endpoint when screening outcomes change asynchronously.
+        /// The <c>ProviderReferenceId</c> links the callback to an existing compliance decision.
+        /// Duplicate callbacks with the same <c>IdempotencyKey</c> are accepted without
+        /// re-processing.
+        /// </remarks>
+        /// <param name="request">The normalised provider callback payload.</param>
+        /// <returns>200 OK when processed (or idempotent replay); 400 for invalid payloads.</returns>
+        [AllowAnonymous]
+        [HttpPost("provider-callback")]
+        [ProducesResponseType(typeof(ProviderCallbackResponse), 200)]
+        [ProducesResponseType(typeof(ProviderCallbackResponse), 400)]
+        public async Task<IActionResult> ProviderCallback([FromBody] ProviderCallbackRequest request)
+        {
+            if (request == null)
+                return BadRequest(new ProviderCallbackResponse
+                {
+                    Success = false,
+                    ErrorCode = "MISSING_REQUEST_BODY",
+                    ErrorMessage = "Request body is required."
+                });
+
+            var correlationId = HttpContext.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+                             ?? Guid.NewGuid().ToString("N");
+
+            _logger.LogInformation(
+                "Provider callback received. Provider={Provider}, ProviderRefId={RefId}, EventType={EventType}, CorrelationId={CorrelationId}",
+                LoggingHelper.SanitizeLogInput(request.ProviderName),
+                LoggingHelper.SanitizeLogInput(request.ProviderReferenceId),
+                LoggingHelper.SanitizeLogInput(request.EventType),
+                LoggingHelper.SanitizeLogInput(correlationId));
+
+            var response = await _orchestrationService.ProcessProviderCallbackAsync(request, correlationId);
+
+            if (!response.Success)
+            {
+                if (response.ErrorCode == "COMPLIANCE_CHECK_NOT_FOUND")
+                    return NotFound(response);
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
     }
 }
