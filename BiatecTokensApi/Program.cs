@@ -442,6 +442,10 @@ namespace BiatecTokensApi
             // structured decisions, audit history/export, and operational diagnostics
             builder.Services.AddSingleton<IEnterpriseComplianceReviewService, EnterpriseComplianceReviewService>();
 
+            // Register Approval Workflow service and repository for multi-stage enterprise release approval
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IApprovalWorkflowRepository, BiatecTokensApi.Repositories.ApprovalWorkflowRepository>();
+            builder.Services.AddSingleton<IApprovalWorkflowService, ApprovalWorkflowService>();
+
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
 
