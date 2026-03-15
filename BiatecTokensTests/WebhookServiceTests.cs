@@ -650,7 +650,170 @@ namespace BiatecTokensTests
             Assert.That(capturedEventType, Is.EqualTo("AmlStatusChange"));
         }
 
-        // ── Payload shape / schema contract ──────────────────────────────────────
+        // ── Timing-safe signature verification ───────────────────────────────────
+
+        /// <summary>
+        /// Validates the recommended receiver verification pattern from docs/WEBHOOK_API.md.
+        /// Uses CryptographicOperations.FixedTimeEquals (timing-safe) instead of string ==.
+        /// This test serves as a regression guard: if the doc sample is regressed to a
+        /// short-circuit comparison the underlying security property tested here still holds.
+        /// </summary>
+        [Test]
+        public async Task SignatureVerification_CorrectSignature_AcceptsWithFixedTimeEquals()
+        {
+            string? capturedPayload = null;
+            string? capturedSignature = null;
+
+            var handler = new FakeHttpMessageHandler(HttpStatusCode.OK, "accepted",
+                onRequest: req =>
+                {
+                    capturedPayload = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+                    capturedSignature = req.Headers.GetValues("X-Webhook-Signature").FirstOrDefault();
+                });
+
+            var repo = new WebhookRepository(NullLogger<WebhookRepository>.Instance);
+            var svc = new WebhookService(repo, NullLogger<WebhookService>.Instance,
+                new FakeHttpClientFactory(new HttpClient(handler)));
+
+            var created = await svc.CreateSubscriptionAsync(ValidCreateRequest(), "user-001");
+            var signingSecret = created.Subscription!.SigningSecret;
+
+            await svc.EmitEventAsync(new WebhookEvent { EventType = WebhookEventType.KycStatusChange, Actor = "a" });
+            await Task.Delay(200);
+
+            Assert.That(capturedPayload, Is.Not.Null);
+            Assert.That(capturedSignature, Is.Not.Null);
+
+            // Replicate the timing-safe verification from docs/WEBHOOK_API.md (C# example)
+            Assert.That(TimingSafeVerify(capturedPayload!, signingSecret, capturedSignature!), Is.True,
+                "Timing-safe verification must accept the correct signature");
+        }
+
+        [Test]
+        public async Task SignatureVerification_TamperedPayload_RejectsWithFixedTimeEquals()
+        {
+            string? capturedSignature = null;
+
+            var handler = new FakeHttpMessageHandler(HttpStatusCode.OK, "accepted",
+                onRequest: req =>
+                {
+                    capturedSignature = req.Headers.GetValues("X-Webhook-Signature").FirstOrDefault();
+                });
+
+            var repo = new WebhookRepository(NullLogger<WebhookRepository>.Instance);
+            var svc = new WebhookService(repo, NullLogger<WebhookService>.Instance,
+                new FakeHttpClientFactory(new HttpClient(handler)));
+
+            var created = await svc.CreateSubscriptionAsync(ValidCreateRequest(), "user-001");
+            var signingSecret = created.Subscription!.SigningSecret;
+
+            await svc.EmitEventAsync(new WebhookEvent { EventType = WebhookEventType.KycStatusChange, Actor = "a" });
+            await Task.Delay(200);
+
+            Assert.That(capturedSignature, Is.Not.Null);
+
+            // Tampered payload must NOT verify
+            const string tamperedPayload = "{\"eventType\":\"TAMPERED\",\"actor\":\"attacker\"}";
+            Assert.That(TimingSafeVerify(tamperedPayload, signingSecret, capturedSignature!), Is.False,
+                "Timing-safe verification must reject a tampered payload");
+        }
+
+        [Test]
+        public async Task SignatureVerification_WrongSecret_RejectsWithFixedTimeEquals()
+        {
+            string? capturedPayload = null;
+            string? capturedSignature = null;
+
+            var handler = new FakeHttpMessageHandler(HttpStatusCode.OK, "accepted",
+                onRequest: req =>
+                {
+                    capturedPayload = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+                    capturedSignature = req.Headers.GetValues("X-Webhook-Signature").FirstOrDefault();
+                });
+
+            var repo = new WebhookRepository(NullLogger<WebhookRepository>.Instance);
+            var svc = new WebhookService(repo, NullLogger<WebhookService>.Instance,
+                new FakeHttpClientFactory(new HttpClient(handler)));
+
+            await svc.CreateSubscriptionAsync(ValidCreateRequest(), "user-001");
+
+            await svc.EmitEventAsync(new WebhookEvent { EventType = WebhookEventType.KycStatusChange, Actor = "a" });
+            await Task.Delay(200);
+
+            Assert.That(capturedPayload, Is.Not.Null);
+            Assert.That(capturedSignature, Is.Not.Null);
+
+            const string wrongSecret = "wrong-secret-AAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            Assert.That(TimingSafeVerify(capturedPayload!, wrongSecret, capturedSignature!), Is.False,
+                "Timing-safe verification must reject when an incorrect signing secret is used");
+        }
+
+        /// <summary>
+        /// Documentation example: timing-safe receiver verification pattern from docs/WEBHOOK_API.md.
+        /// Uses <see cref="CryptographicOperations.FixedTimeEquals"/> (not string ==) to prevent
+        /// timing side-channel attacks on compliance event receiver authentication.
+        /// </summary>
+        private static bool TimingSafeVerify(string rawBody, string signingSecret, string signatureHeader)
+        {
+            var keyBytes = Encoding.UTF8.GetBytes(signingSecret);
+            var messageBytes = Encoding.UTF8.GetBytes(rawBody);
+            using var hmac = new HMACSHA256(keyBytes);
+            var hash = hmac.ComputeHash(messageBytes);
+            var expected = Convert.ToBase64String(hash);
+
+            var expectedBytes = Encoding.UTF8.GetBytes(expected);
+            var actualBytes = Encoding.UTF8.GetBytes(signatureHeader);
+            if (expectedBytes.Length != actualBytes.Length)
+                return false;
+            return CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
+        }
+
+        /// <summary>
+        /// Regression guard: docs/WEBHOOK_API.md C# example must use FixedTimeEquals, not string ==.
+        /// If the doc is ever regressed to a short-circuit comparison this test catches it.
+        /// </summary>
+        [Test]
+        public void Documentation_CSharpVerificationExample_UsesFixedTimeEquals()
+        {
+            // This test reads the documentation file and asserts the C# snippet
+            // uses CryptographicOperations.FixedTimeEquals rather than == operator.
+            // It provides regression protection so the timing-safe property of the
+            // published example cannot silently be replaced with a weaker comparison.
+            var docsPath = Path.Combine(
+                AppContext.BaseDirectory, "..", "..", "..", "..", "BiatecTokensApi", "docs", "WEBHOOK_API.md");
+            // Fallback: try relative to test output
+            if (!File.Exists(docsPath))
+            {
+                docsPath = Path.GetFullPath(Path.Combine(
+                    AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "WEBHOOK_API.md"));
+            }
+
+            if (!File.Exists(docsPath))
+            {
+                // Try from solution root
+                var dir = AppContext.BaseDirectory;
+                while (dir != null && !File.Exists(Path.Combine(dir, "docs", "WEBHOOK_API.md")))
+                    dir = Directory.GetParent(dir)?.FullName;
+                if (dir != null)
+                    docsPath = Path.Combine(dir, "docs", "WEBHOOK_API.md");
+            }
+
+            Assert.That(File.Exists(docsPath), Is.True,
+                $"docs/WEBHOOK_API.md not found. Searched: {docsPath}");
+
+            var content = File.ReadAllText(docsPath);
+
+            // The C# code block must use FixedTimeEquals
+            Assert.That(content, Does.Contain("CryptographicOperations.FixedTimeEquals"),
+                "docs/WEBHOOK_API.md C# example must use CryptographicOperations.FixedTimeEquals for timing-safe comparison");
+
+            // The C# code block must NOT use the short-circuit string == pattern
+            // (we look for 'return expected ==' as a proxy for the insecure pattern)
+            Assert.That(content, Does.Not.Contain("return expected == signatureHeader"),
+                "docs/WEBHOOK_API.md C# example must not use short-circuit string == comparison");
+        }
+
+
 
         [Test]
         public async Task EmitEvent_Payload_ContainsRequiredFields()

@@ -212,7 +212,14 @@ bool VerifyWebhookSignature(string rawBody, string signingSecret, string signatu
     var hash = hmac.ComputeHash(messageBytes);
     var expected = Convert.ToBase64String(hash);
 
-    return expected == signatureHeader;
+    // Use CryptographicOperations.FixedTimeEquals for timing-safe comparison.
+    // A short-circuit string comparison (==) leaks timing information that an
+    // attacker can exploit to forge signatures on compliance lifecycle events.
+    var expectedBytes = Encoding.UTF8.GetBytes(expected);
+    var actualBytes = Encoding.UTF8.GetBytes(signatureHeader);
+    if (expectedBytes.Length != actualBytes.Length)
+        return false;
+    return CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
 }
 ```
 
