@@ -270,6 +270,21 @@ namespace BiatecTokensTests
         public void ValidateWebhookSignature_InvalidSignature_ReturnsFalse()
         {
             var provider = CreateProvider();
+            // Valid-length hex string but incorrect hash value
+            var wrongSig = new string('0', 64); // 32 zero bytes as hex
+            var isValid = provider.ValidateWebhookSignature(
+                "{\"type\":\"identity.verification_session.verified\"}",
+                $"t=1234567890,v1={wrongSig}",
+                "whsec_test_secret");
+
+            Assert.That(isValid, Is.False);
+        }
+
+        [Test]
+        public void ValidateWebhookSignature_InvalidHexChars_ReturnsFalse()
+        {
+            var provider = CreateProvider();
+            // Signature value contains non-hex characters (format error)
             var isValid = provider.ValidateWebhookSignature(
                 "{\"type\":\"identity.verification_session.verified\"}",
                 "t=1234567890,v1=invalidsignature",

@@ -270,9 +270,24 @@ namespace BiatecTokensApi.Services
                 var signedPayload = $"{timestamp}.{payload}";
                 using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(webhookSecret));
                 var expectedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(signedPayload));
-                var expectedSignature = BitConverter.ToString(expectedHash).Replace("-", "").ToLowerInvariant();
 
-                var isValid = string.Equals(expectedSignature, v1Signature, StringComparison.OrdinalIgnoreCase);
+                // Decode the expected signature to raw bytes for constant-time comparison
+                // and convert the received signature from hex to bytes for the same.
+                // Using CryptographicOperations.FixedTimeEquals prevents timing-based attacks
+                // where an attacker could determine partial HMAC correctness from response timing.
+                byte[] receivedBytes;
+                try
+                {
+                    receivedBytes = Convert.FromHexString(v1Signature);
+                }
+                catch (FormatException)
+                {
+                    _logger.LogWarning("StripeIdentityKycProvider: webhook signature contains invalid hex characters");
+                    return false;
+                }
+
+                var isValid = expectedHash.Length == receivedBytes.Length
+                    && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(expectedHash, receivedBytes);
 
                 _logger.LogInformation("StripeIdentityKycProvider: webhook signature validation result: {IsValid}", isValid);
                 return isValid;

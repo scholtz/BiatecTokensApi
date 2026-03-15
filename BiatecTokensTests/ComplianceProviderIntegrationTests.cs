@@ -225,24 +225,31 @@ namespace BiatecTokensTests
         [Test]
         public async Task Orchestration_ExpiredDecision_TransitionsToExpiredOnRetrieval()
         {
-            var svc = CreateOrchestrationService();
+            // Use a controllable clock to simulate time advancing past the expiry window
+            var fakeClock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateOrchestrationService(timeProvider: fakeClock);
 
-            // Initiate with 0.001-hour validity (immediately expired)
             var req = MakeAmlRequest("subj-expired-001", "ctx-expired-001");
-            req.EvidenceValidityHours = 1;
+            req.EvidenceValidityHours = 1;   // expires 1 hour from initiation
 
             var initResp = await svc.InitiateCheckAsync(req, "actor", "corr-expired-001");
             Assert.That(initResp.Success, Is.True);
+            Assert.That(initResp.State, Is.EqualTo(ComplianceDecisionState.Approved));
             var decisionId = initResp.DecisionId!;
 
-            // Manually force the evidence to have expired (simulate time passing)
-            // We retrieve the decision and confirm it would expire
-            var statusResp = await svc.GetCheckStatusAsync(decisionId);
-            Assert.That(statusResp.Success, Is.True);
-            // The freshness check logic transitions to Expired when past EvidenceExpiresAt
-            // Since our validity is 1 hour, it won't be expired yet; test the state
-            Assert.That(statusResp.State, Is.Not.EqualTo(ComplianceDecisionState.Expired),
-                "Freshly approved decision with future expiry should not be Expired yet");
+            // Before expiry: must remain Approved
+            var statusBefore = await svc.GetCheckStatusAsync(decisionId);
+            Assert.That(statusBefore.State, Is.EqualTo(ComplianceDecisionState.Approved),
+                "Freshly approved decision must not be Expired before the validity window closes");
+
+            // Advance clock past expiry
+            fakeClock.Advance(TimeSpan.FromHours(2));
+
+            // After expiry: must transition to Expired
+            var statusAfter = await svc.GetCheckStatusAsync(decisionId);
+            Assert.That(statusAfter.State, Is.EqualTo(ComplianceDecisionState.Expired),
+                "Decision must transition to Expired once EvidenceExpiresAt is in the past");
+            Assert.That(statusAfter.ReasonCode, Is.EqualTo("EVIDENCE_EXPIRED"));
         }
 
         [Test]
@@ -422,11 +429,25 @@ namespace BiatecTokensTests
             var pending = await pendingSvc.InitiateCheckAsync(
                 MakeKycRequest("s-pending", "c-pending"), "actor", "corr-pending");
             Assert.That(pending.State, Is.EqualTo(ComplianceDecisionState.Pending));
+
+            // Expired (approved decision past its validity window)
+            var fakeClock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var expiredSvc = CreateOrchestrationService(timeProvider: fakeClock);
+            var expReq = MakeAmlRequest("s-expired", "c-expired");
+            expReq.EvidenceValidityHours = 1;
+            var expiredInit = await expiredSvc.InitiateCheckAsync(expReq, "actor", "corr-expired");
+            Assert.That(expiredInit.State, Is.EqualTo(ComplianceDecisionState.Approved));
+            fakeClock.Advance(TimeSpan.FromHours(2));
+            var expiredStatus = await expiredSvc.GetCheckStatusAsync(expiredInit.DecisionId!);
+            Assert.That(expiredStatus.State, Is.EqualTo(ComplianceDecisionState.Expired),
+                "All 8 ComplianceDecisionState values must be producible; Expired requires a past-expiry approved decision");
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────────
 
-        private static ComplianceOrchestrationService CreateOrchestrationService(bool kycAutoApprove = true)
+        private static ComplianceOrchestrationService CreateOrchestrationService(
+            bool kycAutoApprove = true,
+            TimeProvider? timeProvider = null)
         {
             var kycProvider = new MockKycProvider(
                 new OptionsWrapper<KycConfig>(new KycConfig { MockAutoApprove = kycAutoApprove }),
@@ -435,7 +456,8 @@ namespace BiatecTokensTests
             return new ComplianceOrchestrationService(
                 kycProvider,
                 amlProvider,
-                NullLogger<ComplianceOrchestrationService>.Instance);
+                NullLogger<ComplianceOrchestrationService>.Instance,
+                timeProvider);
         }
 
         private static InitiateComplianceCheckRequest MakeAmlRequest(
@@ -474,5 +496,19 @@ namespace BiatecTokensTests
                 SubjectType = ScreeningSubjectType.Individual,
                 SubjectMetadata = metadata ?? new Dictionary<string, string>()
             };
+
+        // ── FakeTimeProvider ──────────────────────────────────────────────────────
+        // Allows tests to advance time deterministically for freshness/expiry testing.
+
+        private sealed class FakeTimeProvider : TimeProvider
+        {
+            private DateTimeOffset _utcNow;
+
+            public FakeTimeProvider(DateTimeOffset startTime) => _utcNow = startTime;
+
+            public override DateTimeOffset GetUtcNow() => _utcNow;
+
+            public void Advance(TimeSpan duration) => _utcNow = _utcNow.Add(duration);
+        }
     }
 }

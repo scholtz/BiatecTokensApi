@@ -19,7 +19,9 @@ namespace BiatecTokensTests
     {
         // ── Helpers ──────────────────────────────────────────────────────────────
 
-        private static ComplianceOrchestrationService CreateService(bool kycAutoApprove = true)
+        private static ComplianceOrchestrationService CreateService(
+            bool kycAutoApprove = true,
+            TimeProvider? timeProvider = null)
         {
             var kycProvider = new MockKycProvider(
                 new Microsoft.Extensions.Options.OptionsWrapper<BiatecTokensApi.Configuration.KycConfig>(
@@ -29,7 +31,8 @@ namespace BiatecTokensTests
             return new ComplianceOrchestrationService(
                 kycProvider,
                 amlProvider,
-                NullLogger<ComplianceOrchestrationService>.Instance);
+                NullLogger<ComplianceOrchestrationService>.Instance,
+                timeProvider);
         }
 
         private static InitiateComplianceCheckRequest MakeRequest(
@@ -231,61 +234,136 @@ namespace BiatecTokensTests
         [Test]
         public async Task GetStatus_DecisionWithPassedExpiry_ReturnsExpiredState()
         {
-            var svc = CreateService();
+            // Arrange: start with "now" at a fixed point in time
+            var fakeClock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateService(timeProvider: fakeClock);
 
-            // Create an approved decision with a validity window
             var req = MakeRequest(
                 checkType: ComplianceCheckType.Aml,
-                evidenceValidityHours: 1,
+                evidenceValidityHours: 1,       // expires 1 hour from initiation
                 idempotencyKey: "fresh-test-5");
 
+            // Act: initiate check while the evidence is still fresh
             var initResp = await svc.InitiateCheckAsync(req, "actor", "corr-fresh-5");
             Assert.That(initResp.State, Is.EqualTo(ComplianceDecisionState.Approved));
-
-            var decisionId = initResp.DecisionId!;
-
-            // Verify the expiry is set correctly in the future
             Assert.That(initResp.EvidenceExpiresAt, Is.Not.Null);
-            Assert.That(initResp.EvidenceExpiresAt!.Value, Is.GreaterThan(DateTimeOffset.UtcNow),
-                "Evidence should not be expired immediately after initiation");
 
-            // Verify get-status returns Approved for a decision that hasn't expired yet
-            var statusResp = await svc.GetCheckStatusAsync(decisionId);
-            Assert.That(statusResp.State, Is.EqualTo(ComplianceDecisionState.Approved));
-        }
+            // Confirm that immediately after initiation the decision is still Approved
+            var statusNow = await svc.GetCheckStatusAsync(initResp.DecisionId!);
+            Assert.That(statusNow.State, Is.EqualTo(ComplianceDecisionState.Approved),
+                "Decision must be Approved while the evidence validity window is still open");
 
-        [Test]
-        public async Task EvidenceValidityHours_Zero_TreatedAsNoExpiry()
-        {
-            var svc = CreateService();
-            var req = MakeRequest(
-                checkType: ComplianceCheckType.Aml,
-                evidenceValidityHours: 0);
+            // Advance the clock past the expiry window
+            fakeClock.Advance(TimeSpan.FromHours(2));
 
-            var resp = await svc.InitiateCheckAsync(req, "actor", "corr-fresh-6");
-
-            Assert.That(resp.EvidenceExpiresAt, Is.Null,
-                "EvidenceValidityHours=0 must be treated the same as no expiry");
+            // Retrieve the decision again – the service must now transition it to Expired
+            var statusAfterExpiry = await svc.GetCheckStatusAsync(initResp.DecisionId!);
+            Assert.That(statusAfterExpiry.State, Is.EqualTo(ComplianceDecisionState.Expired),
+                "Decision must transition to Expired once EvidenceExpiresAt is in the past");
         }
 
         [Test]
         public async Task EvidenceExpiry_ReasonCodeIsEvidenceExpired_WhenExpired()
         {
-            // Construct a service and manually create an approved decision with a past expiry
-            var svc = CreateService();
+            var fakeClock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateService(timeProvider: fakeClock);
 
-            // Initiate a normal approved decision first
             var req = MakeRequest(
                 checkType: ComplianceCheckType.Aml,
-                evidenceValidityHours: 720,  // 30 days
+                evidenceValidityHours: 720,     // 30 days
                 idempotencyKey: "fresh-test-7");
 
             var initResp = await svc.InitiateCheckAsync(req, "actor", "corr-fresh-7");
             Assert.That(initResp.State, Is.EqualTo(ComplianceDecisionState.Approved));
-
-            // Confirm the evidence expiry is set in the future
             Assert.That(initResp.EvidenceExpiresAt, Is.Not.Null);
-            Assert.That(initResp.EvidenceExpiresAt!.Value, Is.GreaterThan(DateTimeOffset.UtcNow));
+
+            // Advance past the 30-day window
+            fakeClock.Advance(TimeSpan.FromDays(31));
+
+            var expired = await svc.GetCheckStatusAsync(initResp.DecisionId!);
+            Assert.That(expired.State, Is.EqualTo(ComplianceDecisionState.Expired),
+                "Decision must be Expired after 31 days when validity was 720 hours (30 days)");
+            Assert.That(expired.ReasonCode, Is.EqualTo("EVIDENCE_EXPIRED"),
+                "ReasonCode must be EVIDENCE_EXPIRED for stale-evidence transitions");
+        }
+
+        [Test]
+        public async Task GetStatus_DecisionExpiredAt_AuditTrailContainsEvidenceExpiredEvent()
+        {
+            var fakeClock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateService(timeProvider: fakeClock);
+
+            var req = MakeRequest(
+                checkType: ComplianceCheckType.Aml,
+                evidenceValidityHours: 1,
+                idempotencyKey: "fresh-test-audit");
+
+            var initResp = await svc.InitiateCheckAsync(req, "actor", "corr-fresh-audit");
+            Assert.That(initResp.State, Is.EqualTo(ComplianceDecisionState.Approved));
+
+            fakeClock.Advance(TimeSpan.FromHours(2));
+
+            var expired = await svc.GetCheckStatusAsync(initResp.DecisionId!);
+            Assert.That(expired.State, Is.EqualTo(ComplianceDecisionState.Expired));
+            Assert.That(expired.AuditTrail.Any(e => e.EventType == "EvidenceExpired"), Is.True,
+                "Expiry transition must produce an EvidenceExpired audit event");
+        }
+
+        [Test]
+        public async Task GetStatus_DecisionBoundaryCase_ExpiryAtExactMoment_IsExpired()
+        {
+            // At the exact expiry timestamp the decision should be considered expired
+            // (condition: UtcNow > EvidenceExpiresAt is strictly greater-than, so at exact time it is NOT expired)
+            var fakeClock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateService(timeProvider: fakeClock);
+
+            var req = MakeRequest(
+                checkType: ComplianceCheckType.Aml,
+                evidenceValidityHours: 1,
+                idempotencyKey: "fresh-test-boundary");
+
+            var initResp = await svc.InitiateCheckAsync(req, "actor", "corr-fresh-boundary");
+            var expiresAt = initResp.EvidenceExpiresAt!.Value;
+
+            // One tick before expiry → still Approved
+            fakeClock.SetUtcNow(expiresAt.AddTicks(-1));
+            var beforeExpiry = await svc.GetCheckStatusAsync(initResp.DecisionId!);
+            Assert.That(beforeExpiry.State, Is.EqualTo(ComplianceDecisionState.Approved),
+                "One tick before the expiry window closes, the decision must remain Approved");
+
+            // One tick after expiry → Expired
+            fakeClock.SetUtcNow(expiresAt.AddTicks(1));
+            var afterExpiry = await svc.GetCheckStatusAsync(initResp.DecisionId!);
+            Assert.That(afterExpiry.State, Is.EqualTo(ComplianceDecisionState.Expired),
+                "One tick after the expiry window closes, the decision must be Expired");
+        }
+
+        [Test]
+        public async Task GetStatus_NonApprovedDecision_WithExpiredWindow_DoesNotTransitionToExpired()
+        {
+            // Rejected/NeedsReview decisions must NEVER transition to Expired even if EvidenceExpiresAt would have triggered
+            var fakeClock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateService(timeProvider: fakeClock);
+
+            var req = MakeRequest(
+                checkType: ComplianceCheckType.Aml,
+                evidenceValidityHours: 1,
+                metadata: new Dictionary<string, string> { ["sanctions_flag"] = "true" },
+                idempotencyKey: "fresh-test-rejected");
+
+            var initResp = await svc.InitiateCheckAsync(req, "actor", "corr-fresh-rejected");
+            Assert.That(initResp.State, Is.EqualTo(ComplianceDecisionState.Rejected),
+                "Precondition: sanctions_flag produces Rejected");
+
+            // The EvidenceExpiresAt is null for Rejected decisions (expiry only applies to Approved)
+            Assert.That(initResp.EvidenceExpiresAt, Is.Null);
+
+            // Advance well past what would have been the expiry window
+            fakeClock.Advance(TimeSpan.FromHours(48));
+
+            var statusAfterAdvance = await svc.GetCheckStatusAsync(initResp.DecisionId!);
+            Assert.That(statusAfterAdvance.State, Is.EqualTo(ComplianceDecisionState.Rejected),
+                "Rejected decisions must never transition to Expired");
         }
 
         // ── SubjectType (Individual vs BusinessEntity) ───────────────────────────────
@@ -498,6 +576,28 @@ namespace BiatecTokensTests
 
             Assert.That(state, Is.EqualTo(ComplianceDecisionState.ProviderUnavailable));
             Assert.That(state, Is.Not.EqualTo(ComplianceDecisionState.Error));
+        }
+
+        // ── FakeTimeProvider ──────────────────────────────────────────────────────────
+        // A controllable TimeProvider that allows tests to advance time deterministically
+        // and validate evidence freshness window transitions without Thread.Sleep.
+
+        private sealed class FakeTimeProvider : TimeProvider
+        {
+            private DateTimeOffset _utcNow;
+
+            public FakeTimeProvider(DateTimeOffset startTime)
+            {
+                _utcNow = startTime;
+            }
+
+            public override DateTimeOffset GetUtcNow() => _utcNow;
+
+            /// <summary>Advances the clock by the specified duration.</summary>
+            public void Advance(TimeSpan duration) => _utcNow = _utcNow.Add(duration);
+
+            /// <summary>Sets the clock to an explicit point in time.</summary>
+            public void SetUtcNow(DateTimeOffset newTime) => _utcNow = newTime;
         }
     }
 }
