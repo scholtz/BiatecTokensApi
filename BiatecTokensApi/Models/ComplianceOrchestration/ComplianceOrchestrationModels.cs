@@ -344,6 +344,104 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
 
         /// <summary>Reviewer notes appended by operators for this decision</summary>
         public List<ComplianceReviewerNote> ReviewerNotes { get; set; } = new();
+
+        /// <summary>
+        /// Derived issuance posture — indicates whether token launch or approval progression
+        /// is blocked by this compliance decision, and provides a machine-readable reason
+        /// distinguishing launch-blocking failures from advisory follow-up items.
+        /// Always populated when <see cref="Success"/> is true.
+        /// </summary>
+        public IssuancePosture? IssuancePosture { get; set; }
+    }
+
+    /// <summary>
+    /// Severity of a compliance blocker with respect to token issuance.
+    /// </summary>
+    public enum IssuanceBlockSeverity
+    {
+        /// <summary>No blockers; token launch may proceed.</summary>
+        None = 0,
+        /// <summary>
+        /// Advisory status — the compliance state warrants attention but does not hard-block
+        /// launch (e.g. provider temporarily unavailable, non-critical metadata refresh needed).
+        /// </summary>
+        Advisory = 1,
+        /// <summary>
+        /// Launch must not proceed. A confirmed or unresolved high-risk outcome is present.
+        /// This is a hard stop — fail-closed.
+        /// </summary>
+        Blocking = 2
+    }
+
+    /// <summary>
+    /// Machine-readable reason explaining why token issuance is blocked or flagged.
+    /// </summary>
+    public enum IssuanceBlockerReason
+    {
+        /// <summary>No blocker; all compliance checks are satisfied.</summary>
+        None = 0,
+        /// <summary>A confirmed AML/sanctions match was found. Hard block — fail closed.</summary>
+        ConfirmedSanctionsMatch = 1,
+        /// <summary>
+        /// A potential sanctions match is pending manual resolution. Hard block until resolved.
+        /// </summary>
+        PotentialSanctionsMatchUnresolved = 2,
+        /// <summary>KYC was explicitly rejected by the provider or a reviewer. Hard block.</summary>
+        KycRejected = 3,
+        /// <summary>
+        /// A previously-approved KYC/AML decision has expired and must be renewed before launch.
+        /// </summary>
+        KycOrAmlExpired = 4,
+        /// <summary>The KYC/AML check has been initiated but no decision has been reached yet.</summary>
+        KycOrAmlPending = 5,
+        /// <summary>Insufficient subject data was provided to complete the compliance check.</summary>
+        KycInsufficientData = 6,
+        /// <summary>The decision requires manual review before it can be used to gate launch.</summary>
+        KycManualReviewRequired = 7,
+        /// <summary>
+        /// The compliance provider was unavailable; the check result is indeterminate.
+        /// Advisory — retry recommended.
+        /// </summary>
+        ProviderUnavailable = 8,
+        /// <summary>
+        /// An internal error occurred during the compliance check. The decision is indeterminate.
+        /// Advisory — retry recommended.
+        /// </summary>
+        ComplianceCheckError = 9
+    }
+
+    /// <summary>
+    /// Describes whether token launch or approval progression is blocked by a compliance decision,
+    /// and provides human-meaningful context about the blocker for frontend and audit consumers.
+    /// </summary>
+    public class IssuancePosture
+    {
+        /// <summary>
+        /// True when this compliance decision hard-blocks token launch or approval progression.
+        /// False for advisory statuses where launch could proceed under policy, but the status
+        /// warrants attention.
+        /// </summary>
+        public bool IsLaunchBlocked { get; set; }
+
+        /// <summary>
+        /// Severity of the compliance posture with respect to issuance.
+        /// </summary>
+        public IssuanceBlockSeverity Severity { get; set; }
+
+        /// <summary>
+        /// Machine-readable reason for the blocker (or advisory status).
+        /// </summary>
+        public IssuanceBlockerReason BlockerReason { get; set; }
+
+        /// <summary>
+        /// Human-readable description of the blocker for display in compliance dashboards.
+        /// </summary>
+        public string BlockerDescription { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Recommended remediation action for compliance operators.
+        /// </summary>
+        public string RecommendedAction { get; set; } = string.Empty;
     }
 
     /// <summary>

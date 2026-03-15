@@ -533,7 +533,8 @@ namespace BiatecTokensApi.Services
                 MatchedWatchlistCategories = d.MatchedWatchlistCategories.ToList(),
                 ConfidenceScore = d.ConfidenceScore,
                 AuditTrail = d.AuditTrail.ToList(),
-                ReviewerNotes = d.ReviewerNotes.ToList()
+                ReviewerNotes = d.ReviewerNotes.ToList(),
+                IssuancePosture = DeriveIssuancePosture(d)
             };
 
         private static ComplianceCheckResponse ErrorResponse(string errorCode, string errorMessage, string correlationId) =>
@@ -544,6 +545,160 @@ namespace BiatecTokensApi.Services
                 ErrorMessage = errorMessage,
                 CorrelationId = correlationId
             };
+
+        /// <summary>
+        /// Derives the issuance posture — whether token launch is hard-blocked, advisory-flagged,
+        /// or clear — based on the current compliance decision state and any detected sanctions.
+        /// This is a pure, deterministic function: the same decision always produces the same posture.
+        /// </summary>
+        /// <param name="d">The normalised compliance decision to evaluate.</param>
+        /// <returns>
+        /// An <see cref="IssuancePosture"/> describing whether launch should be blocked and why.
+        /// </returns>
+        /// <remarks>
+        /// Priority order (highest to lowest):
+        /// 1. Rejected with SANCTIONS_MATCH reason code → <see cref="IssuanceBlockerReason.ConfirmedSanctionsMatch"/> (hard block)
+        /// 2. NeedsReview with REVIEW_REQUIRED reason code (potential AML hit) → <see cref="IssuanceBlockerReason.PotentialSanctionsMatchUnresolved"/> (hard block)
+        /// 3. Rejected (any other reason) → <see cref="IssuanceBlockerReason.KycRejected"/> (hard block)
+        /// 4. NeedsReview → <see cref="IssuanceBlockerReason.KycManualReviewRequired"/> (hard block)
+        /// 5. Expired → <see cref="IssuanceBlockerReason.KycOrAmlExpired"/> (hard block)
+        /// 6. InsufficientData → <see cref="IssuanceBlockerReason.KycInsufficientData"/> (hard block)
+        /// 7. Pending → <see cref="IssuanceBlockerReason.KycOrAmlPending"/> (advisory — not yet decided)
+        /// 8. ProviderUnavailable → <see cref="IssuanceBlockerReason.ProviderUnavailable"/> (advisory)
+        /// 9. Error → <see cref="IssuanceBlockerReason.ComplianceCheckError"/> (advisory)
+        /// 10. Approved → <see cref="IssuanceBlockerReason.None"/> (clear)
+        /// </remarks>
+        public static IssuancePosture DeriveIssuancePosture(NormalizedComplianceDecision d)
+        {
+            // Priority 1: Confirmed sanctions match — always fail closed regardless of anything else
+            if (d.State == ComplianceDecisionState.Rejected &&
+                string.Equals(d.ReasonCode, "SANCTIONS_MATCH", StringComparison.OrdinalIgnoreCase))
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = true,
+                    Severity = IssuanceBlockSeverity.Blocking,
+                    BlockerReason = IssuanceBlockerReason.ConfirmedSanctionsMatch,
+                    BlockerDescription = "A confirmed AML/sanctions match was detected for this subject. Token issuance is hard-blocked.",
+                    RecommendedAction = "Escalate to compliance officer. Do not proceed without explicit manual override and documented evidence."
+                };
+            }
+
+            // Priority 2: Potential sanctions match pending resolution — hard block until reviewed
+            if (d.State == ComplianceDecisionState.NeedsReview &&
+                string.Equals(d.ReasonCode, "REVIEW_REQUIRED", StringComparison.OrdinalIgnoreCase))
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = true,
+                    Severity = IssuanceBlockSeverity.Blocking,
+                    BlockerReason = IssuanceBlockerReason.PotentialSanctionsMatchUnresolved,
+                    BlockerDescription = "A potential sanctions or PEP watchlist match requires manual review before issuance can proceed.",
+                    RecommendedAction = "Assign to a compliance reviewer. Issuance is blocked until the match is resolved or dismissed."
+                };
+            }
+
+            // Priority 3: KYC explicitly rejected for non-sanctions reasons
+            if (d.State == ComplianceDecisionState.Rejected)
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = true,
+                    Severity = IssuanceBlockSeverity.Blocking,
+                    BlockerReason = IssuanceBlockerReason.KycRejected,
+                    BlockerDescription = "The identity verification check was rejected. Token issuance is blocked.",
+                    RecommendedAction = "Review the rejection reason and request re-verification or contact support."
+                };
+            }
+
+            // Priority 4: NeedsReview for non-sanctions reasons
+            if (d.State == ComplianceDecisionState.NeedsReview)
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = true,
+                    Severity = IssuanceBlockSeverity.Blocking,
+                    BlockerReason = IssuanceBlockerReason.KycManualReviewRequired,
+                    BlockerDescription = "The compliance check requires manual review before a final decision can be reached.",
+                    RecommendedAction = "Assign a compliance reviewer to complete the manual review before proceeding."
+                };
+            }
+
+            // Priority 5: Expired decision — previously-approved but now stale
+            if (d.State == ComplianceDecisionState.Expired)
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = true,
+                    Severity = IssuanceBlockSeverity.Blocking,
+                    BlockerReason = IssuanceBlockerReason.KycOrAmlExpired,
+                    BlockerDescription = "The compliance verification has expired. A fresh check is required before issuance.",
+                    RecommendedAction = "Initiate a rescreen for this subject to obtain a current compliance decision."
+                };
+            }
+
+            // Priority 6: Insufficient data — check could not complete due to missing information
+            if (d.State == ComplianceDecisionState.InsufficientData)
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = true,
+                    Severity = IssuanceBlockSeverity.Blocking,
+                    BlockerReason = IssuanceBlockerReason.KycInsufficientData,
+                    BlockerDescription = "Insufficient identity or screening data was provided to complete the compliance check.",
+                    RecommendedAction = "Collect the missing subject information and resubmit the compliance check."
+                };
+            }
+
+            // Priority 7: Pending — check initiated but not yet resolved (advisory, not yet blocking)
+            if (d.State == ComplianceDecisionState.Pending)
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = false,
+                    Severity = IssuanceBlockSeverity.Advisory,
+                    BlockerReason = IssuanceBlockerReason.KycOrAmlPending,
+                    BlockerDescription = "The compliance check is in progress. No decision has been reached yet.",
+                    RecommendedAction = "Wait for the provider to complete the check or trigger a status refresh."
+                };
+            }
+
+            // Priority 8: Provider unavailable — indeterminate result, advisory
+            if (d.State == ComplianceDecisionState.ProviderUnavailable)
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = false,
+                    Severity = IssuanceBlockSeverity.Advisory,
+                    BlockerReason = IssuanceBlockerReason.ProviderUnavailable,
+                    BlockerDescription = "The compliance provider was unavailable. The check result is indeterminate.",
+                    RecommendedAction = "Retry the compliance check when the provider is available. Do not treat unavailability as clearance."
+                };
+            }
+
+            // Priority 9: Error — internal or provider error, advisory
+            if (d.State == ComplianceDecisionState.Error)
+            {
+                return new IssuancePosture
+                {
+                    IsLaunchBlocked = false,
+                    Severity = IssuanceBlockSeverity.Advisory,
+                    BlockerReason = IssuanceBlockerReason.ComplianceCheckError,
+                    BlockerDescription = "An error occurred during the compliance check. The result is indeterminate.",
+                    RecommendedAction = "Investigate the error details and retry the compliance check."
+                };
+            }
+
+            // Priority 10: Approved — all checks clear, launch may proceed
+            return new IssuancePosture
+            {
+                IsLaunchBlocked = false,
+                Severity = IssuanceBlockSeverity.None,
+                BlockerReason = IssuanceBlockerReason.None,
+                BlockerDescription = "All compliance checks have passed. No launch blockers detected.",
+                RecommendedAction = string.Empty
+            };
+        }
 
         /// <summary>
         /// Derives human-readable watchlist category labels from well-known AML reason codes.
