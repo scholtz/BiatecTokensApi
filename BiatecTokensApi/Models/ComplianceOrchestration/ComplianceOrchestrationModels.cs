@@ -384,4 +384,145 @@ namespace BiatecTokensApi.Models.ComplianceOrchestration
         /// <summary>Error message when Success is false</summary>
         public string? ErrorMessage { get; set; }
     }
+
+    /// <summary>
+    /// Request to rescreen a subject whose evidence is stale or expired.
+    /// A rescreen creates a new compliance decision linked to the original via <see cref="PreviousDecisionId"/>.
+    /// </summary>
+    public class RescreenRequest
+    {
+        /// <summary>
+        /// Optional override for the check type. When omitted, the same check type as the
+        /// original decision is used.
+        /// </summary>
+        public ComplianceCheckType? CheckType { get; set; }
+
+        /// <summary>
+        /// Optional updated subject metadata for the new check (e.g. updated name or document).
+        /// When omitted, the metadata from the original decision is reused.
+        /// </summary>
+        public Dictionary<string, string>? SubjectMetadata { get; set; }
+
+        /// <summary>
+        /// Optional evidence validity window in hours for the new decision.
+        /// When omitted, the same window as the original is used.
+        /// </summary>
+        public int? EvidenceValidityHours { get; set; }
+
+        /// <summary>
+        /// Reason the rescreen was triggered (e.g. "EvidenceExpired", "OperatorRequested").
+        /// Used for audit trail annotation.
+        /// </summary>
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// Response from a rescreen operation.
+    /// </summary>
+    public class RescreenResponse
+    {
+        /// <summary>Whether the rescreen was successfully initiated</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The new compliance check response (populated on success)</summary>
+        public ComplianceCheckResponse? NewDecision { get; set; }
+
+        /// <summary>The original decision ID that triggered this rescreen</summary>
+        public string? PreviousDecisionId { get; set; }
+
+        /// <summary>Error message when Success is false</summary>
+        public string? ErrorMessage { get; set; }
+
+        /// <summary>Error code when Success is false</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Correlation ID for end-to-end tracing</summary>
+        public string? CorrelationId { get; set; }
+    }
+
+    /// <summary>
+    /// Inbound provider webhook/callback payload for updating a compliance decision.
+    /// The orchestration layer accepts normalised callbacks from any registered provider
+    /// and maps them to the decision identified by <see cref="ProviderReferenceId"/>.
+    /// </summary>
+    public class ProviderCallbackRequest
+    {
+        /// <summary>
+        /// Name of the provider sending the callback (e.g. "StripeIdentity", "ComplyAdvantage",
+        /// "Mock"). Used to select the correct signature-validation logic.
+        /// </summary>
+        public string ProviderName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The provider-issued reference ID that links this callback to a compliance decision.
+        /// Must match the <c>KycProviderReferenceId</c> or <c>AmlProviderReferenceId</c>
+        /// stored on the decision.
+        /// </summary>
+        public string ProviderReferenceId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Provider-specific event type string (e.g. "verification.session.verified",
+        /// "alert.created"). Used to determine the resulting compliance state.
+        /// </summary>
+        public string EventType { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Normalised outcome from the provider:
+        /// "approved", "rejected", "needs_review", "error", or "pending".
+        /// The orchestration layer maps this to <see cref="ComplianceDecisionState"/>.
+        /// </summary>
+        public string OutcomeStatus { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional reason code accompanying the outcome.
+        /// </summary>
+        public string? ReasonCode { get; set; }
+
+        /// <summary>
+        /// Optional free-text message from the provider about the outcome.
+        /// </summary>
+        public string? Message { get; set; }
+
+        /// <summary>
+        /// Optional HMAC-SHA256 signature for request authenticity validation.
+        /// Pass the raw signature string (hex or base64) as provided by the provider.
+        /// </summary>
+        public string? Signature { get; set; }
+
+        /// <summary>
+        /// Optional idempotency key for the callback event.
+        /// When the same key is seen twice, the second call is accepted without re-processing.
+        /// </summary>
+        public string? IdempotencyKey { get; set; }
+    }
+
+    /// <summary>
+    /// Response from processing a provider webhook/callback.
+    /// </summary>
+    public class ProviderCallbackResponse
+    {
+        /// <summary>Whether the callback was successfully processed</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Decision ID that was updated (populated on success)</summary>
+        public string? DecisionId { get; set; }
+
+        /// <summary>New state of the decision after the callback was applied</summary>
+        public ComplianceDecisionState? NewState { get; set; }
+
+        /// <summary>
+        /// True when the callback was valid but had already been processed (idempotent replay).
+        /// The decision is unchanged.
+        /// </summary>
+        public bool IsIdempotentReplay { get; set; }
+
+        /// <summary>Error message when Success is false</summary>
+        public string? ErrorMessage { get; set; }
+
+        /// <summary>Error code when Success is false</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Correlation ID for end-to-end tracing</summary>
+        public string? CorrelationId { get; set; }
+    }
 }
