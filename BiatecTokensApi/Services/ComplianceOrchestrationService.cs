@@ -721,10 +721,14 @@ namespace BiatecTokensApi.Services
                 }
             }
 
-            // Idempotency check
+            // Atomic idempotency gate: attempt to register the key BEFORE processing.
+            // ConcurrentDictionary.TryAdd is thread-safe and returns false if the key
+            // was already present. This eliminates the TOCTOU race window of the previous
+            // check-then-act pattern, where two concurrent deliveries with the same key
+            // could both pass the initial check and both mutate decision state.
             if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
             {
-                if (_callbackIdempotencyIndex.TryGetValue(request.IdempotencyKey, out _))
+                if (!_callbackIdempotencyIndex.TryAdd(request.IdempotencyKey, true))
                 {
                     _logger.LogInformation(
                         "Provider callback idempotent replay detected. IdempotencyKey={Key}, ProviderRefId={RefId}, CorrelationId={CorrelationId}",
@@ -813,12 +817,6 @@ namespace BiatecTokensApi.Services
                 previousState,
                 newState,
                 LoggingHelper.SanitizeLogInput(correlationId));
-
-            // Register idempotency key after successful processing
-            if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
-            {
-                _callbackIdempotencyIndex.TryAdd(request.IdempotencyKey, true);
-            }
 
             return Task.FromResult(new ProviderCallbackResponse
             {
