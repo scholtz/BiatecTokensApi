@@ -1411,3 +1411,40 @@ Missing `StoreRefreshTokenAsync` causes the response to fail silently (exception
 _mockUserRepo.Setup(r => r.UserExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
 _mockUserRepo.Setup(r => r.CreateUserAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
 _mockUserRepo.Setup(r => r.StoreRefreshTokenAsync(It.IsAny<RefreshToken>())).Returns(Task.CompletedTask);
+```
+
+## CRITICAL: Posture Derivation Rule Ordering for Staged Approval Workflows
+
+**Lesson Learned (2026-03-15 - Issue #556, PR #557)**: When implementing staged approval workflows with posture derivation, the rule ordering must distinguish between:
+1. **Rejected** stage → `BlockedByStageDecision` (explicit reviewer decision)
+2. **Blocked** stage → `BlockedByStageDecision` (explicit hold by reviewer, not the same as missing evidence)
+3. **NeedsFollowUp** stage → `BlockedByStageDecision` (requires requestor action, not missing evidence)
+4. **Missing evidence** (Pending stages) → `BlockedByMissingEvidence`
+
+**Root Cause**: If Blocked/NeedsFollowUp stages are not handled before the Missing evidence check, they'll fall through to the Missing evidence rule (because their evidence synthesis produces `Missing`), giving an incorrect posture of `BlockedByMissingEvidence` when it should be `BlockedByStageDecision`.
+
+**Fix**: Always check for Rejected → Blocked → NeedsFollowUp BEFORE checking evidence readiness categories.
+
+**Prevention Rule**: When writing tests for posture derivation, include test cases for ALL 5 decision statuses across ALL 5 stage types. A Blocked stage must produce `BlockedByStageDecision`, not `BlockedByMissingEvidence`.
+
+## CRITICAL: PR Submission Quality for New Feature APIs
+
+**Lesson Learned (2026-03-15 - Issue #556, PR #557)**: Product owner rejected initial delivery with "no delivered backend evidence yet" even though implementation was complete because:
+- ❌ PR description used "Related Issues" instead of "Fixes #556" on first line
+- ❌ Test coverage was only 39 tests for 5 new service methods — insufficient
+- ❌ Missing branch coverage for all 5 decision status enum values across all 5 stage types
+- ❌ No multi-package isolation tests (package A decisions should not affect package B)
+- ❌ No stage re-submission tests (update/override of a prior decision)
+- ❌ No schema contract tests (response field completeness)
+- ❌ No fail-closed tests (explicitly testing that LaunchReady is NOT returned prematurely)
+- ❌ No end-to-end integration tests (submit decision → verify state change)
+
+**Minimum test counts for new service/API implementations**:
+- Branch coverage: all enum values × all decision paths = at least 15-20 `[TestCase]` tests
+- Package isolation: at least 2 tests proving multi-tenant isolation
+- Re-submission/update: at least 3 tests (override, revert, audit trail completeness)
+- Schema contract: at least 4 tests (one per response type — all required fields present)
+- Fail-closed: at least 3 tests (new package not ready, partial approval not ready, edge cases)
+- End-to-end integration: at least 5 tests (submit + verify + chain operations)
+
+**MANDATORY**: Total tests for a new 4-method service = minimum 75 tests. The initial 39 was insufficient.
