@@ -136,6 +136,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all EnterpriseComplianceReview types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.EnterpriseComplianceReview")
                         return $"EnterpriseComplianceReview{type.Name}";
+                    // Use namespace-qualified names for all ComplianceCaseManagement types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.ComplianceCaseManagement")
+                        return $"ComplianceCaseManagement{type.Name}";
                     return type.Name;
                 });
                 
@@ -441,6 +444,10 @@ namespace BiatecTokensApi
             // Register Enterprise Compliance Review service for role-aware review queues, evidence bundles,
             // structured decisions, audit history/export, and operational diagnostics
             builder.Services.AddSingleton<IEnterpriseComplianceReviewService, EnterpriseComplianceReviewService>();
+
+            // Register Compliance Case Management service for full lifecycle case management,
+            // evidence tracking, escalations, remediation tasks, and readiness evaluation
+            builder.Services.AddSingleton<IComplianceCaseManagementService, ComplianceCaseManagementService>();
 
             // Register Approval Workflow service and repository for multi-stage enterprise release approval
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IApprovalWorkflowRepository, BiatecTokensApi.Repositories.ApprovalWorkflowRepository>();
