@@ -65,11 +65,15 @@ The release posture is derived deterministically from stage decisions and eviden
 | Priority | Rule | Posture |
 |---|---|---|
 | 1 (highest) | Any stage is `Rejected` | `BlockedByStageDecision` |
-| 2 | Any release-blocking evidence is `Missing` | `BlockedByMissingEvidence` |
+| 1b | Any stage is `Blocked` (explicit hold by reviewer) | `BlockedByStageDecision` |
+| 1c | Any stage is `NeedsFollowUp` (requestor action required) | `BlockedByStageDecision` |
+| 2 | Any release-blocking evidence is `Missing` (Pending stages) | `BlockedByMissingEvidence` |
 | 3 | Any release-blocking evidence is `Stale` | `BlockedByStaleEvidence` |
 | 4 | Any release-blocking evidence is `ConfigurationBlocked` | `ConfigurationBlocked` |
 | 5 | All 5 stages are `Approved` | `LaunchReady` |
-| 6 (default) | Any stage is `Pending`, `Blocked`, or `NeedsFollowUp` | `BlockedByStageDecision` |
+| 6 (default) | Fallback for any unresolved stages | `BlockedByStageDecision` |
+
+**Key Semantic Distinction**: `Blocked` and `NeedsFollowUp` are explicit reviewer decisions that produce `BlockedByStageDecision` (not `BlockedByMissingEvidence`). Missing evidence is specifically for stages that are still `Pending` (no decision submitted yet).
 
 > The `PostureRationale` field in `ApprovalWorkflowStateResponse` always contains a human-readable explanation of why the current posture was assigned.
 

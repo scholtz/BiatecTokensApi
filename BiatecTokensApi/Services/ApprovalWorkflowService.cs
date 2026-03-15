@@ -396,7 +396,21 @@ namespace BiatecTokensApi.Services
                 return (ReleasePosture.BlockedByStageDecision,
                     $"Stage '{rejected.StageType}' has been Rejected. Release cannot proceed until this decision is revised.");
 
-            // Rule 2: Any release-blocking Missing evidence
+            // Rule 1b: Any explicitly Blocked stage → BlockedByStageDecision
+            // (Blocked is a deliberate hold by a reviewer, distinct from Missing evidence)
+            ApprovalStageRecord? explicitlyBlocked = stages.FirstOrDefault(s => s.Status == ApprovalDecisionStatus.Blocked);
+            if (explicitlyBlocked != null)
+                return (ReleasePosture.BlockedByStageDecision,
+                    $"Stage '{explicitlyBlocked.StageType}' is Blocked pending external resolution.");
+
+            // Rule 1c: Any NeedsFollowUp stage → BlockedByStageDecision
+            // (Requestor must act; stage cannot be progressed until follow-up is supplied)
+            ApprovalStageRecord? needsFollowUp = stages.FirstOrDefault(s => s.Status == ApprovalDecisionStatus.NeedsFollowUp);
+            if (needsFollowUp != null)
+                return (ReleasePosture.BlockedByStageDecision,
+                    $"Stage '{needsFollowUp.StageType}' requires follow-up from the requestor before it can be progressed.");
+
+            // Rule 2: Any release-blocking Missing evidence (catches Pending stages)
             EvidenceReadinessItem? missing = evidence.FirstOrDefault(
                 e => e.IsReleaseBlocking && e.ReadinessCategory == EvidenceReadinessCategory.Missing);
             if (missing != null)
