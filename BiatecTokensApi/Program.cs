@@ -186,6 +186,9 @@ namespace BiatecTokensApi
             builder.Services.Configure<BiatecTokensApi.Configuration.KycConfig>(
                 builder.Configuration.GetSection("KycConfig"));
 
+            builder.Services.Configure<BiatecTokensApi.Configuration.AmlConfig>(
+                builder.Configuration.GetSection("AmlConfig"));
+
             builder.Services.Configure<BiatecTokensApi.Configuration.WorkflowGovernanceConfig>(
                 builder.Configuration.GetSection("WorkflowGovernanceConfig"));
 
@@ -288,10 +291,41 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IPolicyEvaluator, PolicyEvaluator>();
             builder.Services.AddSingleton<IComplianceDecisionService, ComplianceDecisionService>();
             builder.Services.AddSingleton<IIssuanceRiskScoringService, IssuanceRiskScoringService>();
-            builder.Services.AddSingleton<IKycProvider, MockKycProvider>();
+
+            // Register all concrete KYC providers so they can be resolved by the factory
+            builder.Services.AddSingleton<MockKycProvider>();
+            builder.Services.AddSingleton<StripeIdentityKycProvider>();
+
+            // Select KYC provider based on KycConfig.Provider (fail-closed: unknown provider → Mock)
+            builder.Services.AddSingleton<IKycProvider>(sp =>
+            {
+                var cfg = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BiatecTokensApi.Configuration.KycConfig>>().Value;
+                var logger = sp.GetRequiredService<ILogger<Program>>();
+                var providerName = cfg.Provider ?? "Mock";
+                logger.LogInformation("Registering KYC provider: {Provider}", providerName);
+                return providerName.Equals("StripeIdentity", StringComparison.OrdinalIgnoreCase)
+                    ? sp.GetRequiredService<StripeIdentityKycProvider>()
+                    : sp.GetRequiredService<MockKycProvider>();
+            });
+
             builder.Services.AddSingleton<IKycService, KycService>();
             builder.Services.AddSingleton<IKycWorkflowService, KycWorkflowService>();
-            builder.Services.AddSingleton<IAmlProvider, MockAmlProvider>();
+
+            // Register all concrete AML providers so they can be resolved by the factory
+            builder.Services.AddSingleton<MockAmlProvider>();
+            builder.Services.AddSingleton<ComplyAdvantageAmlProvider>();
+
+            // Select AML provider based on AmlConfig.Provider (fail-closed: unknown provider → Mock)
+            builder.Services.AddSingleton<IAmlProvider>(sp =>
+            {
+                var cfg = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BiatecTokensApi.Configuration.AmlConfig>>().Value;
+                var logger = sp.GetRequiredService<ILogger<Program>>();
+                var providerName = cfg.Provider ?? "Mock";
+                logger.LogInformation("Registering AML provider: {Provider}", providerName);
+                return providerName.Equals("ComplyAdvantage", StringComparison.OrdinalIgnoreCase)
+                    ? sp.GetRequiredService<ComplyAdvantageAmlProvider>()
+                    : sp.GetRequiredService<MockAmlProvider>();
+            });
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IAmlRepository, BiatecTokensApi.Repositories.AmlRepository>();
             builder.Services.AddSingleton<IAmlService, AmlService>();
             builder.Services.AddSingleton<IGdprErasureService, GdprErasureService>();

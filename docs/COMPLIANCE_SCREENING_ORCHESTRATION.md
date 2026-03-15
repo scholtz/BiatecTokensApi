@@ -497,3 +497,249 @@ The design intentionally avoids vendor lock-in. Provider-specific mapping is iso
 - User inputs are sanitized before logging using `LoggingHelper.SanitizeLogInput()` to prevent log injection attacks.
 - Provider credentials must not be committed to source; use environment variables or secrets management.
 - The service is fail-closed: unhandled provider exceptions result in `Error` state, never silent success.
+
+---
+
+## Production Provider Adapters
+
+### Overview
+
+The orchestration layer now includes two production-oriented provider adapters that can be activated through configuration. Both implement the existing `IKycProvider` / `IAmlProvider` interfaces and are registered via factory delegation in `Program.cs`. No code changes are required to switch providers—only configuration changes.
+
+**Provider selection is configuration-driven and fail-closed:** if a required setting (such as an API key) is missing or blank, the provider returns `ProviderUnavailable` or `NotStarted` rather than silently allowing subjects through.
+
+---
+
+### KYC: `StripeIdentityKycProvider`
+
+A production-oriented adapter for the [Stripe Identity](https://stripe.com/docs/identity) API. It creates verification sessions for both individual and business-entity subjects and maps Stripe event types and session statuses to normalized `KycStatus` values.
+
+#### Activation
+
+```json
+// appsettings.json (non-production placeholder only)
+"KycConfig": {
+  "Provider": "StripeIdentity",
+  "ApiEndpoint": "https://api.stripe.com",
+  "RequestTimeoutSeconds": 30
+}
+```
+
+**Inject the secret via environment variable (never commit to source):**
+
+```bash
+export KycConfig__ApiKey="sk_live_..."
+export KycConfig__WebhookSecret="whsec_..."
+```
+
+#### Subject Metadata
+
+| Metadata Key | Individual | BusinessEntity |
+|---|---|---|
+| `subject_type` | `"Individual"` | `"BusinessEntity"` |
+| `full_name` | ✅ | — |
+| `legal_name` | — | ✅ |
+| `registration_number` | — | Optional |
+| `jurisdiction` | — | Optional |
+
+#### Status Mapping
+
+| Stripe Session Status | Normalized `KycStatus` |
+|---|---|
+| `verified` | `Approved` |
+| `requires_input` | `NeedsReview` |
+| `processing` | `Pending` |
+| `canceled` | `Rejected` |
+| `expired` | `Expired` |
+| Unknown | `Pending` |
+
+#### Webhook Event Mapping
+
+| Stripe Event Type | Normalized `KycStatus` |
+|---|---|
+| `identity.verification_session.verified` | `Approved` |
+| `identity.verification_session.requires_input` | `NeedsReview` |
+| `identity.verification_session.canceled` | `Rejected` |
+| `identity.verification_session.processing` | `Pending` |
+
+Webhook signatures use Stripe's HMAC-SHA256 format (`t=<timestamp>,v1=<hash>`). Validate with `ValidateWebhookSignature(payload, header, webhookSecret)`.
+
+#### Fail-Closed Behaviour
+
+- Missing `ApiKey` → all calls return `KycStatus.NotStarted` with explanatory error message.
+- Network error → `KycStatus.NotStarted` + `"Network error communicating with KYC provider"`.
+- Timeout → `KycStatus.NotStarted` + `"Provider request timed out"`.
+- Non-2xx response → `KycStatus.NotStarted` + `"Provider error {status}: {message}"`.
+- Malformed JSON response → `KycStatus.NotStarted` + `"Malformed provider response"`.
+
+---
+
+### AML: `ComplyAdvantageAmlProvider`
+
+A production-oriented adapter for the [ComplyAdvantage](https://complyadvantage.com) Screening API. It screens subjects against sanctions lists, PEP watchlists, and (optionally) adverse media sources, and maps ComplyAdvantage match results to normalized `ComplianceDecisionState` values.
+
+#### Activation
+
+```json
+// appsettings.json (non-production placeholder only)
+"AmlConfig": {
+  "Provider": "ComplyAdvantage",
+  "ApiEndpoint": "https://api.complyadvantage.com",
+  "IncludePepScreening": true,
+  "IncludeAdverseMedia": false,
+  "FuzzinessThreshold": 0,
+  "MinApprovalConfidence": 0.8,
+  "EvidenceValidityHours": 720,
+  "RequestTimeoutSeconds": 30
+}
+```
+
+**Inject the secret via environment variable:**
+
+```bash
+export AmlConfig__ApiKey="..."
+```
+
+#### AmlConfig Fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `Provider` | string | `"Mock"` | `"Mock"` or `"ComplyAdvantage"` |
+| `EnforcementEnabled` | bool | `false` | When false, results are advisory only |
+| `ApiEndpoint` | string | `https://api.complyadvantage.com` | Base URL |
+| `ApiKey` | string | — | **Required for production.** Inject via env var |
+| `WebhookSecret` | string | — | For validating async callbacks |
+| `EvidenceValidityHours` | int | `720` | Hours before an approved decision expires |
+| `MaxRetryAttempts` | int | `3` | Retries for transient failures |
+| `RetryDelayMs` | int | `1000` | Initial retry delay (exponential backoff) |
+| `RequestTimeoutSeconds` | int | `30` | Per-request timeout |
+| `MinApprovalConfidence` | decimal | `0.8` | Below this threshold, clean results → NeedsReview |
+| `IncludePepScreening` | bool | `true` | Include PEP lists in every search |
+| `IncludeAdverseMedia` | bool | `false` | Include adverse media sources |
+| `FuzzinessThreshold` | int | `0` | Name-match fuzziness (0=exact, 100=most lenient) |
+
+#### Decision Mapping
+
+| ComplyAdvantage Result | Normalized State |
+|---|---|
+| Zero hits | `Approved` |
+| Sanctions hit (any OFAC/EU/UN/generic) | `Rejected` + `SANCTIONS_MATCH` |
+| PEP hit | `NeedsReview` + `PEP_MATCH` |
+| Adverse media hit | `NeedsReview` + `ADVERSE_MEDIA_MATCH` |
+| Other hit types | `NeedsReview` + `REVIEW_REQUIRED` |
+| Sanctions + PEP | `Rejected` (sanctions take priority) |
+| HTTP 503 / 429 | `ProviderUnavailable` |
+| HTTP 400 / 401 | `Error` |
+| Malformed JSON | `Error` + `MALFORMED_RESPONSE` |
+| Network error | `ProviderUnavailable` + `PROVIDER_NETWORK_ERROR` |
+| Timeout | `ProviderUnavailable` + `PROVIDER_TIMEOUT` |
+
+#### Business Entity Screening
+
+For `subjectType = BusinessEntity`, the adapter uses `legal_name` as the search term (falling back to `subjectId` if absent) and sets `entity_type = "company"` in the provider request. Include these metadata keys:
+
+```json
+"subjectMetadata": {
+  "subject_type": "BusinessEntity",
+  "legal_name": "Acme Corp Ltd",
+  "registration_number": "12345678",
+  "jurisdiction": "UK"
+}
+```
+
+#### Fail-Closed Behaviour
+
+- Missing `ApiKey` → `ProviderUnavailable` + `PROVIDER_NOT_CONFIGURED`.
+- 503 / 429 responses → `ProviderUnavailable` (transient, retryable).
+- 400 / 401 responses → `Error` (terminal, not retryable).
+- Network error → `ProviderUnavailable` + `PROVIDER_NETWORK_ERROR`.
+- Timeout → `ProviderUnavailable` + `PROVIDER_TIMEOUT`.
+
+---
+
+### Configuration-Driven Provider Selection
+
+Provider selection happens automatically in `Program.cs` based on the `Provider` field in each config section. Unknown provider names silently fall back to `Mock`.
+
+```csharp
+// KYC provider selection (Program.cs)
+services.AddSingleton<IKycProvider>(sp => {
+    var cfg = sp.GetRequiredService<IOptions<KycConfig>>().Value;
+    return cfg.Provider == "StripeIdentity"
+        ? sp.GetRequiredService<StripeIdentityKycProvider>()
+        : sp.GetRequiredService<MockKycProvider>();
+});
+
+// AML provider selection (Program.cs)
+services.AddSingleton<IAmlProvider>(sp => {
+    var cfg = sp.GetRequiredService<IOptions<AmlConfig>>().Value;
+    return cfg.Provider == "ComplyAdvantage"
+        ? sp.GetRequiredService<ComplyAdvantageAmlProvider>()
+        : sp.GetRequiredService<MockAmlProvider>();
+});
+```
+
+---
+
+### Testing the Production Adapters
+
+Run provider adapter tests (no real network calls):
+
+```bash
+# KYC adapter tests (StripeIdentityKycProvider)
+dotnet test --filter "FullyQualifiedName~KycProviderAdapterTests" --configuration Release
+
+# AML adapter tests (ComplyAdvantageAmlProvider)
+dotnet test --filter "FullyQualifiedName~AmlProviderAdapterTests" --configuration Release
+
+# Integration tests (provider-driven orchestration scenarios)
+dotnet test --filter "FullyQualifiedName~ComplianceProviderIntegrationTests" --configuration Release
+
+# All compliance provider tests
+dotnet test --filter "FullyQualifiedName~KycProviderAdapterTests|FullyQualifiedName~AmlProviderAdapterTests|FullyQualifiedName~ComplianceProviderIntegrationTests" --configuration Release
+```
+
+**Expected output:** 81 tests passing, 0 failing.
+
+---
+
+### Validating Production Configuration
+
+Before enabling production providers, verify configuration is complete:
+
+```bash
+# Check for missing keys (should print warning in startup logs if ApiKey is missing)
+dotnet run --project BiatecTokensApi -- --environment Development 2>&1 | grep -i "not configured\|ApiKey"
+
+# Smoke-test the mock path first
+curl -X POST https://localhost:7000/api/v1/compliance-orchestration/initiate \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"subjectId":"smoke-test-001","contextId":"smoke-ctx-001","checkType":1}'
+# Expected: success=true, state reflects MockAmlProvider behavior
+```
+
+**Before going live:**
+
+1. Set `KycConfig__ApiKey` and `AmlConfig__ApiKey` environment variables in your deployment environment.
+2. Set `KycConfig__WebhookSecret` for Stripe webhook validation.
+3. Set `KycConfig__Provider=StripeIdentity` and `AmlConfig__Provider=ComplyAdvantage`.
+4. Test with a known clean subject to confirm Approved path.
+5. Test with a known sanctions-listed subject (Stripe Identity provides test IDs for this).
+6. Monitor logs for any `"not configured"` or `"ProviderUnavailable"` messages.
+
+---
+
+### Failure Mode Reference
+
+| Scenario | KYC Outcome | AML Outcome | Orchestration Decision |
+|---|---|---|---|
+| Both providers pass | `Approved` | `Approved` | `Approved` |
+| KYC passes, AML sanctions hit | `Approved` | `Rejected` | `Rejected` |
+| KYC passes, AML PEP match | `Approved` | `NeedsReview` | `NeedsReview` |
+| KYC passes, AML unavailable | `Approved` | `ProviderUnavailable` | `ProviderUnavailable` |
+| KYC rejected | `Rejected` | (skipped) | `Rejected` |
+| KYC provider unavailable | `NotStarted` → mapped to `ProviderUnavailable` | (skipped) | `ProviderUnavailable` |
+| Both providers unavailable | `ProviderUnavailable` | `ProviderUnavailable` | `ProviderUnavailable` |
+| Missing KYC API key | `NotStarted` | — | `Error` (KYC_PROVIDER_ERROR) |
+| Missing AML API key | — | `ProviderUnavailable` | `ProviderUnavailable` |
