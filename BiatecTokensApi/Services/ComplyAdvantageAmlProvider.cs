@@ -330,11 +330,11 @@ namespace BiatecTokensApi.Services
 
         private (ComplianceDecisionState state, string? reasonCode) MapSearchResult(ComplyAdvantageSearchResponse response)
         {
-            // No hits: clear
+            // No hits: clean result → Approved
             if (response.TotalHits == 0 || response.Hits == null || response.Hits.Count == 0)
             {
-                var confidence = response.SearchTerm != null ? _config.MinApprovalConfidence : 0m;
-                // If confidence is configured and the result is clean, approve
+                // MinApprovalConfidence is reserved for provider-supplied confidence scores
+                // when ComplyAdvantage returns scored matches (future enhancement).
                 return (ComplianceDecisionState.Approved, null);
             }
 
@@ -387,7 +387,7 @@ namespace BiatecTokensApi.Services
             return (ComplianceDecisionState.NeedsReview, "REVIEW_REQUIRED");
         }
 
-        private static ComplyAdvantageSearchResponse? ParseSearchResponse(string json)
+        private ComplyAdvantageSearchResponse? ParseSearchResponse(string json)
         {
             try
             {
@@ -403,8 +403,10 @@ namespace BiatecTokensApi.Services
                 return JsonSerializer.Deserialize<ComplyAdvantageSearchResponse>(json,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogDebug(ex, "ComplyAdvantageAmlProvider: failed to parse search response JSON ({ExceptionType})",
+                    ex.GetType().Name);
                 return null;
             }
         }
@@ -419,7 +421,10 @@ namespace BiatecTokensApi.Services
                 if (doc.RootElement.TryGetProperty("error", out var error))
                     return error.GetString() ?? "Unknown provider error";
             }
-            catch { }
+            catch (JsonException)
+            {
+                // Non-JSON error body; fall through to default
+            }
             return "Unknown provider error";
         }
 

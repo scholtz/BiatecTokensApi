@@ -187,6 +187,9 @@ namespace BiatecTokensTests
 
             // Pending KYC + clean AML → Approved (orchestrator allows this combination)
             Assert.That(resp.State, Is.EqualTo(ComplianceDecisionState.Approved));
+            // Verify AML was actually executed by checking audit trail
+            Assert.That(resp.AuditTrail.Any(e => e.EventType == "AmlCompleted"), Is.True,
+                "AML check must have executed when KYC was only Pending, not a hard failure");
         }
 
         [Test]

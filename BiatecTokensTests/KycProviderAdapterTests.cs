@@ -76,7 +76,6 @@ namespace BiatecTokensTests
         [Test]
         public async Task StartVerification_NullApiKey_FailsClosed()
         {
-            var provider = CreateProvider(apiKey: null!);
             // Create with explicit null key in config
             var config = new KycConfig { Provider = "StripeIdentity", ApiKey = null };
             var fakeHandler = new FakeHttpMessageHandler(HttpStatusCode.OK, BuildSessionJson("vs_001", "verified"));

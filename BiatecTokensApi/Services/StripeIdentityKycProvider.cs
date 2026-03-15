@@ -375,15 +375,17 @@ namespace BiatecTokensApi.Services
             return data;
         }
 
-        private static StripeVerificationSessionResponse? ParseVerificationSessionResponse(string json)
+        private StripeVerificationSessionResponse? ParseVerificationSessionResponse(string json)
         {
             try
             {
                 return JsonSerializer.Deserialize<StripeVerificationSessionResponse>(json,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogDebug(ex, "StripeIdentityKycProvider: failed to parse verification session response JSON ({ExceptionType})",
+                    ex.GetType().Name);
                 return null;
             }
         }
