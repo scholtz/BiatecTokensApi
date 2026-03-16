@@ -223,14 +223,14 @@ namespace BiatecTokensTests
         public async Task Repository_ExportLog_MultipleAppends_OrderedOldestFirst()
         {
             var repo = CreateRepository();
-            var base_time = DateTimeOffset.UtcNow;
+            var baseTime = DateTimeOffset.UtcNow;
 
             for (int i = 3; i >= 1; i--)
             {
                 await repo.AppendExportRecordAsync("case-y", new CaseExportMetadata
                 {
                     ExportId   = $"e{i}",
-                    ExportedAt = base_time.AddMinutes(-i),
+                    ExportedAt = baseTime.AddMinutes(-i),
                     ExportedBy = "actor"
                 });
             }
@@ -337,11 +337,11 @@ namespace BiatecTokensTests
         // 3. Webhook event emission
         // ═══════════════════════════════════════════════════════════════════════
 
-        private static async Task<(ComplianceCaseManagementService svc, CapturingWebhookService ws)> CreateServiceWithCapture()
+        private static (ComplianceCaseManagementService svc, CapturingWebhookService ws) CreateServiceWithCapture()
         {
             var ws  = new CapturingWebhookService();
             var svc = CreateService(webhookService: ws);
-            return await Task.FromResult((svc, ws));
+            return (svc, ws);
         }
 
         private static async Task WaitForWebhookAsync(CapturingWebhookService ws, WebhookEventType type, int maxWaitMs = 500)
@@ -360,7 +360,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_CreateCase_EmitsComplianceCaseCreated()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             await svc.CreateCaseAsync(BuildRequest(), "actor");
 
             await WaitForWebhookAsync(ws, WebhookEventType.ComplianceCaseCreated);
@@ -372,7 +372,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_TransitionState_EmitsStateTransitioned()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
 
             await svc.TransitionStateAsync(created.Case!.CaseId,
@@ -387,7 +387,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_TransitionToApproved_EmitsApprovalReadyEvent()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
             string caseId = created.Case!.CaseId;
 
@@ -405,7 +405,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_UpdateCase_WithAssignment_EmitsAssignmentChanged()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
 
             await svc.UpdateCaseAsync(created.Case!.CaseId,
@@ -420,7 +420,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_AddEscalation_EmitsEscalationRaised()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
 
             await svc.AddEscalationAsync(created.Case!.CaseId, new AddEscalationRequest
@@ -438,7 +438,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_ResolveEscalation_EmitsEscalationResolved()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
             string caseId = created.Case!.CaseId;
 
@@ -460,7 +460,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_AddRemediationTask_EmitsRemediationTaskAdded()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
 
             await svc.AddRemediationTaskAsync(created.Case!.CaseId,
@@ -475,7 +475,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_ResolveRemediationTask_EmitsRemediationTaskResolved()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
             string caseId = created.Case!.CaseId;
 
@@ -495,7 +495,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_RecordMonitoringReview_EmitsMonitoringReviewRecorded()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest(), "actor");
             string caseId = created.Case!.CaseId;
 
@@ -517,7 +517,7 @@ namespace BiatecTokensTests
         [Test]
         public async Task Webhook_EscalationRequired_FollowUpCreated_EmitsFollowUpEvent()
         {
-            var (svc, ws) = await CreateServiceWithCapture();
+            var (svc, ws) = CreateServiceWithCapture();
             var created = await svc.CreateCaseAsync(BuildRequest("issuer-X", "subject-X"), "actor");
             string caseId = created.Case!.CaseId;
 
@@ -1001,7 +1001,8 @@ namespace BiatecTokensTests
             await svc.CreateCaseAsync(BuildRequest("issuer-idem", "subject-idem"), "actor");
             await svc.CreateCaseAsync(BuildRequest("issuer-idem", "subject-idem"), "actor");
 
-            await Task.Delay(100); // allow fire-and-forget tasks to complete
+            // Wait for any fire-and-forget webhook tasks to settle
+            await WaitForWebhookAsync(ws, WebhookEventType.ComplianceCaseCreated, maxWaitMs: 500);
 
             int createdCount;
             lock (ws.EmittedEvents)

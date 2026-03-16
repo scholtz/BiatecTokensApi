@@ -106,9 +106,9 @@ namespace BiatecTokensApi.Repositories
             {
                 log.Add(metadata);
 
-                // Guard against unbounded growth
-                while (log.Count > MaxExportRecordsPerCase)
-                    log.RemoveAt(0);
+                // Guard against unbounded growth — remove all excess in one operation
+                if (log.Count > MaxExportRecordsPerCase)
+                    log.RemoveRange(0, log.Count - MaxExportRecordsPerCase);
             }
 
             _logger.LogInformation(

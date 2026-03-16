@@ -1059,7 +1059,13 @@ namespace BiatecTokensApi.Services
             if (_repository == null)
                 return Task.CompletedTask;
 
-            return _repository.SaveCaseAsync(c);
+            return _repository.SaveCaseAsync(c).ContinueWith(t =>
+            {
+                if (t.IsFaulted && t.Exception != null)
+                    _logger.LogError(t.Exception,
+                        "PersistCaseAsync: failed to save case to repository. CaseId={CaseId}",
+                        LoggingHelper.SanitizeLogInput(c.CaseId));
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         /// <summary>
@@ -1100,9 +1106,16 @@ namespace BiatecTokensApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex,
-                        "EmitEventFireAndForget: webhook emission failed. EventType={EventType} CaseId={CaseId}",
-                        eventType, LoggingHelper.SanitizeLogInput(caseId));
+                    try
+                    {
+                        _logger.LogError(ex,
+                            "EmitEventFireAndForget: webhook emission failed. EventType={EventType} CaseId={CaseId}",
+                            eventType, LoggingHelper.SanitizeLogInput(caseId));
+                    }
+                    catch
+                    {
+                        // Swallow any logger exception to prevent the background task from faulting
+                    }
                 }
             });
         }
