@@ -510,8 +510,17 @@ namespace BiatecTokensApi.Services
                 return BuildReadinessSummary(subjectId, IngestionReadinessState.EvidenceMissing, blockers, advisories, decisions, now);
             }
 
+            // ── Use only the MOST RECENT decision per Kind ──────────────────
+            // Earlier decisions (e.g. NeedsReview superseded by Approved via rescreen) are
+            // retained in the full audit trail but do NOT affect current readiness. Only
+            // the newest decision per kind governs the compliance posture.
+            var latestPerKind = decisions
+                .GroupBy(d => d.Kind)
+                .Select(g => g.OrderByDescending(d => d.IngestedAt).First())
+                .ToList();
+
             // Check for provider unavailable (fail-closed)
-            foreach (var d in decisions.Where(d => d.Status == NormalizedIngestionStatus.ProviderUnavailable))
+            foreach (var d in latestPerKind.Where(d => d.Status == NormalizedIngestionStatus.ProviderUnavailable))
             {
                 blockers.Add(new IngestionBlocker
                 {
@@ -527,7 +536,7 @@ namespace BiatecTokensApi.Services
             }
 
             // Check for errors
-            foreach (var d in decisions.Where(d => d.Status == NormalizedIngestionStatus.Error))
+            foreach (var d in latestPerKind.Where(d => d.Status == NormalizedIngestionStatus.Error))
             {
                 blockers.Add(new IngestionBlocker
                 {
@@ -542,11 +551,31 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            // Check for contradictions (same kind, multiple terminal decisions with different outcomes)
+            // Check for contradictions within EACH kind: if the latest decision for a kind is
+            // Approved but there also exist more-recent Rejected decisions for the same kind
+            // (from a different provider or assessment), that is a contradiction. We check whether
+            // for the same kind there are BOTH Approved and Rejected decisions when the latest is
+            // not a single clear terminal state. Specifically: a contradiction exists when the full
+            // history for a kind contains both Approved and Rejected terminal states AND the most
+            // recent is one of them (not an intermediate superseding the other).
             var terminalByKind = decisions
                 .Where(d => d.Status == NormalizedIngestionStatus.Approved || d.Status == NormalizedIngestionStatus.Rejected)
                 .GroupBy(d => d.Kind)
-                .Where(g => g.Select(d => d.Status).Distinct().Count() > 1);
+                .Where(g =>
+                {
+                    // Contradiction: both Approved and Rejected exist in the history for this kind,
+                    // AND the most recent decision is also terminal (not a clear resolution).
+                    var statuses = g.Select(d => d.Status).Distinct().ToList();
+                    if (statuses.Count <= 1) return false; // all same terminal state → no contradiction
+
+                    // If the most recent decision for this kind is terminal, it's a contradiction
+                    var mostRecent = decisions
+                        .Where(d => d.Kind == g.Key)
+                        .OrderByDescending(d => d.IngestedAt)
+                        .First();
+                    return mostRecent.Status == NormalizedIngestionStatus.Approved
+                           || mostRecent.Status == NormalizedIngestionStatus.Rejected;
+                });
 
             foreach (var group in terminalByKind)
             {
@@ -562,8 +591,8 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            // Check for rejected or insufficient data
-            foreach (var d in decisions.Where(d =>
+            // Check for rejected or insufficient data (latest decision per kind only)
+            foreach (var d in latestPerKind.Where(d =>
                 d.Status == NormalizedIngestionStatus.Rejected ||
                 d.Status == NormalizedIngestionStatus.InsufficientData))
             {
@@ -583,8 +612,8 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            // Check for expired evidence
-            foreach (var d in decisions.Where(d => d.IsEvidenceExpired))
+            // Check for expired evidence (latest per kind)
+            foreach (var d in latestPerKind.Where(d => d.IsEvidenceExpired))
             {
                 blockers.Add(new IngestionBlocker
                 {
@@ -599,8 +628,8 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            // Individual expired artifacts (on otherwise-valid decisions)
-            foreach (var d in decisions.Where(d => !d.IsEvidenceExpired))
+            // Individual expired artifacts (on otherwise-valid latest decisions)
+            foreach (var d in latestPerKind.Where(d => !d.IsEvidenceExpired))
             {
                 foreach (var a in d.EvidenceArtifacts.Where(a => a.IsExpired))
                 {
@@ -618,8 +647,8 @@ namespace BiatecTokensApi.Services
                 }
             }
 
-            // Pending checks
-            foreach (var d in decisions.Where(d => d.Status == NormalizedIngestionStatus.Pending))
+            // Pending checks (latest per kind)
+            foreach (var d in latestPerKind.Where(d => d.Status == NormalizedIngestionStatus.Pending))
             {
                 advisories.Add(new IngestionBlocker
                 {
@@ -634,8 +663,8 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            // NeedsReview checks
-            foreach (var d in decisions.Where(d => d.Status == NormalizedIngestionStatus.NeedsReview))
+            // NeedsReview checks (latest per kind)
+            foreach (var d in latestPerKind.Where(d => d.Status == NormalizedIngestionStatus.NeedsReview))
             {
                 advisories.Add(new IngestionBlocker
                 {
@@ -670,8 +699,9 @@ namespace BiatecTokensApi.Services
             {
                 state = IngestionReadinessState.PendingReview;
             }
-            else if (decisions.All(d => d.Status == NormalizedIngestionStatus.Approved))
+            else if (latestPerKind.All(d => d.Status == NormalizedIngestionStatus.Approved))
             {
+                // All latest decisions per kind are Approved → Ready
                 state = IngestionReadinessState.Ready;
             }
             else

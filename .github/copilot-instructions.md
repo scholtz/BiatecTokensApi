@@ -1448,3 +1448,44 @@ _mockUserRepo.Setup(r => r.StoreRefreshTokenAsync(It.IsAny<RefreshToken>())).Ret
 - End-to-end integration: at least 5 tests (submit + verify + chain operations)
 
 **MANDATORY**: Total tests for a new 4-method service = minimum 75 tests. The initial 39 was insufficient.
+
+## CRITICAL: Readiness Evaluation Must Use Latest-Per-Kind Decisions
+
+**Lesson Learned (2026-03-16 - Issue #KycAml, PR #563)**: Product owner requested rework of KYC/AML decision ingestion service because:
+- ❌ `ComputeSubjectReadiness()` evaluated ALL decisions for a subject (including old superseded ones), causing rescreen business scenarios to fail
+- ❌ A `NeedsReview → Approved` rescreen still showed advisory for the old NeedsReview
+- ❌ Scenario tests covering contradictory jurisdiction, AML failure after KYC success, and remediation reopen all failed
+- ❌ Missing business-scenario tests for the 20 specific compliance lifecycle scenarios the product requires
+
+**Root Cause**: Service looped over `decisions` (all records) instead of `latestPerKind` (most recent per `IngestionDecisionKind`). Earlier decisions must be retained in the audit trail but must NOT affect current readiness evaluation.
+
+**Fix Pattern for Provider-Agnostic Compliance Services**:
+```csharp
+// CORRECT: Use latest-per-kind for readiness evaluation
+var latestPerKind = decisions
+    .GroupBy(d => d.Kind)
+    .Select(g => g.OrderByDescending(d => d.IngestedAt).First())
+    .ToList();
+
+// WRONG: evaluating all decisions including superseded ones
+foreach (var d in decisions.Where(d => d.Status == NormalizedIngestionStatus.NeedsReview))
+// CORRECT:
+foreach (var d in latestPerKind.Where(d => d.Status == NormalizedIngestionStatus.NeedsReview))
+```
+
+**Contradiction detection**: Contradictions still check ALL decisions (for auditability), but only fire when the most recent decision for the kind is also terminal (Approved or Rejected). A rescreen that resolves `NeedsReview → Approved` is NOT a contradiction.
+
+**MANDATORY Business Scenarios for Compliance Decision Services**:
+When implementing any compliance readiness or decision service, create a `*BusinessScenariosTests.cs` file covering at minimum:
+1. Missing evidence → fail-closed block
+2. Expired evidence after validity window → fail-closed stale
+3. Contradictory jurisdiction outcomes → fail-closed block
+4. Sanctions/AML failure after prior KYC success → fail-closed block
+5. Remediation reopen (evidence re-expires after renewal) → back to stale
+6. Full lifecycle: blocked → pending → ready (all conditions satisfied)
+7. Partial approval (KYC passed but AML pending) → not ready
+8. Sequential rescreen: second Approved supersedes first NeedsReview → ready
+9. Evidence freshness exact boundary conditions
+10. Cohort: single blocked member blocks entire cohort
+
+**MANDATORY**: Service tests must cover these scenarios BEFORE submission. The product owner evaluates these business scenarios explicitly.
