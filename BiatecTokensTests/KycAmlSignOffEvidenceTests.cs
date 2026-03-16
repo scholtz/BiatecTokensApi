@@ -857,10 +857,9 @@ namespace BiatecTokensTests
         // ═══════════════════════════════════════════════════════════════════════
 
         [Test]
-        [TestCase("SANCTIONS_MATCH", true)]  // sanctions: analyst review possible
-        [TestCase("DOCUMENT_FRAUD", false)]  // document fraud: terminal
-        [TestCase("PEP_MATCH", true)]        // PEP: manual review required (remediable)
-        public async Task Blockers_CorrectRemediabilityForReasonCode(
+        [TestCase("SANCTIONS_MATCH", false)]  // sanctions rejection: terminal, not remediable
+        [TestCase("DOCUMENT_FRAUD", false)]   // document fraud rejection: terminal, not remediable
+        public async Task Blockers_RejectedOutcome_BlockerIsNonRemediable(
             string reasonCode, bool expectedRemediable)
         {
             var amlProv = new ConfigurableAmlProvider
@@ -873,9 +872,31 @@ namespace BiatecTokensTests
             var resp = await svc.InitiateSignOffAsync(
                 MakeRequest(kind: KycAmlSignOffCheckKind.AmlScreening), "actor", "corr");
 
-            // DOCUMENT_FRAUD produces non-remediable blockers; others vary by outcome type
             var anyBlocker = resp.Record!.Blockers.FirstOrDefault();
             Assert.That(anyBlocker, Is.Not.Null, $"No blocker found for reasonCode={reasonCode}");
+            Assert.That(anyBlocker!.IsRemediable, Is.EqualTo(expectedRemediable),
+                $"Remediability for {reasonCode} (Rejected) should be {expectedRemediable}");
+        }
+
+        [Test]
+        public async Task Blockers_AdverseFindingsOutcome_BlockerIsRemediable()
+        {
+            // Adverse findings (e.g., PEP match requiring analyst review) are remediable
+            var amlProv = new ConfigurableAmlProvider
+            {
+                StateToReturn = ComplianceDecisionState.NeedsReview,
+                ReasonCodeToReturn = "PEP_MATCH"
+            };
+            var svc = CreateService(amlProvider: amlProv);
+
+            var resp = await svc.InitiateSignOffAsync(
+                MakeRequest(kind: KycAmlSignOffCheckKind.AmlScreening), "actor", "corr");
+
+            // NeedsReview outcome → MANUAL_REVIEW_REQUIRED blocker which is remediable
+            var blocker = resp.Record!.Blockers.FirstOrDefault();
+            Assert.That(blocker, Is.Not.Null, "NeedsManualReview must produce a blocker");
+            Assert.That(blocker!.IsRemediable, Is.True,
+                "Manual review requirements are remediable — analyst review can resolve them");
         }
 
         // ═══════════════════════════════════════════════════════════════════════

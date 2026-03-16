@@ -189,7 +189,7 @@ namespace BiatecTokensApi.Controllers
 
             // ReadinessState == IncompleteEvidence with a null RecordId indicates not found
             if (string.IsNullOrWhiteSpace(response.RecordId) && response.ReadinessState == KycAmlSignOffReadinessState.IncompleteEvidence)
-                return NotFound(new ApiErrorResponse { ErrorCode = "RECORD_NOT_FOUND", ErrorMessage = $"No sign-off record found with ID '{recordId}'." });
+                return NotFound(new ApiErrorResponse { ErrorCode = "RECORD_NOT_FOUND", ErrorMessage = $"No sign-off record found with ID '{LoggingHelper.SanitizeLogInput(recordId)}'." });
 
             return Ok(response);
         }

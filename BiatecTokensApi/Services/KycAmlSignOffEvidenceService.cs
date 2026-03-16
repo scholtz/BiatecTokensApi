@@ -806,7 +806,7 @@ namespace BiatecTokensApi.Services
                 prev, newOutcome, description, providerRef, actor);
         }
 
-        private static void AppendAuditEvent(
+        private void AppendAuditEvent(
             KycAmlSignOffRecord record,
             string eventType,
             KycAmlSignOffOutcome? prevOutcome,
@@ -817,7 +817,7 @@ namespace BiatecTokensApi.Services
         {
             record.AuditTrail.Add(new KycAmlSignOffAuditEvent
             {
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = _timeProvider.GetUtcNow(),
                 EventType = eventType,
                 PreviousOutcome = prevOutcome,
                 NewOutcome = newOutcome,
@@ -827,7 +827,7 @@ namespace BiatecTokensApi.Services
             });
         }
 
-        private static void AddArtifact(
+        private void AddArtifact(
             KycAmlSignOffRecord record,
             string kind,
             KycAmlSignOffExecutionMode mode,
@@ -839,7 +839,7 @@ namespace BiatecTokensApi.Services
             record.EvidenceArtifacts.Add(new KycAmlSignOffEvidenceArtifact
             {
                 Kind = kind,
-                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedAt = _timeProvider.GetUtcNow(),
                 ExecutionMode = mode,
                 ProviderName = providerName,
                 ProviderReferenceId = providerRefId,
@@ -848,7 +848,7 @@ namespace BiatecTokensApi.Services
             });
         }
 
-        private static void EnsureBlocker(
+        private void EnsureBlocker(
             KycAmlSignOffRecord record,
             string code,
             string description,
@@ -860,7 +860,7 @@ namespace BiatecTokensApi.Services
                 Code = code,
                 Description = description,
                 IsRemediable = isRemediable,
-                RecordedAt = DateTimeOffset.UtcNow
+                RecordedAt = _timeProvider.GetUtcNow()
             });
         }
 
@@ -969,7 +969,7 @@ namespace BiatecTokensApi.Services
                 var evt = new WebhookEvent
                 {
                     EventType = eventType,
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = _timeProvider.GetUtcNow().UtcDateTime,
                     Data = new Dictionary<string, object>
                     {
                         ["recordId"] = record.RecordId,
