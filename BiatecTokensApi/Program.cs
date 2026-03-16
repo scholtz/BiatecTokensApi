@@ -118,6 +118,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ComplianceHardening types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ComplianceHardening")
                         return $"ComplianceHardening{type.Name}";
+                    // Use namespace-qualified names for all KycAmlDecisionIngestion types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.KycAmlDecisionIngestion")
+                        return $"KycAmlIngestion{type.Name}";
                     // Use namespace-qualified names for all Aml types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.Aml")
                         return $"Aml{type.Name}";
@@ -333,6 +336,9 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IAmlService, AmlService>();
             builder.Services.AddSingleton<IGdprErasureService, GdprErasureService>();
             builder.Services.AddSingleton<IComplianceOrchestrationService, ComplianceOrchestrationService>();
+
+            // Register provider-agnostic KYC/AML decision ingestion service (Issue #XXX)
+            builder.Services.AddSingleton<IKycAmlDecisionIngestionService, KycAmlDecisionIngestionService>();
 
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
             
