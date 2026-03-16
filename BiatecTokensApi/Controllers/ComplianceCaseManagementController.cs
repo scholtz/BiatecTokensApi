@@ -409,6 +409,40 @@ namespace BiatecTokensApi.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // ── Export case evidence bundle ────────────────────────────────────────
+
+        /// <summary>
+        /// Exports a regulator/audit-ready evidence bundle for the specified compliance case.
+        /// The bundle contains a full case snapshot, the chronological timeline, and export metadata
+        /// including a SHA-256 content hash. Each export is recorded in the audit log and triggers
+        /// a <c>ComplianceCaseExported</c> webhook event.
+        /// </summary>
+        /// <param name="caseId">The compliance case identifier.</param>
+        /// <param name="request">Export options (format, requestedBy).</param>
+        /// <returns>The serialised evidence bundle on success.</returns>
+        [HttpPost("{caseId}/export")]
+        [ProducesResponseType(typeof(ExportComplianceCaseResponse), 200)]
+        [ProducesResponseType(typeof(ExportComplianceCaseResponse), 400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> ExportCase(string caseId, [FromBody] ExportComplianceCaseRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "ExportCase. CaseId={CaseId} Format={Format} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(request.Format),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.ExportCaseAsync(caseId, request, actorId);
+
+            if (!result.Success && result.ErrorCode == "NOT_FOUND")
+                return NotFound(result);
+
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────
 
         private string GetActorId() =>

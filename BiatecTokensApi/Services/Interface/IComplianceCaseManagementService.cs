@@ -72,5 +72,13 @@ namespace BiatecTokensApi.Services.Interface
         /// Returns a summary of cases inspected and those now flagged as overdue.
         /// </summary>
         Task<TriggerPeriodicReviewCheckResponse> TriggerPeriodicReviewCheckAsync(string actorId);
+
+        /// <summary>
+        /// Generates a regulator/audit-ready evidence bundle for the specified case,
+        /// comprising the full case snapshot, chronological timeline, and export metadata
+        /// (including a SHA-256 content hash).  A <see cref="Models.Webhook.WebhookEventType.ComplianceCaseExported"/>
+        /// event is emitted on success.
+        /// </summary>
+        Task<ExportComplianceCaseResponse> ExportCaseAsync(string caseId, ExportComplianceCaseRequest request, string actorId);
     }
 }

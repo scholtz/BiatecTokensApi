@@ -876,4 +876,71 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
         /// <summary>Human-readable error message.</summary>
         public string? ErrorMessage { get; set; }
     }
+
+    /// <summary>Metadata describing how and when a case evidence bundle was exported.</summary>
+    public class CaseExportMetadata
+    {
+        /// <summary>Unique identifier for this export operation.</summary>
+        public string ExportId { get; set; } = Guid.NewGuid().ToString("N");
+
+        /// <summary>When this export was generated (UTC).</summary>
+        public DateTimeOffset ExportedAt { get; set; }
+
+        /// <summary>Identity of the actor who requested the export.</summary>
+        public string ExportedBy { get; set; } = string.Empty;
+
+        /// <summary>Export format: "JSON" (default).</summary>
+        public string Format { get; set; } = "JSON";
+
+        /// <summary>Schema version for forward-compatibility signalling.</summary>
+        public string SchemaVersion { get; set; } = "1.0";
+
+        /// <summary>SHA-256 hex digest of the serialised <see cref="ComplianceCaseEvidenceBundle.CaseSnapshot"/> payload.</summary>
+        public string ContentHash { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Regulator/audit-ready evidence bundle for a single compliance case.
+    /// Contains a point-in-time snapshot of the case, its full timeline, and export metadata.
+    /// </summary>
+    public class ComplianceCaseEvidenceBundle
+    {
+        /// <summary>ID of the exported case.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Full case snapshot at export time.</summary>
+        public ComplianceCase? CaseSnapshot { get; set; }
+
+        /// <summary>Chronological audit trail entries.</summary>
+        public List<CaseTimelineEntry> Timeline { get; set; } = new();
+
+        /// <summary>Export metadata (id, timestamp, actor, hash).</summary>
+        public CaseExportMetadata Metadata { get; set; } = new();
+    }
+
+    /// <summary>Request to export a compliance case evidence bundle.</summary>
+    public class ExportComplianceCaseRequest
+    {
+        /// <summary>Optional: actor requesting the export (for audit logging).</summary>
+        public string? RequestedBy { get; set; }
+
+        /// <summary>Optional: export format (default "JSON").</summary>
+        public string Format { get; set; } = "JSON";
+    }
+
+    /// <summary>Response from a compliance case export operation.</summary>
+    public class ExportComplianceCaseResponse
+    {
+        /// <summary>True when the export was generated successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The structured evidence bundle (populated on success).</summary>
+        public ComplianceCaseEvidenceBundle? Bundle { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
 }
