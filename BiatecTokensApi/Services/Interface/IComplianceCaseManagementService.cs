@@ -122,5 +122,61 @@ namespace BiatecTokensApi.Services.Interface
         /// Provides counts of successful, failed, and pending-retry deliveries for operational monitoring.
         /// </summary>
         Task<GetDeliveryStatusResponse> GetDeliveryStatusAsync(string caseId, string actorId);
+
+        // ── Case summary ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns a lightweight, scannable summary of a compliance case suitable for
+        /// worklist rendering, operations cockpit cards, and role-friendly display.
+        /// Includes blocker count, urgency band, top blocker title, and next-action description.
+        /// </summary>
+        Task<CaseSummaryResponse> GetCaseSummaryAsync(string caseId, string actorId);
+
+        /// <summary>
+        /// Lists lightweight compliance case summaries with the same filter options as
+        /// <see cref="ListCasesAsync"/> but returns only scannable summary objects rather
+        /// than full case aggregates.
+        /// </summary>
+        Task<ListCaseSummariesResponse> ListCaseSummariesAsync(ListComplianceCasesRequest request, string actorId);
+
+        // ── Blockers ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Evaluates and returns the structured, typed blockers currently active on a case.
+        /// Covers evidence staleness, missing evidence, unresolved escalations, open remediation tasks,
+        /// SLA breaches, pending KYC/AML decisions, incomplete approvals, and handoff failures.
+        /// Fail-closed: when blockers are present, <see cref="EvaluateBlockersResponse.CanProceed"/> is false.
+        /// </summary>
+        Task<EvaluateBlockersResponse> EvaluateBlockersAsync(string caseId, string actorId);
+
+        // ── Decision history ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Adds a KYC, AML, sanctions, or approval workflow decision record to a compliance case.
+        /// Appends an auditable timeline entry and emits a <see cref="Models.Webhook.WebhookEventType.ComplianceCaseDecisionRecorded"/> event.
+        /// </summary>
+        Task<AddDecisionRecordResponse> AddDecisionRecordAsync(string caseId, AddDecisionRecordRequest request, string actorId);
+
+        /// <summary>
+        /// Returns the full chronological decision history for a compliance case,
+        /// including KYC, AML, sanctions, and approval decisions.
+        /// Provides counts of total and adverse decisions.
+        /// </summary>
+        Task<GetDecisionHistoryResponse> GetDecisionHistoryAsync(string caseId, string actorId);
+
+        // ── Handoff status ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Updates the downstream handoff status for a compliance case.
+        /// Tracks post-approval obligations (approval routing, regulatory package, distribution).
+        /// Emits a <see cref="Models.Webhook.WebhookEventType.ComplianceCaseHandoffStatusChanged"/> event.
+        /// </summary>
+        Task<UpdateHandoffStatusResponse> UpdateHandoffStatusAsync(string caseId, UpdateHandoffStatusRequest request, string actorId);
+
+        /// <summary>
+        /// Returns the current downstream handoff status for a compliance case.
+        /// Returns a response with <c>HandoffStatus = null</c> when no handoff has been initiated.
+        /// </summary>
+        Task<GetHandoffStatusResponse> GetHandoffStatusAsync(string caseId, string actorId);
     }
 }

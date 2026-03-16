@@ -1115,6 +1115,9 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.ComplianceCaseSlaBreached)]
         [TestCase(WebhookEventType.ComplianceCaseDeliveryFailed)]
         [TestCase(WebhookEventType.ComplianceCaseDeliveryRetryExhausted)]
+        // Case maturity: decision lineage and handoff
+        [TestCase(WebhookEventType.ComplianceCaseDecisionRecorded)]
+        [TestCase(WebhookEventType.ComplianceCaseHandoffStatusChanged)]
         [TestCase(WebhookEventType.ReportRunCreated)]
         [TestCase(WebhookEventType.ReportRunBlocked)]
         [TestCase(WebhookEventType.ReportRunApproved)]

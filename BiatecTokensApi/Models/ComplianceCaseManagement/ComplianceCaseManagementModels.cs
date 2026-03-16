@@ -66,7 +66,84 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
         CaseExported,
         MonitoringScheduleSet,
         MonitoringReviewRecorded,
-        MonitoringFollowUpCreated
+        MonitoringFollowUpCreated,
+        /// <summary>A KYC, AML, sanctions, or approval decision was recorded against the case.</summary>
+        DecisionRecorded,
+        /// <summary>The downstream handoff status was updated.</summary>
+        HandoffStatusChanged
+    }
+
+    // ── Blocker taxonomy ───────────────────────────────────────────────────────
+
+    /// <summary>Structured category classifying the root cause of a compliance case blocker.</summary>
+    public enum CaseBlockerCategory
+    {
+        /// <summary>Evidence attached to the case has passed its expiry date.</summary>
+        StaleEvidence,
+        /// <summary>Required evidence is absent from the case.</summary>
+        MissingEvidence,
+        /// <summary>An open sanctions screening hit requires a manual analyst decision.</summary>
+        UnresolvedSanctions,
+        /// <summary>KYC review has not yet been completed or returned a non-clear outcome.</summary>
+        PendingKycDecision,
+        /// <summary>AML screening has not yet been completed or returned a non-clear outcome.</summary>
+        PendingAmlDecision,
+        /// <summary>An approval workflow stage is pending; the case cannot proceed until approved.</summary>
+        IncompleteApproval,
+        /// <summary>A downstream delivery or distribution step has failed and requires intervention.</summary>
+        DownstreamDeliveryFailure,
+        /// <summary>One or more open remediation tasks are blocking case progression.</summary>
+        OpenRemediationTask,
+        /// <summary>An active escalation requiring manual resolution is blocking the case.</summary>
+        OpenEscalation,
+        /// <summary>No reviewer or team has been assigned to the case.</summary>
+        MissingAssignment,
+        /// <summary>The SLA review deadline has passed without resolution.</summary>
+        SlaBreached,
+        /// <summary>An operator has explicitly blocked the case pending manual intervention.</summary>
+        ManualBlock
+    }
+
+    // ── Decision lineage ───────────────────────────────────────────────────────
+
+    /// <summary>Kind of decision tracked in the case decision history.</summary>
+    public enum CaseDecisionKind
+    {
+        /// <summary>KYC identity verification approved.</summary>
+        KycApproval,
+        /// <summary>KYC identity verification rejected.</summary>
+        KycRejection,
+        /// <summary>AML screening returned a clear result.</summary>
+        AmlClear,
+        /// <summary>AML screening surfaced a potential or confirmed hit.</summary>
+        AmlHit,
+        /// <summary>Sanctions list screening review outcome recorded.</summary>
+        SanctionsReview,
+        /// <summary>An approval workflow stage outcome was recorded.</summary>
+        ApprovalWorkflowOutcome,
+        /// <summary>A manual compliance review decision was recorded.</summary>
+        ManualReviewDecision,
+        /// <summary>An escalation review decision was recorded.</summary>
+        EscalationDecision
+    }
+
+    // ── Handoff stage ──────────────────────────────────────────────────────────
+
+    /// <summary>Stage of the downstream handoff workflow for a compliance case.</summary>
+    public enum CaseHandoffStage
+    {
+        /// <summary>No handoff process has been initiated yet.</summary>
+        NotStarted,
+        /// <summary>Waiting for an approval workflow to complete before handoff.</summary>
+        ApprovalWorkflowPending,
+        /// <summary>Waiting for the regulatory evidence package to be prepared.</summary>
+        RegulatoryPackagePending,
+        /// <summary>Waiting for the distribution step to complete.</summary>
+        DistributionPending,
+        /// <summary>All downstream handoff steps have completed successfully.</summary>
+        Completed,
+        /// <summary>A downstream handoff step has failed and requires intervention.</summary>
+        Failed
     }
 
     /// <summary>Outcome of a periodic monitoring review.</summary>
@@ -132,6 +209,207 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
     }
 
     // ── Aggregates ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A structured, typed blocker representing a specific reason why a compliance case
+    /// cannot proceed. Provides plain-language titles, descriptions, remediation hints,
+    /// and fail-closed severity so the frontend can render enterprise-grade operator copy
+    /// without inferring meaning from low-level flags.
+    /// </summary>
+    public class CaseBlocker
+    {
+        /// <summary>Unique identifier for this blocker instance.</summary>
+        public string BlockerId { get; set; } = Guid.NewGuid().ToString("N");
+
+        /// <summary>Structural category identifying the root cause of this blocker.</summary>
+        public CaseBlockerCategory Category { get; set; }
+
+        /// <summary>Severity of this blocker.</summary>
+        public EvidenceIssueSeverityLevel Severity { get; set; } = EvidenceIssueSeverityLevel.High;
+
+        /// <summary>Short, plain-language title suitable for worklist display.</summary>
+        public string Title { get; set; } = string.Empty;
+
+        /// <summary>Full explanation of why this blocker exists.</summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Operator-facing hint describing how to resolve or unblock this issue.
+        /// Null when no specific remediation is known.
+        /// </summary>
+        public string? RemediationHint { get; set; }
+
+        /// <summary>
+        /// ID of the entity causing this block (e.g., evidence ID, escalation ID, task ID).
+        /// Null for high-level state blockers.
+        /// </summary>
+        public string? LinkedEntityId { get; set; }
+
+        /// <summary>When this blocker was detected.</summary>
+        public DateTimeOffset DetectedAt { get; set; }
+
+        /// <summary>True when this blocker causes a fail-closed state (vs. an advisory warning).</summary>
+        public bool IsFailClosed { get; set; } = true;
+    }
+
+    /// <summary>
+    /// An immutable record of a KYC, AML, sanctions, or approval workflow decision
+    /// linked to a compliance case. Provides structured decision lineage for audit
+    /// and for computing case readiness.
+    /// </summary>
+    public class CaseDecisionRecord
+    {
+        /// <summary>Unique identifier for this decision record.</summary>
+        public string DecisionId { get; set; } = string.Empty;
+
+        /// <summary>Case this decision belongs to.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Kind of decision being recorded.</summary>
+        public CaseDecisionKind Kind { get; set; }
+
+        /// <summary>Short human-readable summary of the decision outcome.</summary>
+        public string DecisionSummary { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Normalised outcome string: "Approved", "Rejected", "Clear", "Hit",
+        /// "Pending", "Inconclusive", etc.
+        /// </summary>
+        public string? Outcome { get; set; }
+
+        /// <summary>External provider or system that produced this decision (null for manual).</summary>
+        public string? ProviderName { get; set; }
+
+        /// <summary>Provider-side reference ID for this decision (null if manual).</summary>
+        public string? ProviderReference { get; set; }
+
+        /// <summary>Plain-language explanation of why this outcome was reached.</summary>
+        public string? Explanation { get; set; }
+
+        /// <summary>True when this decision is considered adverse (blocks or warns on the case).</summary>
+        public bool IsAdverse { get; set; }
+
+        /// <summary>Actor who recorded this decision.</summary>
+        public string DecidedBy { get; set; } = string.Empty;
+
+        /// <summary>When this decision was recorded.</summary>
+        public DateTimeOffset DecidedAt { get; set; }
+
+        /// <summary>Structured attributes from the decision source (e.g., match scores).</summary>
+        public Dictionary<string, string> Attributes { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Downstream handoff status tracking whether a compliance case has fulfilled all
+    /// post-approval obligations (regulatory package, approval routing, distribution).
+    /// Updated explicitly via the handoff API; fail-closed until marked completed.
+    /// </summary>
+    public class CaseHandoffStatus
+    {
+        /// <summary>Case this handoff status belongs to.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Current stage of the downstream handoff workflow.</summary>
+        public CaseHandoffStage Stage { get; set; } = CaseHandoffStage.NotStarted;
+
+        /// <summary>
+        /// True when all downstream handoff obligations are fulfilled and the case
+        /// can be considered operationally complete.
+        /// </summary>
+        public bool IsHandoffReady { get; set; }
+
+        /// <summary>Plain-language reason the handoff is not yet ready (null when ready).</summary>
+        public string? BlockingReason { get; set; }
+
+        /// <summary>Identifiers of unresolved downstream dependencies (e.g., approvalId, reportId).</summary>
+        public List<string> UnresolvedDependencies { get; set; } = new();
+
+        /// <summary>When the handoff must be completed (null if no deadline).</summary>
+        public DateTimeOffset? HandoffDueAt { get; set; }
+
+        /// <summary>When all handoff steps were completed (null if incomplete).</summary>
+        public DateTimeOffset? HandoffCompletedAt { get; set; }
+
+        /// <summary>Free-text notes about this handoff stage.</summary>
+        public string? HandoffNotes { get; set; }
+
+        /// <summary>Actor who last updated the handoff status.</summary>
+        public string? UpdatedBy { get; set; }
+
+        /// <summary>When the handoff status was last updated.</summary>
+        public DateTimeOffset UpdatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Lightweight, scannable summary of a compliance case.
+    /// Designed for worklist rendering, operations cockpit cards, and role-friendly display.
+    /// Does not include full evidence payloads, timeline, or detailed remediation notes.
+    /// </summary>
+    public class CaseSummary
+    {
+        /// <summary>Unique case identifier.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Issuer scoping this case.</summary>
+        public string IssuerId { get; set; } = string.Empty;
+
+        /// <summary>Identifier of the subject being evaluated.</summary>
+        public string SubjectId { get; set; } = string.Empty;
+
+        /// <summary>Classification of this case.</summary>
+        public CaseType Type { get; set; }
+
+        /// <summary>Current lifecycle state.</summary>
+        public ComplianceCaseState State { get; set; }
+
+        /// <summary>Priority assigned to this case.</summary>
+        public CasePriority Priority { get; set; }
+
+        /// <summary>User ID of the reviewer currently assigned (null if unassigned).</summary>
+        public string? AssignedReviewerId { get; set; }
+
+        /// <summary>Team ID currently assigned (null if unassigned).</summary>
+        public string? AssignedTeamId { get; set; }
+
+        /// <summary>SLA urgency classification (derived from SLA metadata or Normal if no SLA set).</summary>
+        public CaseUrgencyBand UrgencyBand { get; set; }
+
+        /// <summary>When the case was created.</summary>
+        public DateTimeOffset CreatedAt { get; set; }
+
+        /// <summary>When the case was last modified.</summary>
+        public DateTimeOffset UpdatedAt { get; set; }
+
+        /// <summary>Total number of active (fail-closed) blockers on this case.</summary>
+        public int BlockerCount { get; set; }
+
+        /// <summary>Number of open remediation tasks.</summary>
+        public int OpenRemediationTasks { get; set; }
+
+        /// <summary>Number of open escalations.</summary>
+        public int OpenEscalations { get; set; }
+
+        /// <summary>True when any evidence on the case has become stale.</summary>
+        public bool HasStaleEvidence { get; set; }
+
+        /// <summary>True when downstream handoff obligations are fulfilled (or no handoff is required).</summary>
+        public bool IsHandoffReady { get; set; }
+
+        /// <summary>Title of the highest-severity active blocker (null if no blockers).</summary>
+        public string? TopBlockerTitle { get; set; }
+
+        /// <summary>Plain-language description of the next required action for an operator.</summary>
+        public string? NextActionDescription { get; set; }
+
+        /// <summary>Jurisdiction code relevant to this case.</summary>
+        public string? Jurisdiction { get; set; }
+
+        /// <summary>Number of decision records linked to this case.</summary>
+        public int DecisionCount { get; set; }
+
+        /// <summary>Current handoff stage (NotStarted when no handoff has been initiated).</summary>
+        public CaseHandoffStage HandoffStage { get; set; } = CaseHandoffStage.NotStarted;
+    }
 
     /// <summary>
     /// Immutable record capturing a single assignment or reassignment event for a compliance case.
@@ -333,6 +611,25 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
 
         /// <summary>Persisted webhook delivery records for events emitted on this case.</summary>
         public List<CaseDeliveryRecord> DeliveryRecords { get; set; } = new();
+
+        /// <summary>
+        /// Structured, typed blockers currently active on this case.
+        /// Computed on-demand and stored here for snapshot visibility.
+        /// Fail-closed blockers prevent case readiness.
+        /// </summary>
+        public List<CaseBlocker> Blockers { get; set; } = new();
+
+        /// <summary>
+        /// Chronological history of KYC, AML, sanctions, and approval decisions
+        /// explicitly linked to this case for decision lineage and audit.
+        /// </summary>
+        public List<CaseDecisionRecord> DecisionHistory { get; set; } = new();
+
+        /// <summary>
+        /// Downstream handoff status tracking post-approval obligations.
+        /// Null until the first handoff status update is recorded.
+        /// </summary>
+        public CaseHandoffStatus? HandoffStatus { get; set; }
     }
 
     /// <summary>
@@ -1245,6 +1542,212 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
 
         /// <summary>Number of records currently in a retry-scheduled state.</summary>
         public int PendingRetryCount { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    // ── Case summary request / response types ─────────────────────────────────
+
+    /// <summary>Response wrapping a lightweight <see cref="CaseSummary"/>.</summary>
+    public class CaseSummaryResponse
+    {
+        /// <summary>True when the summary was retrieved successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The lightweight case summary.</summary>
+        public CaseSummary? Summary { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>Paginated list of lightweight compliance case summaries.</summary>
+    public class ListCaseSummariesResponse
+    {
+        /// <summary>True when the query succeeded.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Matched case summaries for the current page.</summary>
+        public List<CaseSummary> Summaries { get; set; } = new();
+
+        /// <summary>Total number of cases matching the filter.</summary>
+        public int TotalCount { get; set; }
+
+        /// <summary>Current page number.</summary>
+        public int Page { get; set; }
+
+        /// <summary>Page size used for this response.</summary>
+        public int PageSize { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    // ── Blockers response ─────────────────────────────────────────────────────
+
+    /// <summary>Response containing the evaluated structured blockers for a compliance case.</summary>
+    public class EvaluateBlockersResponse
+    {
+        /// <summary>True when the blocker evaluation succeeded.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Case identifier.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>All active blockers evaluated for this case.</summary>
+        public List<CaseBlocker> Blockers { get; set; } = new();
+
+        /// <summary>Fail-closed blockers (subset of Blockers where IsFailClosed = true).</summary>
+        public List<CaseBlocker> FailClosedBlockers { get; set; } = new();
+
+        /// <summary>Advisory warnings (subset of Blockers where IsFailClosed = false).</summary>
+        public List<CaseBlocker> Warnings { get; set; } = new();
+
+        /// <summary>True when there are no fail-closed blockers.</summary>
+        public bool CanProceed { get; set; }
+
+        /// <summary>When this evaluation was computed.</summary>
+        public DateTimeOffset EvaluatedAt { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    // ── Decision record request / response types ──────────────────────────────
+
+    /// <summary>Request to add a KYC, AML, sanctions, or approval decision record to a compliance case.</summary>
+    public class AddDecisionRecordRequest
+    {
+        /// <summary>Kind of decision being recorded.</summary>
+        public CaseDecisionKind Kind { get; set; }
+
+        /// <summary>Short human-readable summary of the decision outcome.</summary>
+        public string DecisionSummary { get; set; } = string.Empty;
+
+        /// <summary>Normalised outcome string (e.g., "Approved", "Rejected", "Clear", "Hit").</summary>
+        public string? Outcome { get; set; }
+
+        /// <summary>External provider or system that produced this decision.</summary>
+        public string? ProviderName { get; set; }
+
+        /// <summary>Provider-side reference ID for this decision.</summary>
+        public string? ProviderReference { get; set; }
+
+        /// <summary>Plain-language explanation of why this outcome was reached.</summary>
+        public string? Explanation { get; set; }
+
+        /// <summary>True when this decision is considered adverse (blocks or warns on the case).</summary>
+        public bool IsAdverse { get; set; }
+
+        /// <summary>Structured attributes from the decision source (e.g., match scores).</summary>
+        public Dictionary<string, string>? Attributes { get; set; }
+    }
+
+    /// <summary>Response returned after adding a decision record to a compliance case.</summary>
+    public class AddDecisionRecordResponse
+    {
+        /// <summary>True when the decision record was saved successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The decision record that was created.</summary>
+        public CaseDecisionRecord? DecisionRecord { get; set; }
+
+        /// <summary>The updated case (after appending the decision).</summary>
+        public ComplianceCase? Case { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>Response containing the full decision history for a compliance case.</summary>
+    public class GetDecisionHistoryResponse
+    {
+        /// <summary>True when the history was retrieved successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Case identifier.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>All decision records in chronological order (oldest first).</summary>
+        public List<CaseDecisionRecord> Decisions { get; set; } = new();
+
+        /// <summary>Total number of decisions recorded against this case.</summary>
+        public int TotalCount { get; set; }
+
+        /// <summary>Number of adverse decisions in the history.</summary>
+        public int AdverseCount { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    // ── Handoff status request / response types ───────────────────────────────
+
+    /// <summary>Request to update the downstream handoff status for a compliance case.</summary>
+    public class UpdateHandoffStatusRequest
+    {
+        /// <summary>The new handoff stage.</summary>
+        public CaseHandoffStage Stage { get; set; }
+
+        /// <summary>Plain-language reason the handoff is not ready (required unless Stage is Completed).</summary>
+        public string? BlockingReason { get; set; }
+
+        /// <summary>IDs of unresolved downstream dependencies (e.g., approvalId, reportId).</summary>
+        public List<string>? UnresolvedDependencies { get; set; }
+
+        /// <summary>When the handoff must be completed.</summary>
+        public DateTimeOffset? HandoffDueAt { get; set; }
+
+        /// <summary>Free-text notes about this handoff stage.</summary>
+        public string? HandoffNotes { get; set; }
+    }
+
+    /// <summary>Response returned after updating the handoff status for a compliance case.</summary>
+    public class UpdateHandoffStatusResponse
+    {
+        /// <summary>True when the handoff status was saved successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The persisted handoff status.</summary>
+        public CaseHandoffStatus? HandoffStatus { get; set; }
+
+        /// <summary>The updated case.</summary>
+        public ComplianceCase? Case { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>Response containing the handoff status for a compliance case.</summary>
+    public class GetHandoffStatusResponse
+    {
+        /// <summary>True when the handoff status was retrieved successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The handoff status (null when no handoff has been initiated).</summary>
+        public CaseHandoffStatus? HandoffStatus { get; set; }
 
         /// <summary>Error code when <see cref="Success"/> is false.</summary>
         public string? ErrorCode { get; set; }
