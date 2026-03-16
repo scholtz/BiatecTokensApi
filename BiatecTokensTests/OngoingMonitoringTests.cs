@@ -1951,6 +1951,184 @@ namespace BiatecTokensTests
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // UNIT: Additional coverage — severity, timestamps, null validation, webhook data
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [TestCase(MonitoringTaskSeverity.Low)]
+        [TestCase(MonitoringTaskSeverity.Medium)]
+        [TestCase(MonitoringTaskSeverity.High)]
+        [TestCase(MonitoringTaskSeverity.Critical)]
+        public async Task CreateTask_AllSeverityLevels_Succeed(MonitoringTaskSeverity severity)
+        {
+            var svc    = CreateService();
+            var req    = BuildCreateRequest(severity: severity);
+            var result = await svc.CreateTaskAsync(req, "a");
+            Assert.That(result.Success, Is.True, $"Severity {severity} should succeed");
+            Assert.That(result.Task!.Severity, Is.EqualTo(severity));
+            Assert.That(result.Task.TaskId, Is.Not.Empty);
+        }
+
+        [Test]
+        public async Task CloseTask_SetsCompletedAt()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            var closed = await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.Clear,
+                    ResolutionNotes = "Completed as expected."
+                }, "a");
+
+            Assert.That(closed.Task!.CompletedAt, Is.Not.Null);
+            Assert.That(closed.Task.CompletedAt!.Value, Is.EqualTo(tp.GetUtcNow()).Within(TimeSpan.FromSeconds(1)));
+        }
+
+        [Test]
+        public async Task CloseTask_WithNullResolutionNotes_ReturnsError()
+        {
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            var result = await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.Clear,
+                    ResolutionNotes = null!
+                }, "a");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.MISSING_REQUIRED_FIELD));
+        }
+
+        [Test]
+        public async Task EscalateTask_WithNullReason_ReturnsError()
+        {
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            var result = await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = null! }, "a");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.MISSING_REQUIRED_FIELD));
+        }
+
+        [Test]
+        public async Task Timeline_OccurredAt_IsInChronologicalOrder()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            tp.Advance(TimeSpan.FromMinutes(1));
+            await svc.StartReassessmentAsync(taskId, new StartReassessmentRequest(), "a");
+
+            tp.Advance(TimeSpan.FromMinutes(1));
+            await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = "Test" }, "a");
+
+            var task = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            for (int i = 1; i < task.Timeline.Count; i++)
+            {
+                Assert.That(task.Timeline[i].OccurredAt,
+                    Is.GreaterThanOrEqualTo(task.Timeline[i - 1].OccurredAt),
+                    $"Timeline event {i} should not precede event {i - 1}");
+            }
+        }
+
+        [Test]
+        public async Task CreateTask_EmitsWebhookWithCaseIdInData()
+        {
+            var ws  = new CapturingWebhookService();
+            var svc = CreateService(webhookService: ws);
+            var req = BuildCreateRequest(caseId: "case-webhook-check");
+
+            await svc.CreateTaskAsync(req, "a");
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskCreated);
+
+            lock (ws.EmittedEvents)
+            {
+                var evt = ws.EmittedEvents.FirstOrDefault(e => e.EventType == WebhookEventType.MonitoringTaskCreated);
+                Assert.That(evt, Is.Not.Null);
+                Assert.That(evt!.Data, Is.Not.Null);
+                Assert.That(evt.Data!.ContainsKey("caseId"), Is.True);
+                Assert.That(evt.Data["caseId"].ToString(), Is.EqualTo("case-webhook-check"));
+            }
+        }
+
+        [Test]
+        public async Task DeferTask_EmitsWebhookWithTaskIdInData()
+        {
+            var ws      = new CapturingWebhookService();
+            var svc     = CreateService(webhookService: ws);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = DateTimeOffset.UtcNow.AddDays(10),
+                    Rationale  = "Webhook data test deferral"
+                }, "a");
+
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskDeferred);
+
+            lock (ws.EmittedEvents)
+            {
+                var evt = ws.EmittedEvents.FirstOrDefault(e => e.EventType == WebhookEventType.MonitoringTaskDeferred);
+                Assert.That(evt, Is.Not.Null);
+                Assert.That(evt!.Data, Is.Not.Null);
+                Assert.That(evt.Data!.ContainsKey("taskId"), Is.True);
+                Assert.That(evt.Data["taskId"].ToString(), Is.EqualTo(taskId));
+            }
+        }
+
+        [Test]
+        public async Task EscalateTask_DueSoonTask_CanBeEscalated()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            // Create a task due within the DueSoon window (< 7 days)
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(dueAt: tp.GetUtcNow().AddDays(4)), "a");
+            var taskId  = created.Task!.TaskId;
+            Assert.That(created.Task.Status, Is.EqualTo(MonitoringTaskStatus.DueSoon));
+
+            var result = await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = "Urgent regulatory trigger" }, "senior");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Escalated));
+        }
+
+        [Test]
+        public async Task DeferTask_DueSoonTask_CanBeDeferred()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            // Create task due within the DueSoon window
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(dueAt: tp.GetUtcNow().AddDays(3)), "a");
+            var taskId  = created.Task!.TaskId;
+            Assert.That(created.Task.Status, Is.EqualTo(MonitoringTaskStatus.DueSoon));
+
+            var result = await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(14),
+                    Rationale  = "Short-term deferral from DueSoon state"
+                }, "a");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Deferred));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // INTEGRATION: HTTP pipeline via WebApplicationFactory
         // ═══════════════════════════════════════════════════════════════════════
 

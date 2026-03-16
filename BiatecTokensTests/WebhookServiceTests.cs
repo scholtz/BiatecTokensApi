@@ -1087,6 +1087,29 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.TokenDeploymentConfirming)]
         [TestCase(WebhookEventType.TokenDeploymentCompleted)]
         [TestCase(WebhookEventType.TokenDeploymentFailed)]
+        // Compliance case management events
+        [TestCase(WebhookEventType.ComplianceCaseCreated)]
+        [TestCase(WebhookEventType.ComplianceCaseStateTransitioned)]
+        [TestCase(WebhookEventType.ComplianceCaseAssignmentChanged)]
+        [TestCase(WebhookEventType.ComplianceCaseEscalationRaised)]
+        [TestCase(WebhookEventType.ComplianceCaseEscalationResolved)]
+        [TestCase(WebhookEventType.ComplianceCaseRemediationTaskAdded)]
+        [TestCase(WebhookEventType.ComplianceCaseRemediationTaskResolved)]
+        [TestCase(WebhookEventType.ComplianceCaseMonitoringReviewRecorded)]
+        [TestCase(WebhookEventType.ComplianceCaseOverdueReviewDetected)]
+        [TestCase(WebhookEventType.ComplianceCaseApprovalReady)]
+        [TestCase(WebhookEventType.ComplianceCaseFollowUpCreated)]
+        [TestCase(WebhookEventType.ComplianceCaseExported)]
+        // Ongoing monitoring task events
+        [TestCase(WebhookEventType.MonitoringTaskCreated)]
+        [TestCase(WebhookEventType.MonitoringTaskDueSoon)]
+        [TestCase(WebhookEventType.MonitoringTaskOverdue)]
+        [TestCase(WebhookEventType.MonitoringTaskReassessmentStarted)]
+        [TestCase(WebhookEventType.MonitoringTaskEscalated)]
+        [TestCase(WebhookEventType.MonitoringTaskDeferred)]
+        [TestCase(WebhookEventType.MonitoringTaskResolved)]
+        [TestCase(WebhookEventType.MonitoringTaskSubjectSuspended)]
+        [TestCase(WebhookEventType.MonitoringTaskSubjectRestricted)]
         public async Task EmitEvent_AllEventTypes_CanBeDelivered(WebhookEventType eventType)
         {
             bool delivered = false;
@@ -1096,7 +1119,11 @@ namespace BiatecTokensTests
             await svc.CreateSubscriptionAsync(ValidCreateRequest(types: new List<WebhookEventType> { eventType }), "user-001");
 
             await svc.EmitEventAsync(new WebhookEvent { EventType = eventType, Actor = "system" });
-            await Task.Delay(200);
+
+            // Poll for delivery rather than fixed delay to avoid CI thread-pool starvation flakiness
+            var deadline = DateTime.UtcNow.AddSeconds(2);
+            while (!delivered && DateTime.UtcNow < deadline)
+                await Task.Delay(20);
 
             Assert.That(delivered, Is.True, $"Event type {eventType} was not delivered");
         }
