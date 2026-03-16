@@ -1150,6 +1150,594 @@ namespace BiatecTokensTests
             Assert.That(rd2.Summary!.IsReady, Is.True);
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit tests — Ongoing Monitoring (SetMonitoringSchedule)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task SetMonitoringSchedule_Annual_SetsCorrectInterval()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            var resp = await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Schedule, Is.Not.Null);
+            Assert.That(resp.Schedule!.IntervalDays, Is.EqualTo(365));
+            Assert.That(resp.Schedule.Frequency, Is.EqualTo(MonitoringFrequency.Annual));
+            Assert.That(resp.Case!.MonitoringSchedule, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_Monthly_SetsCorrectInterval()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.SetMonitoringScheduleAsync(cr.Case!.CaseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Monthly }, "actor");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Schedule!.IntervalDays, Is.EqualTo(30));
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_Quarterly_SetsCorrectInterval()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.SetMonitoringScheduleAsync(cr.Case!.CaseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Quarterly }, "actor");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Schedule!.IntervalDays, Is.EqualTo(90));
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_SemiAnnual_SetsCorrectInterval()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.SetMonitoringScheduleAsync(cr.Case!.CaseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.SemiAnnual }, "actor");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Schedule!.IntervalDays, Is.EqualTo(180));
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_Custom_SetsCustomInterval()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.SetMonitoringScheduleAsync(cr.Case!.CaseId,
+                new SetMonitoringScheduleRequest
+                {
+                    Frequency = MonitoringFrequency.Custom,
+                    CustomIntervalDays = 45
+                }, "actor");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Schedule!.IntervalDays, Is.EqualTo(45));
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_CustomMissingInterval_ReturnsError()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.SetMonitoringScheduleAsync(cr.Case!.CaseId,
+                new SetMonitoringScheduleRequest
+                {
+                    Frequency = MonitoringFrequency.Custom,
+                    CustomIntervalDays = null   // missing
+                }, "actor");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo(BiatecTokensApi.Models.ErrorCodes.MISSING_REQUIRED_FIELD));
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_CustomZeroInterval_ReturnsError()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.SetMonitoringScheduleAsync(cr.Case!.CaseId,
+                new SetMonitoringScheduleRequest
+                {
+                    Frequency = MonitoringFrequency.Custom,
+                    CustomIntervalDays = 0
+                }, "actor");
+
+            Assert.That(resp.Success, Is.False);
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_NotFoundCase_ReturnsNotFound()
+        {
+            var svc  = CreateService();
+            var resp = await svc.SetMonitoringScheduleAsync("nonexistent",
+                new SetMonitoringScheduleRequest(), "actor");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo(BiatecTokensApi.Models.ErrorCodes.NOT_FOUND));
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_SetsNextReviewDueAt()
+        {
+            var fakeTime = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var svc = CreateService(fakeTime);
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.SetMonitoringScheduleAsync(cr.Case!.CaseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Quarterly }, "actor");
+
+            // NextReviewDueAt should be 90 days from the fake "now"
+            Assert.That(resp.Schedule!.NextReviewDueAt, Is.EqualTo(new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero)));
+        }
+
+        [Test]
+        public async Task SetMonitoringSchedule_AddsTimelineEntry()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            var tl = await svc.GetTimelineAsync(caseId, "actor");
+            Assert.That(tl.Entries.Any(e => e.EventType == CaseTimelineEventType.MonitoringScheduleSet), Is.True);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit tests — Ongoing Monitoring (RecordMonitoringReview)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task RecordMonitoringReview_Clear_RecordsReview()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            var resp = await svc.RecordMonitoringReviewAsync(caseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.Clear,
+                    ReviewNotes = "All checks passed. No concerns found."
+                }, "reviewer");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Review, Is.Not.Null);
+            Assert.That(resp.Review!.Outcome, Is.EqualTo(MonitoringReviewOutcome.Clear));
+            Assert.That(resp.Case!.MonitoringReviews.Count, Is.EqualTo(1));
+            Assert.That(resp.FollowUpCase, Is.Null);
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_UpdatesScheduleTimestamps()
+        {
+            var fakeTime = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var svc = CreateService(fakeTime);
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Quarterly }, "actor");
+
+            // Advance 95 days and record review
+            fakeTime.Advance(TimeSpan.FromDays(95));
+
+            var resp = await svc.RecordMonitoringReviewAsync(caseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.AdvisoryNote,
+                    ReviewNotes = "Minor change in address. Monitoring continues."
+                }, "reviewer");
+
+            Assert.That(resp.Success, Is.True);
+            var sched = resp.Case!.MonitoringSchedule!;
+            Assert.That(sched.LastReviewAt, Is.Not.Null);
+            // NextReviewDueAt should be 90 days from review date
+            Assert.That(sched.NextReviewDueAt, Is.GreaterThan(fakeTime.GetUtcNow()));
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_MissingNotes_ReturnsError()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            var resp = await svc.RecordMonitoringReviewAsync(caseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.Clear,
+                    ReviewNotes = ""   // missing
+                }, "reviewer");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo(BiatecTokensApi.Models.ErrorCodes.MISSING_REQUIRED_FIELD));
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_NoSchedule_ReturnsError()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            // No schedule set
+            var resp = await svc.RecordMonitoringReviewAsync(cr.Case!.CaseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.Clear,
+                    ReviewNotes = "Test notes"
+                }, "reviewer");
+
+            Assert.That(resp.Success, Is.False);
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_NotFoundCase_ReturnsNotFound()
+        {
+            var svc  = CreateService();
+            var resp = await svc.RecordMonitoringReviewAsync("nonexistent",
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.Clear,
+                    ReviewNotes = "notes"
+                }, "reviewer");
+
+            Assert.That(resp.Success, Is.False);
+            Assert.That(resp.ErrorCode, Is.EqualTo(BiatecTokensApi.Models.ErrorCodes.NOT_FOUND));
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_EscalationRequired_CreatesFollowUpCase()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(
+                BuildCreateRequest(issuerId: "iss-monitor", subjectId: "sub-monitor"), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            var resp = await svc.RecordMonitoringReviewAsync(caseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome          = MonitoringReviewOutcome.EscalationRequired,
+                    ReviewNotes      = "Sanctions hit detected during re-screening.",
+                    CreateFollowUpCase = true
+                }, "reviewer");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Review!.FollowUpCaseCreated, Is.True);
+            Assert.That(resp.Review.FollowUpCaseId, Is.Not.Null);
+            Assert.That(resp.FollowUpCase, Is.Not.Null);
+            Assert.That(resp.FollowUpCase!.Type, Is.EqualTo(CaseType.OngoingMonitoring));
+            Assert.That(resp.FollowUpCase.Priority, Is.EqualTo(CasePriority.High));
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_EscalationNoFollowUp_DoesNotCreate()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            var resp = await svc.RecordMonitoringReviewAsync(caseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome          = MonitoringReviewOutcome.EscalationRequired,
+                    ReviewNotes      = "Issue found but follow-up handled externally.",
+                    CreateFollowUpCase = false
+                }, "reviewer");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.FollowUpCase, Is.Null);
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_AddsTimelineEntries()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            await svc.RecordMonitoringReviewAsync(caseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.ConcernIdentified,
+                    ReviewNotes = "Adverse media article found — monitoring continues."
+                }, "reviewer");
+
+            var tl = await svc.GetTimelineAsync(caseId, "actor");
+            Assert.That(tl.Entries.Any(e => e.EventType == CaseTimelineEventType.MonitoringReviewRecorded), Is.True);
+        }
+
+        [Test]
+        public async Task RecordMonitoringReview_MultipleReviews_AllPreserved()
+        {
+            var svc = CreateService();
+            var cr  = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Quarterly }, "actor");
+
+            for (int i = 1; i <= 3; i++)
+            {
+                await svc.RecordMonitoringReviewAsync(caseId,
+                    new RecordMonitoringReviewRequest
+                    {
+                        Outcome     = MonitoringReviewOutcome.Clear,
+                        ReviewNotes = $"Review #{i}: no concerns."
+                    }, "reviewer");
+            }
+
+            var caseResp = await svc.GetCaseAsync(caseId, "actor");
+            Assert.That(caseResp.Case!.MonitoringReviews.Count, Is.EqualTo(3));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit tests — Ongoing Monitoring (TriggerPeriodicReviewCheck)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task TriggerPeriodicReviewCheck_NoScheduledCases_ReturnsZero()
+        {
+            var svc = CreateService();
+            // Create a case but don't set a schedule
+            await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+
+            var resp = await svc.TriggerPeriodicReviewCheckAsync("system");
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.CasesInspected, Is.EqualTo(0));
+            Assert.That(resp.OverdueCasesFound, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task TriggerPeriodicReviewCheck_OverdueCases_MarkedAsOverdue()
+        {
+            var fakeTime = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var svc = CreateService(fakeTime);
+
+            var cr = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            // Set quarterly schedule
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Quarterly }, "actor");
+
+            // Advance 95 days past the due date (next review was at day 90)
+            fakeTime.Advance(TimeSpan.FromDays(95));
+
+            var resp = await svc.TriggerPeriodicReviewCheckAsync("system");
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.OverdueCasesFound, Is.EqualTo(1));
+            Assert.That(resp.OverdueCaseIds, Contains.Item(caseId));
+        }
+
+        [Test]
+        public async Task TriggerPeriodicReviewCheck_NotYetDue_NotMarkedOverdue()
+        {
+            var fakeTime = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var svc = CreateService(fakeTime);
+
+            var cr = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            // Set annual schedule
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual }, "actor");
+
+            // Advance only 30 days — not yet due
+            fakeTime.Advance(TimeSpan.FromDays(30));
+
+            var resp = await svc.TriggerPeriodicReviewCheckAsync("system");
+            Assert.That(resp.OverdueCasesFound, Is.EqualTo(0));
+            Assert.That(resp.CasesInspected, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task TriggerPeriodicReviewCheck_AfterReview_OverdueReset()
+        {
+            var fakeTime = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var svc = CreateService(fakeTime);
+
+            var cr = await svc.CreateCaseAsync(BuildCreateRequest(), "actor");
+            var caseId = cr.Case!.CaseId;
+
+            await svc.SetMonitoringScheduleAsync(caseId,
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Quarterly }, "actor");
+
+            // Advance past due date, record review (resets next due date)
+            fakeTime.Advance(TimeSpan.FromDays(95));
+
+            await svc.RecordMonitoringReviewAsync(caseId,
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.Clear,
+                    ReviewNotes = "All clear after scheduled review."
+                }, "reviewer");
+
+            // Now trigger check — should NOT be overdue because review was just recorded
+            var resp = await svc.TriggerPeriodicReviewCheckAsync("system");
+            Assert.That(resp.OverdueCasesFound, Is.EqualTo(0));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Integration tests — Monitoring HTTP pipeline
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task IntegrationTest_SetMonitoringSchedule_Returns200()
+        {
+            var issuerId = "int-mon-" + Guid.NewGuid().ToString("N")[..8];
+
+            var cr = await _client.PostAsJsonAsync("/api/v1/compliance-cases",
+                new CreateComplianceCaseRequest { IssuerId = issuerId, SubjectId = "s1", Type = CaseType.InvestorEligibility });
+            var created = (await cr.Content.ReadFromJsonAsync<CreateComplianceCaseResponse>(_jsonOptions))!;
+            var caseId = created.Case!.CaseId;
+
+            var schedResp = await _client.PostAsJsonAsync(
+                $"/api/v1/compliance-cases/{caseId}/monitoring-schedule",
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual });
+
+            Assert.That(schedResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var body = (await schedResp.Content.ReadFromJsonAsync<SetMonitoringScheduleResponse>(_jsonOptions))!;
+            Assert.That(body.Success, Is.True);
+            Assert.That(body.Schedule, Is.Not.Null);
+            Assert.That(body.Schedule!.IntervalDays, Is.EqualTo(365));
+        }
+
+        [Test]
+        public async Task IntegrationTest_SetMonitoringSchedule_Unauthorized_Returns401()
+        {
+            var resp = await _unauthClient.PostAsJsonAsync(
+                "/api/v1/compliance-cases/some-id/monitoring-schedule",
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Annual });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        }
+
+        [Test]
+        public async Task IntegrationTest_RecordMonitoringReview_Returns200()
+        {
+            var issuerId = "int-rev-" + Guid.NewGuid().ToString("N")[..8];
+
+            var cr = await _client.PostAsJsonAsync("/api/v1/compliance-cases",
+                new CreateComplianceCaseRequest { IssuerId = issuerId, SubjectId = "s1", Type = CaseType.InvestorEligibility });
+            var created = (await cr.Content.ReadFromJsonAsync<CreateComplianceCaseResponse>(_jsonOptions))!;
+            var caseId = created.Case!.CaseId;
+
+            // Must set schedule first
+            await _client.PostAsJsonAsync(
+                $"/api/v1/compliance-cases/{caseId}/monitoring-schedule",
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.Quarterly });
+
+            var reviewResp = await _client.PostAsJsonAsync(
+                $"/api/v1/compliance-cases/{caseId}/monitoring-reviews",
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.Clear,
+                    ReviewNotes = "Quarterly review complete. No issues identified."
+                });
+
+            Assert.That(reviewResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var body = (await reviewResp.Content.ReadFromJsonAsync<RecordMonitoringReviewResponse>(_jsonOptions))!;
+            Assert.That(body.Success, Is.True);
+            Assert.That(body.Review!.Outcome, Is.EqualTo(MonitoringReviewOutcome.Clear));
+        }
+
+        [Test]
+        public async Task IntegrationTest_RecordMonitoringReview_NoSchedule_Returns400()
+        {
+            var issuerId = "int-no-sched-" + Guid.NewGuid().ToString("N")[..8];
+
+            var cr = await _client.PostAsJsonAsync("/api/v1/compliance-cases",
+                new CreateComplianceCaseRequest { IssuerId = issuerId, SubjectId = "s1", Type = CaseType.InvestorEligibility });
+            var created = (await cr.Content.ReadFromJsonAsync<CreateComplianceCaseResponse>(_jsonOptions))!;
+
+            // Attempt review without setting schedule
+            var reviewResp = await _client.PostAsJsonAsync(
+                $"/api/v1/compliance-cases/{created.Case!.CaseId}/monitoring-reviews",
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome     = MonitoringReviewOutcome.Clear,
+                    ReviewNotes = "notes"
+                });
+
+            Assert.That(reviewResp.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        }
+
+        [Test]
+        public async Task IntegrationTest_TriggerPeriodicReviewCheck_Returns200()
+        {
+            var resp = await _client.PostAsync("/api/v1/compliance-cases/periodic-review-check", null);
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            var body = (await resp.Content.ReadFromJsonAsync<TriggerPeriodicReviewCheckResponse>(_jsonOptions))!;
+            Assert.That(body.Success, Is.True);
+            Assert.That(body.CheckedAt, Is.Not.EqualTo(default(DateTimeOffset)));
+        }
+
+        [Test]
+        public async Task IntegrationTest_TriggerPeriodicReviewCheck_Unauthorized_Returns401()
+        {
+            var resp = await _unauthClient.PostAsync("/api/v1/compliance-cases/periodic-review-check", null);
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        }
+
+        [Test]
+        public async Task IntegrationTest_FullMonitoringWorkflow_ScheduleReviewFollowUp()
+        {
+            var issuerId  = "int-full-mon-" + Guid.NewGuid().ToString("N")[..8];
+            var subjectId = "sub-" + Guid.NewGuid().ToString("N")[..8];
+
+            // 1. Create case
+            var cr = await _client.PostAsJsonAsync("/api/v1/compliance-cases",
+                new CreateComplianceCaseRequest { IssuerId = issuerId, SubjectId = subjectId, Type = CaseType.OngoingMonitoring });
+            var created = (await cr.Content.ReadFromJsonAsync<CreateComplianceCaseResponse>(_jsonOptions))!;
+            var caseId = created.Case!.CaseId;
+
+            // 2. Set monitoring schedule
+            var schedResp = await _client.PostAsJsonAsync(
+                $"/api/v1/compliance-cases/{caseId}/monitoring-schedule",
+                new SetMonitoringScheduleRequest { Frequency = MonitoringFrequency.SemiAnnual, Notes = "MICA annual review" });
+            var sched = (await schedResp.Content.ReadFromJsonAsync<SetMonitoringScheduleResponse>(_jsonOptions))!;
+            Assert.That(sched.Success, Is.True);
+            Assert.That(sched.Schedule!.IntervalDays, Is.EqualTo(180));
+
+            // 3. Record monitoring review that triggers a follow-up
+            var reviewResp = await _client.PostAsJsonAsync(
+                $"/api/v1/compliance-cases/{caseId}/monitoring-reviews",
+                new RecordMonitoringReviewRequest
+                {
+                    Outcome            = MonitoringReviewOutcome.EscalationRequired,
+                    ReviewNotes        = "Re-screening returned a new sanctions hit on OFAC list.",
+                    CreateFollowUpCase = true,
+                    Attributes         = new Dictionary<string, string> { ["watchlist"] = "OFAC", ["matchScore"] = "0.95" }
+                });
+
+            Assert.That(reviewResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var review = (await reviewResp.Content.ReadFromJsonAsync<RecordMonitoringReviewResponse>(_jsonOptions))!;
+            Assert.That(review.Success, Is.True);
+            Assert.That(review.Review!.FollowUpCaseCreated, Is.True);
+            Assert.That(review.FollowUpCase, Is.Not.Null);
+            Assert.That(review.FollowUpCase!.Type, Is.EqualTo(CaseType.OngoingMonitoring));
+
+            // 4. Validate timeline has monitoring events
+            var tlResp = await _client.GetAsync($"/api/v1/compliance-cases/{caseId}/timeline");
+            var tl = (await tlResp.Content.ReadFromJsonAsync<CaseTimelineResponse>(_jsonOptions))!;
+            Assert.That(tl.Entries.Any(e => e.EventType == CaseTimelineEventType.MonitoringScheduleSet), Is.True);
+            Assert.That(tl.Entries.Any(e => e.EventType == CaseTimelineEventType.MonitoringReviewRecorded), Is.True);
+            Assert.That(tl.Entries.Any(e => e.EventType == CaseTimelineEventType.MonitoringFollowUpCreated), Is.True);
+        }
+
         // ── WebApplicationFactory ─────────────────────────────────────────────
 
         private class CustomWebApplicationFactory : WebApplicationFactory<BiatecTokensApi.Program>

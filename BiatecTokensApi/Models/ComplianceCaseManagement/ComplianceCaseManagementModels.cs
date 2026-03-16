@@ -61,7 +61,38 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
         ReviewerAssigned,
         ReviewerNoteAdded,
         ReadinessChanged,
-        CaseExported
+        CaseExported,
+        MonitoringScheduleSet,
+        MonitoringReviewRecorded,
+        MonitoringFollowUpCreated
+    }
+
+    /// <summary>Outcome of a periodic monitoring review.</summary>
+    public enum MonitoringReviewOutcome
+    {
+        /// <summary>No concerns found; subject remains in good standing.</summary>
+        Clear,
+        /// <summary>Minor changes observed; continue monitoring on schedule.</summary>
+        AdvisoryNote,
+        /// <summary>A concern was identified that requires attention but not immediate action.</summary>
+        ConcernIdentified,
+        /// <summary>A critical finding requiring immediate escalation and follow-up case.</summary>
+        EscalationRequired
+    }
+
+    /// <summary>Frequency preset for monitoring schedules.</summary>
+    public enum MonitoringFrequency
+    {
+        /// <summary>Review every 30 days.</summary>
+        Monthly,
+        /// <summary>Review every 90 days.</summary>
+        Quarterly,
+        /// <summary>Review every 180 days.</summary>
+        SemiAnnual,
+        /// <summary>Review every 365 days.</summary>
+        Annual,
+        /// <summary>Custom interval specified in <see cref="MonitoringSchedule.IntervalDays"/>.</summary>
+        Custom
     }
 
     /// <summary>Validity status of a piece of evidence attached to a case.</summary>
@@ -143,6 +174,12 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
 
         /// <summary>Immutable audit trail of events for this case.</summary>
         public List<CaseTimelineEntry> Timeline { get; set; } = new();
+
+        /// <summary>Optional ongoing monitoring schedule. Set when the case transitions to a monitoring program.</summary>
+        public MonitoringSchedule? MonitoringSchedule { get; set; }
+
+        /// <summary>History of periodic monitoring reviews recorded against this case.</summary>
+        public List<MonitoringReview> MonitoringReviews { get; set; } = new();
     }
 
     /// <summary>
@@ -648,6 +685,189 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
 
         /// <summary>The evaluated readiness summary.</summary>
         public CaseReadinessSummary? Summary { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    // ── Monitoring aggregates ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Monitoring schedule attached to a case, defining when periodic reviews should occur.
+    /// Set after a case reaches an <see cref="ComplianceCaseState.Approved"/> terminal state
+    /// to enrol the subject in an ongoing review program.
+    /// </summary>
+    public class MonitoringSchedule
+    {
+        /// <summary>Unique identifier for this schedule.</summary>
+        public string ScheduleId { get; set; } = string.Empty;
+
+        /// <summary>Case this schedule belongs to.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Frequency preset controlling how often reviews occur.</summary>
+        public MonitoringFrequency Frequency { get; set; } = MonitoringFrequency.Annual;
+
+        /// <summary>
+        /// Custom review interval in days.
+        /// Populated when <see cref="Frequency"/> is <see cref="MonitoringFrequency.Custom"/>.
+        /// </summary>
+        public int IntervalDays { get; set; }
+
+        /// <summary>Timestamp of the most recent monitoring review (null if none yet).</summary>
+        public DateTimeOffset? LastReviewAt { get; set; }
+
+        /// <summary>Timestamp when the next periodic review is due.</summary>
+        public DateTimeOffset NextReviewDueAt { get; set; }
+
+        /// <summary>True when the next review date has passed and no review has been recorded.</summary>
+        public bool IsOverdue { get; set; }
+
+        /// <summary>Actor who configured this schedule.</summary>
+        public string CreatedBy { get; set; } = string.Empty;
+
+        /// <summary>When the schedule was created.</summary>
+        public DateTimeOffset CreatedAt { get; set; }
+
+        /// <summary>Optional notes about the monitoring rationale or scope.</summary>
+        public string? Notes { get; set; }
+
+        /// <summary>True when this schedule is still active.</summary>
+        public bool IsActive { get; set; } = true;
+    }
+
+    /// <summary>
+    /// A recorded outcome of a periodic monitoring review performed against a case.
+    /// Each review creates an immutable record and may generate a follow-up case.
+    /// </summary>
+    public class MonitoringReview
+    {
+        /// <summary>Unique identifier for this review.</summary>
+        public string ReviewId { get; set; } = string.Empty;
+
+        /// <summary>Case this review belongs to.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Outcome of the review.</summary>
+        public MonitoringReviewOutcome Outcome { get; set; }
+
+        /// <summary>Structured notes captured by the reviewer.</summary>
+        public string ReviewNotes { get; set; } = string.Empty;
+
+        /// <summary>True when a new follow-up compliance case was created as a result of this review.</summary>
+        public bool FollowUpCaseCreated { get; set; }
+
+        /// <summary>Case ID of any follow-up case created.</summary>
+        public string? FollowUpCaseId { get; set; }
+
+        /// <summary>Actor who performed this review.</summary>
+        public string ReviewedBy { get; set; } = string.Empty;
+
+        /// <summary>When the review was recorded.</summary>
+        public DateTimeOffset ReviewedAt { get; set; }
+
+        /// <summary>Structured attributes captured during the review (e.g., re-screening results).</summary>
+        public Dictionary<string, string> Attributes { get; set; } = new();
+    }
+
+    // ── Monitoring request / response types ─────────────────────────────────────
+
+    /// <summary>Request to configure a monitoring schedule for a compliance case.</summary>
+    public class SetMonitoringScheduleRequest
+    {
+        /// <summary>Frequency at which the case should be reviewed.</summary>
+        public MonitoringFrequency Frequency { get; set; } = MonitoringFrequency.Annual;
+
+        /// <summary>
+        /// Custom review interval in days. Required when <see cref="Frequency"/> is
+        /// <see cref="MonitoringFrequency.Custom"/>; ignored otherwise.
+        /// </summary>
+        public int? CustomIntervalDays { get; set; }
+
+        /// <summary>Optional notes about the monitoring scope or trigger.</summary>
+        public string? Notes { get; set; }
+    }
+
+    /// <summary>Response returned after setting or updating a monitoring schedule.</summary>
+    public class SetMonitoringScheduleResponse
+    {
+        /// <summary>True when the schedule was saved successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The persisted schedule.</summary>
+        public MonitoringSchedule? Schedule { get; set; }
+
+        /// <summary>The case after the schedule was applied.</summary>
+        public ComplianceCase? Case { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>Request to record the outcome of a periodic monitoring review.</summary>
+    public class RecordMonitoringReviewRequest
+    {
+        /// <summary>Outcome of the review.</summary>
+        public MonitoringReviewOutcome Outcome { get; set; } = MonitoringReviewOutcome.Clear;
+
+        /// <summary>Structured review notes (required).</summary>
+        public string ReviewNotes { get; set; } = string.Empty;
+
+        /// <summary>
+        /// When true and <see cref="Outcome"/> is <see cref="MonitoringReviewOutcome.EscalationRequired"/>,
+        /// a new follow-up <see cref="CaseType.OngoingMonitoring"/> case is automatically created.
+        /// </summary>
+        public bool CreateFollowUpCase { get; set; }
+
+        /// <summary>Optional structured attributes (e.g., re-screening result keys).</summary>
+        public Dictionary<string, string>? Attributes { get; set; }
+    }
+
+    /// <summary>Response returned after recording a monitoring review.</summary>
+    public class RecordMonitoringReviewResponse
+    {
+        /// <summary>True when the review was recorded successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The recorded review.</summary>
+        public MonitoringReview? Review { get; set; }
+
+        /// <summary>The case after the review was applied (schedule updated).</summary>
+        public ComplianceCase? Case { get; set; }
+
+        /// <summary>Follow-up case if one was created.</summary>
+        public ComplianceCase? FollowUpCase { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>Response from triggering a periodic review check across all monitored cases.</summary>
+    public class TriggerPeriodicReviewCheckResponse
+    {
+        /// <summary>True when the check completed without errors.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Total number of cases inspected.</summary>
+        public int CasesInspected { get; set; }
+
+        /// <summary>Number of cases whose monitoring review is overdue.</summary>
+        public int OverdueCasesFound { get; set; }
+
+        /// <summary>IDs of cases now marked as overdue.</summary>
+        public List<string> OverdueCaseIds { get; set; } = new();
+
+        /// <summary>When the check was run.</summary>
+        public DateTimeOffset CheckedAt { get; set; }
 
         /// <summary>Error code when <see cref="Success"/> is false.</summary>
         public string? ErrorCode { get; set; }
