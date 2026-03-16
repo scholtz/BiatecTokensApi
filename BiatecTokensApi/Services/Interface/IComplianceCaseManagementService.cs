@@ -52,5 +52,25 @@ namespace BiatecTokensApi.Services.Interface
         /// Returns the number of cases that were transitioned.
         /// </summary>
         Task<int> RunEvidenceFreshnessCheckAsync();
+
+        /// <summary>
+        /// Configures or updates the monitoring schedule for an approved case, enrolling it
+        /// in a periodic review program.
+        /// </summary>
+        Task<SetMonitoringScheduleResponse> SetMonitoringScheduleAsync(string caseId, SetMonitoringScheduleRequest request, string actorId);
+
+        /// <summary>
+        /// Records the outcome of a periodic monitoring review for a case.
+        /// Updates the schedule's <c>LastReviewAt</c> and <c>NextReviewDueAt</c> fields and appends
+        /// a timeline entry. If the outcome is <see cref="MonitoringReviewOutcome.EscalationRequired"/>
+        /// and <c>CreateFollowUpCase</c> is true, creates a follow-up <see cref="CaseType.OngoingMonitoring"/> case.
+        /// </summary>
+        Task<RecordMonitoringReviewResponse> RecordMonitoringReviewAsync(string caseId, RecordMonitoringReviewRequest request, string actorId);
+
+        /// <summary>
+        /// Scans all cases with active monitoring schedules and marks overdue reviews.
+        /// Returns a summary of cases inspected and those now flagged as overdue.
+        /// </summary>
+        Task<TriggerPeriodicReviewCheckResponse> TriggerPeriodicReviewCheckAsync(string actorId);
     }
 }

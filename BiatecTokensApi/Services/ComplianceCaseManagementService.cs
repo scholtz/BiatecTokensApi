@@ -648,6 +648,223 @@ namespace BiatecTokensApi.Services
             };
         }
 
+        // ── SetMonitoringScheduleAsync ──────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<SetMonitoringScheduleResponse> SetMonitoringScheduleAsync(
+            string caseId, SetMonitoringScheduleRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(Fail<SetMonitoringScheduleResponse>(
+                    $"Case '{caseId}' not found", ErrorCodes.NOT_FOUND));
+
+            if (request.Frequency == MonitoringFrequency.Custom &&
+                (request.CustomIntervalDays == null || request.CustomIntervalDays <= 0))
+                return Task.FromResult(Fail<SetMonitoringScheduleResponse>(
+                    "CustomIntervalDays must be a positive integer when Frequency is Custom",
+                    ErrorCodes.MISSING_REQUIRED_FIELD));
+
+            int intervalDays = request.Frequency switch
+            {
+                MonitoringFrequency.Monthly    => 30,
+                MonitoringFrequency.Quarterly  => 90,
+                MonitoringFrequency.SemiAnnual => 180,
+                MonitoringFrequency.Annual     => 365,
+                MonitoringFrequency.Custom     => request.CustomIntervalDays!.Value,
+                _                              => 365
+            };
+
+            var now      = _timeProvider.GetUtcNow();
+            var schedId  = Guid.NewGuid().ToString("N");
+            var schedule = new MonitoringSchedule
+            {
+                ScheduleId      = schedId,
+                CaseId          = caseId,
+                Frequency        = request.Frequency,
+                IntervalDays     = intervalDays,
+                NextReviewDueAt  = now.AddDays(intervalDays),
+                CreatedBy        = actorId,
+                CreatedAt        = now,
+                Notes            = request.Notes,
+                IsActive         = true
+            };
+
+            c.MonitoringSchedule = schedule;
+            c.UpdatedAt = now;
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.MonitoringScheduleSet, actorId, now,
+                description: $"Monitoring schedule set: {request.Frequency} (every {intervalDays} days). Next review: {schedule.NextReviewDueAt:yyyy-MM-dd}"));
+
+            _logger.LogInformation(
+                "MonitoringScheduleSet. CaseId={CaseId} Frequency={Freq} IntervalDays={Days} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.Frequency,
+                intervalDays,
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            return Task.FromResult(new SetMonitoringScheduleResponse
+            {
+                Success  = true,
+                Schedule = schedule,
+                Case     = c
+            });
+        }
+
+        // ── RecordMonitoringReviewAsync ─────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public async Task<RecordMonitoringReviewResponse> RecordMonitoringReviewAsync(
+            string caseId, RecordMonitoringReviewRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Fail<RecordMonitoringReviewResponse>(
+                    $"Case '{caseId}' not found", ErrorCodes.NOT_FOUND);
+
+            if (string.IsNullOrWhiteSpace(request.ReviewNotes))
+                return Fail<RecordMonitoringReviewResponse>(
+                    "ReviewNotes is required", ErrorCodes.MISSING_REQUIRED_FIELD);
+
+            if (c.MonitoringSchedule == null)
+                return Fail<RecordMonitoringReviewResponse>(
+                    "No monitoring schedule has been set for this case. Call SetMonitoringSchedule first.",
+                    ErrorCodes.PRECONDITION_FAILED);
+
+            var now = _timeProvider.GetUtcNow();
+            var reviewId = Guid.NewGuid().ToString("N");
+
+            var review = new MonitoringReview
+            {
+                ReviewId   = reviewId,
+                CaseId     = caseId,
+                Outcome    = request.Outcome,
+                ReviewNotes= request.ReviewNotes,
+                ReviewedBy = actorId,
+                ReviewedAt = now,
+                Attributes = request.Attributes ?? new Dictionary<string, string>()
+            };
+
+            // Update schedule timestamps
+            var schedule = c.MonitoringSchedule;
+            schedule.LastReviewAt    = now;
+            schedule.NextReviewDueAt = now.AddDays(schedule.IntervalDays);
+            schedule.IsOverdue       = false;
+
+            c.MonitoringReviews.Add(review);
+            c.UpdatedAt = now;
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.MonitoringReviewRecorded, actorId, now,
+                description: $"Monitoring review recorded. Outcome: {request.Outcome}. Notes: {request.ReviewNotes}",
+                metadata: new Dictionary<string, string>
+                {
+                    ["reviewId"]  = reviewId,
+                    ["outcome"]   = request.Outcome.ToString()
+                }));
+
+            _logger.LogInformation(
+                "MonitoringReviewRecorded. CaseId={CaseId} ReviewId={ReviewId} Outcome={Outcome} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(reviewId),
+                request.Outcome,
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            // Optionally create a follow-up case
+            ComplianceCase? followUpCase = null;
+            if (request.Outcome == MonitoringReviewOutcome.EscalationRequired && request.CreateFollowUpCase)
+            {
+                var followUpReq = new CreateComplianceCaseRequest
+                {
+                    IssuerId    = c.IssuerId,
+                    SubjectId   = c.SubjectId,
+                    Type        = CaseType.OngoingMonitoring,
+                    Priority    = CasePriority.High,
+                    Jurisdiction= c.Jurisdiction,
+                    ExternalReference = $"follow-up:{caseId}:{reviewId}",
+                    CorrelationId = c.CorrelationId
+                };
+
+                var followUpResp = await CreateCaseAsync(followUpReq, actorId);
+                if (followUpResp.Success)
+                {
+                    followUpCase = followUpResp.Case;
+                    review.FollowUpCaseCreated = true;
+                    review.FollowUpCaseId      = followUpCase!.CaseId;
+
+                    c.Timeline.Add(BuildTimelineEntry(
+                        caseId, CaseTimelineEventType.MonitoringFollowUpCreated, actorId, now,
+                        description: $"Follow-up monitoring case created: {followUpCase.CaseId}",
+                        metadata: new Dictionary<string, string>
+                        {
+                            ["followUpCaseId"] = followUpCase.CaseId,
+                            ["reviewId"]        = reviewId
+                        }));
+
+                    _logger.LogInformation(
+                        "MonitoringFollowUpCaseCreated. SourceCaseId={Source} FollowUpCaseId={FollowUp} Actor={Actor}",
+                        LoggingHelper.SanitizeLogInput(caseId),
+                        LoggingHelper.SanitizeLogInput(followUpCase.CaseId),
+                        LoggingHelper.SanitizeLogInput(actorId));
+                }
+            }
+
+            return new RecordMonitoringReviewResponse
+            {
+                Success    = true,
+                Review     = review,
+                Case       = c,
+                FollowUpCase = followUpCase
+            };
+        }
+
+        // ── TriggerPeriodicReviewCheckAsync ────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<TriggerPeriodicReviewCheckResponse> TriggerPeriodicReviewCheckAsync(string actorId)
+        {
+            var now = _timeProvider.GetUtcNow();
+            var overdueCaseIds = new List<string>();
+            int inspected = 0;
+
+            foreach (var (_, c) in _cases)
+            {
+                var sched = c.MonitoringSchedule;
+                if (sched == null || !sched.IsActive)
+                    continue;
+
+                inspected++;
+
+                if (now >= sched.NextReviewDueAt)
+                {
+                    sched.IsOverdue = true;
+                    overdueCaseIds.Add(c.CaseId);
+
+                    c.UpdatedAt = now;
+
+                    _logger.LogWarning(
+                        "MonitoringReviewOverdue. CaseId={CaseId} DueAt={Due} Actor={Actor}",
+                        LoggingHelper.SanitizeLogInput(c.CaseId),
+                        sched.NextReviewDueAt.ToString("O"),
+                        LoggingHelper.SanitizeLogInput(actorId));
+                }
+            }
+
+            _logger.LogInformation(
+                "PeriodicReviewCheck. Inspected={Inspected} Overdue={Overdue} Actor={Actor}",
+                inspected,
+                overdueCaseIds.Count,
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            return Task.FromResult(new TriggerPeriodicReviewCheckResponse
+            {
+                Success           = true,
+                CasesInspected    = inspected,
+                OverdueCasesFound = overdueCaseIds.Count,
+                OverdueCaseIds    = overdueCaseIds,
+                CheckedAt         = now
+            });
+        }
+
         private static T Fail<T>(string message, string errorCode) where T : class, new()
         {
             // Use reflection-free approach with known response types
@@ -659,6 +876,10 @@ namespace BiatecTokensApi.Services
                 return (new UpdateComplianceCaseResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
             if (typeof(T) == typeof(ListComplianceCasesResponse))
                 return (new ListComplianceCasesResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(SetMonitoringScheduleResponse))
+                return (new SetMonitoringScheduleResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(RecordMonitoringReviewResponse))
+                return (new RecordMonitoringReviewResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
 
             throw new InvalidOperationException($"Unsupported response type {typeof(T).Name}");
         }

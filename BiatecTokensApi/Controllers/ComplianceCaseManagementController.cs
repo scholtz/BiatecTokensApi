@@ -331,6 +331,84 @@ namespace BiatecTokensApi.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // ── Ongoing Monitoring ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Configures or updates the ongoing monitoring schedule for a compliance case.
+        /// Sets the review frequency and calculates the next review due date.
+        /// May be applied to cases in any state to enrol them in periodic monitoring.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        /// <param name="request">Monitoring schedule configuration.</param>
+        [HttpPost("{caseId}/monitoring-schedule")]
+        [ProducesResponseType(typeof(SetMonitoringScheduleResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(SetMonitoringScheduleResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(SetMonitoringScheduleResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> SetMonitoringSchedule(string caseId, [FromBody] SetMonitoringScheduleRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "SetMonitoringSchedule. CaseId={CaseId} Frequency={Freq} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(request.Frequency.ToString()),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.SetMonitoringScheduleAsync(caseId, request, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Records the outcome of a periodic monitoring review for a compliance case.
+        /// Updates the monitoring schedule timestamps and appends an auditable timeline entry.
+        /// When outcome is EscalationRequired and CreateFollowUpCase is true, a new
+        /// OngoingMonitoring case is automatically created and linked.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        /// <param name="request">Monitoring review outcome and notes.</param>
+        [HttpPost("{caseId}/monitoring-reviews")]
+        [ProducesResponseType(typeof(RecordMonitoringReviewResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(RecordMonitoringReviewResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(RecordMonitoringReviewResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> RecordMonitoringReview(string caseId, [FromBody] RecordMonitoringReviewRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "RecordMonitoringReview. CaseId={CaseId} Outcome={Outcome} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(request.Outcome.ToString()),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.RecordMonitoringReviewAsync(caseId, request, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Triggers a scan across all cases with active monitoring schedules and marks
+        /// any overdue reviews. This endpoint is intended for scheduled invocation (e.g.,
+        /// from a cron job or background task) to surface cases requiring operator attention.
+        /// Returns the number of cases inspected and the IDs of any overdue cases found.
+        /// </summary>
+        [HttpPost("periodic-review-check")]
+        [ProducesResponseType(typeof(TriggerPeriodicReviewCheckResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> TriggerPeriodicReviewCheck()
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "TriggerPeriodicReviewCheck. Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.TriggerPeriodicReviewCheckAsync(actorId);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────
 
         private string GetActorId() =>
