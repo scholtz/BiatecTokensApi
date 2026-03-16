@@ -1547,3 +1547,44 @@ report_progress("Implement XYZ feature", "- [x] Created models\n- [x] Created se
 2. ✅ Replaced `await Task.Delay(200)` with polling loop in `EmitEvent_AllEventTypes_CanBeDelivered`
 3. ✅ Added 22 new `[TestCase]` entries for all missing webhook event types (12 ComplianceCase + 9 MonitoringTask)
 4. ✅ Increased `OngoingMonitoringTests.cs` from 79 to 111+ tests with additional state transition, validation, timeline, and webhook data tests
+
+**Lesson Learned (2026-03-16 - Compliance Case Maturity PR, Issue #567)**: CI failed on `EmitEvent_SameEventEmittedTwice_DeliversTwice` even though the test already used polling. Root cause was `FakeHttpClientFactory` returning the **same** `HttpClient` instance on every `CreateClient()` call. `DeliverWebhookAsync` calls `client.Timeout = TimeSpan.FromSeconds(30)` on each delivery attempt. In .NET, setting `HttpClient.Timeout` after the first request has been sent throws `InvalidOperationException`. In CI (fewer threads), the two `Task.Run` delivery tasks often run **sequentially**: Task 1 completes its HTTP request, then Task 2 starts and tries to set Timeout on an already-used client → throws → delivery count stays at 1 → polling times out → test fails. In local development (more threads), tasks run concurrently and both set Timeout before any request is sent, so it appears to work.
+
+**Root cause**: `FakeHttpClientFactory(HttpClient client)` reuses the same `HttpClient` instance, whereas real `IHttpClientFactory.CreateClient()` returns a fresh instance per call.
+
+**MANDATORY RULE: `FakeHttpClientFactory` must return fresh `HttpClient` instances for tests with multiple deliveries.**
+
+The `FakeHttpClientFactory` class in `WebhookServiceTests.cs` now supports two constructors:
+
+```csharp
+// ❌ WRONG: Same instance reused → Timeout mutation throws after first request
+var svc = CreateService(new FakeHttpClientFactory(new HttpClient(handler)));
+
+// ✅ CORRECT: Each CreateClient() call returns a fresh HttpClient (mirrors real factory)
+var svc = CreateService(new FakeHttpClientFactory(handler));
+```
+
+**When to use which overload**:
+- Use `FakeHttpClientFactory(HttpClient client)` only for tests that call `EmitEventAsync` exactly **once** (single delivery per test run)
+- Use `FakeHttpClientFactory(HttpMessageHandler handler)` for any test that calls `EmitEventAsync` **two or more times** or any test where `DeliverWebhookAsync` could be called multiple times (e.g. retry tests)
+
+**Implementation of the handler-based overload**:
+```csharp
+private sealed class FakeHttpClientFactory : IHttpClientFactory
+{
+    private readonly HttpClient? _client;
+    private readonly HttpMessageHandler? _handler;
+
+    public FakeHttpClientFactory(HttpClient client) => _client = client;
+
+    // Use this when multiple deliveries are expected (each call gets a fresh client)
+    public FakeHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
+
+    public HttpClient CreateClient(string name) =>
+        _handler != null
+            ? new HttpClient(_handler, disposeHandler: false)
+            : _client!;
+}
+```
+
+**Why this happens**: The production `IHttpClientFactory` (AddHttpClient in DI) returns a fresh `HttpClient` with a pooled `HttpClientHandler` on every `CreateClient()` call. The test fake must replicate this behaviour for multi-delivery scenarios.

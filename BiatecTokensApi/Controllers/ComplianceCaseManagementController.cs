@@ -590,6 +590,188 @@ namespace BiatecTokensApi.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // ── Case summary ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns a lightweight, scannable summary of a compliance case.
+        /// Includes blocker count, urgency band, top blocker title, next-action description,
+        /// open escalations and remediation task counts, and handoff stage.
+        /// Suitable for worklist rendering and operations cockpit cards.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/summary")]
+        [ProducesResponseType(typeof(CaseSummaryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(CaseSummaryResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetCaseSummary(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetCaseSummary. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetCaseSummaryAsync(caseId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Lists lightweight compliance case summaries with the same filter options as the
+        /// full cases list endpoint but returns only scannable summary objects.
+        /// More efficient than the full list endpoint for worklist and dashboard views.
+        /// </summary>
+        [HttpPost("summaries")]
+        [ProducesResponseType(typeof(ListCaseSummariesResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ListCaseSummariesResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ListCaseSummaries([FromBody] ListComplianceCasesRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "ListCaseSummaries. Actor={Actor} State={State} IssuerId={IssuerId}",
+                LoggingHelper.SanitizeLogInput(actorId),
+                request.State?.ToString() ?? "all",
+                LoggingHelper.SanitizeLogInput(request.IssuerId ?? "all"));
+
+            var result = await _service.ListCaseSummariesAsync(request, actorId);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // ── Blockers ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Evaluates and returns the structured, typed blockers currently active on a compliance case.
+        /// Covers evidence staleness, missing evidence, unresolved escalations, open remediation tasks,
+        /// SLA breaches, pending KYC/AML decisions, incomplete approvals, and handoff failures.
+        /// Fail-closed: when fail-closed blockers are present, CanProceed is false.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/blockers")]
+        [ProducesResponseType(typeof(EvaluateBlockersResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(EvaluateBlockersResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetBlockers(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetBlockers. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.EvaluateBlockersAsync(caseId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // ── Decision history ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Adds a KYC, AML, sanctions, or approval workflow decision record to a compliance case.
+        /// Provides structured decision lineage for audit and case readiness evaluation.
+        /// Emits a <c>ComplianceCaseDecisionRecorded</c> webhook event.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        /// <param name="request">Decision record details including kind, outcome, and explanation.</param>
+        [HttpPost("{caseId}/decisions")]
+        [ProducesResponseType(typeof(AddDecisionRecordResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(AddDecisionRecordResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(AddDecisionRecordResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> AddDecisionRecord(string caseId, [FromBody] AddDecisionRecordRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "AddDecisionRecord. CaseId={CaseId} Kind={Kind} Adverse={Adverse} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.Kind.ToString(),
+                request.IsAdverse,
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.AddDecisionRecordAsync(caseId, request, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Returns the full chronological decision history for a compliance case.
+        /// Includes KYC, AML, sanctions, and approval workflow decisions with counts of adverse outcomes.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/decisions")]
+        [ProducesResponseType(typeof(GetDecisionHistoryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GetDecisionHistoryResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetDecisionHistory(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetDecisionHistory. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetDecisionHistoryAsync(caseId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // ── Handoff status ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Updates the downstream handoff status for a compliance case.
+        /// Tracks post-approval obligations: approval routing, regulatory package preparation,
+        /// and distribution. Emits a <c>ComplianceCaseHandoffStatusChanged</c> webhook event.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        /// <param name="request">Handoff stage, blocking reason, and unresolved dependencies.</param>
+        [HttpPost("{caseId}/handoff")]
+        [ProducesResponseType(typeof(UpdateHandoffStatusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(UpdateHandoffStatusResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(UpdateHandoffStatusResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> UpdateHandoffStatus(string caseId, [FromBody] UpdateHandoffStatusRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "UpdateHandoffStatus. CaseId={CaseId} Stage={Stage} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.Stage.ToString(),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.UpdateHandoffStatusAsync(caseId, request, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Returns the current downstream handoff status for a compliance case.
+        /// Returns HandoffStatus = null when no handoff has been initiated.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/handoff")]
+        [ProducesResponseType(typeof(GetHandoffStatusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GetHandoffStatusResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetHandoffStatus(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetHandoffStatus. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetHandoffStatusAsync(caseId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────
 
         private string GetActorId() =>

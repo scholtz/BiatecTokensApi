@@ -1115,6 +1115,9 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.ComplianceCaseSlaBreached)]
         [TestCase(WebhookEventType.ComplianceCaseDeliveryFailed)]
         [TestCase(WebhookEventType.ComplianceCaseDeliveryRetryExhausted)]
+        // Case maturity: decision lineage and handoff
+        [TestCase(WebhookEventType.ComplianceCaseDecisionRecorded)]
+        [TestCase(WebhookEventType.ComplianceCaseHandoffStatusChanged)]
         [TestCase(WebhookEventType.ReportRunCreated)]
         [TestCase(WebhookEventType.ReportRunBlocked)]
         [TestCase(WebhookEventType.ReportRunApproved)]
@@ -1210,7 +1213,10 @@ namespace BiatecTokensTests
             var handler = new FakeHttpMessageHandler(HttpStatusCode.OK, "ok",
                 onRequest: _ => Interlocked.Increment(ref deliveryCount));
 
-            var svc = CreateService(new FakeHttpClientFactory(new HttpClient(handler)));
+            // Use handler-based factory so each CreateClient() call returns a fresh HttpClient.
+            // The single-instance overload fails when DeliverWebhookAsync sets client.Timeout after
+            // the first request has already been sent (InvalidOperationException in .NET).
+            var svc = CreateService(new FakeHttpClientFactory(handler));
             await svc.CreateSubscriptionAsync(ValidCreateRequest(), "user-001");
 
             var evt = new WebhookEvent { EventType = WebhookEventType.KycStatusChange, Actor = "actor-001" };
@@ -1218,8 +1224,8 @@ namespace BiatecTokensTests
             await svc.EmitEventAsync(evt);
             await svc.EmitEventAsync(evt);
 
-            // Poll until both fire-and-forget deliveries complete (up to 5 s in CI)
-            var deadline = DateTime.UtcNow.AddSeconds(5);
+            // Poll until both fire-and-forget deliveries complete (up to 10 s in CI)
+            var deadline = DateTime.UtcNow.AddSeconds(10);
             while (deliveryCount < 2 && DateTime.UtcNow < deadline)
                 await Task.Delay(20);
 
@@ -1278,9 +1284,23 @@ namespace BiatecTokensTests
 
         private sealed class FakeHttpClientFactory : IHttpClientFactory
         {
-            private readonly HttpClient _client;
+            private readonly HttpClient? _client;
+            private readonly HttpMessageHandler? _handler;
+
+            /// <summary>Wraps a pre-built client. All calls to CreateClient return the same instance.</summary>
             public FakeHttpClientFactory(HttpClient client) => _client = client;
-            public HttpClient CreateClient(string name) => _client;
+
+            /// <summary>
+            /// Wraps a message handler. Each call to CreateClient returns a NEW HttpClient instance
+            /// sharing the same handler. This mirrors real IHttpClientFactory behaviour and avoids the
+            /// InvalidOperationException thrown when HttpClient.Timeout is changed after the first request.
+            /// </summary>
+            public FakeHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
+
+            public HttpClient CreateClient(string name) =>
+                _handler != null
+                    ? new HttpClient(_handler, disposeHandler: false)
+                    : _client!;
         }
 
         /// <summary>

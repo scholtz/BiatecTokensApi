@@ -254,6 +254,16 @@ namespace BiatecTokensApi.Models.Webhook
         /// </summary>
         ComplianceCaseDeliveryRetryExhausted,
 
+        /// <summary>
+        /// A KYC, AML, sanctions, or approval decision record was added to a compliance case
+        /// </summary>
+        ComplianceCaseDecisionRecorded,
+
+        /// <summary>
+        /// The downstream handoff status for a compliance case was updated
+        /// </summary>
+        ComplianceCaseHandoffStatusChanged,
+
         // ── Scheduled Reporting events ────────────────────────────────────────
 
         /// <summary>

@@ -1270,6 +1270,490 @@ namespace BiatecTokensApi.Services
             return new ExportComplianceCaseResponse { Success = true, Bundle = bundle };
         }
 
+        // ── GetCaseSummaryAsync ────────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<CaseSummaryResponse> GetCaseSummaryAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new CaseSummaryResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            var now = _timeProvider.GetUtcNow();
+            CheckAndApplyEvidenceFreshness(c);
+            var blockers = ComputeBlockers(c, now);
+            var failClosedBlockers = blockers.Where(b => b.IsFailClosed).ToList();
+            var topBlocker = failClosedBlockers.OrderByDescending(b => b.Severity).FirstOrDefault();
+
+            var summary = new CaseSummary
+            {
+                CaseId              = c.CaseId,
+                IssuerId            = c.IssuerId,
+                SubjectId           = c.SubjectId,
+                Type                = c.Type,
+                State               = c.State,
+                Priority            = c.Priority,
+                AssignedReviewerId  = c.AssignedReviewerId,
+                AssignedTeamId      = c.AssignedTeamId,
+                UrgencyBand         = c.SlaMetadata?.UrgencyBand ?? CaseUrgencyBand.Normal,
+                CreatedAt           = c.CreatedAt,
+                UpdatedAt           = c.UpdatedAt,
+                BlockerCount        = failClosedBlockers.Count,
+                OpenRemediationTasks = c.RemediationTasks.Count(t => t.Status == RemediationTaskStatus.Open),
+                OpenEscalations     = c.Escalations.Count(e => e.Status == EscalationStatus.Open),
+                HasStaleEvidence    = c.IsEvidenceStale,
+                IsHandoffReady      = c.HandoffStatus?.IsHandoffReady ?? true,
+                TopBlockerTitle     = topBlocker?.Title,
+                NextActionDescription = DeriveNextAction(c, failClosedBlockers),
+                Jurisdiction        = c.Jurisdiction,
+                DecisionCount       = c.DecisionHistory.Count,
+                HandoffStage        = c.HandoffStatus?.Stage ?? CaseHandoffStage.NotStarted
+            };
+
+            return Task.FromResult(new CaseSummaryResponse { Success = true, Summary = summary });
+        }
+
+        // ── ListCaseSummariesAsync ─────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public async Task<ListCaseSummariesResponse> ListCaseSummariesAsync(ListComplianceCasesRequest request, string actorId)
+        {
+            var listResult = await ListCasesAsync(request, actorId);
+            if (!listResult.Success)
+                return new ListCaseSummariesResponse
+                {
+                    Success = false,
+                    ErrorCode = listResult.ErrorCode,
+                    ErrorMessage = listResult.ErrorMessage
+                };
+
+            var now = _timeProvider.GetUtcNow();
+            var summaries = new List<CaseSummary>(listResult.Cases.Count);
+            foreach (var c in listResult.Cases)
+            {
+                var blockers = ComputeBlockers(c, now);
+                var failClosedBlockers = blockers.Where(b => b.IsFailClosed).ToList();
+                var topBlocker = failClosedBlockers.OrderByDescending(b => b.Severity).FirstOrDefault();
+
+                summaries.Add(new CaseSummary
+                {
+                    CaseId              = c.CaseId,
+                    IssuerId            = c.IssuerId,
+                    SubjectId           = c.SubjectId,
+                    Type                = c.Type,
+                    State               = c.State,
+                    Priority            = c.Priority,
+                    AssignedReviewerId  = c.AssignedReviewerId,
+                    AssignedTeamId      = c.AssignedTeamId,
+                    UrgencyBand         = c.SlaMetadata?.UrgencyBand ?? CaseUrgencyBand.Normal,
+                    CreatedAt           = c.CreatedAt,
+                    UpdatedAt           = c.UpdatedAt,
+                    BlockerCount        = failClosedBlockers.Count,
+                    OpenRemediationTasks = c.RemediationTasks.Count(t => t.Status == RemediationTaskStatus.Open),
+                    OpenEscalations     = c.Escalations.Count(e => e.Status == EscalationStatus.Open),
+                    HasStaleEvidence    = c.IsEvidenceStale,
+                    IsHandoffReady      = c.HandoffStatus?.IsHandoffReady ?? true,
+                    TopBlockerTitle     = topBlocker?.Title,
+                    NextActionDescription = DeriveNextAction(c, failClosedBlockers),
+                    Jurisdiction        = c.Jurisdiction,
+                    DecisionCount       = c.DecisionHistory.Count,
+                    HandoffStage        = c.HandoffStatus?.Stage ?? CaseHandoffStage.NotStarted
+                });
+            }
+
+            return new ListCaseSummariesResponse
+            {
+                Success    = true,
+                Summaries  = summaries,
+                TotalCount = listResult.TotalCount,
+                Page       = listResult.Page,
+                PageSize   = listResult.PageSize
+            };
+        }
+
+        // ── EvaluateBlockersAsync ──────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<EvaluateBlockersResponse> EvaluateBlockersAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new EvaluateBlockersResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            var now = _timeProvider.GetUtcNow();
+            CheckAndApplyEvidenceFreshness(c);
+            var blockers = ComputeBlockers(c, now);
+
+            // Snapshot blockers onto the case for future GetCaseAsync visibility
+            c.Blockers = blockers;
+
+            var failClosed = blockers.Where(b => b.IsFailClosed).ToList();
+            var warnings   = blockers.Where(b => !b.IsFailClosed).ToList();
+
+            return Task.FromResult(new EvaluateBlockersResponse
+            {
+                Success            = true,
+                CaseId             = caseId,
+                Blockers           = blockers,
+                FailClosedBlockers = failClosed,
+                Warnings           = warnings,
+                CanProceed         = failClosed.Count == 0,
+                EvaluatedAt        = now
+            });
+        }
+
+        // ── AddDecisionRecordAsync ─────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<AddDecisionRecordResponse> AddDecisionRecordAsync(
+            string caseId, AddDecisionRecordRequest request, string actorId)
+        {
+            if (string.IsNullOrWhiteSpace(request.DecisionSummary))
+                return Task.FromResult(new AddDecisionRecordResponse
+                {
+                    Success = false, ErrorCode = "INVALID_REQUEST",
+                    ErrorMessage = "DecisionSummary is required"
+                });
+
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new AddDecisionRecordResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            var now = _timeProvider.GetUtcNow();
+            var record = new CaseDecisionRecord
+            {
+                DecisionId        = Guid.NewGuid().ToString("N"),
+                CaseId            = caseId,
+                Kind              = request.Kind,
+                DecisionSummary   = request.DecisionSummary,
+                Outcome           = request.Outcome,
+                ProviderName      = request.ProviderName,
+                ProviderReference = request.ProviderReference,
+                Explanation       = request.Explanation,
+                IsAdverse         = request.IsAdverse,
+                DecidedBy         = actorId,
+                DecidedAt         = now,
+                Attributes        = request.Attributes ?? new Dictionary<string, string>()
+            };
+
+            c.DecisionHistory.Add(record);
+            c.UpdatedAt = now;
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.DecisionRecorded, actorId, now,
+                description: $"Decision recorded: {request.Kind} — {request.DecisionSummary}",
+                metadata: new Dictionary<string, string>
+                {
+                    ["decisionId"] = record.DecisionId,
+                    ["kind"]       = request.Kind.ToString(),
+                    ["outcome"]    = request.Outcome ?? "(none)",
+                    ["isAdverse"]  = request.IsAdverse.ToString()
+                }));
+
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseDecisionRecorded, actorId, caseId,
+                new { caseId, decisionId = record.DecisionId, kind = request.Kind.ToString(),
+                      outcome = request.Outcome, isAdverse = request.IsAdverse });
+
+            _logger.LogInformation(
+                "AddDecisionRecord. CaseId={CaseId} Kind={Kind} Adverse={Adverse} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.Kind.ToString(),
+                request.IsAdverse,
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            return Task.FromResult(new AddDecisionRecordResponse { Success = true, DecisionRecord = record, Case = c });
+        }
+
+        // ── GetDecisionHistoryAsync ────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<GetDecisionHistoryResponse> GetDecisionHistoryAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new GetDecisionHistoryResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            var decisions = c.DecisionHistory.OrderBy(d => d.DecidedAt).ToList();
+            return Task.FromResult(new GetDecisionHistoryResponse
+            {
+                Success      = true,
+                CaseId       = caseId,
+                Decisions    = decisions,
+                TotalCount   = decisions.Count,
+                AdverseCount = decisions.Count(d => d.IsAdverse)
+            });
+        }
+
+        // ── UpdateHandoffStatusAsync ───────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<UpdateHandoffStatusResponse> UpdateHandoffStatusAsync(
+            string caseId, UpdateHandoffStatusRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new UpdateHandoffStatusResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            var now = _timeProvider.GetUtcNow();
+            bool isReady = request.Stage == CaseHandoffStage.Completed;
+
+            var handoff = new CaseHandoffStatus
+            {
+                CaseId                 = caseId,
+                Stage                  = request.Stage,
+                IsHandoffReady         = isReady,
+                BlockingReason         = isReady ? null : request.BlockingReason,
+                UnresolvedDependencies = request.UnresolvedDependencies ?? new List<string>(),
+                HandoffDueAt           = request.HandoffDueAt,
+                HandoffCompletedAt     = isReady ? now : null,
+                HandoffNotes           = request.HandoffNotes,
+                UpdatedBy              = actorId,
+                UpdatedAt              = now
+            };
+
+            c.HandoffStatus = handoff;
+            c.UpdatedAt = now;
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.HandoffStatusChanged, actorId, now,
+                description: $"Handoff status updated: {request.Stage}" +
+                             (isReady ? " — handoff complete" : $" — {request.BlockingReason ?? "pending"}"),
+                metadata: new Dictionary<string, string>
+                {
+                    ["stage"]      = request.Stage.ToString(),
+                    ["isReady"]    = isReady.ToString(),
+                    ["unresolved"] = string.Join(",", handoff.UnresolvedDependencies)
+                }));
+
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseHandoffStatusChanged, actorId, caseId,
+                new { caseId, stage = request.Stage.ToString(), isHandoffReady = isReady,
+                      blockingReason = request.BlockingReason });
+
+            _logger.LogInformation(
+                "UpdateHandoffStatus. CaseId={CaseId} Stage={Stage} Ready={Ready} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.Stage.ToString(),
+                isReady,
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            return Task.FromResult(new UpdateHandoffStatusResponse { Success = true, HandoffStatus = handoff, Case = c });
+        }
+
+        // ── GetHandoffStatusAsync ──────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<GetHandoffStatusResponse> GetHandoffStatusAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new GetHandoffStatusResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            return Task.FromResult(new GetHandoffStatusResponse { Success = true, HandoffStatus = c.HandoffStatus });
+        }
+
+        // ── Blocker computation ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Computes all structured blockers for a case using fail-closed semantics.
+        /// Returns both fail-closed blockers (prevent readiness) and advisory warnings.
+        /// </summary>
+        private List<CaseBlocker> ComputeBlockers(ComplianceCase c, DateTimeOffset now)
+        {
+            var blockers = new List<CaseBlocker>();
+
+            // 1. No evidence at all — fail-closed
+            if (!c.EvidenceSummaries.Any(e => e.CapturedAt.HasValue))
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.MissingEvidence,
+                    Severity        = EvidenceIssueSeverityLevel.Critical,
+                    Title           = "No evidence captured",
+                    Description     = "The case has no captured evidence. At least one evidence record is required before review can proceed.",
+                    RemediationHint = "Add KYC, AML, or identity evidence to the case using the evidence endpoint.",
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+
+            // 2. Stale evidence on the case as a whole
+            if (c.IsEvidenceStale)
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.StaleEvidence,
+                    Severity        = EvidenceIssueSeverityLevel.High,
+                    Title           = "Case evidence is stale",
+                    Description     = $"The case evidence bundle expired at {c.EvidenceExpiresAt?.ToString("O") ?? "an unknown time"}. Stale evidence must be refreshed before the case can be approved.",
+                    RemediationHint = "Re-submit current evidence and update the case evidence expiry date.",
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+
+            // 3. Individual stale evidence records (evaluated against current time, not stored flag)
+            foreach (var ev in c.EvidenceSummaries.Where(e => e.ExpiresAt.HasValue && e.ExpiresAt.Value < now))
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.StaleEvidence,
+                    Severity        = EvidenceIssueSeverityLevel.High,
+                    Title           = $"Evidence expired: {ev.EvidenceType}",
+                    Description     = $"The '{ev.EvidenceType}' evidence record expired at {ev.ExpiresAt:O}.",
+                    RemediationHint = "Obtain a fresh evidence record from the provider and update it on the case.",
+                    LinkedEntityId  = ev.EvidenceId,
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+
+            // 4. Evidence blocking readiness (provider-flagged)
+            foreach (var ev in c.EvidenceSummaries.Where(e => e.IsBlockingReadiness))
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.MissingEvidence,
+                    Severity        = EvidenceIssueSeverityLevel.High,
+                    Title           = $"Blocking evidence: {ev.EvidenceType}",
+                    Description     = ev.BlockingReason ?? $"The '{ev.EvidenceType}' evidence is flagged as blocking case readiness.",
+                    RemediationHint = "Resolve the underlying evidence issue or replace with a valid evidence record.",
+                    LinkedEntityId  = ev.EvidenceId,
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+
+            // 5. Open escalations requiring manual review
+            foreach (var esc in c.Escalations.Where(e => e.Status == EscalationStatus.Open && e.RequiresManualReview))
+            {
+                bool isSanctions = esc.Type == EscalationType.SanctionsHit;
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = isSanctions ? CaseBlockerCategory.UnresolvedSanctions : CaseBlockerCategory.OpenEscalation,
+                    Severity        = EvidenceIssueSeverityLevel.Critical,
+                    Title           = isSanctions ? "Sanctions review pending analyst decision" : $"Open escalation: {esc.Type}",
+                    Description     = esc.Description,
+                    RemediationHint = "Assign a sanctions analyst to review and resolve the escalation.",
+                    LinkedEntityId  = esc.EscalationId,
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+            }
+
+            // 6. Open blocking remediation tasks
+            foreach (var rt in c.RemediationTasks.Where(t => t.IsBlockingCase && t.Status == RemediationTaskStatus.Open))
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.OpenRemediationTask,
+                    Severity        = rt.BlockerSeverity,
+                    Title           = $"Open remediation task: {rt.Title}",
+                    Description     = rt.Description ?? rt.Title,
+                    RemediationHint = "Complete or dismiss the remediation task to unblock the case.",
+                    LinkedEntityId  = rt.TaskId,
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+
+            // 7. SLA breach (advisory — does not block readiness on its own)
+            if (c.SlaMetadata?.IsOverdue == true)
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.SlaBreached,
+                    Severity        = EvidenceIssueSeverityLevel.Critical,
+                    Title           = "SLA review deadline breached",
+                    Description     = $"The case review was due by {c.SlaMetadata.ReviewDueAt:O} and is now overdue.",
+                    RemediationHint = "Escalate to the compliance manager and update the review status immediately.",
+                    IsFailClosed    = false,
+                    DetectedAt      = now
+                });
+
+            // 8. No reviewer assigned (advisory)
+            if (string.IsNullOrWhiteSpace(c.AssignedReviewerId) && string.IsNullOrWhiteSpace(c.AssignedTeamId))
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.MissingAssignment,
+                    Severity        = EvidenceIssueSeverityLevel.Medium,
+                    Title           = "No reviewer assigned",
+                    Description     = "The case does not have a reviewer or team assigned. This may delay review completion.",
+                    RemediationHint = "Assign a reviewer or team using the assignment endpoint.",
+                    IsFailClosed    = false,
+                    DetectedAt      = now
+                });
+
+            // 9. Adverse KYC/AML/Sanctions decisions
+            var unresolvedAdverse = c.DecisionHistory
+                .Where(d => d.IsAdverse && d.Kind is CaseDecisionKind.KycRejection
+                    or CaseDecisionKind.AmlHit or CaseDecisionKind.SanctionsReview)
+                .ToList();
+            foreach (var dec in unresolvedAdverse)
+                blockers.Add(new CaseBlocker
+                {
+                    Category = dec.Kind == CaseDecisionKind.KycRejection ? CaseBlockerCategory.PendingKycDecision :
+                               dec.Kind == CaseDecisionKind.AmlHit ? CaseBlockerCategory.PendingAmlDecision :
+                               CaseBlockerCategory.UnresolvedSanctions,
+                    Severity        = EvidenceIssueSeverityLevel.High,
+                    Title           = $"Adverse decision: {dec.Kind} — {dec.Outcome ?? dec.DecisionSummary}",
+                    Description     = dec.Explanation ?? $"An adverse {dec.Kind} decision has been recorded and must be addressed.",
+                    RemediationHint = "Review the decision record and either resolve the concern or add a manual override with justification.",
+                    LinkedEntityId  = dec.DecisionId,
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+
+            // 10. Handoff failure
+            if (c.HandoffStatus?.Stage == CaseHandoffStage.Failed)
+                blockers.Add(new CaseBlocker
+                {
+                    Category        = CaseBlockerCategory.DownstreamDeliveryFailure,
+                    Severity        = EvidenceIssueSeverityLevel.High,
+                    Title           = "Downstream handoff failed",
+                    Description     = c.HandoffStatus.BlockingReason ?? "A downstream delivery or distribution step has failed.",
+                    RemediationHint = "Investigate the downstream failure and re-trigger the handoff after resolution.",
+                    IsFailClosed    = true,
+                    DetectedAt      = now
+                });
+
+            return blockers;
+        }
+
+        /// <summary>Derives a plain-language next-action description from case state and active blockers.</summary>
+        private static string DeriveNextAction(ComplianceCase c, List<CaseBlocker> failClosedBlockers)
+        {
+            if (failClosedBlockers.Count > 0)
+            {
+                var top = failClosedBlockers.OrderByDescending(b => b.Severity).First();
+                return top.RemediationHint ?? top.Title;
+            }
+
+            return c.State switch
+            {
+                ComplianceCaseState.Intake          => "Transition the case to EvidencePending to begin evidence collection.",
+                ComplianceCaseState.EvidencePending => "Collect and attach required evidence (KYC, AML, identity documents) to the case.",
+                ComplianceCaseState.UnderReview     => "Complete the compliance review and transition to Approved or Escalated.",
+                ComplianceCaseState.Escalated       => "Assign a senior analyst to review the escalation and resolve or reject the case.",
+                ComplianceCaseState.Remediating     => "Complete all open remediation tasks to progress the case to review or approval.",
+                ComplianceCaseState.Approved        => "Case is approved. Initiate downstream handoff if not already complete.",
+                ComplianceCaseState.Rejected        => "Case has been rejected. No further actions required.",
+                ComplianceCaseState.Stale           => "Evidence has expired. Collect fresh evidence and resubmit to EvidencePending.",
+                ComplianceCaseState.Blocked         => "The case is blocked. Investigate the blocking reason and transition back to Intake when resolved.",
+                _                                   => "Review the case state and determine the appropriate next step."
+            };
+        }
+
         // ── Private helpers ────────────────────────────────────────────────────
 
         /// <summary>
