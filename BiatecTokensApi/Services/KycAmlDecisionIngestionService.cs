@@ -143,7 +143,7 @@ namespace BiatecTokensApi.Services
 
             AppendTimelineEvent(record, "DecisionIngested",
                 $"Decision ingested from provider={request.Provider}, kind={request.Kind}, status={request.Status}",
-                actorId, correlationId);
+                actorId, correlationId, now);
 
             // Persist
             _decisions[decisionId] = record;
@@ -442,7 +442,7 @@ namespace BiatecTokensApi.Services
             record.ReviewerNotes.Add(note);
             AppendTimelineEvent(record, "ReviewerNoteAdded",
                 $"Reviewer note appended by {LoggingHelper.SanitizeLogInput(actorId)}",
-                actorId, correlationId);
+                actorId, correlationId, note.AppendedAt);
 
             return Task.FromResult(new AppendIngestionReviewerNoteResponse
             {
@@ -786,11 +786,12 @@ namespace BiatecTokensApi.Services
             string description,
             string actor,
             string correlationId,
+            DateTimeOffset occurredAt,
             Dictionary<string, string>? metadata = null)
         {
             record.Timeline.Add(new IngestionTimelineEvent
             {
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = occurredAt,
                 EventType = eventType,
                 Description = description,
                 StatusSnapshot = record.Status,

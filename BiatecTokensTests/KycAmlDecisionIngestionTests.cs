@@ -151,7 +151,7 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task IngestDecision_DefaultIdempotencyKey_DerrivedFromFields()
+        public async Task IngestDecision_DefaultIdempotencyKey_DerivedFromFields()
         {
             var svc = CreateService();
             var req1 = ApprovedKycRequest(); // no explicit key
