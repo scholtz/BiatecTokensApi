@@ -252,7 +252,39 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// All retry attempts for a compliance case webhook delivery have been exhausted
         /// </summary>
-        ComplianceCaseDeliveryRetryExhausted
+        ComplianceCaseDeliveryRetryExhausted,
+
+        // ── Scheduled Reporting events ────────────────────────────────────────
+
+        /// <summary>
+        /// A new scheduled compliance report run was created
+        /// </summary>
+        ReportRunCreated,
+
+        /// <summary>
+        /// A report run was blocked due to missing or stale evidence
+        /// </summary>
+        ReportRunBlocked,
+
+        /// <summary>
+        /// A report run was formally approved and is ready for export
+        /// </summary>
+        ReportRunApproved,
+
+        /// <summary>
+        /// A report run was exported to a durable format
+        /// </summary>
+        ReportRunExported,
+
+        /// <summary>
+        /// A report run was delivered to configured destinations
+        /// </summary>
+        ReportRunDelivered,
+
+        /// <summary>
+        /// A report run encountered a terminal failure
+        /// </summary>
+        ReportRunFailed
     }
 
     /// <summary>

@@ -1115,6 +1115,12 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.ComplianceCaseSlaBreached)]
         [TestCase(WebhookEventType.ComplianceCaseDeliveryFailed)]
         [TestCase(WebhookEventType.ComplianceCaseDeliveryRetryExhausted)]
+        [TestCase(WebhookEventType.ReportRunCreated)]
+        [TestCase(WebhookEventType.ReportRunBlocked)]
+        [TestCase(WebhookEventType.ReportRunApproved)]
+        [TestCase(WebhookEventType.ReportRunExported)]
+        [TestCase(WebhookEventType.ReportRunDelivered)]
+        [TestCase(WebhookEventType.ReportRunFailed)]
         public async Task EmitEvent_AllEventTypes_CanBeDelivered(WebhookEventType eventType)
         {
             bool delivered = false;
