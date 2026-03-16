@@ -183,7 +183,54 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// A compliance case evidence bundle was exported
         /// </summary>
-        ComplianceCaseExported
+        ComplianceCaseExported,
+
+        // ── Ongoing Monitoring events ──────────────────────────────────────────
+
+        /// <summary>
+        /// A new ongoing monitoring task was created for a subject
+        /// </summary>
+        MonitoringTaskCreated,
+
+        /// <summary>
+        /// A monitoring task is approaching its due date
+        /// </summary>
+        MonitoringTaskDueSoon,
+
+        /// <summary>
+        /// A monitoring task is overdue — review date has passed without a recorded outcome
+        /// </summary>
+        MonitoringTaskOverdue,
+
+        /// <summary>
+        /// A reassessment was started on a monitoring task
+        /// </summary>
+        MonitoringTaskReassessmentStarted,
+
+        /// <summary>
+        /// A monitoring task was escalated for senior review
+        /// </summary>
+        MonitoringTaskEscalated,
+
+        /// <summary>
+        /// A monitoring task was deferred to a later date
+        /// </summary>
+        MonitoringTaskDeferred,
+
+        /// <summary>
+        /// A monitoring task was resolved with an outcome
+        /// </summary>
+        MonitoringTaskResolved,
+
+        /// <summary>
+        /// A subject was suspended as a result of a monitoring review
+        /// </summary>
+        MonitoringTaskSubjectSuspended,
+
+        /// <summary>
+        /// A subject was restricted as a result of a monitoring review
+        /// </summary>
+        MonitoringTaskSubjectRestricted
     }
 
     /// <summary>
