@@ -145,7 +145,12 @@ namespace BiatecTokensApi.Models.ScheduledReporting
     /// <summary>
     /// Freshness classification for an evidence domain included in a report run.
     /// </summary>
-    public enum EvidenceFreshnessStatus
+    /// <summary>
+    /// Evidence freshness classification for scheduled reporting.
+    /// Uses a distinct name from <c>BiatecTokensApi.Models.ComplianceEvidenceLaunchDecision.EvidenceFreshnessStatus</c>
+    /// to avoid Swashbuckle schema-ID conflicts.
+    /// </summary>
+    public enum ReportEvidenceFreshnessStatus
     {
         /// <summary>Evidence is current and within the required freshness window.</summary>
         Current,
@@ -435,7 +440,7 @@ namespace BiatecTokensApi.Models.ScheduledReporting
         public EvidenceDomainKind Domain { get; set; }
 
         /// <summary>Freshness status determined at evaluation time.</summary>
-        public EvidenceFreshnessStatus FreshnessStatus { get; set; }
+        public ReportEvidenceFreshnessStatus FreshnessStatus { get; set; }
 
         /// <summary>UTC timestamp when the evidence was last updated.</summary>
         public DateTimeOffset? LastUpdatedAt { get; set; }

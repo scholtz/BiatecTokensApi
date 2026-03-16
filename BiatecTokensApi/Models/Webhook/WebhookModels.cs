@@ -284,7 +284,22 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// A report run encountered a terminal failure
         /// </summary>
-        ReportRunFailed
+        ReportRunFailed,
+
+        /// <summary>
+        /// A new reporting template was created
+        /// </summary>
+        ReportTemplateCreated,
+
+        /// <summary>
+        /// An existing reporting template was updated
+        /// </summary>
+        ReportTemplateUpdated,
+
+        /// <summary>
+        /// A reporting template was archived
+        /// </summary>
+        ReportTemplateArchived
     }
 
     /// <summary>

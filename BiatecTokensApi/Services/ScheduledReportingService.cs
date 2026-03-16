@@ -104,6 +104,8 @@ namespace BiatecTokensApi.Services
                 LoggingHelper.SanitizeLogInput(templateId),
                 LoggingHelper.SanitizeLogInput(actorId));
 
+            _ = EmitTemplateEventAsync(template, WebhookEventType.ReportTemplateCreated, actorId);
+
             return Task.FromResult(new ReportingTemplateResponse { Success = true, Template = template });
         }
 
@@ -163,6 +165,8 @@ namespace BiatecTokensApi.Services
                     LoggingHelper.SanitizeLogInput(templateId),
                     LoggingHelper.SanitizeLogInput(actorId));
 
+                _ = EmitTemplateEventAsync(template, WebhookEventType.ReportTemplateUpdated, actorId);
+
                 return Task.FromResult(new ReportingTemplateResponse { Success = true, Template = template });
             }
         }
@@ -195,6 +199,8 @@ namespace BiatecTokensApi.Services
                     "ReportingTemplate archived. TemplateId={TemplateId} Actor={Actor}",
                     LoggingHelper.SanitizeLogInput(templateId),
                     LoggingHelper.SanitizeLogInput(actorId));
+
+                _ = EmitTemplateEventAsync(template, WebhookEventType.ReportTemplateArchived, actorId);
 
                 return Task.FromResult(new ReportingTemplateResponse { Success = true, Template = template });
             }
@@ -606,7 +612,7 @@ namespace BiatecTokensApi.Services
                     IsActive = request.IsActive,
                     CreatedAt = existing?.CreatedAt ?? now,
                     CreatedBy = existing?.CreatedBy ?? actorId,
-                    NextTriggerAt = request.IsActive
+                    NextTriggerAt = request.IsActive && request.Cadence != ReportingCadence.EventDriven
                         ? ComputeNextRunAt(request.Cadence, now)
                         : null,
                     LastTriggeredAt = existing?.LastTriggeredAt
@@ -709,10 +715,10 @@ namespace BiatecTokensApi.Services
                 var expiresAt = simulatedLastUpdated + window;
 
                 var freshnessStatus = expiresAt > now + NearExpiryWarning
-                    ? EvidenceFreshnessStatus.Current
+                    ? ReportEvidenceFreshnessStatus.Current
                     : expiresAt > now
-                        ? EvidenceFreshnessStatus.NearingExpiry
-                        : EvidenceFreshnessStatus.Stale;
+                        ? ReportEvidenceFreshnessStatus.NearingExpiry
+                        : ReportEvidenceFreshnessStatus.Stale;
 
                 lineage.Add(new EvidenceLineageEntry
                 {
@@ -723,7 +729,7 @@ namespace BiatecTokensApi.Services
                     Note = $"Evidence evaluated at {now:O}"
                 });
 
-                if (freshnessStatus == EvidenceFreshnessStatus.Stale)
+                if (freshnessStatus == ReportEvidenceFreshnessStatus.Stale)
                 {
                     blockers.Add(new ReportRunBlocker
                     {
@@ -735,7 +741,7 @@ namespace BiatecTokensApi.Services
                         DetectedAt = now
                     });
                 }
-                else if (freshnessStatus == EvidenceFreshnessStatus.NearingExpiry)
+                else if (freshnessStatus == ReportEvidenceFreshnessStatus.NearingExpiry)
                 {
                     blockers.Add(new ReportRunBlocker
                     {
@@ -851,6 +857,32 @@ namespace BiatecTokensApi.Services
             {
                 _logger.LogWarning(ex, "Failed to emit webhook event {EventType} for run {RunId}",
                     eventType, LoggingHelper.SanitizeLogInput(run.RunId));
+            }
+        }
+
+        private async Task EmitTemplateEventAsync(ReportingTemplate template, WebhookEventType eventType, string actor)
+        {
+            if (_webhookService == null) return;
+            try
+            {
+                await _webhookService.EmitEventAsync(new WebhookEvent
+                {
+                    EventType = eventType,
+                    Actor = actor,
+                    Data = new Dictionary<string, object>
+                    {
+                        ["templateId"] = template.TemplateId,
+                        ["templateName"] = template.Name,
+                        ["audienceType"] = template.AudienceType.ToString(),
+                        ["cadence"] = template.Cadence.ToString(),
+                        ["isArchived"] = template.IsArchived
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to emit webhook event {EventType} for template {TemplateId}",
+                    eventType, LoggingHelper.SanitizeLogInput(template.TemplateId));
             }
         }
     }

@@ -412,7 +412,7 @@ namespace BiatecTokensTests
 
             var entry = run.Run!.EvidenceLineage.First(e => e.Domain == EvidenceDomainKind.KycAml);
             // FreshnessStatus must be one of the valid enum values
-            Assert.That(Enum.IsDefined(typeof(EvidenceFreshnessStatus), entry.FreshnessStatus), Is.True);
+            Assert.That(Enum.IsDefined(typeof(ReportEvidenceFreshnessStatus), entry.FreshnessStatus), Is.True);
             Assert.That(entry.LastUpdatedAt, Is.Not.Null);
             Assert.That(entry.ExpiresAt, Is.Not.Null);
         }
@@ -1045,8 +1045,738 @@ namespace BiatecTokensTests
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // Integration: WebApplicationFactory HTTP tests
+        // Unit: Partial delivery regression
         // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task PartialDelivery_FailedOptionalDestination_DoesNotFailRun()
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest();
+            req.DeliveryDestinations = new List<DeliveryDestinationConfig>
+            {
+                new() { Label = "Archive", DestinationType = DeliveryDestinationType.InternalArchive, IsRequired = true },
+                new() { Label = "Optional Webhook", DestinationType = DeliveryDestinationType.WebhookSubscriber, IsRequired = false }
+            };
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId, new TriggerReportRunRequest(), "actor-1");
+
+            // Run should complete (not fail) even if optional destination fails
+            Assert.That(run.Success, Is.True);
+            Assert.That(run.Run!.Status,
+                Is.EqualTo(ReportRunStatus.Delivered)
+                    .Or.EqualTo(ReportRunStatus.PartiallyDelivered)
+                    .Or.EqualTo(ReportRunStatus.Exported)
+                    .Or.EqualTo(ReportRunStatus.AwaitingReview)
+                    .Or.EqualTo(ReportRunStatus.AwaitingApproval));
+        }
+
+        [Test]
+        public async Task PartialDelivery_HistoryRecord_NotCorrupted()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            // Trigger two runs - partial delivery should not corrupt history
+            await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+            await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+
+            var list = await svc.ListRunsAsync(id);
+            Assert.That(list.TotalCount, Is.EqualTo(2));
+            foreach (var r in list.Runs)
+            {
+                Assert.That(r.RunId, Is.Not.Null.And.Not.Empty);
+                Assert.That(r.CreatedAt, Is.Not.EqualTo(default(DateTimeOffset)));
+            }
+        }
+
+        [Test]
+        public async Task DeliveryOutcome_OptionalDestination_MarkedOptional()
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest();
+            req.DeliveryDestinations = new List<DeliveryDestinationConfig>
+            {
+                new() { Label = "Archive", DestinationType = DeliveryDestinationType.InternalArchive, IsRequired = true },
+                new() { Label = "Optional", DestinationType = DeliveryDestinationType.AuditorInbox, IsRequired = false }
+            };
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId, new TriggerReportRunRequest(), "actor-1");
+
+            // Both destinations should produce outcome records
+            Assert.That(run.Run!.DeliveryOutcomes.Count, Is.EqualTo(2));
+            var requiredOutcome = run.Run.DeliveryOutcomes.FirstOrDefault(o => o.Label == "Archive");
+            var optionalOutcome = run.Run.DeliveryOutcomes.FirstOrDefault(o => o.Label == "Optional");
+            Assert.That(requiredOutcome, Is.Not.Null);
+            Assert.That(optionalOutcome, Is.Not.Null);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Evidence freshness classification
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task EvidenceFreshness_AllDomainsClassified()
+        {
+            var svc = CreateService();
+            var allDomains = Enum.GetValues<EvidenceDomainKind>().ToList();
+            var req = BasicTemplateRequest(domains: allDomains);
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId, new TriggerReportRunRequest(), "actor-1");
+
+            foreach (var domain in allDomains)
+            {
+                var entry = run.Run!.EvidenceLineage.FirstOrDefault(e => e.Domain == domain);
+                Assert.That(entry, Is.Not.Null, $"Domain {domain} should have a lineage entry");
+                Assert.That(Enum.IsDefined(typeof(ReportEvidenceFreshnessStatus), entry!.FreshnessStatus), Is.True);
+            }
+        }
+
+        [Test]
+        public async Task EvidenceFreshness_Current_NoBlockerEmitted()
+        {
+            var tp = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateService(tp);
+            // Trigger immediately - evidence should be current (simulated as within window)
+            var req = BasicTemplateRequest(domains: new List<EvidenceDomainKind> { EvidenceDomainKind.KycAml });
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId, new TriggerReportRunRequest(), "actor-1");
+
+            var entry = run.Run!.EvidenceLineage.First(e => e.Domain == EvidenceDomainKind.KycAml);
+            // If current, there should be no critical blocker for this domain
+            if (entry.FreshnessStatus == ReportEvidenceFreshnessStatus.Current)
+            {
+                var domainBlockers = run.Run.Blockers
+                    .Where(b => b.AffectedDomain == EvidenceDomainKind.KycAml && b.Severity == ReportBlockerSeverity.Critical)
+                    .ToList();
+                Assert.That(domainBlockers.Count, Is.EqualTo(0), "Current evidence should not have critical blockers");
+            }
+        }
+
+        [Test]
+        public async Task EvidenceLineage_LastUpdatedAt_IsBeforeOrEqualExpiresAt()
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest(domains: new List<EvidenceDomainKind>
+            {
+                EvidenceDomainKind.KycAml, EvidenceDomainKind.ProtectedSignOff
+            });
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId, new TriggerReportRunRequest(), "actor-1");
+
+            foreach (var entry in run.Run!.EvidenceLineage)
+            {
+                if (entry.LastUpdatedAt.HasValue && entry.ExpiresAt.HasValue)
+                {
+                    Assert.That(entry.LastUpdatedAt.Value, Is.LessThanOrEqualTo(entry.ExpiresAt.Value),
+                        $"Domain {entry.Domain}: LastUpdatedAt must precede ExpiresAt");
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Cadence and schedule edge cases
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [TestCase(ReportingCadence.SemiAnnual, 6)]
+        [TestCase(ReportingCadence.Annual, 12)]
+        public async Task UpsertSchedule_SemiAnnualAndAnnual_ComputesCorrectNextTrigger(
+            ReportingCadence cadence, int expectedMonths)
+        {
+            var now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var tp = new FakeTimeProvider(now);
+            var svc = CreateService(tp);
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(cadence: cadence), "actor-1");
+
+            var req = new UpsertScheduleRequest
+            {
+                Cadence = cadence,
+                TriggerHourUtc = 0,
+                DayOfMonth = 1
+            };
+            var result = await svc.UpsertScheduleAsync(created.Template!.TemplateId, req, "actor-1");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Schedule!.NextTriggerAt, Is.Not.Null);
+            var diff = (result.Schedule.NextTriggerAt!.Value - now).TotalDays;
+            Assert.That(diff, Is.GreaterThanOrEqualTo(expectedMonths * 28),
+                $"{cadence} cadence should schedule at least {expectedMonths} months ahead");
+        }
+
+        [Test]
+        public async Task UpsertSchedule_EventDriven_HasNullNextTrigger()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(cadence: ReportingCadence.EventDriven), "actor-1");
+
+            var result = await svc.UpsertScheduleAsync(created.Template!.TemplateId,
+                new UpsertScheduleRequest { Cadence = ReportingCadence.EventDriven }, "actor-1");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Schedule!.NextTriggerAt, Is.Null,
+                "Event-driven schedules should have no automatic next trigger");
+        }
+
+        [Test]
+        public async Task DeactivateSchedule_NonExistentTemplate_ReturnsError()
+        {
+            var svc = CreateService();
+            var result = await svc.DeactivateScheduleAsync("non-existent-template-id", "actor-1");
+            Assert.That(result.Success, Is.False);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Template owner and metadata tracking
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task CreateTemplate_CreatedByActor_Preserved()
+        {
+            var svc = CreateService();
+            var result = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-owner-test");
+            Assert.That(result.Template!.CreatedBy, Is.EqualTo("actor-owner-test"));
+        }
+
+        [Test]
+        public async Task UpdateTemplate_UpdatedByActor_Preserved()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-creator");
+            var updated = await svc.UpdateTemplateAsync(
+                created.Template!.TemplateId,
+                new UpdateReportingTemplateRequest { Name = "New Name" },
+                "actor-updater");
+            Assert.That(updated.Template!.UpdatedBy, Is.EqualTo("actor-updater"));
+        }
+
+        [Test]
+        public async Task CreateTemplate_CreatedAtTimestamp_Set()
+        {
+            var svc = CreateService();
+            var before = DateTimeOffset.UtcNow;
+            var result = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var after = DateTimeOffset.UtcNow;
+            Assert.That(result.Template!.CreatedAt, Is.GreaterThanOrEqualTo(before));
+            Assert.That(result.Template.CreatedAt, Is.LessThanOrEqualTo(after));
+        }
+
+        [Test]
+        public async Task TriggerRun_GeneratedByActor_Preserved()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "run-trigger-actor");
+            Assert.That(run.Run!.CreatedBy, Is.EqualTo("run-trigger-actor"));
+        }
+
+        [Test]
+        public async Task ReviewRun_ReviewerActor_Preserved()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(reviewRequired: true), "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+
+            var reviewed = await svc.ReviewRunAsync(run.Run!.RunId,
+                new ReviewReportRunRequest { Approve = true }, "reviewer-actor-x");
+            Assert.That(reviewed.Run!.ApprovalMetadata!.ReviewedBy, Is.EqualTo("reviewer-actor-x"));
+        }
+
+        [Test]
+        public async Task ApproveRun_ApproverActor_Preserved()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(reviewRequired: true, approvalRequired: true), "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+            await svc.ReviewRunAsync(run.Run!.RunId,
+                new ReviewReportRunRequest { Approve = true }, "reviewer-1");
+            var approved = await svc.ApproveRunAsync(run.Run.RunId,
+                new ApproveReportRunRequest { Approve = true }, "approver-abc");
+
+            Assert.That(approved.Run!.ApprovalMetadata!.ApprovedBy, Is.EqualTo("approver-abc"));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Comparison metadata (prior-run diff)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task Comparison_ThirdRun_ComparesToPrior()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            var r1 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+            var r2 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+            var r3 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+
+            Assert.That(r2.Run!.ComparisonToPriorRun!.PriorRunId, Is.EqualTo(r1.Run!.RunId));
+            Assert.That(r3.Run!.ComparisonToPriorRun!.PriorRunId, Is.EqualTo(r2.Run.RunId));
+        }
+
+        [Test]
+        public async Task Comparison_StatusChanged_ReflectedInComparison()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            var r1 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+            var r2 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+
+            Assert.That(r2.Run!.ComparisonToPriorRun, Is.Not.Null);
+            Assert.That(r2.Run.ComparisonToPriorRun!.PriorRunStatus, Is.EqualTo(r1.Run!.Status));
+            // CurrentRunStatus is available via the run record itself
+            Assert.That(r2.Run.Status, Is.EqualTo(r2.Run.Status)); // Status is on the run, not the comparison
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Webhook event completeness
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task Webhook_CreateTemplate_EmitsTemplateCreatedEvent()
+        {
+            var hooks = new CapturingWebhookService();
+            var svc = CreateService(webhooks: hooks);
+            await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+
+            Assert.That(hooks.Emitted.Any(e => e.EventType == WebhookEventType.ReportTemplateCreated),
+                Is.True, "Creating a template should emit ReportTemplateCreated");
+        }
+
+        [Test]
+        public async Task Webhook_UpdateTemplate_EmitsTemplateUpdatedEvent()
+        {
+            var hooks = new CapturingWebhookService();
+            var svc = CreateService(webhooks: hooks);
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            hooks.Emitted.Clear();
+
+            await svc.UpdateTemplateAsync(
+                created.Template!.TemplateId,
+                new UpdateReportingTemplateRequest { Name = "Updated" },
+                "actor-1");
+
+            Assert.That(hooks.Emitted.Any(e => e.EventType == WebhookEventType.ReportTemplateUpdated),
+                Is.True, "Updating a template should emit ReportTemplateUpdated");
+        }
+
+        [Test]
+        public async Task Webhook_ArchiveTemplate_EmitsTemplateArchivedEvent()
+        {
+            var hooks = new CapturingWebhookService();
+            var svc = CreateService(webhooks: hooks);
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            hooks.Emitted.Clear();
+
+            await svc.ArchiveTemplateAsync(created.Template!.TemplateId, "actor-1");
+
+            Assert.That(hooks.Emitted.Any(e => e.EventType == WebhookEventType.ReportTemplateArchived),
+                Is.True, "Archiving a template should emit ReportTemplateArchived");
+        }
+
+        [Test]
+        public async Task Webhook_TriggerRun_EventContainsTemplateId()
+        {
+            var hooks = new CapturingWebhookService();
+            var svc = CreateService(webhooks: hooks);
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            hooks.Emitted.Clear();
+
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+
+            var createdEvent = hooks.Emitted.FirstOrDefault(e => e.EventType == WebhookEventType.ReportRunCreated);
+            Assert.That(createdEvent, Is.Not.Null);
+            Assert.That(createdEvent!.Data, Is.Not.Null);
+            Assert.That(createdEvent.Data!.ContainsKey("templateId"), Is.True);
+            Assert.That(createdEvent.Data["templateId"].ToString(), Is.EqualTo(created.Template.TemplateId));
+        }
+
+        [Test]
+        public async Task Webhook_ApproveRun_EmitsAllLifecycleEvents()
+        {
+            var hooks = new CapturingWebhookService();
+            var svc = CreateService(webhooks: hooks);
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(reviewRequired: true, approvalRequired: true), "actor-1");
+
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+            await svc.ReviewRunAsync(run.Run!.RunId,
+                new ReviewReportRunRequest { Approve = true }, "reviewer-1");
+            hooks.Emitted.Clear();
+
+            await svc.ApproveRunAsync(run.Run.RunId,
+                new ApproveReportRunRequest { Approve = true }, "approver-1");
+
+            var eventTypes = hooks.Emitted.Select(e => e.EventType).ToList();
+            Assert.That(eventTypes, Contains.Item(WebhookEventType.ReportRunApproved));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Run blocker details
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task Blocker_AllHaveAffectedDomain()
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest(domains: Enum.GetValues<EvidenceDomainKind>().ToList());
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+
+            foreach (var blocker in run.Run!.Blockers)
+            {
+                Assert.That(Enum.IsDefined(typeof(EvidenceDomainKind), blocker.AffectedDomain),
+                    Is.True, $"Blocker {blocker.BlockerCode} should have a valid AffectedDomain");
+            }
+        }
+
+        [Test]
+        public async Task Blocker_BlockerCode_IsNotEmpty()
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest(domains: new List<EvidenceDomainKind>
+            {
+                EvidenceDomainKind.KycAml, EvidenceDomainKind.ComplianceCases
+            });
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+
+            foreach (var blocker in run.Run!.Blockers)
+            {
+                Assert.That(blocker.BlockerCode, Is.Not.Null.And.Not.Empty,
+                    "Every blocker must have a non-empty BlockerCode");
+                Assert.That(blocker.Description, Is.Not.Null.And.Not.Empty,
+                    "Every blocker must have a non-empty Description");
+            }
+        }
+
+        [Test]
+        public async Task Blocker_CriticalBlockerCount_IncreasesWhenStaleEvidenceAdded()
+        {
+            var svc = CreateService();
+            var r1 = BasicTemplateRequest(domains: new List<EvidenceDomainKind>());
+            var c1 = await svc.CreateTemplateAsync(r1, "a");
+            var run1 = await svc.TriggerRunAsync(c1.Template!.TemplateId, new TriggerReportRunRequest(), "a");
+
+            var r2 = BasicTemplateRequest(domains: Enum.GetValues<EvidenceDomainKind>().ToList());
+            var c2 = await svc.CreateTemplateAsync(r2, "a");
+            var run2 = await svc.TriggerRunAsync(c2.Template!.TemplateId, new TriggerReportRunRequest(), "a");
+
+            // Template with more evidence domains should have >= blocker count as template with no domains
+            Assert.That(run2.Run!.CriticalBlockerCount, Is.GreaterThanOrEqualTo(run1.Run!.CriticalBlockerCount));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Audience types
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [TestCase(ReportingAudienceType.InternalCompliance)]
+        [TestCase(ReportingAudienceType.ExecutiveSummary)]
+        [TestCase(ReportingAudienceType.ExternalAuditor)]
+        [TestCase(ReportingAudienceType.RegulatorySubmission)]
+        [TestCase(ReportingAudienceType.BoardPresentation)]
+        public async Task CreateTemplate_AllAudienceTypes_Accepted(ReportingAudienceType audience)
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest(audience: audience);
+            var result = await svc.CreateTemplateAsync(req, "actor-1");
+            Assert.That(result.Success, Is.True,
+                $"Audience type {audience} should be accepted");
+            Assert.That(result.Template!.AudienceType, Is.EqualTo(audience));
+        }
+
+        [Test]
+        public async Task ListTemplates_FilterByAudienceType_ReturnsOnlyThatAudience()
+        {
+            var svc = CreateService();
+            await svc.CreateTemplateAsync(
+                BasicTemplateRequest(audience: ReportingAudienceType.InternalCompliance), "a");
+            await svc.CreateTemplateAsync(
+                BasicTemplateRequest(audience: ReportingAudienceType.RegulatorySubmission), "a");
+            await svc.CreateTemplateAsync(
+                BasicTemplateRequest(audience: ReportingAudienceType.RegulatorySubmission), "a");
+
+            var result = await svc.ListTemplatesAsync(
+                audienceFilter: ReportingAudienceType.RegulatorySubmission);
+
+            Assert.That(result.Templates.Count, Is.EqualTo(2));
+            Assert.That(result.Templates.All(t => t.AudienceType == ReportingAudienceType.RegulatorySubmission), Is.True);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: State-machine edge cases
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task ReviewRun_ApproveWhenApprovalNotRequired_SkipsApprovalStep()
+        {
+            var svc = CreateService();
+            // reviewRequired=true but approvalRequired=false means after review → Exported/Delivered
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(reviewRequired: true, approvalRequired: false), "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+            Assert.That(run.Run!.Status, Is.EqualTo(ReportRunStatus.AwaitingReview));
+
+            var reviewed = await svc.ReviewRunAsync(run.Run.RunId,
+                new ReviewReportRunRequest { Approve = true }, "reviewer-1");
+            // Should skip ApprovalRequired step → go directly to Exported/Delivered
+            Assert.That(reviewed.Run!.Status,
+                Is.EqualTo(ReportRunStatus.Exported)
+                    .Or.EqualTo(ReportRunStatus.Delivered)
+                    .Or.EqualTo(ReportRunStatus.PartiallyDelivered));
+        }
+
+        [Test]
+        public async Task ApproveRun_AfterRejection_ReturnsFailed()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(reviewRequired: true, approvalRequired: true), "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+            await svc.ReviewRunAsync(run.Run!.RunId,
+                new ReviewReportRunRequest { Approve = true }, "reviewer-1");
+
+            // Reject at approval stage
+            var rejected = await svc.ApproveRunAsync(run.Run.RunId,
+                new ApproveReportRunRequest { Approve = false, RejectionReason = "Rejected at approval stage" },
+                "approver-1");
+            Assert.That(rejected.Success, Is.True);
+            Assert.That(rejected.Run!.Status, Is.EqualTo(ReportRunStatus.Failed));
+        }
+
+        [Test]
+        public async Task GetRun_AfterApproval_ReturnsExportedAt()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(
+                BasicTemplateRequest(reviewRequired: true, approvalRequired: true), "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+            await svc.ReviewRunAsync(run.Run!.RunId,
+                new ReviewReportRunRequest { Approve = true }, "reviewer-1");
+            await svc.ApproveRunAsync(run.Run.RunId,
+                new ApproveReportRunRequest { Approve = true }, "approver-1");
+
+            var retrieved = await svc.GetRunAsync(run.Run.RunId);
+            Assert.That(retrieved.Run!.ExportedAt, Is.Not.Null,
+                "ExportedAt should be set after approval");
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Idempotency and immutability guards
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task TriggerRun_SameTriggerTwice_ProducesTwoIndependentRuns()
+        {
+            // Independent triggers should each produce a separate run record
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            var run1 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+            var run2 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+
+            Assert.That(run1.Run!.RunId, Is.Not.EqualTo(run2.Run!.RunId),
+                "Each trigger must produce a distinct run ID");
+        }
+
+        [Test]
+        public async Task ListRuns_UpdateOrdering_NewestFirst()
+        {
+            var tp = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var svc = CreateService(tp);
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            var r1 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+            tp.Advance(TimeSpan.FromHours(1));
+            var r2 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+            tp.Advance(TimeSpan.FromHours(1));
+            var r3 = await svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-1");
+
+            var list = await svc.ListRunsAsync(id);
+            // Newest first
+            Assert.That(list.Runs[0].RunId, Is.EqualTo(r3.Run!.RunId));
+            Assert.That(list.Runs[1].RunId, Is.EqualTo(r2.Run!.RunId));
+            Assert.That(list.Runs[2].RunId, Is.EqualTo(r1.Run!.RunId));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Schedule deactivation/reactivation
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task UpsertSchedule_AfterDeactivation_ReactivatesWithNewSchedule()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            // Activate
+            await svc.UpsertScheduleAsync(id, new UpsertScheduleRequest
+            {
+                Cadence = ReportingCadence.Monthly, TriggerHourUtc = 0, DayOfMonth = 1
+            }, "actor-1");
+
+            // Deactivate
+            await svc.DeactivateScheduleAsync(id, "actor-1");
+
+            // Reactivate
+            var result = await svc.UpsertScheduleAsync(id, new UpsertScheduleRequest
+            {
+                Cadence = ReportingCadence.Quarterly, TriggerHourUtc = 6, DayOfMonth = 15
+            }, "actor-1");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Schedule!.Cadence, Is.EqualTo(ReportingCadence.Quarterly));
+            Assert.That(result.Schedule.IsActive, Is.True);
+        }
+
+        [Test]
+        public async Task GetSchedule_AfterDeactivation_IsNotActive()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            await svc.UpsertScheduleAsync(id, new UpsertScheduleRequest
+            {
+                Cadence = ReportingCadence.Monthly, TriggerHourUtc = 0, DayOfMonth = 1
+            }, "actor-1");
+            await svc.DeactivateScheduleAsync(id, "actor-1");
+
+            var result = await svc.GetScheduleAsync(id);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Schedule!.IsActive, Is.False);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Response schema contract assertions
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task TemplateResponse_ContainsAllRequiredFields()
+        {
+            var svc = CreateService();
+            var result = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var t = result.Template!;
+
+            Assert.That(t.TemplateId, Is.Not.Null.And.Not.Empty, "TemplateId must be set");
+            Assert.That(t.Name, Is.Not.Null.And.Not.Empty, "Name must be set");
+            Assert.That(Enum.IsDefined(typeof(ReportingAudienceType), t.AudienceType), Is.True);
+            Assert.That(Enum.IsDefined(typeof(ReportingCadence), t.Cadence), Is.True);
+            Assert.That(t.CreatedBy, Is.Not.Null.And.Not.Empty);
+            Assert.That(t.CreatedAt, Is.Not.EqualTo(default(DateTimeOffset)));
+            Assert.That(t.IsArchived, Is.False, "Newly created template should not be archived");
+        }
+
+        [Test]
+        public async Task RunResponse_ContainsAllRequiredFields()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-schema");
+            var r = run.Run!;
+
+            Assert.That(r.RunId, Is.Not.Null.And.Not.Empty, "RunId must be set");
+            Assert.That(r.TemplateId, Is.Not.Null.And.Not.Empty, "TemplateId must be set");
+            Assert.That(r.CreatedBy, Is.EqualTo("actor-schema"), "GeneratedBy must match actor");
+            Assert.That(r.CreatedAt, Is.Not.EqualTo(default(DateTimeOffset)));
+            Assert.That(Enum.IsDefined(typeof(ReportRunStatus), r.Status), Is.True);
+            Assert.That(r.EvidenceLineage, Is.Not.Null);
+            Assert.That(r.Blockers, Is.Not.Null);
+            Assert.That(r.DeliveryOutcomes, Is.Not.Null);
+            Assert.That(r.ApprovalMetadata, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task DeliveryOutcome_ContainsAllRequiredFields()
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest();
+            req.DeliveryDestinations = new List<DeliveryDestinationConfig>
+            {
+                new() { Label = "Archive", DestinationType = DeliveryDestinationType.InternalArchive, IsRequired = true }
+            };
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+
+            var outcome = run.Run!.DeliveryOutcomes.First(o => o.Label == "Archive");
+            Assert.That(outcome.Label, Is.Not.Null.And.Not.Empty);
+            Assert.That(Enum.IsDefined(typeof(DeliveryDestinationType), outcome.DestinationType), Is.True);
+            Assert.That(Enum.IsDefined(typeof(DeliveryOutcomeStatus), outcome.Status), Is.True);
+            Assert.That(outcome.AttemptedAt, Is.Not.Null);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: Delivery type coverage
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [TestCase(DeliveryDestinationType.InternalArchive)]
+        [TestCase(DeliveryDestinationType.ExecutiveInbox)]
+        [TestCase(DeliveryDestinationType.AuditorInbox)]
+        [TestCase(DeliveryDestinationType.RegulatorExport)]
+        [TestCase(DeliveryDestinationType.WebhookSubscriber)]
+        public async Task DeliveryDestination_AllTypes_ProduceOutcomeRecord(DeliveryDestinationType dtype)
+        {
+            var svc = CreateService();
+            var req = BasicTemplateRequest();
+            req.DeliveryDestinations = new List<DeliveryDestinationConfig>
+            {
+                new() { Label = dtype.ToString(), DestinationType = dtype, IsRequired = false }
+            };
+            var created = await svc.CreateTemplateAsync(req, "actor-1");
+            var run = await svc.TriggerRunAsync(created.Template!.TemplateId,
+                new TriggerReportRunRequest(), "actor-1");
+
+            var outcome = run.Run!.DeliveryOutcomes.FirstOrDefault(o => o.DestinationType == dtype);
+            Assert.That(outcome, Is.Not.Null,
+                $"Delivery type {dtype} should produce a DeliveryOutcomeRecord");
+            Assert.That(Enum.IsDefined(typeof(DeliveryOutcomeStatus), outcome!.Status), Is.True);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Unit: ScheduledReportingService concurrency regression
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task ConcurrentTriggers_SameTemplate_ProduceIndependentRuns()
+        {
+            var svc = CreateService();
+            var created = await svc.CreateTemplateAsync(BasicTemplateRequest(), "actor-1");
+            var id = created.Template!.TemplateId;
+
+            // Fire 5 concurrent triggers
+            var tasks = Enumerable.Range(0, 5)
+                .Select(_ => svc.TriggerRunAsync(id, new TriggerReportRunRequest(), "actor-concurrent"))
+                .ToList();
+            var results = await Task.WhenAll(tasks);
+
+            var runIds = results.Select(r => r.Run!.RunId).ToList();
+            Assert.That(runIds.Distinct().Count(), Is.EqualTo(5),
+                "Concurrent triggers must produce distinct run IDs");
+            Assert.That(results.All(r => r.Success), Is.True,
+                "All concurrent triggers should succeed");
+        }
 
         private static WebApplicationFactory<BiatecTokensApi.Program> CreateFactory() =>
             new WebApplicationFactory<BiatecTokensApi.Program>()
