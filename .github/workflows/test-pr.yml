@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0  # needed for accurate diff
 
       - name: Get changed files
-        uses: tj-actions/changed-files@v46
+        uses: tj-actions/changed-files@v47
         id: changed-files
 
       - name: Determine test filter from changed files
