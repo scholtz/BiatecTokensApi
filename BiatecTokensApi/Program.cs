@@ -474,6 +474,14 @@ namespace BiatecTokensApi
             // package assembly, readiness evaluation, and audience-aware manifest generation
             builder.Services.AddSingleton<IRegulatoryEvidencePackageService, RegulatoryEvidencePackageService>();
 
+            // Register Scheduled Reporting service for reporting templates, report runs,
+            // schedule definitions, evidence freshness evaluation, and delivery tracking
+            builder.Services.AddSingleton<IScheduledReportingService>(sp =>
+                new ScheduledReportingService(
+                    sp.GetRequiredService<ILogger<ScheduledReportingService>>(),
+                    TimeProvider.System,
+                    sp.GetService<IWebhookService>()));
+
             // Register Approval Workflow service and repository for multi-stage enterprise release approval
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IApprovalWorkflowRepository, BiatecTokensApi.Repositories.ApprovalWorkflowRepository>();
             builder.Services.AddSingleton<IApprovalWorkflowService, ApprovalWorkflowService>();
