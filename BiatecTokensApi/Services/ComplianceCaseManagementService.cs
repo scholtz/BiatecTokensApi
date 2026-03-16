@@ -297,10 +297,26 @@ namespace BiatecTokensApi.Services
             EmitEventFireAndForget(WebhookEventType.ComplianceCaseStateTransitioned, actorId, caseId,
                 new { caseId, fromState = fromState.ToString(), toState = request.NewState.ToString(), reason = request.Reason });
 
-            // Emit ApprovalReady when case transitions to Approved state
+            // Emit targeted semantic events for key state destinations
+            if (request.NewState == ComplianceCaseState.EvidencePending)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseEvidenceRequested, actorId, caseId,
+                    new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId, reason = request.Reason });
+
             if (request.NewState == ComplianceCaseState.Approved)
+            {
                 EmitEventFireAndForget(WebhookEventType.ComplianceCaseApprovalReady, actorId, caseId,
                     new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId });
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseApprovalGranted, actorId, caseId,
+                    new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId, reason = request.Reason, decidedBy = actorId });
+            }
+
+            if (request.NewState == ComplianceCaseState.Rejected)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseApprovalDenied, actorId, caseId,
+                    new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId, reason = request.Reason, decidedBy = actorId });
+
+            if (request.NewState == ComplianceCaseState.Remediating)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseReworkRequested, actorId, caseId,
+                    new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId, reason = request.Reason, requestedBy = actorId });
 
             return Task.FromResult(new UpdateComplianceCaseResponse { Success = true, Case = c });
         }

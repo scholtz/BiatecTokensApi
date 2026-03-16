@@ -185,6 +185,26 @@ namespace BiatecTokensApi.Models.Webhook
         /// </summary>
         ComplianceCaseExported,
 
+        /// <summary>
+        /// A compliance case transitioned to EvidencePending state, requesting evidence from the subject
+        /// </summary>
+        ComplianceCaseEvidenceRequested,
+
+        /// <summary>
+        /// A compliance case was formally approved — all review stages cleared
+        /// </summary>
+        ComplianceCaseApprovalGranted,
+
+        /// <summary>
+        /// A compliance case was formally rejected — case closed with a rejection outcome
+        /// </summary>
+        ComplianceCaseApprovalDenied,
+
+        /// <summary>
+        /// A compliance case entered the Remediating state — reviewer requested rework before re-evaluation
+        /// </summary>
+        ComplianceCaseReworkRequested,
+
         // ── Ongoing Monitoring events ──────────────────────────────────────────
 
         /// <summary>
