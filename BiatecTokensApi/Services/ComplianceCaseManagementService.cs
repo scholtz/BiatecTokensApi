@@ -1188,7 +1188,9 @@ namespace BiatecTokensApi.Services
             });
         }
 
-        // ── ExportCaseAsync ────────────────────────────────────────────────────        /// <inheritdoc/>
+        // ── ExportCaseAsync ────────────────────────────────────────────────────
+
+        /// <inheritdoc/>
         public async Task<ExportComplianceCaseResponse> ExportCaseAsync(string caseId, ExportComplianceCaseRequest request, string actorId)
         {
             if (!_cases.TryGetValue(caseId, out var c))

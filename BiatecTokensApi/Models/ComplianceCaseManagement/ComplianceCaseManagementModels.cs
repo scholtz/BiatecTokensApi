@@ -108,9 +108,9 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
     {
         /// <summary>No SLA defined or review is not due soon.</summary>
         Normal,
-        /// <summary>Review is due within the warning window (≤ 25 % of interval remaining).</summary>
+        /// <summary>Review is due within 7 days.</summary>
         Warning,
-        /// <summary>Review is due very soon or is overdue.</summary>
+        /// <summary>Review is due within 3 days or is already overdue.</summary>
         Critical,
         /// <summary>Case has been explicitly deferred.</summary>
         Deferred
