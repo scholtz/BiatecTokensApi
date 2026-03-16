@@ -950,6 +950,24 @@ namespace BiatecTokensTests
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // Webhook event emission helper
+        // ═══════════════════════════════════════════════════════════════════════
+
+        private static async Task WaitForWebhookAsync(
+            CapturingWebhookService ws, WebhookEventType type, int maxWaitMs = 500)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(maxWaitMs);
+            while (DateTime.UtcNow < deadline)
+            {
+                bool found;
+                lock (ws.EmittedEvents)
+                    found = ws.EmittedEvents.Any(e => e.EventType == type);
+                if (found) return;
+                await Task.Delay(20);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // UNIT: Webhook event emission
         // ═══════════════════════════════════════════════════════════════════════
 
@@ -960,11 +978,10 @@ namespace BiatecTokensTests
             var svc = CreateService(webhookService: ws);
 
             await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskCreated);
 
-            // Allow fire-and-forget to complete
-            await Task.Delay(100);
-
-            Assert.That(ws.EmittedEvents.Any(e => e.EventType == WebhookEventType.MonitoringTaskCreated), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e => e.EventType == WebhookEventType.MonitoringTaskCreated), Is.True);
         }
 
         [Test]
@@ -976,10 +993,11 @@ namespace BiatecTokensTests
             var taskId  = created.Task!.TaskId;
 
             await svc.StartReassessmentAsync(taskId, new StartReassessmentRequest(), "a");
-            await Task.Delay(100);
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskReassessmentStarted);
 
-            Assert.That(ws.EmittedEvents.Any(e =>
-                e.EventType == WebhookEventType.MonitoringTaskReassessmentStarted), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e =>
+                    e.EventType == WebhookEventType.MonitoringTaskReassessmentStarted), Is.True);
         }
 
         [Test]
@@ -992,10 +1010,11 @@ namespace BiatecTokensTests
 
             await svc.EscalateTaskAsync(taskId,
                 new EscalateMonitoringTaskRequest { EscalationReason = "Test" }, "a");
-            await Task.Delay(100);
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskEscalated);
 
-            Assert.That(ws.EmittedEvents.Any(e =>
-                e.EventType == WebhookEventType.MonitoringTaskEscalated), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e =>
+                    e.EventType == WebhookEventType.MonitoringTaskEscalated), Is.True);
         }
 
         [Test]
@@ -1012,10 +1031,11 @@ namespace BiatecTokensTests
                     DeferUntil = DateTimeOffset.UtcNow.AddDays(10),
                     Rationale  = "Deferred for test"
                 }, "a");
-            await Task.Delay(100);
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskDeferred);
 
-            Assert.That(ws.EmittedEvents.Any(e =>
-                e.EventType == WebhookEventType.MonitoringTaskDeferred), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e =>
+                    e.EventType == WebhookEventType.MonitoringTaskDeferred), Is.True);
         }
 
         [Test]
@@ -1032,10 +1052,11 @@ namespace BiatecTokensTests
                     Resolution      = MonitoringTaskResolution.Clear,
                     ResolutionNotes = "Clear"
                 }, "a");
-            await Task.Delay(100);
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskResolved);
 
-            Assert.That(ws.EmittedEvents.Any(e =>
-                e.EventType == WebhookEventType.MonitoringTaskResolved), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e =>
+                    e.EventType == WebhookEventType.MonitoringTaskResolved), Is.True);
         }
 
         [Test]
@@ -1052,10 +1073,11 @@ namespace BiatecTokensTests
                     Resolution      = MonitoringTaskResolution.SubjectSuspended,
                     ResolutionNotes = "Suspended"
                 }, "a");
-            await Task.Delay(100);
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskSubjectSuspended);
 
-            Assert.That(ws.EmittedEvents.Any(e =>
-                e.EventType == WebhookEventType.MonitoringTaskSubjectSuspended), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e =>
+                    e.EventType == WebhookEventType.MonitoringTaskSubjectSuspended), Is.True);
         }
 
         [Test]
@@ -1072,10 +1094,11 @@ namespace BiatecTokensTests
                     Resolution      = MonitoringTaskResolution.SubjectRestricted,
                     ResolutionNotes = "Restricted"
                 }, "a");
-            await Task.Delay(100);
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskSubjectRestricted);
 
-            Assert.That(ws.EmittedEvents.Any(e =>
-                e.EventType == WebhookEventType.MonitoringTaskSubjectRestricted), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e =>
+                    e.EventType == WebhookEventType.MonitoringTaskSubjectRestricted), Is.True);
         }
 
         [Test]
@@ -1089,10 +1112,11 @@ namespace BiatecTokensTests
             tp.Advance(TimeSpan.FromDays(2));
 
             await svc.RunDueDateCheckAsync();
-            await Task.Delay(100);
+            await WaitForWebhookAsync(ws, WebhookEventType.MonitoringTaskOverdue);
 
-            Assert.That(ws.EmittedEvents.Any(e =>
-                e.EventType == WebhookEventType.MonitoringTaskOverdue), Is.True);
+            lock (ws.EmittedEvents)
+                Assert.That(ws.EmittedEvents.Any(e =>
+                    e.EventType == WebhookEventType.MonitoringTaskOverdue), Is.True);
         }
 
         // ═══════════════════════════════════════════════════════════════════════

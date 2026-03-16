@@ -262,7 +262,7 @@ namespace BiatecTokensApi.Services
 
             task.Status           = MonitoringTaskStatus.Deferred;
             task.DeferredUntil    = request.DeferUntil;
-            task.DeferralRationale= request.Rationale;
+            task.DeferralRationale = request.Rationale;
             task.UpdatedAt        = now;
 
             task.Timeline.Add(BuildEvent(
@@ -310,9 +310,9 @@ namespace BiatecTokensApi.Services
             var now        = _timeProvider.GetUtcNow();
             var prevStatus = task.Status;
 
-            task.Status          = MonitoringTaskStatus.Escalated;
-            task.EscalationReason= request.EscalationReason;
-            task.UpdatedAt       = now;
+            task.Status           = MonitoringTaskStatus.Escalated;
+            task.EscalationReason = request.EscalationReason;
+            task.UpdatedAt        = now;
 
             if (request.Severity.HasValue)
                 task.Severity = request.Severity.Value;
@@ -372,11 +372,11 @@ namespace BiatecTokensApi.Services
                 _                                           => MonitoringTaskStatus.Resolved
             };
 
-            task.Status           = terminalStatus;
-            task.ResolutionOutcome= request.Resolution;
-            task.ResolutionNotes  = request.ResolutionNotes;
-            task.CompletedAt      = now;
-            task.UpdatedAt        = now;
+            task.Status            = terminalStatus;
+            task.ResolutionOutcome = request.Resolution;
+            task.ResolutionNotes   = request.ResolutionNotes;
+            task.CompletedAt       = now;
+            task.UpdatedAt         = now;
 
             var eventType = terminalStatus switch
             {
