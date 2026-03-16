@@ -80,5 +80,47 @@ namespace BiatecTokensApi.Services.Interface
         /// event is emitted on success.
         /// </summary>
         Task<ExportComplianceCaseResponse> ExportCaseAsync(string caseId, ExportComplianceCaseRequest request, string actorId);
+
+        // ── Assignment ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Assigns or reassigns a compliance case to a reviewer and/or team.
+        /// Persists a structured <see cref="CaseAssignmentRecord"/> capturing the previous owner,
+        /// new owner, timestamp, and reason. Emits a <see cref="Models.Webhook.WebhookEventType.ComplianceCaseAssignmentChanged"/>
+        /// (or <see cref="Models.Webhook.WebhookEventType.ComplianceCaseTeamAssigned"/> when a team changes) webhook event.
+        /// </summary>
+        Task<AssignCaseResponse> AssignCaseAsync(string caseId, AssignCaseRequest request, string actorId);
+
+        /// <summary>
+        /// Returns the full chronological assignment history for a case, including all
+        /// previous and current owner changes with reasons and timestamps.
+        /// </summary>
+        Task<GetAssignmentHistoryResponse> GetAssignmentHistoryAsync(string caseId, string actorId);
+
+        // ── Escalation history ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the structured escalation history for a case.
+        /// Provides summary counts (open / resolved) alongside the full escalation list.
+        /// </summary>
+        Task<GetEscalationHistoryResponse> GetEscalationHistoryAsync(string caseId, string actorId);
+
+        // ── SLA ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Configures or updates SLA metadata (review due date, escalation due date) for a case.
+        /// Derives the <see cref="CaseUrgencyBand"/> from the current time and due dates.
+        /// Emits a <see cref="Models.Webhook.WebhookEventType.ComplianceCaseSlaBreached"/> event if
+        /// the review due date is already in the past when SLA is evaluated.
+        /// </summary>
+        Task<SetSlaMetadataResponse> SetSlaMetadataAsync(string caseId, SetSlaMetadataRequest request, string actorId);
+
+        // ── Delivery status ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the persisted webhook delivery records for all events emitted on this case.
+        /// Provides counts of successful, failed, and pending-retry deliveries for operational monitoring.
+        /// </summary>
+        Task<GetDeliveryStatusResponse> GetDeliveryStatusAsync(string caseId, string actorId);
     }
 }
