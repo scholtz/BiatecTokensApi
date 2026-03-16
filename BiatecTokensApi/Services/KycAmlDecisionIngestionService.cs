@@ -558,6 +558,8 @@ namespace BiatecTokensApi.Services
             // not a single clear terminal state. Specifically: a contradiction exists when the full
             // history for a kind contains both Approved and Rejected terminal states AND the most
             // recent is one of them (not an intermediate superseding the other).
+            // Reuse the pre-computed latestPerKind dictionary for O(1) lookups.
+            var latestByKind = latestPerKind.ToDictionary(d => d.Kind);
             var terminalByKind = decisions
                 .Where(d => d.Status == NormalizedIngestionStatus.Approved || d.Status == NormalizedIngestionStatus.Rejected)
                 .GroupBy(d => d.Kind)
@@ -568,11 +570,8 @@ namespace BiatecTokensApi.Services
                     var statuses = g.Select(d => d.Status).Distinct().ToList();
                     if (statuses.Count <= 1) return false; // all same terminal state → no contradiction
 
-                    // If the most recent decision for this kind is terminal, it's a contradiction
-                    var mostRecent = decisions
-                        .Where(d => d.Kind == g.Key)
-                        .OrderByDescending(d => d.IngestedAt)
-                        .First();
+                    // Reuse latestByKind lookup instead of re-sorting decisions
+                    if (!latestByKind.TryGetValue(g.Key, out var mostRecent)) return false;
                     return mostRecent.Status == NormalizedIngestionStatus.Approved
                            || mostRecent.Status == NormalizedIngestionStatus.Rejected;
                 });

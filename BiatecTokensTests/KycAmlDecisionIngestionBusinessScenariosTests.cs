@@ -703,7 +703,7 @@ namespace BiatecTokensTests
         // ═══════════════════════════════════════════════════════════════════════
 
         [Test]
-        public async Task Scenario18_Rescreen_SecondApprovalSupersedesInitialRejection()
+        public async Task Scenario18_Rescreen_SecondApprovalSupersedesInitialNeedsReview()
         {
             var svc = CreateService();
             var subjectId = "investor-rescreen";
@@ -736,6 +736,48 @@ namespace BiatecTokensTests
             var kycDecisions = list.Decisions.Where(d => d.Kind == IngestionDecisionKind.IdentityKyc).ToList();
             Assert.That(kycDecisions, Has.Count.EqualTo(2),
                 "Both KYC decisions (NeedsReview + Approved) must be in audit trail");
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Scenario 18b: Reverse-chronology latest-wins — second provider gives worse status
+        //   A second NeedsReview coming after Approved must downgrade readiness
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task Scenario18b_Rescreen_SecondNeedsReviewSupersedesApproved_DowngradesReadiness()
+        {
+            var svc = CreateService();
+            var subjectId = "investor-rescreen-downgrade";
+
+            // First provider: Jumio approves
+            await IngestAndGetId(svc, subjectId, IngestionDecisionKind.IdentityKyc,
+                NormalizedIngestionStatus.Approved,
+                provider: IngestionProviderType.Jumio,
+                idempotencyKey: "kyc-jumio-approved");
+
+            // AML clean
+            await IngestAndGetId(svc, subjectId, IngestionDecisionKind.AmlSanctions,
+                NormalizedIngestionStatus.Approved,
+                provider: IngestionProviderType.ComplyAdvantage,
+                idempotencyKey: "aml-downgrade-clean");
+
+            // Initially ready
+            var r1 = await svc.GetSubjectReadinessAsync(subjectId, "corr");
+            Assert.That(r1.Readiness!.ReadinessState, Is.EqualTo(IngestionReadinessState.Ready));
+
+            // Second provider: Onfido flags same subject for manual review (e.g., additional screening)
+            await IngestAndGetId(svc, subjectId, IngestionDecisionKind.IdentityKyc,
+                NormalizedIngestionStatus.NeedsReview,
+                provider: IngestionProviderType.Onfido,
+                idempotencyKey: "kyc-onfido-needs-review");
+
+            // Latest-wins: NeedsReview is now the current KYC posture → PendingReview
+            var r2 = await svc.GetSubjectReadinessAsync(subjectId, "corr");
+            Assert.That(r2.Readiness!.ReadinessState, Is.EqualTo(IngestionReadinessState.PendingReview),
+                "Latest NeedsReview from second provider must downgrade from Ready to PendingReview");
+            Assert.That(r2.Readiness.CheckSummary[IngestionDecisionKind.IdentityKyc],
+                Is.EqualTo(NormalizedIngestionStatus.NeedsReview),
+                "Check summary must reflect most recent (NeedsReview) status");
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1006,8 +1048,8 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var cohortId = "cohort-statistics";
 
-            // 3 ready subjects
-            foreach (var i in Enumerable.Range(1, 3))
+            // 3 ready subjects (explicit loop for readability)
+            for (int i = 1; i <= 3; i++)
             {
                 var sub = $"stat-ready-{i}";
                 await IngestAndGetId(svc, sub, IngestionDecisionKind.IdentityKyc,
@@ -1018,8 +1060,8 @@ namespace BiatecTokensTests
                     idempotencyKey: $"aml-stat-{i}");
             }
 
-            // 2 pending subjects
-            foreach (var i in Enumerable.Range(1, 2))
+            // 2 pending subjects (explicit loop for readability)
+            for (int i = 1; i <= 2; i++)
             {
                 var sub = $"stat-pend-{i}";
                 await IngestAndGetId(svc, sub, IngestionDecisionKind.IdentityKyc,
@@ -1033,10 +1075,12 @@ namespace BiatecTokensTests
                 provider: IngestionProviderType.ComplyAdvantage,
                 idempotencyKey: "aml-stat-blocked");
 
-            var allSubjects = Enumerable.Range(1, 3).Select(i => $"stat-ready-{i}")
-                .Concat(Enumerable.Range(1, 2).Select(i => $"stat-pend-{i}"))
-                .Append("stat-blocked-1")
-                .ToList();
+            var allSubjects = new List<string>
+            {
+                "stat-ready-1", "stat-ready-2", "stat-ready-3",
+                "stat-pend-1", "stat-pend-2",
+                "stat-blocked-1"
+            };
 
             await svc.UpsertCohortAsync(new UpsertCohortRequest
             {
