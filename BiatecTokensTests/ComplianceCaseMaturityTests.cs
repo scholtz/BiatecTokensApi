@@ -1145,5 +1145,433 @@ namespace BiatecTokensTests
             Assert.That(topBlocker.Title, Is.Not.Null.And.Not.Empty);
             Assert.That(topBlocker.RemediationHint, Is.Not.Null.And.Not.Empty);
         }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // DeriveNextAction — plain-language next-action per state
+        // ═════════════════════════════════════════════════════════════════════
+
+        [TestCase(ComplianceCaseState.Intake,           "evidence",     TestName = "NextAction_Intake_ProvidesEvidenceGuidance")]
+        [TestCase(ComplianceCaseState.EvidencePending,  "evidence",     TestName = "NextAction_EvidencePending_ProvidesEvidenceGuidance")]
+        [TestCase(ComplianceCaseState.UnderReview,      "review",       TestName = "NextAction_UnderReview_ProvidesReviewGuidance")]
+        [TestCase(ComplianceCaseState.Escalated,        "escalation",   TestName = "NextAction_Escalated_ProvidesEscalationGuidance")]
+        [TestCase(ComplianceCaseState.Remediating,      "remediat",     TestName = "NextAction_Remediating_ProvidesRemediationGuidance")]
+        [TestCase(ComplianceCaseState.Rejected,         "rejected",     TestName = "NextAction_Rejected_ProvidesRejectedGuidance")]
+        public async Task NextAction_State_ContainsKeyword(ComplianceCaseState state, string keyword)
+        {
+            var tp  = new FakeTimeProvider(_baseline);
+            var svc = CreateService(timeProvider: tp);
+            var caseId = await CreateCaseAsync(svc);
+
+            // Add valid evidence so state transitions succeed
+            await svc.AddEvidenceAsync(caseId, new AddEvidenceRequest
+            {
+                EvidenceType = "KYC", Status = CaseEvidenceStatus.Valid,
+                CapturedAt = _baseline, ExpiresAt = _baseline.AddDays(365)
+            }, "actor");
+
+            // Drive to target state
+            if (state != ComplianceCaseState.Intake)
+                await svc.TransitionStateAsync(caseId, new TransitionCaseStateRequest { NewState = ComplianceCaseState.EvidencePending }, "actor");
+            if (state == ComplianceCaseState.UnderReview || state == ComplianceCaseState.Escalated || state == ComplianceCaseState.Remediating || state == ComplianceCaseState.Rejected || state == ComplianceCaseState.Approved)
+                await svc.TransitionStateAsync(caseId, new TransitionCaseStateRequest { NewState = ComplianceCaseState.UnderReview }, "actor");
+            if (state == ComplianceCaseState.Escalated)
+                await svc.TransitionStateAsync(caseId, new TransitionCaseStateRequest { NewState = ComplianceCaseState.Escalated }, "actor");
+            if (state == ComplianceCaseState.Remediating)
+                await svc.TransitionStateAsync(caseId, new TransitionCaseStateRequest { NewState = ComplianceCaseState.Remediating }, "actor");
+            if (state == ComplianceCaseState.Rejected)
+                await svc.TransitionStateAsync(caseId, new TransitionCaseStateRequest { NewState = ComplianceCaseState.Rejected }, "actor");
+
+            var summary = await svc.GetCaseSummaryAsync(caseId, "actor");
+            Assert.That(summary.Summary!.NextActionDescription, Does.Contain(keyword).IgnoreCase,
+                $"State={state}: expected NextActionDescription to contain '{keyword}', got: '{summary.Summary.NextActionDescription}'");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // All 8 CaseDecisionKind values can be recorded
+        // ═════════════════════════════════════════════════════════════════════
+
+        [TestCase(CaseDecisionKind.KycApproval,              false, TestName = "DecisionKind_KycApproval_CanBeRecorded")]
+        [TestCase(CaseDecisionKind.KycRejection,             true,  TestName = "DecisionKind_KycRejection_CanBeRecorded")]
+        [TestCase(CaseDecisionKind.AmlClear,                 false, TestName = "DecisionKind_AmlClear_CanBeRecorded")]
+        [TestCase(CaseDecisionKind.AmlHit,                   true,  TestName = "DecisionKind_AmlHit_CanBeRecorded")]
+        [TestCase(CaseDecisionKind.SanctionsReview,          false, TestName = "DecisionKind_SanctionsReview_CanBeRecorded")]
+        [TestCase(CaseDecisionKind.ApprovalWorkflowOutcome,  false, TestName = "DecisionKind_ApprovalWorkflowOutcome_CanBeRecorded")]
+        [TestCase(CaseDecisionKind.ManualReviewDecision,     false, TestName = "DecisionKind_ManualReviewDecision_CanBeRecorded")]
+        [TestCase(CaseDecisionKind.EscalationDecision,       true,  TestName = "DecisionKind_EscalationDecision_CanBeRecorded")]
+        public async Task DecisionKind_CanBeRecordedAndRetrieved(CaseDecisionKind kind, bool isAdverse)
+        {
+            var svc = CreateService();
+            var caseId = await CreateCaseAsync(svc);
+
+            var add = await svc.AddDecisionRecordAsync(caseId, new AddDecisionRecordRequest
+            {
+                Kind = kind,
+                DecisionSummary = $"Decision of type {kind}",
+                IsAdverse = isAdverse
+            }, "actor");
+
+            Assert.That(add.Success, Is.True);
+            Assert.That(add.DecisionRecord!.Kind, Is.EqualTo(kind));
+            Assert.That(add.DecisionRecord.IsAdverse, Is.EqualTo(isAdverse));
+
+            var history = await svc.GetDecisionHistoryAsync(caseId, "actor");
+            Assert.That(history.Decisions[0].Kind, Is.EqualTo(kind));
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // All 6 CaseHandoffStage values can be set
+        // ═════════════════════════════════════════════════════════════════════
+
+        [TestCase(CaseHandoffStage.ApprovalWorkflowPending, false, TestName = "HandoffStage_ApprovalWorkflowPending_NotReady")]
+        [TestCase(CaseHandoffStage.RegulatoryPackagePending, false, TestName = "HandoffStage_RegulatoryPackagePending_NotReady")]
+        [TestCase(CaseHandoffStage.DistributionPending,      false, TestName = "HandoffStage_DistributionPending_NotReady")]
+        [TestCase(CaseHandoffStage.Completed,               true,  TestName = "HandoffStage_Completed_IsReady")]
+        [TestCase(CaseHandoffStage.Failed,                  false, TestName = "HandoffStage_Failed_NotReady")]
+        public async Task HandoffStage_IsHandoffReadyMatchesExpectation(CaseHandoffStage stage, bool expectedReady)
+        {
+            var svc = CreateService();
+            var caseId = await CreateCaseAsync(svc);
+
+            var result = await svc.UpdateHandoffStatusAsync(caseId, new UpdateHandoffStatusRequest
+            {
+                Stage = stage
+            }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.HandoffStatus!.IsHandoffReady, Is.EqualTo(expectedReady),
+                $"Stage={stage}: expected IsHandoffReady={expectedReady}");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // CaseSummary contract shape — all fields present and typed
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task CaseSummary_ContractShape_AllRequiredFieldsPresent()
+        {
+            var tp  = new FakeTimeProvider(_baseline);
+            var svc = CreateService(timeProvider: tp);
+            var caseId = await CreateCaseAsync(svc, "issuer-shape", "subject-shape", CaseType.InvestorEligibility);
+
+            await svc.AddEvidenceAsync(caseId, new AddEvidenceRequest
+            {
+                EvidenceType = "KYC", Status = CaseEvidenceStatus.Valid,
+                CapturedAt = _baseline, ExpiresAt = _baseline.AddDays(180)
+            }, "actor");
+            await svc.AssignCaseAsync(caseId, new AssignCaseRequest { ReviewerId = "r-1" }, "actor");
+            await svc.SetSlaMetadataAsync(caseId, new SetSlaMetadataRequest
+            {
+                ReviewDueAt = _baseline.AddDays(5)
+            }, "actor");
+            await svc.AddDecisionRecordAsync(caseId, new AddDecisionRecordRequest
+            {
+                Kind = CaseDecisionKind.KycApproval, DecisionSummary = "OK", IsAdverse = false
+            }, "actor");
+
+            var result = await svc.GetCaseSummaryAsync(caseId, "actor");
+
+            Assert.That(result.Success, Is.True);
+            var s = result.Summary!;
+
+            // All required fields for a frontend worklist card
+            Assert.That(s.CaseId,               Is.Not.Null.And.Not.Empty, "CaseId");
+            Assert.That(s.IssuerId,             Is.EqualTo("issuer-shape"), "IssuerId");
+            Assert.That(s.SubjectId,            Is.EqualTo("subject-shape"), "SubjectId");
+            Assert.That(s.Type,                 Is.EqualTo(CaseType.InvestorEligibility), "Type");
+            Assert.That(s.State,                Is.EqualTo(ComplianceCaseState.Intake), "State");
+            Assert.That(s.AssignedReviewerId,   Is.EqualTo("r-1"), "AssignedReviewerId");
+            Assert.That(s.BlockerCount,         Is.EqualTo(0), "BlockerCount");
+            Assert.That(s.OpenEscalations,      Is.EqualTo(0), "OpenEscalations");
+            Assert.That(s.OpenRemediationTasks, Is.EqualTo(0), "OpenRemediationTasks");
+            Assert.That(s.HasStaleEvidence,     Is.False, "HasStaleEvidence");
+            Assert.That(s.UrgencyBand,          Is.EqualTo(CaseUrgencyBand.Warning), "UrgencyBand (5d → Warning)");
+            Assert.That(s.DecisionCount,        Is.EqualTo(1), "DecisionCount");
+            Assert.That(s.HandoffStage,         Is.EqualTo(CaseHandoffStage.NotStarted), "HandoffStage");
+            Assert.That(s.NextActionDescription, Is.Not.Null.And.Not.Empty, "NextActionDescription");
+            Assert.That(s.CreatedAt,            Is.Not.EqualTo(default(DateTimeOffset)), "CreatedAt");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // Urgency band thresholds
+        // ═════════════════════════════════════════════════════════════════════
+
+        [TestCase(1, CaseUrgencyBand.Critical, TestName = "UrgencyBand_1DayRemaining_IsCritical")]
+        [TestCase(3, CaseUrgencyBand.Critical, TestName = "UrgencyBand_3DaysRemaining_IsCritical")]
+        [TestCase(4, CaseUrgencyBand.Warning,  TestName = "UrgencyBand_4DaysRemaining_IsWarning")]
+        [TestCase(7, CaseUrgencyBand.Warning,  TestName = "UrgencyBand_7DaysRemaining_IsWarning")]
+        [TestCase(8, CaseUrgencyBand.Normal,   TestName = "UrgencyBand_8DaysRemaining_IsNormal")]
+        public async Task UrgencyBand_SlaTime_MapsToCorrectBand(int daysRemaining, CaseUrgencyBand expectedBand)
+        {
+            var tp  = new FakeTimeProvider(_baseline);
+            var svc = CreateService(timeProvider: tp);
+            var caseId = await CreateCaseAsync(svc);
+
+            await svc.SetSlaMetadataAsync(caseId, new SetSlaMetadataRequest
+            {
+                ReviewDueAt = _baseline.AddDays(daysRemaining)
+            }, "actor");
+
+            var summary = await svc.GetCaseSummaryAsync(caseId, "actor");
+            Assert.That(summary.Summary!.UrgencyBand, Is.EqualTo(expectedBand),
+                $"Expected {expectedBand} for {daysRemaining} days remaining");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // ListCaseSummaries — pagination
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task ListCaseSummaries_Pagination_ReturnsCorrectPage()
+        {
+            var svc = CreateService();
+            for (int i = 0; i < 10; i++)
+                await CreateCaseAsync(svc, subjectId: $"subject-{i}");
+
+            // Page 1: first 5
+            var page1 = await svc.ListCaseSummariesAsync(
+                new ListComplianceCasesRequest { Page = 1, PageSize = 5 }, "actor");
+            // Page 2: next 5
+            var page2 = await svc.ListCaseSummariesAsync(
+                new ListComplianceCasesRequest { Page = 2, PageSize = 5 }, "actor");
+
+            Assert.That(page1.Summaries.Count, Is.EqualTo(5));
+            Assert.That(page2.Summaries.Count, Is.EqualTo(5));
+            Assert.That(page1.TotalCount, Is.EqualTo(10));
+
+            // No overlap in CaseIds
+            var ids1 = page1.Summaries.Select(s => s.CaseId).ToHashSet();
+            var ids2 = page2.Summaries.Select(s => s.CaseId).ToHashSet();
+            Assert.That(ids1.Intersect(ids2), Is.Empty, "Pages should not overlap");
+        }
+
+        [Test]
+        public async Task ListCaseSummaries_FilterByIssuerId_ReturnsOnlyMatchingIssuer()
+        {
+            var svc = CreateService();
+            await CreateCaseAsync(svc, "issuer-A", "subject-1");
+            await CreateCaseAsync(svc, "issuer-A", "subject-2");
+            await CreateCaseAsync(svc, "issuer-B", "subject-3");
+
+            var result = await svc.ListCaseSummariesAsync(
+                new ListComplianceCasesRequest { IssuerId = "issuer-A" }, "actor");
+
+            Assert.That(result.Summaries.Count, Is.EqualTo(2));
+            Assert.That(result.Summaries.All(s => s.IssuerId == "issuer-A"), Is.True);
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // Decision record — explanation and provider reference are preserved
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task AddDecisionRecord_ExplanationAndProviderRef_ArePersisted()
+        {
+            var svc = CreateService();
+            var caseId = await CreateCaseAsync(svc);
+
+            await svc.AddDecisionRecordAsync(caseId, new AddDecisionRecordRequest
+            {
+                Kind = CaseDecisionKind.KycApproval,
+                DecisionSummary = "KYC passed",
+                Explanation = "Passport and selfie matched within threshold",
+                ProviderName = "Jumio",
+                ProviderReference = "JMO-2025-XYZ-001",
+                IsAdverse = false
+            }, "analyst-1");
+
+            var history = await svc.GetDecisionHistoryAsync(caseId, "actor");
+            var record = history.Decisions[0];
+
+            Assert.That(record.Explanation,       Is.EqualTo("Passport and selfie matched within threshold"));
+            Assert.That(record.ProviderName,      Is.EqualTo("Jumio"));
+            Assert.That(record.ProviderReference, Is.EqualTo("JMO-2025-XYZ-001"));
+            Assert.That(record.DecidedBy,         Is.EqualTo("analyst-1"));
+            Assert.That(record.DecidedAt,         Is.Not.EqualTo(default(DateTimeOffset)));
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // Blocker: EvaluateBlockers returns a copy, not a live reference
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task EvaluateBlockers_AddingEvidenceAfterEvaluation_NewEvaluationReflectsChange()
+        {
+            var tp  = new FakeTimeProvider(_baseline);
+            var svc = CreateService(timeProvider: tp);
+            var caseId = await CreateCaseAsync(svc);
+
+            // First evaluation: no evidence → blocked
+            var before = await svc.EvaluateBlockersAsync(caseId, "actor");
+            Assert.That(before.CanProceed, Is.False);
+
+            // Add valid evidence
+            await svc.AddEvidenceAsync(caseId, new AddEvidenceRequest
+            {
+                EvidenceType = "KYC", Status = CaseEvidenceStatus.Valid,
+                CapturedAt = _baseline, ExpiresAt = _baseline.AddDays(90)
+            }, "actor");
+
+            // Second evaluation: evidence present → can proceed
+            var after = await svc.EvaluateBlockersAsync(caseId, "actor");
+            Assert.That(after.CanProceed, Is.True);
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // Handoff stage progression — happy path
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task HandoffStatus_FullStageProgression_ApprovalToCompleted()
+        {
+            var svc = CreateService();
+            var caseId = await CreateCaseAsync(svc);
+
+            // Drive through all non-terminal stages
+            foreach (var stage in new[]
+            {
+                CaseHandoffStage.ApprovalWorkflowPending,
+                CaseHandoffStage.RegulatoryPackagePending,
+                CaseHandoffStage.DistributionPending,
+                CaseHandoffStage.Completed
+            })
+            {
+                var r = await svc.UpdateHandoffStatusAsync(caseId, new UpdateHandoffStatusRequest
+                {
+                    Stage = stage
+                }, "actor");
+
+                Assert.That(r.Success, Is.True, $"Failed to set stage={stage}");
+                Assert.That(r.HandoffStatus!.Stage, Is.EqualTo(stage));
+            }
+
+            var finalGet = await svc.GetHandoffStatusAsync(caseId, "actor");
+            Assert.That(finalGet.HandoffStatus!.Stage, Is.EqualTo(CaseHandoffStage.Completed));
+            Assert.That(finalGet.HandoffStatus.IsHandoffReady, Is.True);
+            Assert.That(finalGet.HandoffStatus.HandoffCompletedAt, Is.Not.Null);
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // Webhook events are emitted for all major maturity state transitions
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task WebhookEvents_BothNewEventTypes_AreEmittedDuringLifecycle()
+        {
+            var (svc, ws, _) = CreateServiceWithCapture();
+            var caseId = await CreateCaseAsync(svc);
+
+            await svc.AddDecisionRecordAsync(caseId, new AddDecisionRecordRequest
+            {
+                Kind = CaseDecisionKind.KycApproval, DecisionSummary = "KYC OK", IsAdverse = false
+            }, "actor");
+
+            await svc.UpdateHandoffStatusAsync(caseId, new UpdateHandoffStatusRequest
+            {
+                Stage = CaseHandoffStage.Completed
+            }, "actor");
+
+            await WaitForEventAsync(ws, WebhookEventType.ComplianceCaseDecisionRecorded);
+            await WaitForEventAsync(ws, WebhookEventType.ComplianceCaseHandoffStatusChanged);
+
+            lock (ws.EmittedEvents)
+            {
+                Assert.That(ws.EmittedEvents.Any(e => e.EventType == WebhookEventType.ComplianceCaseDecisionRecorded),
+                    Is.True, "ComplianceCaseDecisionRecorded must be emitted");
+                Assert.That(ws.EmittedEvents.Any(e => e.EventType == WebhookEventType.ComplianceCaseHandoffStatusChanged),
+                    Is.True, "ComplianceCaseHandoffStatusChanged must be emitted");
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // GetDecisionHistory — includes DecidedAt timestamp on each record
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task GetDecisionHistory_TimestampsMatchTimeProvider()
+        {
+            var tp  = new FakeTimeProvider(_baseline);
+            var svc = CreateService(timeProvider: tp);
+            var caseId = await CreateCaseAsync(svc);
+
+            var t1 = _baseline;
+            await svc.AddDecisionRecordAsync(caseId, new AddDecisionRecordRequest
+            {
+                Kind = CaseDecisionKind.KycApproval, DecisionSummary = "Pass", IsAdverse = false
+            }, "actor");
+            tp.Advance(TimeSpan.FromHours(2));
+
+            var t2 = tp.GetUtcNow();
+            await svc.AddDecisionRecordAsync(caseId, new AddDecisionRecordRequest
+            {
+                Kind = CaseDecisionKind.AmlClear, DecisionSummary = "Clear", IsAdverse = false
+            }, "actor");
+
+            var history = await svc.GetDecisionHistoryAsync(caseId, "actor");
+
+            Assert.That(history.Decisions[0].DecidedAt, Is.EqualTo(t1));
+            Assert.That(history.Decisions[1].DecidedAt, Is.EqualTo(t2));
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // EvaluateBlockers — non-blocking remediation task does NOT create blocker
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task EvaluateBlockers_NonBlockingRemediationTask_DoesNotBlock()
+        {
+            var tp  = new FakeTimeProvider(_baseline);
+            var svc = CreateService(timeProvider: tp);
+            var caseId = await CreateCaseAsync(svc);
+            await svc.AddEvidenceAsync(caseId, new AddEvidenceRequest
+            {
+                EvidenceType = "KYC", Status = CaseEvidenceStatus.Valid,
+                CapturedAt = _baseline, ExpiresAt = _baseline.AddDays(90)
+            }, "actor");
+            await svc.AddRemediationTaskAsync(caseId, new AddRemediationTaskRequest
+            {
+                Title = "Provide additional document (optional)",
+                IsBlockingCase = false  // non-blocking
+            }, "actor");
+
+            var result = await svc.EvaluateBlockersAsync(caseId, "actor");
+
+            Assert.That(result.FailClosedBlockers, Has.None.Matches<CaseBlocker>(
+                b => b.Category == CaseBlockerCategory.OpenRemediationTask),
+                "Non-blocking remediation tasks should not produce a fail-closed blocker");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // CaseSummary.IsHandoffReady default (no handoff set → true = case is handoff-eligible)
+        // ═════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task GetCaseSummary_NoHandoffSet_IsHandoffReadyIsTrue()
+        {
+            var svc = CreateService();
+            var caseId = await CreateCaseAsync(svc);
+
+            var result = await svc.GetCaseSummaryAsync(caseId, "actor");
+
+            // No handoff initiated yet → IsHandoffReady = true (case is eligible for handoff)
+            // HandoffStage = NotStarted explicitly communicates no handoff is in progress
+            Assert.That(result.Summary!.IsHandoffReady, Is.True);
+            Assert.That(result.Summary.HandoffStage, Is.EqualTo(CaseHandoffStage.NotStarted));
+        }
+
+        [Test]
+        public async Task GetCaseSummary_HandoffPending_IsHandoffReadyIsFalse()
+        {
+            var svc = CreateService();
+            var caseId = await CreateCaseAsync(svc);
+            await svc.UpdateHandoffStatusAsync(caseId, new UpdateHandoffStatusRequest
+            {
+                Stage = CaseHandoffStage.ApprovalWorkflowPending
+            }, "actor");
+
+            var result = await svc.GetCaseSummaryAsync(caseId, "actor");
+
+            Assert.That(result.Summary!.IsHandoffReady, Is.False);
+            Assert.That(result.Summary.HandoffStage, Is.EqualTo(CaseHandoffStage.ApprovalWorkflowPending));
+        }
     }
 }
