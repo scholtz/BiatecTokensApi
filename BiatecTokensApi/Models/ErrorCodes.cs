@@ -534,5 +534,11 @@ namespace BiatecTokensApi.Models
 
         /// <summary>Idempotency key was reused with different request parameters</summary>
         public const string COMPLIANCE_IDEMPOTENCY_KEY_MISMATCH = "COMPLIANCE_IDEMPOTENCY_KEY_MISMATCH";
+
+        /// <summary>The requested state transition is not permitted by the state machine</summary>
+        public const string INVALID_STATE_TRANSITION = "INVALID_STATE_TRANSITION";
+
+        /// <summary>A field value is invalid (e.g., date in the past, out-of-range number)</summary>
+        public const string INVALID_FIELD_VALUE = "INVALID_FIELD_VALUE";
     }
 }

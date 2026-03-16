@@ -463,6 +463,13 @@ namespace BiatecTokensApi
                     webhookService: sp.GetRequiredService<IWebhookService>(),
                     repository: sp.GetRequiredService<BiatecTokensApi.Repositories.Interface.IComplianceCaseRepository>()));
 
+            // Register Ongoing Monitoring service for continuous compliance oversight and
+            // periodic reassessment of approved investors and issuers
+            builder.Services.AddSingleton<IOngoingMonitoringService>(sp =>
+                new OngoingMonitoringService(
+                    sp.GetRequiredService<ILogger<OngoingMonitoringService>>(),
+                    webhookService: sp.GetRequiredService<IWebhookService>()));
+
             // Register Regulatory Evidence Package service for regulator-facing evidence packages,
             // package assembly, readiness evaluation, and audience-aware manifest generation
             builder.Services.AddSingleton<IRegulatoryEvidencePackageService, RegulatoryEvidencePackageService>();

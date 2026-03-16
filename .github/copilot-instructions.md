@@ -1516,3 +1516,34 @@ report_progress("Initial plan for XYZ", "- [ ] Create models\n- [ ] Create servi
 # [implement models, service, controller, tests first]
 report_progress("Implement XYZ feature", "- [x] Created models\n- [x] Created service\n- [x] 65 tests passing")
 ```
+
+**Lesson Learned (2026-03-16 - Ongoing Monitoring PR, Issue #574)**: CI failed on `EmitEvent_SameEventEmittedTwice_DeliversTwice` because the test used `await Task.Delay(300)` to wait for 2 fire-and-forget webhook deliveries. When new test classes are added (especially integration tests using WebApplicationFactory or multiple `Task.Run` patterns), the thread pool becomes more saturated, causing fixed-delay webhook tests to become flaky.
+
+**Root cause**: Fire-and-forget webhook delivery (`_ = Task.Run(...)`) dispatches background tasks to the thread pool. Under load (many parallel tests, WebApplicationFactory startup, etc.), the thread pool queues tasks and 300ms is insufficient for 2 deliveries to complete.
+
+**MANDATORY RULES for webhook delivery tests**:
+
+1. **NEVER use fixed `Task.Delay(N)` to wait for fire-and-forget deliveries.** Always use polling:
+   ```csharp
+   // ❌ WRONG: Fixed delay — fails under CI thread pool pressure
+   await svc.EmitEventAsync(evt);
+   await Task.Delay(300);
+   Assert.That(deliveryCount, Is.EqualTo(1)); // flaky!
+   
+   // ✅ CORRECT: Poll until condition is met or timeout
+   await svc.EmitEventAsync(evt);
+   var deadline = DateTime.UtcNow.AddSeconds(5);
+   while (deliveryCount < 1 && DateTime.UtcNow < deadline)
+       await Task.Delay(20);
+   Assert.That(deliveryCount, Is.EqualTo(1)); // reliable
+   ```
+
+2. **When adding new webhook event types (enum values), ALWAYS add `[TestCase]` entries** to the `EmitEvent_AllEventTypes_CanBeDelivered` test in `WebhookServiceTests.cs`. Failing to do so leaves coverage gaps and is a code review finding.
+
+3. **When adding new features that increase the number of test classes or `Task.Run` usages**, review all existing `Task.Delay`-based assertions in `WebhookServiceTests.cs` and convert any that assert on fire-and-forget delivery counts to use polling.
+
+**Corrective actions taken in this PR**:
+1. ✅ Replaced `await Task.Delay(300)` with polling loop (5s timeout) in `EmitEvent_SameEventEmittedTwice_DeliversTwice`
+2. ✅ Replaced `await Task.Delay(200)` with polling loop in `EmitEvent_AllEventTypes_CanBeDelivered`
+3. ✅ Added 22 new `[TestCase]` entries for all missing webhook event types (12 ComplianceCase + 9 MonitoringTask)
+4. ✅ Increased `OngoingMonitoringTests.cs` from 79 to 111+ tests with additional state transition, validation, timeline, and webhook data tests
