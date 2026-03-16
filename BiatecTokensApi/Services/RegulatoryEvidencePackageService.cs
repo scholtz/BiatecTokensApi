@@ -286,7 +286,7 @@ namespace BiatecTokensApi.Services
             var kycAmlSummary = BuildKycAmlSummary(subjectId, sources, now);
 
             // Build contradictions (fail-closed: any active contradiction blocks readiness)
-            var contradictions = BuildContradictions(subjectId, sources);
+            var contradictions = BuildContradictions(subjectId, sources, now);
             var openContradictions = contradictions.Where(c => !c.IsResolved).ToList();
 
             // Build remediation items
@@ -498,7 +498,7 @@ namespace BiatecTokensApi.Services
         // ── Contradiction builder ─────────────────────────────────────────────
 
         private List<RegContradictionItem> BuildContradictions(
-            string subjectId, List<RegEvidenceSourceEntry> sources)
+            string subjectId, List<RegEvidenceSourceEntry> sources, DateTime now)
         {
             // In a production implementation, contradictions would be queried from
             // KycAmlDecisionIngestionService where NormalizedIngestionStatus == Contradiction.
@@ -525,7 +525,7 @@ namespace BiatecTokensApi.Services
                         $"kyc-{subjectId}-prev"
                     },
                     Description = "Two KYC decisions for this subject produced conflicting outcomes. Manual review required.",
-                    DetectedAt = DateTime.UtcNow.AddDays(-5),
+                    DetectedAt = now.AddDays(-5),
                     IsResolved = false
                 }
             };
