@@ -486,6 +486,13 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IApprovalWorkflowRepository, BiatecTokensApi.Repositories.ApprovalWorkflowRepository>();
             builder.Services.AddSingleton<IApprovalWorkflowService, ApprovalWorkflowService>();
 
+            // Register Compliance Operations orchestration service (Issue: compliance ops API)
+            builder.Services.AddSingleton<IComplianceOperationsService>(sp =>
+                new ComplianceOperationsService(
+                    sp.GetRequiredService<ILogger<ComplianceOperationsService>>(),
+                    null,
+                    sp.GetService<IWebhookService>()));
+
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
 
