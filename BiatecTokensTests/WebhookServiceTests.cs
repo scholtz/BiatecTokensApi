@@ -1100,6 +1100,11 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.ComplianceCaseApprovalReady)]
         [TestCase(WebhookEventType.ComplianceCaseFollowUpCreated)]
         [TestCase(WebhookEventType.ComplianceCaseExported)]
+        // Case lifecycle semantic events (evidence requested, approval granted/denied, rework)
+        [TestCase(WebhookEventType.ComplianceCaseEvidenceRequested)]
+        [TestCase(WebhookEventType.ComplianceCaseApprovalGranted)]
+        [TestCase(WebhookEventType.ComplianceCaseApprovalDenied)]
+        [TestCase(WebhookEventType.ComplianceCaseReworkRequested)]
         // Ongoing monitoring task events
         [TestCase(WebhookEventType.MonitoringTaskCreated)]
         [TestCase(WebhookEventType.MonitoringTaskDueSoon)]
