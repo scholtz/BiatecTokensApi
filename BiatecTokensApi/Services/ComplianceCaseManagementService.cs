@@ -1,8 +1,13 @@
 using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models;
 using BiatecTokensApi.Models.ComplianceCaseManagement;
+using BiatecTokensApi.Models.Webhook;
+using BiatecTokensApi.Repositories.Interface;
 using BiatecTokensApi.Services.Interface;
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace BiatecTokensApi.Services
 {
@@ -11,12 +16,16 @@ namespace BiatecTokensApi.Services
     /// Uses <see cref="ConcurrentDictionary{TKey,TValue}"/> for thread-safe storage.
     /// Enforces fail-closed readiness evaluation, valid state-transition matrix,
     /// idempotent case creation, and automatic evidence-freshness transitions.
+    /// Emits compliance lifecycle events via <see cref="IWebhookService"/> when injected,
+    /// and mirrors case state to <see cref="IComplianceCaseRepository"/> for durable persistence.
     /// </summary>
     public class ComplianceCaseManagementService : IComplianceCaseManagementService
     {
         private readonly ILogger<ComplianceCaseManagementService> _logger;
         private readonly TimeProvider _timeProvider;
         private readonly TimeSpan _defaultEvidenceValidity;
+        private readonly IWebhookService? _webhookService;
+        private readonly IComplianceCaseRepository? _repository;
 
         // Primary store: caseId → case
         private readonly ConcurrentDictionary<string, ComplianceCase> _cases = new();
@@ -49,25 +58,31 @@ namespace BiatecTokensApi.Services
         /// <param name="logger">Logger instance.</param>
         /// <param name="timeProvider">Time provider (inject a fake for tests).</param>
         /// <param name="defaultEvidenceValidity">How long evidence is considered fresh (default 90 days).</param>
+        /// <param name="webhookService">Optional webhook service for lifecycle event emission.</param>
+        /// <param name="repository">Optional repository for durable case persistence.</param>
         public ComplianceCaseManagementService(
             ILogger<ComplianceCaseManagementService> logger,
             TimeProvider? timeProvider = null,
-            TimeSpan? defaultEvidenceValidity = null)
+            TimeSpan? defaultEvidenceValidity = null,
+            IWebhookService? webhookService = null,
+            IComplianceCaseRepository? repository = null)
         {
             _logger = logger;
             _timeProvider = timeProvider ?? TimeProvider.System;
             _defaultEvidenceValidity = defaultEvidenceValidity ?? TimeSpan.FromDays(90);
+            _webhookService = webhookService;
+            _repository = repository;
         }
 
         // ── CreateCaseAsync ────────────────────────────────────────────────────
 
         /// <inheritdoc/>
-        public Task<CreateComplianceCaseResponse> CreateCaseAsync(CreateComplianceCaseRequest request, string actorId)
+        public async Task<CreateComplianceCaseResponse> CreateCaseAsync(CreateComplianceCaseRequest request, string actorId)
         {
             if (string.IsNullOrWhiteSpace(request.IssuerId))
-                return Task.FromResult(Fail<CreateComplianceCaseResponse>("IssuerId is required", ErrorCodes.MISSING_REQUIRED_FIELD));
+                return Fail<CreateComplianceCaseResponse>("IssuerId is required", ErrorCodes.MISSING_REQUIRED_FIELD);
             if (string.IsNullOrWhiteSpace(request.SubjectId))
-                return Task.FromResult(Fail<CreateComplianceCaseResponse>("SubjectId is required", ErrorCodes.MISSING_REQUIRED_FIELD));
+                return Fail<CreateComplianceCaseResponse>("SubjectId is required", ErrorCodes.MISSING_REQUIRED_FIELD);
 
             var idempotencyKey = $"{request.IssuerId}|{request.SubjectId}|{request.Type}";
 
@@ -81,12 +96,12 @@ namespace BiatecTokensApi.Services
                     LoggingHelper.SanitizeLogInput(request.IssuerId),
                     LoggingHelper.SanitizeLogInput(actorId));
 
-                return Task.FromResult(new CreateComplianceCaseResponse
+                return new CreateComplianceCaseResponse
                 {
                     Success = true,
                     Case = existingCase,
                     WasIdempotent = true
-                });
+                };
             }
 
             var now = _timeProvider.GetUtcNow();
@@ -118,18 +133,29 @@ namespace BiatecTokensApi.Services
             _cases[caseId] = newCase;
             _idempotencyIndex[idempotencyKey] = caseId;
 
+            // Persist to durable repository when available
+            if (_repository != null)
+            {
+                await _repository.SaveCaseAsync(newCase);
+                await _repository.AddOrGetIdempotencyKeyAsync(idempotencyKey, caseId);
+            }
+
             _logger.LogInformation(
                 "CreateCase success. CaseId={CaseId} IssuerId={IssuerId} Actor={Actor}",
                 LoggingHelper.SanitizeLogInput(caseId),
                 LoggingHelper.SanitizeLogInput(request.IssuerId),
                 LoggingHelper.SanitizeLogInput(actorId));
 
-            return Task.FromResult(new CreateComplianceCaseResponse
+            // Emit lifecycle webhook event (fire-and-forget)
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseCreated, actorId, caseId,
+                new { caseId, issuerId = request.IssuerId, subjectId = request.SubjectId, type = request.Type.ToString(), state = ComplianceCaseState.Intake.ToString() });
+
+            return new CreateComplianceCaseResponse
             {
                 Success = true,
                 Case = newCase,
                 WasIdempotent = false
-            });
+            };
         }
 
         // ── GetCaseAsync ───────────────────────────────────────────────────────
@@ -193,12 +219,14 @@ namespace BiatecTokensApi.Services
                 return Task.FromResult(Fail<UpdateComplianceCaseResponse>($"Case {caseId} not found", ErrorCodes.NOT_FOUND));
 
             var now = _timeProvider.GetUtcNow();
+            bool assignmentChanged = false;
 
             if (request.Priority.HasValue)
                 c.Priority = request.Priority.Value;
             if (request.AssignedReviewerId != null)
             {
                 c.AssignedReviewerId = request.AssignedReviewerId;
+                assignmentChanged = true;
                 c.Timeline.Add(BuildTimelineEntry(caseId, CaseTimelineEventType.ReviewerAssigned, actorId, now,
                     description: $"Reviewer assigned: {request.AssignedReviewerId}"));
             }
@@ -210,6 +238,12 @@ namespace BiatecTokensApi.Services
                 c.LinkedDecisionIds.AddRange(request.AdditionalLinkedDecisionIds);
 
             c.UpdatedAt = now;
+
+            _ = PersistCaseAsync(c);
+
+            if (assignmentChanged)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseAssignmentChanged, actorId, caseId,
+                    new { caseId, assignedReviewerId = request.AssignedReviewerId });
 
             return Task.FromResult(new UpdateComplianceCaseResponse { Success = true, Case = c });
         }
@@ -258,6 +292,16 @@ namespace BiatecTokensApi.Services
                 request.NewState.ToString(),
                 LoggingHelper.SanitizeLogInput(actorId));
 
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseStateTransitioned, actorId, caseId,
+                new { caseId, fromState = fromState.ToString(), toState = request.NewState.ToString(), reason = request.Reason });
+
+            // Emit ApprovalReady when case transitions to Approved state
+            if (request.NewState == ComplianceCaseState.Approved)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseApprovalReady, actorId, caseId,
+                    new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId });
+
             return Task.FromResult(new UpdateComplianceCaseResponse { Success = true, Case = c });
         }
 
@@ -302,6 +346,8 @@ namespace BiatecTokensApi.Services
                 description: $"Evidence added: {request.EvidenceType} (status={request.Status})",
                 metadata: new Dictionary<string, string> { ["evidenceId"] = evidenceId, ["evidenceType"] = request.EvidenceType }));
 
+            _ = PersistCaseAsync(c);
+
             return Task.FromResult(new GetComplianceCaseResponse { Success = true, Case = c });
         }
 
@@ -342,6 +388,11 @@ namespace BiatecTokensApi.Services
                 description: $"Remediation task added: {request.Title}",
                 metadata: new Dictionary<string, string> { ["taskId"] = taskId, ["isBlockingCase"] = request.IsBlockingCase.ToString() }));
 
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseRemediationTaskAdded, actorId, caseId,
+                new { caseId, taskId, title = request.Title, isBlockingCase = request.IsBlockingCase });
+
             return Task.FromResult(new GetComplianceCaseResponse { Success = true, Case = c });
         }
 
@@ -367,6 +418,11 @@ namespace BiatecTokensApi.Services
                 caseId, CaseTimelineEventType.RemediationTaskResolved, actorId, now,
                 description: $"Remediation task {request.Status}: {task.Title}",
                 metadata: new Dictionary<string, string> { ["taskId"] = taskId, ["status"] = request.Status.ToString() }));
+
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseRemediationTaskResolved, actorId, caseId,
+                new { caseId, taskId, status = request.Status.ToString() });
 
             return Task.FromResult(new GetComplianceCaseResponse { Success = true, Case = c });
         }
@@ -414,6 +470,11 @@ namespace BiatecTokensApi.Services
                 request.Type.ToString(),
                 LoggingHelper.SanitizeLogInput(actorId));
 
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseEscalationRaised, actorId, caseId,
+                new { caseId, escalationId, type = request.Type.ToString() });
+
             return Task.FromResult(new GetComplianceCaseResponse { Success = true, Case = c });
         }
 
@@ -440,6 +501,11 @@ namespace BiatecTokensApi.Services
                 caseId, CaseTimelineEventType.EscalationResolved, actorId, now,
                 description: $"Escalation resolved: {escalation.Type}",
                 metadata: new Dictionary<string, string> { ["escalationId"] = escalationId }));
+
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseEscalationResolved, actorId, caseId,
+                new { caseId, escalationId, type = escalation.Type.ToString() });
 
             return Task.FromResult(new GetComplianceCaseResponse { Success = true, Case = c });
         }
@@ -769,6 +835,12 @@ namespace BiatecTokensApi.Services
                 request.Outcome,
                 LoggingHelper.SanitizeLogInput(actorId));
 
+            if (_repository != null)
+                await _repository.SaveCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseMonitoringReviewRecorded, actorId, caseId,
+                new { caseId, reviewId, outcome = request.Outcome.ToString() });
+
             // Optionally create a follow-up case
             ComplianceCase? followUpCase = null;
             if (request.Outcome == MonitoringReviewOutcome.EscalationRequired && request.CreateFollowUpCase)
@@ -805,6 +877,9 @@ namespace BiatecTokensApi.Services
                         LoggingHelper.SanitizeLogInput(caseId),
                         LoggingHelper.SanitizeLogInput(followUpCase.CaseId),
                         LoggingHelper.SanitizeLogInput(actorId));
+
+                    EmitEventFireAndForget(WebhookEventType.ComplianceCaseFollowUpCreated, actorId, caseId,
+                        new { sourceCaseId = caseId, followUpCaseId = followUpCase.CaseId, reviewId });
                 }
             }
 
@@ -840,6 +915,11 @@ namespace BiatecTokensApi.Services
                     overdueCaseIds.Add(c.CaseId);
 
                     c.UpdatedAt = now;
+
+                    _ = PersistCaseAsync(c);
+
+                    EmitEventFireAndForget(WebhookEventType.ComplianceCaseOverdueReviewDetected, actorId, c.CaseId,
+                        new { caseId = c.CaseId, nextReviewDueAt = sched.NextReviewDueAt, frequency = sched.Frequency.ToString() });
 
                     _logger.LogWarning(
                         "MonitoringReviewOverdue. CaseId={CaseId} DueAt={Due} Actor={Actor}",
@@ -880,8 +960,164 @@ namespace BiatecTokensApi.Services
                 return (new SetMonitoringScheduleResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
             if (typeof(T) == typeof(RecordMonitoringReviewResponse))
                 return (new RecordMonitoringReviewResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(ExportComplianceCaseResponse))
+                return (new ExportComplianceCaseResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
 
             throw new InvalidOperationException($"Unsupported response type {typeof(T).Name}");
+        }
+
+        // ── ExportCaseAsync ────────────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public async Task<ExportComplianceCaseResponse> ExportCaseAsync(string caseId, ExportComplianceCaseRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Fail<ExportComplianceCaseResponse>($"Case {caseId} not found", ErrorCodes.NOT_FOUND);
+
+            var now = _timeProvider.GetUtcNow();
+
+            // Build ordered timeline
+            var timeline = c.Timeline.OrderBy(e => e.OccurredAt).ToList();
+
+            // Serialise the case snapshot and compute SHA-256 content hash
+            string snapshotJson;
+            string contentHash;
+            try
+            {
+                snapshotJson = JsonSerializer.Serialize(c, new JsonSerializerOptions { WriteIndented = false });
+                byte[] hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(snapshotJson));
+                contentHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ExportCase: failed to serialise case. CaseId={CaseId}", LoggingHelper.SanitizeLogInput(caseId));
+                return Fail<ExportComplianceCaseResponse>("Export generation failed: unable to serialise case data", "EXPORT_GENERATION_FAILED");
+            }
+
+            var exportId = Guid.NewGuid().ToString("N");
+            var metadata = new CaseExportMetadata
+            {
+                ExportId    = exportId,
+                ExportedAt  = now,
+                ExportedBy  = actorId,
+                Format      = request.Format,
+                SchemaVersion = "1.0",
+                ContentHash = contentHash
+            };
+
+            var bundle = new ComplianceCaseEvidenceBundle
+            {
+                CaseId       = caseId,
+                CaseSnapshot = c,
+                Timeline     = timeline,
+                Metadata     = metadata
+            };
+
+            // Append export record to durable repository (fail-closed on error)
+            if (_repository != null)
+            {
+                try
+                {
+                    await _repository.AppendExportRecordAsync(caseId, metadata);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "ExportCase: repository.AppendExportRecord failed. CaseId={CaseId}", LoggingHelper.SanitizeLogInput(caseId));
+                    return Fail<ExportComplianceCaseResponse>("Export generation failed: unable to record export in repository", "EXPORT_PERSISTENCE_FAILED");
+                }
+            }
+
+            // Append timeline entry to the live case
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.CaseExported, actorId, now,
+                description: $"Case evidence bundle exported. ExportId={exportId} Format={request.Format}",
+                metadata: new Dictionary<string, string> { ["exportId"] = exportId, ["format"] = request.Format }));
+
+            c.UpdatedAt = now;
+            _ = PersistCaseAsync(c);
+
+            _logger.LogInformation(
+                "CaseExported. CaseId={CaseId} ExportId={ExportId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(exportId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseExported, actorId, caseId,
+                new { caseId, exportId, format = request.Format });
+
+            return new ExportComplianceCaseResponse { Success = true, Bundle = bundle };
+        }
+
+        // ── Private helpers ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Persists the case snapshot to the repository (if available) without blocking the caller.
+        /// Errors are logged but do not propagate.
+        /// </summary>
+        private Task PersistCaseAsync(ComplianceCase c)
+        {
+            if (_repository == null)
+                return Task.CompletedTask;
+
+            return _repository.SaveCaseAsync(c).ContinueWith(t =>
+            {
+                if (t.IsFaulted && t.Exception != null)
+                    _logger.LogError(t.Exception,
+                        "PersistCaseAsync: failed to save case to repository. CaseId={CaseId}",
+                        LoggingHelper.SanitizeLogInput(c.CaseId));
+            }, TaskContinuationOptions.OnlyOnFaulted);
+        }
+
+        /// <summary>
+        /// Emits a compliance lifecycle webhook event via <see cref="IWebhookService"/> in a
+        /// fire-and-forget fashion.  Errors are caught and logged so they never block callers.
+        /// </summary>
+        private void EmitEventFireAndForget(WebhookEventType eventType, string actorId, string caseId, object payloadObj)
+        {
+            if (_webhookService == null)
+                return;
+
+            Dictionary<string, object>? data;
+            try
+            {
+                // Serialize to JSON then back to Dictionary so we get a stable key-value map
+                string json = JsonSerializer.Serialize(payloadObj);
+                data = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+            }
+            catch
+            {
+                data = new Dictionary<string, object> { ["caseId"] = caseId };
+            }
+
+            var ev = new WebhookEvent
+            {
+                Id        = Guid.NewGuid().ToString("N"),
+                EventType = eventType,
+                Timestamp = _timeProvider.GetUtcNow().UtcDateTime,
+                Actor     = actorId,
+                Data      = data
+            };
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _webhookService.EmitEventAsync(ev);
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        _logger.LogError(ex,
+                            "EmitEventFireAndForget: webhook emission failed. EventType={EventType} CaseId={CaseId}",
+                            eventType, LoggingHelper.SanitizeLogInput(caseId));
+                    }
+                    catch
+                    {
+                        // Swallow any logger exception to prevent the background task from faulting
+                    }
+                }
+            });
         }
     }
 }

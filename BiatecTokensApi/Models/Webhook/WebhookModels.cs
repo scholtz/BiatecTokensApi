@@ -123,7 +123,67 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// Token deployment failed
         /// </summary>
-        TokenDeploymentFailed
+        TokenDeploymentFailed,
+
+        /// <summary>
+        /// A new compliance case was created
+        /// </summary>
+        ComplianceCaseCreated,
+
+        /// <summary>
+        /// A compliance case transitioned to a new state
+        /// </summary>
+        ComplianceCaseStateTransitioned,
+
+        /// <summary>
+        /// Reviewer assignment on a compliance case changed
+        /// </summary>
+        ComplianceCaseAssignmentChanged,
+
+        /// <summary>
+        /// An escalation was raised on a compliance case
+        /// </summary>
+        ComplianceCaseEscalationRaised,
+
+        /// <summary>
+        /// An escalation on a compliance case was resolved
+        /// </summary>
+        ComplianceCaseEscalationResolved,
+
+        /// <summary>
+        /// A remediation task was added to a compliance case
+        /// </summary>
+        ComplianceCaseRemediationTaskAdded,
+
+        /// <summary>
+        /// A remediation task on a compliance case was resolved or dismissed
+        /// </summary>
+        ComplianceCaseRemediationTaskResolved,
+
+        /// <summary>
+        /// A monitoring review was recorded for a compliance case
+        /// </summary>
+        ComplianceCaseMonitoringReviewRecorded,
+
+        /// <summary>
+        /// A compliance case monitoring review is overdue
+        /// </summary>
+        ComplianceCaseOverdueReviewDetected,
+
+        /// <summary>
+        /// A compliance case reached approval-ready state
+        /// </summary>
+        ComplianceCaseApprovalReady,
+
+        /// <summary>
+        /// A follow-up compliance case was automatically created
+        /// </summary>
+        ComplianceCaseFollowUpCreated,
+
+        /// <summary>
+        /// A compliance case evidence bundle was exported
+        /// </summary>
+        ComplianceCaseExported
     }
 
     /// <summary>

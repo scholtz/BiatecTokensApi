@@ -451,9 +451,17 @@ namespace BiatecTokensApi
             // structured decisions, audit history/export, and operational diagnostics
             builder.Services.AddSingleton<IEnterpriseComplianceReviewService, EnterpriseComplianceReviewService>();
 
+            // Register Compliance Case Management repository for durable case persistence
+            builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IComplianceCaseRepository, BiatecTokensApi.Repositories.ComplianceCaseRepository>();
+
             // Register Compliance Case Management service for full lifecycle case management,
-            // evidence tracking, escalations, remediation tasks, and readiness evaluation
-            builder.Services.AddSingleton<IComplianceCaseManagementService, ComplianceCaseManagementService>();
+            // evidence tracking, escalations, remediation tasks, readiness evaluation,
+            // webhook event emission, and durable case export
+            builder.Services.AddSingleton<IComplianceCaseManagementService>(sp =>
+                new ComplianceCaseManagementService(
+                    sp.GetRequiredService<ILogger<ComplianceCaseManagementService>>(),
+                    webhookService: sp.GetRequiredService<IWebhookService>(),
+                    repository: sp.GetRequiredService<BiatecTokensApi.Repositories.Interface.IComplianceCaseRepository>()));
 
             // Register Regulatory Evidence Package service for regulator-facing evidence packages,
             // package assembly, readiness evaluation, and audience-aware manifest generation
