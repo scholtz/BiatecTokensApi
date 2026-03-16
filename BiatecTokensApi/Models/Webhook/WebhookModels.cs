@@ -331,7 +331,31 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// The overall compliance operations health degraded from a healthier state.
         /// </summary>
-        ComplianceOpsHealthDegraded
+        ComplianceOpsHealthDegraded,
+
+        // ── KYC/AML Sign-Off Evidence events ──────────────────────────────────────
+
+        /// <summary>
+        /// A new KYC/AML sign-off evidence flow was initiated for a subject.
+        /// </summary>
+        KycAmlSignOffInitiated,
+
+        /// <summary>
+        /// A provider callback was received and processed for a KYC/AML sign-off record.
+        /// </summary>
+        KycAmlSignOffCallbackProcessed,
+
+        /// <summary>
+        /// A KYC/AML sign-off subject reached an approval-ready state after all
+        /// required provider-backed checks passed.
+        /// </summary>
+        KycAmlSignOffApprovalReady,
+
+        /// <summary>
+        /// A KYC/AML sign-off subject is blocked due to adverse findings, provider
+        /// unavailability, stale evidence, or incomplete remediation.
+        /// </summary>
+        KycAmlSignOffBlocked
     }
 
     /// <summary>

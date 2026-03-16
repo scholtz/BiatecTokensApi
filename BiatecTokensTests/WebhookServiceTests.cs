@@ -1131,6 +1131,10 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.ComplianceOpsItemBlocked)]
         [TestCase(WebhookEventType.ComplianceOpsItemResolved)]
         [TestCase(WebhookEventType.ComplianceOpsHealthDegraded)]
+        [TestCase(WebhookEventType.KycAmlSignOffInitiated)]
+        [TestCase(WebhookEventType.KycAmlSignOffCallbackProcessed)]
+        [TestCase(WebhookEventType.KycAmlSignOffApprovalReady)]
+        [TestCase(WebhookEventType.KycAmlSignOffBlocked)]
         public async Task EmitEvent_AllEventTypes_CanBeDelivered(WebhookEventType eventType)
         {
             bool delivered = false;

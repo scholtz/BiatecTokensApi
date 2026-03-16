@@ -142,6 +142,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ComplianceCaseManagement types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ComplianceCaseManagement")
                         return $"ComplianceCaseManagement{type.Name}";
+                    // Use namespace-qualified names for all KycAmlSignOff types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.KycAmlSignOff")
+                        return $"KycAmlSignOff{type.Name}";
                     return type.Name;
                 });
                 
@@ -339,6 +342,15 @@ namespace BiatecTokensApi
 
             // Register provider-agnostic KYC/AML decision ingestion service (Issue #XXX)
             builder.Services.AddSingleton<IKycAmlDecisionIngestionService, KycAmlDecisionIngestionService>();
+
+            // Register live-provider KYC/AML sign-off evidence service
+            builder.Services.AddSingleton<IKycAmlSignOffEvidenceService>(sp =>
+                new KycAmlSignOffEvidenceService(
+                    sp.GetRequiredService<IKycProvider>(),
+                    sp.GetRequiredService<IAmlProvider>(),
+                    sp.GetRequiredService<ILogger<KycAmlSignOffEvidenceService>>(),
+                    null,
+                    sp.GetService<IWebhookService>()));
 
             builder.Services.AddSingleton<IMetricsService, MetricsService>();
             
