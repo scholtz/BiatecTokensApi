@@ -455,6 +455,10 @@ namespace BiatecTokensApi
             // evidence tracking, escalations, remediation tasks, and readiness evaluation
             builder.Services.AddSingleton<IComplianceCaseManagementService, ComplianceCaseManagementService>();
 
+            // Register Regulatory Evidence Package service for regulator-facing evidence packages,
+            // package assembly, readiness evaluation, and audience-aware manifest generation
+            builder.Services.AddSingleton<IRegulatoryEvidencePackageService, RegulatoryEvidencePackageService>();
+
             // Register Approval Workflow service and repository for multi-stage enterprise release approval
             builder.Services.AddSingleton<BiatecTokensApi.Repositories.Interface.IApprovalWorkflowRepository, BiatecTokensApi.Repositories.ApprovalWorkflowRepository>();
             builder.Services.AddSingleton<IApprovalWorkflowService, ApprovalWorkflowService>();

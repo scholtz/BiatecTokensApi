@@ -1489,3 +1489,30 @@ When implementing any compliance readiness or decision service, create a `*Busin
 10. Cohort: single blocked member blocks entire cohort
 
 **MANDATORY**: Service tests must cover these scenarios BEFORE submission. The product owner evaluates these business scenarios explicitly.
+
+**Lesson Learned (2026-03-16 - Issue #565, Regulatory Evidence Package)**: Product owner rejected initial PR draft as "not ready for merge" and "currently contains no implementation files" because:
+- ❌ First commit was titled "Initial plan" and contained ONLY a `report_progress` checklist — NO actual implementation code whatsoever
+- ❌ Product owner reviewed the PR immediately after the planning commit, before implementation was completed
+- ❌ CI showed "action_required" (expected for copilot agents) but appeared as a failure to the product owner
+
+**Root cause**: `report_progress` was called immediately with a checklist plan before writing any code, creating a PR with an empty commit. The product owner reviewed the PR within seconds of the planning commit.
+
+**MANDATORY RULE: Never make a planning-only commit. Implementation code MUST be in the first commit.**
+1. ✅ Plan in your own context/memory — never commit a plan-only message to the PR
+2. ✅ Write ALL implementation (models, service, controller, tests) before calling `report_progress` the first time
+3. ✅ The first `report_progress` call must include real implementation files, not just a checklist
+4. ✅ If you need to commit incrementally, start with a working skeleton (compiling code + at least some tests) — never an empty plan
+
+**Anti-pattern to avoid:**
+```
+# WRONG: First commit is just a plan with no code
+report_progress("Initial plan for XYZ", "- [ ] Create models\n- [ ] Create service...")
+# → Creates empty PR → Product owner sees "no implementation files" → Rejection
+```
+
+**Correct pattern:**
+```
+# RIGHT: First commit includes actual implementation
+# [implement models, service, controller, tests first]
+report_progress("Implement XYZ feature", "- [x] Created models\n- [x] Created service\n- [x] 65 tests passing")
+```
