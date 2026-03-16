@@ -264,7 +264,7 @@ Evaluates whether a case is ready to proceed using **fail-closed semantics**:
 
 ## Ongoing Monitoring Endpoints
 
-Ongoing monitoring supports post-onboarding periodic review programs. After a subject is approved, operators can enrol their case in a monitoring schedule and record structured review outcomes.
+Ongoing monitoring supports post-onboarding periodic review programs. After a subject is approved, operators can enroll their case in a monitoring schedule and record structured review outcomes.
 
 ### Set Monitoring Schedule
 
@@ -273,6 +273,7 @@ POST /api/v1/compliance-cases/{caseId}/monitoring-schedule
 ```
 
 Configures a periodic review schedule for a case. Can be applied to cases in any state.
+Typically used after a case is approved to enroll the subject in a post-onboarding monitoring program.
 
 ```json
 {

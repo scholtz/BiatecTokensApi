@@ -697,8 +697,9 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
 
     /// <summary>
     /// Monitoring schedule attached to a case, defining when periodic reviews should occur.
-    /// Set after a case reaches an <see cref="ComplianceCaseState.Approved"/> terminal state
-    /// to enrol the subject in an ongoing review program.
+    /// May be applied to cases in any state to enroll the subject in a periodic review program.
+    /// Typically configured after a case reaches <see cref="ComplianceCaseState.Approved"/> for
+    /// post-onboarding ongoing monitoring.
     /// </summary>
     public class MonitoringSchedule
     {
