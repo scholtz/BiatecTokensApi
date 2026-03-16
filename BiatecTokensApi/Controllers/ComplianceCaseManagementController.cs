@@ -443,6 +443,153 @@ namespace BiatecTokensApi.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // ── Assignment ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Assigns or reassigns a compliance case to a reviewer and/or team.
+        /// Persists structured assignment history including previous owner, new owner, timestamp, and reason.
+        /// Emits <c>ComplianceCaseAssignmentChanged</c> and/or <c>ComplianceCaseTeamAssigned</c> webhook events.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        /// <param name="request">Assignment details including reviewer ID, team ID, and reason.</param>
+        [HttpPost("{caseId}/assign")]
+        [ProducesResponseType(typeof(AssignCaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(AssignCaseResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(AssignCaseResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> AssignCase(string caseId, [FromBody] AssignCaseRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "AssignCase. CaseId={CaseId} ReviewerId={Reviewer} TeamId={Team} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(request.ReviewerId ?? "(none)"),
+                LoggingHelper.SanitizeLogInput(request.TeamId ?? "(none)"),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.AssignCaseAsync(caseId, request, actorId);
+
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
+                return NotFound(result);
+
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Returns the full chronological assignment history for a compliance case.
+        /// Each record captures the previous owner, new owner, timestamp, and reason.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/assignment-history")]
+        [ProducesResponseType(typeof(GetAssignmentHistoryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GetAssignmentHistoryResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetAssignmentHistory(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetAssignmentHistory. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetAssignmentHistoryAsync(caseId, actorId);
+
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
+                return NotFound(result);
+
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // ── Escalation history ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the full escalation history for a compliance case, with counts of open
+        /// and resolved escalations. Suitable for powering a compliance operations cockpit view.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/escalation-history")]
+        [ProducesResponseType(typeof(GetEscalationHistoryResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GetEscalationHistoryResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetEscalationHistory(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetEscalationHistory. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetEscalationHistoryAsync(caseId, actorId);
+
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
+                return NotFound(result);
+
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // ── SLA metadata ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Sets or updates SLA metadata for a compliance case, specifying when the review must
+        /// be completed and when escalation is triggered. Derives the urgency band automatically
+        /// and emits a <c>ComplianceCaseSlaBreached</c> event if the due date is already past.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        /// <param name="request">SLA dates and optional notes.</param>
+        [HttpPost("{caseId}/sla")]
+        [ProducesResponseType(typeof(SetSlaMetadataResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(SetSlaMetadataResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(SetSlaMetadataResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> SetSlaMetadata(string caseId, [FromBody] SetSlaMetadataRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "SetSlaMetadata. CaseId={CaseId} ReviewDueAt={Due} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.ReviewDueAt?.ToString("O"),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.SetSlaMetadataAsync(caseId, request, actorId);
+
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
+                return NotFound(result);
+
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // ── Delivery status ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns persisted webhook delivery records for all events emitted on this case.
+        /// Provides operational visibility into delivery outcomes, retry state, and failure details.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/delivery-status")]
+        [ProducesResponseType(typeof(GetDeliveryStatusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GetDeliveryStatusResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetDeliveryStatus(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetDeliveryStatus. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetDeliveryStatusAsync(caseId, actorId);
+
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND)
+                return NotFound(result);
+
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────
 
         private string GetActorId() =>

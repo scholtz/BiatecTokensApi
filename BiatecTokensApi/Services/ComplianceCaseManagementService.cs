@@ -714,6 +714,26 @@ namespace BiatecTokensApi.Services
             };
         }
 
+        /// <summary>Derives an urgency band based on time remaining to the review due date.</summary>
+        private static CaseUrgencyBand ComputeUrgencyBand(DateTimeOffset? reviewDueAt, DateTimeOffset now)
+        {
+            if (!reviewDueAt.HasValue)
+                return CaseUrgencyBand.Normal;
+
+            var remaining = reviewDueAt.Value - now;
+
+            if (remaining <= TimeSpan.Zero)
+                return CaseUrgencyBand.Critical;          // overdue
+
+            if (remaining <= TimeSpan.FromDays(3))
+                return CaseUrgencyBand.Critical;          // due within 3 days
+
+            if (remaining <= TimeSpan.FromDays(7))
+                return CaseUrgencyBand.Warning;           // due within 7 days
+
+            return CaseUrgencyBand.Normal;
+        }
+
         // ── SetMonitoringScheduleAsync ──────────────────────────────────────────
 
         /// <inheritdoc/>
@@ -962,13 +982,213 @@ namespace BiatecTokensApi.Services
                 return (new RecordMonitoringReviewResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
             if (typeof(T) == typeof(ExportComplianceCaseResponse))
                 return (new ExportComplianceCaseResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(AssignCaseResponse))
+                return (new AssignCaseResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(GetAssignmentHistoryResponse))
+                return (new GetAssignmentHistoryResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(GetEscalationHistoryResponse))
+                return (new GetEscalationHistoryResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(SetSlaMetadataResponse))
+                return (new SetSlaMetadataResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
+            if (typeof(T) == typeof(GetDeliveryStatusResponse))
+                return (new GetDeliveryStatusResponse { Success = false, ErrorCode = errorCode, ErrorMessage = message } as T)!;
 
             throw new InvalidOperationException($"Unsupported response type {typeof(T).Name}");
         }
 
-        // ── ExportCaseAsync ────────────────────────────────────────────────────
+        // ── AssignCaseAsync ────────────────────────────────────────────────────
 
         /// <inheritdoc/>
+        public Task<AssignCaseResponse> AssignCaseAsync(string caseId, AssignCaseRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(Fail<AssignCaseResponse>($"Case {caseId} not found", ErrorCodes.NOT_FOUND));
+
+            if (request.ReviewerId == null && request.TeamId == null)
+                return Task.FromResult(Fail<AssignCaseResponse>(
+                    "At least one of ReviewerId or TeamId must be provided",
+                    ErrorCodes.MISSING_REQUIRED_FIELD));
+
+            var now = _timeProvider.GetUtcNow();
+
+            var record = new CaseAssignmentRecord
+            {
+                AssignmentId       = Guid.NewGuid().ToString("N"),
+                CaseId             = caseId,
+                PreviousReviewerId = c.AssignedReviewerId,
+                NewReviewerId      = request.ReviewerId,
+                PreviousTeamId     = c.AssignedTeamId,
+                NewTeamId          = request.TeamId,
+                Reason             = request.Reason,
+                AssignedBy         = actorId,
+                AssignedAt         = now
+            };
+
+            bool reviewerChanged = request.ReviewerId != c.AssignedReviewerId;
+            bool teamChanged     = request.TeamId     != c.AssignedTeamId;
+
+            if (request.ReviewerId != null)
+                c.AssignedReviewerId = request.ReviewerId;
+            if (request.TeamId != null)
+                c.AssignedTeamId = request.TeamId;
+
+            c.AssignmentHistory.Add(record);
+            c.UpdatedAt = now;
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.ReviewerAssigned, actorId, now,
+                description: $"Case assigned. Reviewer={request.ReviewerId ?? c.AssignedReviewerId ?? "(unchanged)"} Team={request.TeamId ?? c.AssignedTeamId ?? "(unchanged)"}. Reason: {request.Reason ?? "none"}",
+                metadata: new Dictionary<string, string>
+                {
+                    ["assignmentId"]       = record.AssignmentId,
+                    ["previousReviewerId"] = record.PreviousReviewerId ?? "",
+                    ["newReviewerId"]      = record.NewReviewerId       ?? "",
+                    ["previousTeamId"]     = record.PreviousTeamId     ?? "",
+                    ["newTeamId"]          = record.NewTeamId           ?? ""
+                }));
+
+            _logger.LogInformation(
+                "CaseAssigned. CaseId={CaseId} PrevReviewer={Prev} NewReviewer={New} Team={Team} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(record.PreviousReviewerId ?? "(none)"),
+                LoggingHelper.SanitizeLogInput(record.NewReviewerId       ?? "(none)"),
+                LoggingHelper.SanitizeLogInput(record.NewTeamId           ?? "(none)"),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            _ = PersistCaseAsync(c);
+
+            if (reviewerChanged)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseAssignmentChanged, actorId, caseId,
+                    new
+                    {
+                        caseId,
+                        assignmentId       = record.AssignmentId,
+                        previousReviewerId = record.PreviousReviewerId,
+                        newReviewerId      = record.NewReviewerId,
+                        reason             = request.Reason
+                    });
+
+            if (teamChanged)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseTeamAssigned, actorId, caseId,
+                    new
+                    {
+                        caseId,
+                        assignmentId   = record.AssignmentId,
+                        previousTeamId = record.PreviousTeamId,
+                        newTeamId      = record.NewTeamId,
+                        reason         = request.Reason
+                    });
+
+            return Task.FromResult(new AssignCaseResponse { Success = true, Case = c, AssignmentRecord = record });
+        }
+
+        // ── GetAssignmentHistoryAsync ──────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<GetAssignmentHistoryResponse> GetAssignmentHistoryAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(Fail<GetAssignmentHistoryResponse>($"Case {caseId} not found", ErrorCodes.NOT_FOUND));
+
+            var history = c.AssignmentHistory.OrderBy(r => r.AssignedAt).ToList();
+
+            return Task.FromResult(new GetAssignmentHistoryResponse
+            {
+                Success    = true,
+                CaseId     = caseId,
+                History    = history,
+                TotalCount = history.Count
+            });
+        }
+
+        // ── GetEscalationHistoryAsync ──────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<GetEscalationHistoryResponse> GetEscalationHistoryAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(Fail<GetEscalationHistoryResponse>($"Case {caseId} not found", ErrorCodes.NOT_FOUND));
+
+            var escalations = c.Escalations.OrderBy(e => e.RaisedAt).ToList();
+
+            return Task.FromResult(new GetEscalationHistoryResponse
+            {
+                Success       = true,
+                CaseId        = caseId,
+                Escalations   = escalations,
+                OpenCount     = escalations.Count(e => e.Status == EscalationStatus.Open || e.Status == EscalationStatus.UnderReview),
+                ResolvedCount = escalations.Count(e => e.Status == EscalationStatus.Resolved)
+            });
+        }
+
+        // ── SetSlaMetadataAsync ────────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<SetSlaMetadataResponse> SetSlaMetadataAsync(string caseId, SetSlaMetadataRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(Fail<SetSlaMetadataResponse>($"Case {caseId} not found", ErrorCodes.NOT_FOUND));
+
+            var now = _timeProvider.GetUtcNow();
+
+            bool isOverdue = request.ReviewDueAt.HasValue && request.ReviewDueAt.Value < now;
+            DateTimeOffset? overdueSince = isOverdue ? now : null;
+            CaseUrgencyBand urgencyBand  = ComputeUrgencyBand(request.ReviewDueAt, now);
+
+            var sla = new CaseSlaMetadata
+            {
+                ReviewDueAt     = request.ReviewDueAt,
+                EscalationDueAt = request.EscalationDueAt,
+                IsOverdue       = isOverdue,
+                OverdueSince    = overdueSince,
+                UrgencyBand     = urgencyBand,
+                SetBy           = actorId,
+                SetAt           = now,
+                Notes           = request.Notes
+            };
+
+            c.SlaMetadata = sla;
+            c.UpdatedAt   = now;
+
+            _logger.LogInformation(
+                "SlaSet. CaseId={CaseId} ReviewDueAt={Due} Urgency={Urgency} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.ReviewDueAt?.ToString("O"),
+                urgencyBand,
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            _ = PersistCaseAsync(c);
+
+            if (isOverdue)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseSlaBreached, actorId, caseId,
+                    new { caseId, reviewDueAt = request.ReviewDueAt, breachedAt = now });
+
+            return Task.FromResult(new SetSlaMetadataResponse { Success = true, SlaMetadata = sla, Case = c });
+        }
+
+        // ── GetDeliveryStatusAsync ─────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<GetDeliveryStatusResponse> GetDeliveryStatusAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(Fail<GetDeliveryStatusResponse>($"Case {caseId} not found", ErrorCodes.NOT_FOUND));
+
+            var records = c.DeliveryRecords.OrderByDescending(r => r.AttemptedAt).ToList();
+
+            return Task.FromResult(new GetDeliveryStatusResponse
+            {
+                Success          = true,
+                CaseId           = caseId,
+                Records          = records,
+                TotalCount       = records.Count,
+                SuccessCount     = records.Count(r => r.Outcome == CaseDeliveryOutcome.Success),
+                FailureCount     = records.Count(r => r.Outcome == CaseDeliveryOutcome.Failure || r.Outcome == CaseDeliveryOutcome.RetryExhausted),
+                PendingRetryCount= records.Count(r => r.Outcome == CaseDeliveryOutcome.RetryScheduled)
+            });
+        }
+
+        // ── ExportCaseAsync ────────────────────────────────────────────────────        /// <inheritdoc/>
         public async Task<ExportComplianceCaseResponse> ExportCaseAsync(string caseId, ExportComplianceCaseRequest request, string actorId)
         {
             if (!_cases.TryGetValue(caseId, out var c))
@@ -1071,6 +1291,7 @@ namespace BiatecTokensApi.Services
         /// <summary>
         /// Emits a compliance lifecycle webhook event via <see cref="IWebhookService"/> in a
         /// fire-and-forget fashion.  Errors are caught and logged so they never block callers.
+        /// Also appends a <see cref="CaseDeliveryRecord"/> to the case for operational observability.
         /// </summary>
         private void EmitEventFireAndForget(WebhookEventType eventType, string actorId, string caseId, object payloadObj)
         {
@@ -1089,23 +1310,49 @@ namespace BiatecTokensApi.Services
                 data = new Dictionary<string, object> { ["caseId"] = caseId };
             }
 
+            var eventId = Guid.NewGuid().ToString("N");
             var ev = new WebhookEvent
             {
-                Id        = Guid.NewGuid().ToString("N"),
+                Id        = eventId,
                 EventType = eventType,
                 Timestamp = _timeProvider.GetUtcNow().UtcDateTime,
                 Actor     = actorId,
                 Data      = data
             };
 
+            // Create a pending delivery record on the case before starting delivery
+            var deliveryRecord = new CaseDeliveryRecord
+            {
+                DeliveryId   = Guid.NewGuid().ToString("N"),
+                CaseId       = caseId,
+                EventId      = eventId,
+                EventType    = eventType,
+                Outcome      = CaseDeliveryOutcome.Pending,
+                AttemptedAt  = _timeProvider.GetUtcNow(),
+                AttemptCount = 0
+            };
+
+            if (_cases.TryGetValue(caseId, out var c))
+                lock (c.DeliveryRecords)
+                    c.DeliveryRecords.Add(deliveryRecord);
+
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await _webhookService.EmitEventAsync(ev);
+                    // Mark delivery as successful
+                    deliveryRecord.Outcome      = CaseDeliveryOutcome.Success;
+                    deliveryRecord.AttemptCount = 1;
                 }
                 catch (Exception ex)
                 {
+                    deliveryRecord.Outcome           = CaseDeliveryOutcome.Failure;
+                    deliveryRecord.AttemptCount      = 1;
+                    deliveryRecord.IsTransientFailure = true;
+                    deliveryRecord.LastErrorSummary  = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
+                    deliveryRecord.RecommendedAction = "Review webhook endpoint availability and re-trigger the event if necessary.";
+
                     try
                     {
                         _logger.LogError(ex,

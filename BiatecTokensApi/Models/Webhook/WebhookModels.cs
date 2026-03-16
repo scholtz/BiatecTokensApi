@@ -230,7 +230,29 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// A subject was restricted as a result of a monitoring review
         /// </summary>
-        MonitoringTaskSubjectRestricted
+        MonitoringTaskSubjectRestricted,
+
+        // ── Case assignment and SLA events ────────────────────────────────────────
+
+        /// <summary>
+        /// A compliance case was assigned or reassigned to a team
+        /// </summary>
+        ComplianceCaseTeamAssigned,
+
+        /// <summary>
+        /// A compliance case SLA review due date has been breached (no review recorded by due date)
+        /// </summary>
+        ComplianceCaseSlaBreached,
+
+        /// <summary>
+        /// A webhook delivery for a compliance case event has permanently failed (terminal failure)
+        /// </summary>
+        ComplianceCaseDeliveryFailed,
+
+        /// <summary>
+        /// All retry attempts for a compliance case webhook delivery have been exhausted
+        /// </summary>
+        ComplianceCaseDeliveryRetryExhausted
     }
 
     /// <summary>
