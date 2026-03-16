@@ -1275,6 +1275,682 @@ namespace BiatecTokensTests
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // UNIT: ListTasksAsync — additional filtering coverage
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task ListTasks_FilterBySubjectId_ReturnsMatchingTasks()
+        {
+            var svc       = CreateService();
+            var subjectId = "subject-" + Guid.NewGuid().ToString("N")[..8];
+
+            await svc.CreateTaskAsync(BuildCreateRequest(subjectId: subjectId), "a");
+            await svc.CreateTaskAsync(BuildCreateRequest(subjectId: subjectId), "a");
+            await svc.CreateTaskAsync(BuildCreateRequest(), "a"); // different subject
+
+            var result = await svc.ListTasksAsync(
+                new ListMonitoringTasksRequest { SubjectId = subjectId }, "a");
+
+            Assert.That(result.TotalCount, Is.EqualTo(2));
+            Assert.That(result.Tasks.All(t => t.SubjectId == subjectId), Is.True);
+        }
+
+        [Test]
+        public async Task ListTasks_FilterByReason_ReturnsMatchingTasks()
+        {
+            var svc      = CreateService();
+            var issuerId = "issuer-" + Guid.NewGuid().ToString("N")[..6];
+
+            await svc.CreateTaskAsync(BuildCreateRequest(
+                issuerId: issuerId, reason: ReassessmentReason.SanctionsRefresh), "a");
+            await svc.CreateTaskAsync(BuildCreateRequest(
+                issuerId: issuerId, reason: ReassessmentReason.SanctionsRefresh), "a");
+            await svc.CreateTaskAsync(BuildCreateRequest(
+                issuerId: issuerId, reason: ReassessmentReason.DocumentExpiry), "a");
+
+            var result = await svc.ListTasksAsync(new ListMonitoringTasksRequest
+            {
+                IssuerId = issuerId,
+                Reason   = ReassessmentReason.SanctionsRefresh
+            }, "a");
+
+            Assert.That(result.TotalCount, Is.EqualTo(2));
+            Assert.That(result.Tasks.All(t => t.Reason == ReassessmentReason.SanctionsRefresh), Is.True);
+        }
+
+        [Test]
+        public async Task ListTasks_FilterBySeverity_ReturnsMatchingTasks()
+        {
+            var svc      = CreateService();
+            var issuerId = "issuer-" + Guid.NewGuid().ToString("N")[..6];
+
+            await svc.CreateTaskAsync(BuildCreateRequest(
+                issuerId: issuerId, severity: MonitoringTaskSeverity.Critical), "a");
+            await svc.CreateTaskAsync(BuildCreateRequest(
+                issuerId: issuerId, severity: MonitoringTaskSeverity.Low), "a");
+
+            var result = await svc.ListTasksAsync(new ListMonitoringTasksRequest
+            {
+                IssuerId = issuerId,
+                Severity = MonitoringTaskSeverity.Critical
+            }, "a");
+
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.Tasks[0].Severity, Is.EqualTo(MonitoringTaskSeverity.Critical));
+        }
+
+        [Test]
+        public async Task ListTasks_OverdueOnly_ReturnsOnlyOverdueTasks()
+        {
+            var tp       = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc      = CreateService(timeProvider: tp);
+            var issuerId = "issuer-" + Guid.NewGuid().ToString("N")[..6];
+
+            // Due in 30 days — not overdue
+            await svc.CreateTaskAsync(BuildCreateRequest(
+                issuerId: issuerId, dueAt: tp.GetUtcNow().AddDays(30)), "a");
+
+            // Due in 5 days — not overdue (just due-soon)
+            await svc.CreateTaskAsync(BuildCreateRequest(
+                issuerId: issuerId, dueAt: tp.GetUtcNow().AddDays(5)), "a");
+
+            // Advance time so the 5-day task is overdue
+            tp.Advance(TimeSpan.FromDays(6));
+
+            var result = await svc.ListTasksAsync(new ListMonitoringTasksRequest
+            {
+                IssuerId    = issuerId,
+                OverdueOnly = true
+            }, "a");
+
+            // Only the 5-day-due task should appear (now overdue)
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.Tasks[0].DueAt, Is.LessThan(tp.GetUtcNow()));
+        }
+
+        [Test]
+        public async Task ListTasks_PageSizeMaxClamped_LargePageSizeCapAt100()
+        {
+            var svc      = CreateService();
+            var issuerId = "issuer-page-clamp-" + Guid.NewGuid().ToString("N")[..6];
+
+            // Request a page size that exceeds the maximum of 100
+            var result = await svc.ListTasksAsync(new ListMonitoringTasksRequest
+            {
+                IssuerId = issuerId,
+                PageSize = 9999
+            }, "a");
+
+            // Should be clamped to 100
+            Assert.That(result.PageSize, Is.EqualTo(100));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UNIT: Additional not-found coverage
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DeferTask_NonExistentTask_ReturnsNotFound()
+        {
+            var svc    = CreateService();
+            var result = await svc.DeferTaskAsync("non-existent",
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = DateTimeOffset.UtcNow.AddDays(7),
+                    Rationale  = "Should fail"
+                }, "analyst");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.NOT_FOUND));
+        }
+
+        [Test]
+        public async Task EscalateTask_NonExistentTask_ReturnsNotFound()
+        {
+            var svc    = CreateService();
+            var result = await svc.EscalateTaskAsync("non-existent",
+                new EscalateMonitoringTaskRequest { EscalationReason = "Should fail" }, "analyst");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.NOT_FOUND));
+        }
+
+        [Test]
+        public async Task CloseTask_NonExistentTask_ReturnsNotFound()
+        {
+            var svc    = CreateService();
+            var result = await svc.CloseTaskAsync("non-existent",
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.Clear,
+                    ResolutionNotes = "Should fail"
+                }, "analyst");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.NOT_FOUND));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UNIT: RunDueDateCheck — additional branch coverage
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task RunDueDateCheck_MultipleTasks_ReturnsCorrectCount()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var issuerId = "issuer-multi-" + Guid.NewGuid().ToString("N")[..6];
+
+            // 3 tasks, all will go overdue
+            for (int i = 0; i < 3; i++)
+                await svc.CreateTaskAsync(BuildCreateRequest(
+                    issuerId: issuerId, dueAt: tp.GetUtcNow().AddDays(10)), "a");
+
+            tp.Advance(TimeSpan.FromDays(11));
+            var count = await svc.RunDueDateCheckAsync();
+
+            Assert.That(count, Is.GreaterThanOrEqualTo(3));
+        }
+
+        [Test]
+        public async Task RunDueDateCheck_AlreadyOverdue_NotCountedAgain()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(5)), "a");
+            var taskId = created.Task!.TaskId;
+
+            // First check transitions Healthy → Overdue
+            tp.Advance(TimeSpan.FromDays(6));
+            var first = await svc.RunDueDateCheckAsync();
+            Assert.That(first, Is.GreaterThanOrEqualTo(1));
+
+            var task = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            Assert.That(task.Status, Is.EqualTo(MonitoringTaskStatus.Overdue));
+
+            // Second check should not count the task again (status is already Overdue)
+            var second = await svc.RunDueDateCheckAsync();
+            // The overdue task's desired status is still Overdue; no change so count should be 0
+            Assert.That(second, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task RunDueDateCheck_DueSoonTransitionsToOverdue_WhenPastDueDate()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(5)), "a");  // starts as DueSoon
+            var taskId = created.Task!.TaskId;
+
+            var initialTask = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            Assert.That(initialTask.Status, Is.EqualTo(MonitoringTaskStatus.DueSoon));
+
+            // Advance past due date
+            tp.Advance(TimeSpan.FromDays(6));
+            await svc.RunDueDateCheckAsync();
+
+            var overdueTask = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            Assert.That(overdueTask.Status, Is.EqualTo(MonitoringTaskStatus.Overdue));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UNIT: Additional field-persistence coverage
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task CreateTask_WithNotes_PersistedOnTask()
+        {
+            var svc = CreateService();
+            var req = BuildCreateRequest();
+            req.Notes = "High-priority sanctions refresh required.";
+
+            var result = await svc.CreateTaskAsync(req, "analyst");
+
+            Assert.That(result.Task!.Notes, Is.EqualTo("High-priority sanctions refresh required."));
+        }
+
+        [Test]
+        public async Task CreateTask_WithCorrelationId_PersistedOnTask()
+        {
+            var svc  = CreateService();
+            var req  = BuildCreateRequest();
+            req.CorrelationId = "corr-12345";
+
+            var result = await svc.CreateTaskAsync(req, "analyst");
+
+            Assert.That(result.Task!.CorrelationId, Is.EqualTo("corr-12345"));
+        }
+
+        [Test]
+        public async Task CreateTask_WithAssignedTo_PersistedOnTask()
+        {
+            var svc = CreateService();
+            var req = BuildCreateRequest();
+            req.AssignedTo = "compliance-officer@example.com";
+
+            var result = await svc.CreateTaskAsync(req, "system");
+
+            Assert.That(result.Task!.AssignedTo, Is.EqualTo("compliance-officer@example.com"));
+        }
+
+        [Test]
+        public async Task CreateTask_TimelineEvent_HasCorrectActorAndTimestamps()
+        {
+            var tp  = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc = CreateService(timeProvider: tp);
+            var now = tp.GetUtcNow();
+
+            var result = await svc.CreateTaskAsync(BuildCreateRequest(), "analyst@example.com");
+
+            var ev = result.Task!.Timeline[0];
+            Assert.That(ev.ActorId,    Is.EqualTo("analyst@example.com"));
+            Assert.That(ev.OccurredAt, Is.EqualTo(now).Within(TimeSpan.FromSeconds(1)));
+            Assert.That(ev.EventType,  Is.EqualTo(MonitoringTaskEventType.TaskCreated));
+            Assert.That(ev.ToStatus,   Is.Not.Null);
+            Assert.That(ev.EventId,    Is.Not.Empty);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UNIT: State transitions from non-standard starting states
+        // ═══════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task StartReassessment_OverdueTask_TransitionsToInProgress()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(5)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            // Advance past due date and run check to set Overdue
+            tp.Advance(TimeSpan.FromDays(6));
+            await svc.RunDueDateCheckAsync();
+
+            var taskBeforeStart = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            Assert.That(taskBeforeStart.Status, Is.EqualTo(MonitoringTaskStatus.Overdue));
+
+            // Should be able to start reassessment from Overdue
+            var result = await svc.StartReassessmentAsync(taskId,
+                new StartReassessmentRequest { Notes = "Starting from overdue" }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.InProgress));
+        }
+
+        [Test]
+        public async Task DeferTask_InProgressTask_TransitionsToDeferred()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(30)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.StartReassessmentAsync(taskId, new StartReassessmentRequest(), "a");
+
+            var result = await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(10),
+                    Rationale  = "Subject documents pending"
+                }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Deferred));
+        }
+
+        [Test]
+        public async Task DeferTask_EscalatedTask_TransitionsToDeferred()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(30)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = "Risk signal" }, "a");
+
+            var result = await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(5),
+                    Rationale  = "Waiting for clearance"
+                }, "compliance-lead");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Deferred));
+        }
+
+        [Test]
+        public async Task DeferTask_OverdueTask_TransitionsToDeferred()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(5)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            tp.Advance(TimeSpan.FromDays(6));
+            await svc.RunDueDateCheckAsync();
+
+            var result = await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(30),
+                    Rationale  = "New documents submitted; under review"
+                }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Deferred));
+        }
+
+        [Test]
+        public async Task EscalateTask_DeferredTask_TransitionsToEscalated()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(30)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(10),
+                    Rationale  = "Deferral reason"
+                }, "a");
+
+            var result = await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = "Urgent finding" }, "senior");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Escalated));
+        }
+
+        [Test]
+        public async Task CloseTask_InProgressTask_TransitionsToResolved()
+        {
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.StartReassessmentAsync(taskId, new StartReassessmentRequest(), "a");
+
+            var result = await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.ActionTaken,
+                    ResolutionNotes = "Issues resolved during reassessment."
+                }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Resolved));
+        }
+
+        [Test]
+        public async Task CloseTask_OverdueTask_TransitionsToResolved()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(5)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            tp.Advance(TimeSpan.FromDays(6));
+            await svc.RunDueDateCheckAsync();
+
+            var result = await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.Clear,
+                    ResolutionNotes = "Reviewed and cleared."
+                }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Resolved));
+        }
+
+        [Test]
+        public async Task CloseTask_DeferredTask_TransitionsToResolved()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(30)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(5),
+                    Rationale  = "Temporary deferral"
+                }, "a");
+
+            var result = await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.Clear,
+                    ResolutionNotes = "Closed despite deferral."
+                }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Resolved));
+        }
+
+        [Test]
+        public async Task CloseTask_EscalatedTask_TransitionsToResolved()
+        {
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = "Risk signal" }, "a");
+
+            var result = await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.EscalatedToHigherAuthority,
+                    ResolutionNotes = "Passed to compliance committee."
+                }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.Resolved));
+        }
+
+        [Test]
+        public async Task StartReassessment_DeferredTask_TransitionsToInProgress()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(30)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(5),
+                    Rationale  = "Awaiting documents"
+                }, "a");
+
+            var result = await svc.StartReassessmentAsync(taskId,
+                new StartReassessmentRequest { Notes = "Documents arrived early" }, "analyst");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.InProgress));
+        }
+
+        [Test]
+        public async Task StartReassessment_EscalatedTask_TransitionsToInProgress()
+        {
+            // An escalated task is NOT in a terminal state and NOT InProgress,
+            // so StartReassessment should succeed (transition Escalated → InProgress).
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = "Risk signal" }, "a");
+
+            var result = await svc.StartReassessmentAsync(taskId,
+                new StartReassessmentRequest { Notes = "Following up on escalation" }, "analyst");
+
+            // Escalated is not terminal and not InProgress, so this should succeed
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Task!.Status, Is.EqualTo(MonitoringTaskStatus.InProgress));
+        }
+
+        [Test]
+        public async Task DeferTask_Suspended_ReturnsInvalidStateTransition()
+        {
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.SubjectSuspended,
+                    ResolutionNotes = "Suspended"
+                }, "a");
+
+            var result = await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = DateTimeOffset.UtcNow.AddDays(5),
+                    Rationale  = "Should fail"
+                }, "analyst");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.INVALID_STATE_TRANSITION));
+        }
+
+        [Test]
+        public async Task EscalateTask_RestrictedTask_ReturnsInvalidStateTransition()
+        {
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.CloseTaskAsync(taskId,
+                new CloseMonitoringTaskRequest
+                {
+                    Resolution      = MonitoringTaskResolution.SubjectRestricted,
+                    ResolutionNotes = "Restricted"
+                }, "a");
+
+            var result = await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest { EscalationReason = "Should fail" }, "analyst");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(ErrorCodes.INVALID_STATE_TRANSITION));
+        }
+
+        [Test]
+        public async Task DeferTask_RecordsDeferralInTimeline()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(30)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(10),
+                    Rationale  = "Timeline test rationale"
+                }, "compliance-officer");
+
+            var task = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            var deferEvent = task.Timeline.FirstOrDefault(e => e.EventType == MonitoringTaskEventType.TaskDeferred);
+
+            Assert.That(deferEvent, Is.Not.Null);
+            Assert.That(deferEvent!.ActorId, Is.EqualTo("compliance-officer"));
+            Assert.That(deferEvent.FromStatus, Is.EqualTo(MonitoringTaskStatus.Healthy));
+            Assert.That(deferEvent.ToStatus,   Is.EqualTo(MonitoringTaskStatus.Deferred));
+            Assert.That(deferEvent.Metadata,   Contains.Key("rationale"));
+        }
+
+        [Test]
+        public async Task EscalateTask_RecordsEscalationInTimeline()
+        {
+            var svc     = CreateService();
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.EscalateTaskAsync(taskId,
+                new EscalateMonitoringTaskRequest
+                {
+                    EscalationReason = "OFAC potential match",
+                    Severity         = MonitoringTaskSeverity.High
+                }, "senior-analyst");
+
+            var task = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            var escEvent = task.Timeline.FirstOrDefault(e => e.EventType == MonitoringTaskEventType.TaskEscalated);
+
+            Assert.That(escEvent, Is.Not.Null);
+            Assert.That(escEvent!.ActorId, Is.EqualTo("senior-analyst"));
+            Assert.That(escEvent.Metadata, Contains.Key("escalationReason"));
+            Assert.That(escEvent.Metadata["escalationReason"], Is.EqualTo("OFAC potential match"));
+        }
+
+        [Test]
+        public async Task RunDueDateCheck_StatusChangedEvent_RecordedInTimeline()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(30)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            tp.Advance(TimeSpan.FromDays(31));
+            await svc.RunDueDateCheckAsync();
+
+            var task = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            var statusEvent = task.Timeline.FirstOrDefault(
+                e => e.EventType == MonitoringTaskEventType.StatusChanged);
+
+            Assert.That(statusEvent, Is.Not.Null);
+            Assert.That(statusEvent!.ActorId,    Is.EqualTo("system"));
+            Assert.That(statusEvent.ToStatus,    Is.EqualTo(MonitoringTaskStatus.Overdue));
+            Assert.That(statusEvent.FromStatus,  Is.EqualTo(MonitoringTaskStatus.Healthy));
+        }
+
+        [Test]
+        public async Task RunDueDateCheck_DeferralExpiredEvent_RecordedInTimeline()
+        {
+            var tp      = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var svc     = CreateService(timeProvider: tp);
+            var created = await svc.CreateTaskAsync(BuildCreateRequest(
+                dueAt: tp.GetUtcNow().AddDays(50)), "a");
+            var taskId  = created.Task!.TaskId;
+
+            await svc.DeferTaskAsync(taskId,
+                new DeferMonitoringTaskRequest
+                {
+                    DeferUntil = tp.GetUtcNow().AddDays(5),
+                    Rationale  = "Temporary deferral"
+                }, "a");
+
+            tp.Advance(TimeSpan.FromDays(6));
+            await svc.RunDueDateCheckAsync();
+
+            var task = (await svc.GetTaskAsync(taskId, "a")).Task!;
+            var expiredEvent = task.Timeline.FirstOrDefault(
+                e => e.EventType == MonitoringTaskEventType.DeferralExpired);
+
+            Assert.That(expiredEvent, Is.Not.Null);
+            Assert.That(expiredEvent!.ActorId, Is.EqualTo("system"));
+            Assert.That(expiredEvent.FromStatus, Is.EqualTo(MonitoringTaskStatus.Deferred));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // INTEGRATION: HTTP pipeline via WebApplicationFactory
         // ═══════════════════════════════════════════════════════════════════════
 

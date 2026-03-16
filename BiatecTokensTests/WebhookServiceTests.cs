@@ -1172,7 +1172,11 @@ namespace BiatecTokensTests
 
             await svc.EmitEventAsync(evt);
             await svc.EmitEventAsync(evt);
-            await Task.Delay(300);
+
+            // Poll until both fire-and-forget deliveries complete (up to 5 s in CI)
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (deliveryCount < 2 && DateTime.UtcNow < deadline)
+                await Task.Delay(20);
 
             // Each EmitEventAsync call results in a delivery (no dedup at emission layer)
             Assert.That(deliveryCount, Is.EqualTo(2));
