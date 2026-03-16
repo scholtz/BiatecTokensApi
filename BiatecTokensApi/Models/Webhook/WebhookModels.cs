@@ -299,7 +299,29 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// A reporting template was archived
         /// </summary>
-        ReportTemplateArchived
+        ReportTemplateArchived,
+
+        // ── Compliance Operations Orchestration events ─────────────────────────
+
+        /// <summary>
+        /// A compliance operations queue item transitioned to Overdue SLA state.
+        /// </summary>
+        ComplianceOpsItemOverdue,
+
+        /// <summary>
+        /// A compliance operations queue item transitioned to Blocked state with a fail-closed condition.
+        /// </summary>
+        ComplianceOpsItemBlocked,
+
+        /// <summary>
+        /// A compliance operations queue item was resolved or cleared from the queue.
+        /// </summary>
+        ComplianceOpsItemResolved,
+
+        /// <summary>
+        /// The overall compliance operations health degraded from a healthier state.
+        /// </summary>
+        ComplianceOpsHealthDegraded
     }
 
     /// <summary>
