@@ -481,7 +481,82 @@ jobs:
           echo "  Diagnostics operational : $DIAG_OK"
           echo "diag_ok=$DIAG_OK" >> "$GITHUB_OUTPUT"
 
-          # ── 5. Extract observed governance status from environment check ──────
+          # ── 5. Compliance workflow validation ─────────────────────────────
+          # Validate that the compliance APIs aligned with the enterprise onboarding
+          # workflow are accessible and returning structured responses.  The protected
+          # sign-off must prove that KYC/AML sign-off evidence and compliance case
+          # management endpoints exist and do not crash on authenticated requests.
+          # Fail-closed: any 404 or 500 response from these endpoints blocks the run.
+
+          # 5a. KYC/AML sign-off endpoint reachability
+          KYC_RESP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "http://localhost:7100/api/v1/kyc-aml-signoff/initiate" \
+            -H "Authorization: Bearer $JWT" \
+            -H "Content-Type: application/json" \
+            -d "{\"subjectId\":\"protected-ci-$CORR\",\"executionMode\":\"Simulated\",\"correlationId\":\"$CORR\"}" \
+            2>&1) || KYC_RESP_CODE="000"
+
+          KYC_AVAILABLE="false"
+          if [ "$KYC_RESP_CODE" = "200" ] || [ "$KYC_RESP_CODE" = "400" ]; then
+            KYC_AVAILABLE="true"
+          fi
+          echo "  KYC/AML sign-off endpoint HTTP status : $KYC_RESP_CODE (available=$KYC_AVAILABLE)"
+          echo "kyc_available=$KYC_AVAILABLE" >> "$GITHUB_OUTPUT"
+
+          if [ "$KYC_RESP_CODE" = "404" ] || [ "$KYC_RESP_CODE" = "500" ] || [ "$KYC_RESP_CODE" = "000" ]; then
+            echo "❌ KYC/AML sign-off endpoint is unavailable (HTTP $KYC_RESP_CODE). Expected 200 or 400."
+            echo "  Hint: Verify that IKycAmlSignOffEvidenceService is registered in Program.cs."
+            echo "kyc_available=false" >> "$GITHUB_OUTPUT"
+            echo "{\"endpoint\":\"/api/v1/kyc-aml-signoff/initiate\",\"httpStatus\":$KYC_RESP_CODE,\"available\":false}" \
+              > ./ProtectedRunEvidence/05a_kyc_aml_check.json
+            exit 1
+          fi
+          echo "{\"endpoint\":\"/api/v1/kyc-aml-signoff/initiate\",\"httpStatus\":$KYC_RESP_CODE,\"available\":true}" \
+            > ./ProtectedRunEvidence/05a_kyc_aml_check.json
+
+          # 5b. Compliance case management endpoint reachability
+          CASE_RESP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "http://localhost:7100/api/v1/compliance-cases" \
+            -H "Authorization: Bearer $JWT" \
+            -H "Content-Type: application/json" \
+            -d "{\"issuerId\":\"protected-ci-issuer\",\"subjectId\":\"$CORR\",\"caseType\":\"KYC\",\"jurisdiction\":\"CH\"}" \
+            2>&1) || CASE_RESP_CODE="000"
+
+          CASE_AVAILABLE="false"
+          if [ "$CASE_RESP_CODE" = "200" ] || [ "$CASE_RESP_CODE" = "400" ]; then
+            CASE_AVAILABLE="true"
+          fi
+          echo "  Compliance case endpoint HTTP status : $CASE_RESP_CODE (available=$CASE_AVAILABLE)"
+          echo "case_available=$CASE_AVAILABLE" >> "$GITHUB_OUTPUT"
+
+          if [ "$CASE_RESP_CODE" = "404" ] || [ "$CASE_RESP_CODE" = "500" ] || [ "$CASE_RESP_CODE" = "000" ]; then
+            echo "❌ Compliance case management endpoint is unavailable (HTTP $CASE_RESP_CODE). Expected 200 or 400."
+            echo "  Hint: Verify that IComplianceCaseManagementService is registered in Program.cs."
+            echo "case_available=false" >> "$GITHUB_OUTPUT"
+            echo "{\"endpoint\":\"/api/v1/compliance-cases\",\"httpStatus\":$CASE_RESP_CODE,\"available\":false}" \
+              > ./ProtectedRunEvidence/05b_compliance_case_check.json
+            exit 1
+          fi
+          echo "{\"endpoint\":\"/api/v1/compliance-cases\",\"httpStatus\":$CASE_RESP_CODE,\"available\":true}" \
+            > ./ProtectedRunEvidence/05b_compliance_case_check.json
+
+          # 5c. Compliance-aware environment check (compliance workflow check included)
+          COMPLIANCE_ENV_RESP=$(curl -sf \
+            -X POST "$BASE/environment/check" \
+            -H "Authorization: Bearer $JWT" \
+            -H "Content-Type: application/json" \
+            -d "{\"correlationId\":\"$CORR-compliance\",\"includeConfigCheck\":false,\"includeFixtureCheck\":false,\"includeObservabilityCheck\":false,\"includeComplianceWorkflowCheck\":true}" \
+            2>&1) || { echo "⚠️  Compliance-aware environment check failed (non-blocking): $COMPLIANCE_ENV_RESP"; COMPLIANCE_ENV_RESP="{}"; }
+
+          echo "$COMPLIANCE_ENV_RESP" | python3 -m json.tool > ./ProtectedRunEvidence/05c_compliance_env_check.json 2>/dev/null \
+            || echo "$COMPLIANCE_ENV_RESP" > ./ProtectedRunEvidence/05c_compliance_env_check.json
+
+          COMPLIANCE_ENV_STATUS=$(echo "$COMPLIANCE_ENV_RESP" | python3 -c \
+            "import sys, json; d=json.load(sys.stdin); print(d.get('status','UNKNOWN'))" 2>/dev/null || echo "UNKNOWN")
+          echo "  Compliance-aware environment status : $COMPLIANCE_ENV_STATUS"
+          echo "compliance_env_status=$COMPLIANCE_ENV_STATUS" >> "$GITHUB_OUTPUT"
+
+          # ── 6. Extract observed governance status from environment check ──────
           # The WorkflowGovernanceEnabled check outcome is read directly from the
           # API response, not asserted by the workflow.  This ensures the evidence
           # manifest faithfully reflects the runtime configuration of the protected
@@ -498,18 +573,18 @@ jobs:
           echo "  Governance check outcome (observed) : $GOV_CHECK_OUTCOME"
           echo "gov_check_outcome=$GOV_CHECK_OUTCOME" >> "$GITHUB_OUTPUT"
 
-          # ── 6. Write evidence manifest ─────────────────────────────────────
+          # ── 7. Write evidence manifest ─────────────────────────────────────
           # isReleaseGradeEvidence: true only when all lifecycle requirements are met
           # under a protected environment with validated secrets.  A value of false means
           # this run MUST NOT be used as product-owner sign-off evidence.
           IS_RELEASE_GRADE="false"
-          if [ "$LIFECYCLE_OK" = "true" ] && [ "$ENV_READY" = "true" ]; then
+          if [ "$LIFECYCLE_OK" = "true" ] && [ "$ENV_READY" = "true" ] && [ "$KYC_AVAILABLE" = "true" ] && [ "$CASE_AVAILABLE" = "true" ]; then
             IS_RELEASE_GRADE="true"
           fi
 
           cat > ./ProtectedRunEvidence/00_evidence_manifest.json << MANIFEST
           {
-            "schemaVersion": "1.0",
+            "schemaVersion": "2.0",
             "correlationId": "$CORR",
             "runId": "${{ github.run_id }}",
             "runAttempt": "${{ github.run_attempt }}",
@@ -519,7 +594,7 @@ jobs:
             "runAt": "$RUN_AT",
             "environmentLabel": "protected-ci",
             "isReleaseGradeEvidence": $IS_RELEASE_GRADE,
-            "releaseGradeNote": "true only when lifecycleVerified=true and isReadyForProtectedRun=true under the protected-sign-off environment with validated real secrets; permissive or partial runs set this to false",
+            "releaseGradeNote": "true only when lifecycleVerified=true, isReadyForProtectedRun=true, and all compliance APIs are available under the protected-sign-off environment with validated real secrets",
             "observedGovernanceCheckOutcome": "$GOV_CHECK_OUTCOME",
             "results": {
               "environmentStatus": "$ENV_STATUS",
@@ -527,7 +602,12 @@ jobs:
               "fixturesProvisioned": $FIXTURE_OK,
               "lifecycleVerified": $LIFECYCLE_OK,
               "reachedStage": "$REACHED_STAGE",
-              "diagnosticsOperational": $DIAG_OK
+              "diagnosticsOperational": $DIAG_OK,
+              "complianceWorkflow": {
+                "kycAmlSignOffEndpointAvailable": $KYC_AVAILABLE,
+                "complianceCaseEndpointAvailable": $CASE_AVAILABLE,
+                "complianceAwareEnvironmentStatus": "$COMPLIANCE_ENV_STATUS"
+              }
             }
           }
           MANIFEST
@@ -640,22 +720,47 @@ jobs:
             [ "$DIAG_OK" = "true" ] && DIAG_ICON="✅" || DIAG_ICON="⚠️"
             echo "| Diagnostics operational | ${DIAG_ICON} \`$DIAG_OK\` |" >> "$GITHUB_STEP_SUMMARY"
 
+            KYC_AVAILABLE="${{ steps.evidence.outputs.kyc_available }}"
+            CASE_AVAILABLE="${{ steps.evidence.outputs.case_available }}"
+            COMPLIANCE_ENV="${{ steps.evidence.outputs.compliance_env_status }}"
+
+            [ "$KYC_AVAILABLE" = "true" ] && KYC_ICON="✅" || KYC_ICON="❌"
+            echo "| KYC/AML sign-off endpoint | ${KYC_ICON} \`$KYC_AVAILABLE\` |" >> "$GITHUB_STEP_SUMMARY"
+
+            [ "$CASE_AVAILABLE" = "true" ] && CASE_ICON="✅" || CASE_ICON="❌"
+            echo "| Compliance case endpoint | ${CASE_ICON} \`$CASE_AVAILABLE\` |" >> "$GITHUB_STEP_SUMMARY"
+
+            if [ -n "$COMPLIANCE_ENV" ] && [ "$COMPLIANCE_ENV" != "UNKNOWN" ]; then
+              [ "$COMPLIANCE_ENV" = "Ready" ] && CENV_ICON="✅" || CENV_ICON="⚠️"
+              echo "| Compliance workflow health | ${CENV_ICON} \`$COMPLIANCE_ENV\` |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
             [ "$IS_RELEASE_GRADE" = "true" ] && RG_ICON="✅ **YES**" || RG_ICON="❌ **NO**"
             echo "| **isReleaseGradeEvidence** | ${RG_ICON} |" >> "$GITHUB_STEP_SUMMARY"
 
             echo "" >> "$GITHUB_STEP_SUMMARY"
 
-            if [ "$LIFECYCLE_OK" = "true" ]; then
+            if [ "$LIFECYCLE_OK" = "true" ] && [ "$KYC_AVAILABLE" = "true" ] && [ "$CASE_AVAILABLE" = "true" ]; then
               echo "### ✅ Protected run PASSED — Release-Grade Evidence" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "The backend protected sign-off path is **operationally proven** for this commit." >> "$GITHUB_STEP_SUMMARY"
               echo "The evidence manifest \`isReleaseGradeEvidence\` field is \`true\`." >> "$GITHUB_STEP_SUMMARY"
+              echo "The compliance workflow APIs (KYC/AML sign-off, compliance case management) are **aligned and accessible**." >> "$GITHUB_STEP_SUMMARY"
               echo "Download the evidence artifact \`protected-sign-off-evidence-${CORR}\` for product-owner sign-off." >> "$GITHUB_STEP_SUMMARY"
             else
               echo "### ❌ Protected run requires attention — NOT release-grade evidence" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "Lifecycle verification did not reach \`Complete\`. The evidence manifest" >> "$GITHUB_STEP_SUMMARY"
-              echo "\`isReleaseGradeEvidence\` field is \`false\` — this run **cannot** be used for product-owner sign-off." >> "$GITHUB_STEP_SUMMARY"
+              if [ "$LIFECYCLE_OK" != "true" ]; then
+                echo "- Lifecycle verification did not reach \`Complete\`." >> "$GITHUB_STEP_SUMMARY"
+              fi
+              if [ "$KYC_AVAILABLE" != "true" ]; then
+                echo "- KYC/AML sign-off endpoint is unavailable (compliance API alignment gap)." >> "$GITHUB_STEP_SUMMARY"
+              fi
+              if [ "$CASE_AVAILABLE" != "true" ]; then
+                echo "- Compliance case management endpoint is unavailable (compliance API alignment gap)." >> "$GITHUB_STEP_SUMMARY"
+              fi
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "The evidence manifest \`isReleaseGradeEvidence\` field is \`false\` — this run **cannot** be used for product-owner sign-off." >> "$GITHUB_STEP_SUMMARY"
               echo "Review the evidence artifact and backend logs." >> "$GITHUB_STEP_SUMMARY"
               echo "See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md) for failure remediation." >> "$GITHUB_STEP_SUMMARY"
             fi
@@ -665,14 +770,35 @@ jobs:
           echo "---" >> "$GITHUB_STEP_SUMMARY"
           echo "_Evidence retained for 90 days. See [PROTECTED_SIGN_OFF_RUNBOOK.md](./PROTECTED_SIGN_OFF_RUNBOOK.md) for interpretation guidance._" >> "$GITHUB_STEP_SUMMARY"
 
-      # ── Step I: Enforce pass on lifecycle result ────────────────────────────
+      # ── Step I: Enforce pass on lifecycle result and compliance alignment ──────
       - name: Enforce lifecycle pass (release gate)
         if: github.event.inputs.dry_run != 'true'
         run: |
           LIFECYCLE_OK="${{ steps.evidence.outputs.lifecycle_ok }}"
+          KYC_AVAILABLE="${{ steps.evidence.outputs.kyc_available }}"
+          CASE_AVAILABLE="${{ steps.evidence.outputs.case_available }}"
+          GATE_FAILED=0
+
           if [ "$LIFECYCLE_OK" != "true" ]; then
             echo "❌ Lifecycle verification failed — protected run does not qualify as a release gate."
+            GATE_FAILED=1
+          fi
+
+          if [ "$KYC_AVAILABLE" != "true" ]; then
+            echo "❌ KYC/AML sign-off endpoint is unavailable — compliance API alignment gap detected."
+            echo "  The backend release path is not fully aligned with the enterprise compliance workflow."
+            GATE_FAILED=1
+          fi
+
+          if [ "$CASE_AVAILABLE" != "true" ]; then
+            echo "❌ Compliance case management endpoint is unavailable — compliance API alignment gap detected."
+            echo "  The backend release path is not fully aligned with the enterprise compliance workflow."
+            GATE_FAILED=1
+          fi
+
+          if [ "$GATE_FAILED" -eq 1 ]; then
             echo "See the evidence artifact and PROTECTED_SIGN_OFF_RUNBOOK.md for remediation guidance."
             exit 1
           fi
-          echo "✅ Lifecycle verified — protected run qualifies as a release gate artifact."
+
+          echo "✅ Lifecycle verified and compliance workflow APIs aligned — protected run qualifies as a release gate artifact."

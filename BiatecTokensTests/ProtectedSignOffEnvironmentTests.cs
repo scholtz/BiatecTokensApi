@@ -156,7 +156,12 @@ namespace BiatecTokensTests
                 {
                     CorrelationId = "test-corr-001",
                     IncludeFixtureCheck = true,
-                    IncludeObservabilityCheck = true
+                    IncludeObservabilityCheck = true,
+                    // Unit test creates service without compliance services —
+                    // suppress the compliance workflow check to keep this test focused
+                    // on the core service availability path.  Compliance-specific
+                    // environment checks are validated in ProtectedSignOffComplianceAlignmentTests.
+                    IncludeComplianceWorkflowCheck = false
                 });
 
             // Assert

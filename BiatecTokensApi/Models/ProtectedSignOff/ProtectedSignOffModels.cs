@@ -35,7 +35,9 @@ namespace BiatecTokensApi.Models.ProtectedSignOff
         /// <summary>Observability infrastructure including logging and correlation IDs.</summary>
         Observability,
         /// <summary>Enterprise fixture provisioning and seed data.</summary>
-        EnterpriseFixtures
+        EnterpriseFixtures,
+        /// <summary>KYC/AML sign-off evidence and compliance case management services required for the enterprise onboarding workflow.</summary>
+        ComplianceWorkflow
     }
 
     /// <summary>Outcome of a single environment readiness check.</summary>
@@ -140,6 +142,16 @@ namespace BiatecTokensApi.Models.ProtectedSignOff
         /// Defaults to <c>true</c>.
         /// </summary>
         public bool IncludeObservabilityCheck { get; set; } = true;
+
+        /// <summary>
+        /// Whether to include compliance workflow service health checks.
+        /// When <c>true</c>, verifies that the KYC/AML sign-off evidence service and
+        /// compliance case management service are available and wired up correctly.
+        /// This check validates the backend compliance capabilities aligned with the
+        /// enterprise onboarding workflow.
+        /// Defaults to <c>true</c>.
+        /// </summary>
+        public bool IncludeComplianceWorkflowCheck { get; set; } = true;
     }
 
     /// <summary>

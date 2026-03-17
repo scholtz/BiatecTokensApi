@@ -45,21 +45,30 @@ namespace BiatecTokensApi.Services
         private readonly ProtectedSignOffConfig _config;
         private readonly ILogger<ProtectedSignOffEnvironmentService> _logger;
 
+        // Optional compliance workflow services — injected when available in DI
+        private readonly IKycAmlSignOffEvidenceService? _kycAmlSignOffService;
+        private readonly IComplianceCaseManagementService? _complianceCaseService;
+
         /// <summary>
-        /// Initialises a new instance of <see cref="ProtectedSignOffEnvironmentService"/>.
+        /// Initialises a new instance of <see cref="ProtectedSignOffEnvironmentService"/>
+        /// with optional compliance workflow service dependencies.
         /// </summary>
         public ProtectedSignOffEnvironmentService(
             IIssuerWorkflowService issuerWorkflowService,
             IDeploymentSignOffService deploymentSignOffService,
             IBackendDeploymentLifecycleContractService contractService,
             IConfiguration configuration,
-            ILogger<ProtectedSignOffEnvironmentService> logger)
+            ILogger<ProtectedSignOffEnvironmentService> logger,
+            IKycAmlSignOffEvidenceService? kycAmlSignOffService = null,
+            IComplianceCaseManagementService? complianceCaseService = null)
         {
             _issuerWorkflowService = issuerWorkflowService ?? throw new ArgumentNullException(nameof(issuerWorkflowService));
             _deploymentSignOffService = deploymentSignOffService ?? throw new ArgumentNullException(nameof(deploymentSignOffService));
             _contractService = contractService ?? throw new ArgumentNullException(nameof(contractService));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _kycAmlSignOffService = kycAmlSignOffService;
+            _complianceCaseService = complianceCaseService;
 
             // Bind optional ProtectedSignOff config section (uses defaults when absent)
             _config = new ProtectedSignOffConfig();
@@ -85,6 +94,7 @@ namespace BiatecTokensApi.Services
             bool includeConfig = request?.IncludeConfigCheck ?? true;
             bool includeFixture = request?.IncludeFixtureCheck ?? true;
             bool includeObs = request?.IncludeObservabilityCheck ?? true;
+            bool includeCompliance = request?.IncludeComplianceWorkflowCheck ?? true;
 
             List<EnvironmentCheck> checks = new();
 
@@ -154,6 +164,17 @@ namespace BiatecTokensApi.Services
             if (includeFixture)
             {
                 checks.Add(await CheckEnterpriseFixturesAsync(correlationId));
+            }
+
+            // ── Compliance workflow checks (optional) ──────────────────────
+            // Validates that the KYC/AML sign-off evidence and compliance case management
+            // services are available and wired up.  These services back the enterprise
+            // onboarding workflow (KYC progression, AML review, case lifecycle, approval).
+            // A DegradedFail is emitted when a service is absent so that existing protected
+            // runs without compliance wiring remain operational at a degraded confidence level.
+            if (includeCompliance)
+            {
+                checks.AddRange(CheckComplianceWorkflowServices());
             }
 
             // ── Compute summary ───────────────────────────────────────────
@@ -1109,6 +1130,51 @@ namespace BiatecTokensApi.Services
             byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
             string hex = Convert.ToHexString(hash)[..16].ToLowerInvariant();
             return $"{prefix}-{hex}";
+        }
+
+        /// <summary>
+        /// Returns environment checks for the compliance workflow services: KYC/AML sign-off
+        /// evidence and compliance case management.  Both services are required for the full
+        /// enterprise onboarding journey.  A DegradedFail is emitted when a service is absent
+        /// so that legacy protected runs without compliance wiring are not blocked; a critical
+        /// failure would prevent a run entirely, which is too strict for a service that is
+        /// wired up via optional DI injection in the current design.
+        /// </summary>
+        private IEnumerable<EnvironmentCheck> CheckComplianceWorkflowServices()
+        {
+            yield return new EnvironmentCheck
+            {
+                Name = "KycAmlSignOffServiceAvailable",
+                Category = EnvironmentCheckCategory.ComplianceWorkflow,
+                Description = "Verifies that the KYC/AML sign-off evidence service required for enterprise onboarding is available.",
+                IsRequired = true,
+                Outcome = _kycAmlSignOffService != null
+                    ? EnvironmentCheckOutcome.Pass
+                    : EnvironmentCheckOutcome.DegradedFail,
+                Detail = _kycAmlSignOffService != null
+                    ? "IKycAmlSignOffEvidenceService is available and wired up for enterprise KYC/AML sign-off flows."
+                    : "IKycAmlSignOffEvidenceService could not be resolved from the dependency container. KYC/AML sign-off evidence flows will not be available.",
+                OperatorGuidance = _kycAmlSignOffService == null
+                    ? "Verify that IKycAmlSignOffEvidenceService is registered in Program.cs and its required configuration (KycConfig, AmlConfig) is present."
+                    : null
+            };
+
+            yield return new EnvironmentCheck
+            {
+                Name = "ComplianceCaseServiceAvailable",
+                Category = EnvironmentCheckCategory.ComplianceWorkflow,
+                Description = "Verifies that the compliance case management service required for the enterprise approval lifecycle is available.",
+                IsRequired = true,
+                Outcome = _complianceCaseService != null
+                    ? EnvironmentCheckOutcome.Pass
+                    : EnvironmentCheckOutcome.DegradedFail,
+                Detail = _complianceCaseService != null
+                    ? "IComplianceCaseManagementService is available and wired up for compliance case lifecycle management."
+                    : "IComplianceCaseManagementService could not be resolved from the dependency container. Compliance case lifecycle flows will not be available.",
+                OperatorGuidance = _complianceCaseService == null
+                    ? "Verify that IComplianceCaseManagementService is registered in Program.cs."
+                    : null
+            };
         }
     }
 }
