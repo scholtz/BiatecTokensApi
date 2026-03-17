@@ -453,8 +453,18 @@ namespace BiatecTokensApi
             // Register Deployment Sign-Off service for enterprise sign-off journey hardening
             builder.Services.AddSingleton<IDeploymentSignOffService, DeploymentSignOffService>();
 
-            // Register Protected Sign-Off Environment service for protected run evidence
-            builder.Services.AddSingleton<IProtectedSignOffEnvironmentService, ProtectedSignOffEnvironmentService>();
+            // Register Protected Sign-Off Environment service for protected run evidence.
+            // Compliance workflow services are resolved optionally so that the service
+            // remains operational even if compliance services are not available.
+            builder.Services.AddSingleton<IProtectedSignOffEnvironmentService>(sp =>
+                new ProtectedSignOffEnvironmentService(
+                    sp.GetRequiredService<IIssuerWorkflowService>(),
+                    sp.GetRequiredService<IDeploymentSignOffService>(),
+                    sp.GetRequiredService<IBackendDeploymentLifecycleContractService>(),
+                    sp.GetRequiredService<IConfiguration>(),
+                    sp.GetRequiredService<ILogger<ProtectedSignOffEnvironmentService>>(),
+                    sp.GetService<IKycAmlSignOffEvidenceService>(),
+                    sp.GetService<IComplianceCaseManagementService>()));
 
             // Register Issuer Workflow service for team roles and approval-state management
             builder.Services.AddSingleton<IIssuerWorkflowService, IssuerWorkflowService>();
