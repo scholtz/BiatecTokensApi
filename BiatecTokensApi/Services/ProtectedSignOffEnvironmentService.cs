@@ -1175,6 +1175,25 @@ namespace BiatecTokensApi.Services
                     ? "Verify that IComplianceCaseManagementService is registered in Program.cs."
                     : null
             };
+
+            yield return new EnvironmentCheck
+            {
+                Name = "ComplianceCaseApprovalWorkflowAvailable",
+                Category = EnvironmentCheckCategory.ComplianceWorkflow,
+                Description = "Verifies that the approval-workflow parity APIs (approve, reject, return-for-information) " +
+                              "are available and fail-closed for invalid operations.",
+                IsRequired = false,
+                Outcome = _complianceCaseService == null
+                    ? EnvironmentCheckOutcome.DegradedFail
+                    : EnvironmentCheckOutcome.Pass,
+                Detail = _complianceCaseService != null
+                    ? "IComplianceCaseManagementService exposes ApproveComplianceCaseAsync, RejectComplianceCaseAsync, " +
+                      "and ReturnForInformationAsync — approval-webhook parity APIs are part of the release surface."
+                    : "IComplianceCaseManagementService is unavailable; approval-workflow parity APIs cannot be reached.",
+                OperatorGuidance = _complianceCaseService == null
+                    ? "Register IComplianceCaseManagementService in Program.cs to enable the approve/reject/return-for-information endpoints."
+                    : null
+            };
         }
     }
 }

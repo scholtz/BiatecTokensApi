@@ -1105,6 +1105,8 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.ComplianceCaseApprovalGranted)]
         [TestCase(WebhookEventType.ComplianceCaseApprovalDenied)]
         [TestCase(WebhookEventType.ComplianceCaseReworkRequested)]
+        // Case approval-workflow parity: return-for-information
+        [TestCase(WebhookEventType.ComplianceCaseReturnedForInformation)]
         // Ongoing monitoring task events
         [TestCase(WebhookEventType.MonitoringTaskCreated)]
         [TestCase(WebhookEventType.MonitoringTaskDueSoon)]
