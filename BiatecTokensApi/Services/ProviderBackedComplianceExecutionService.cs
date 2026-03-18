@@ -40,8 +40,8 @@ namespace BiatecTokensApi.Services
         private readonly ILogger<ProviderBackedComplianceExecutionService> _logger;
         private readonly TimeProvider _timeProvider;
 
-        // Execution history keyed by caseId
-        private readonly ConcurrentDictionary<string, List<ProviderBackedCaseExecutionEvidence>> _history = new();
+        // Execution history keyed by caseId — ConcurrentQueue is safe for concurrent Enqueue calls
+        private readonly ConcurrentDictionary<string, ConcurrentQueue<ProviderBackedCaseExecutionEvidence>> _history = new();
 
         /// <summary>
         /// Initialises the service.
@@ -290,10 +290,9 @@ namespace BiatecTokensApi.Services
                 CorrelationId = correlationId
             };
 
-            // Persist to in-memory history
-            _history.AddOrUpdate(caseId,
-                _ => new List<ProviderBackedCaseExecutionEvidence> { evidence },
-                (_, list) => { lock (list) { list.Add(evidence); } return list; });
+            // Persist to in-memory history — GetOrAdd returns the canonical queue, Enqueue is atomic
+            _history.GetOrAdd(caseId, _ => new ConcurrentQueue<ProviderBackedCaseExecutionEvidence>())
+                    .Enqueue(evidence);
 
             // Emit webhook events
             EmitEventFireAndForget(WebhookEventType.ComplianceCaseExecutionCompleted, actorId, caseId, new
@@ -408,7 +407,7 @@ namespace BiatecTokensApi.Services
             }
 
             List<ProviderBackedCaseExecutionEvidence> historySnapshot;
-            lock (history) { historySnapshot = history.ToList(); }
+            historySnapshot = history.ToList();
 
             var latestCompleted = historySnapshot
                 .LastOrDefault(e => e.Diagnostics != null);
@@ -491,7 +490,7 @@ namespace BiatecTokensApi.Services
             List<ProviderBackedCaseExecutionEvidence> history = new();
             if (_history.TryGetValue(caseId, out var stored))
             {
-                lock (stored) { history = stored.ToList(); }
+                history = stored.ToList();
             }
 
             // Fail-closed: enforce provider-backed evidence requirement

@@ -1122,38 +1122,58 @@ namespace BiatecTokensTests
         // ═══════════════════════════════════════════════════════════════════════
 
         [Test]
-        public async Task ExecuteDecision_ConcurrentExecutions_NoHistoryCorruption()
+        public async Task ExecuteDecision_ConcurrentExecutions_SameCase_AllEvidenceRetained()
         {
-            // Create multiple independent cases and run concurrent executions
+            // This test proves that concurrent decisions targeting the SAME case do not
+            // cause lost evidence due to the previously-buggy AddOrUpdate+List pattern.
+            // We use Escalate (which is valid from UnderReview) and allow some calls to
+            // succeed and some to fail (the case may already be Escalated for subsequent
+            // ones). The key invariant is that every *successful* execution must appear
+            // in the history — no evidence artifact is silently dropped.
+
             var caseService = CreateCaseService();
+            var caseId = await CreateAndAdvanceCaseToUnderReview(caseService);
             var svc = CreateService(caseService);
 
-            const int caseCount = 5;
-            var caseIds = new string[caseCount];
-            for (int i = 0; i < caseCount; i++)
-                caseIds[i] = await CreateAndAdvanceCaseToUnderReview(caseService,
-                    subjectId: $"subject-{i}");
+            const int concurrency = 8;
 
-            // Execute approvals concurrently
-            var tasks = caseIds.Select(id => svc.ExecuteDecisionAsync(id,
-                new ExecuteProviderBackedDecisionRequest
-                {
-                    DecisionKind = ProviderBackedCaseDecisionKind.Approve,
-                    ExecutionMode = ProviderBackedCaseExecutionMode.Simulated
-                }, "actor")).ToArray();
+            // Fire all concurrent calls against the single case
+            var tasks = Enumerable.Range(0, concurrency)
+                .Select(i => svc.ExecuteDecisionAsync(caseId,
+                    new ExecuteProviderBackedDecisionRequest
+                    {
+                        DecisionKind = ProviderBackedCaseDecisionKind.Escalate,
+                        ExecutionMode = ProviderBackedCaseExecutionMode.Simulated,
+                        Reason = $"Concurrent escalation {i}",
+                        CorrelationId = $"corr-{i}"
+                    }, $"actor-{i}"))
+                .ToArray();
 
             var results = await Task.WhenAll(tasks);
 
-            Assert.That(results.All(r => r.Success), Is.True,
-                "All concurrent executions should succeed: " +
-                string.Join(", ", results.Where(r => !r.Success).Select(r => r.ErrorMessage)));
+            // Count how many succeeded vs failed (state machine allows only some transitions)
+            var successCount = results.Count(r => r.Success);
+            var failCount = results.Count(r => !r.Success);
 
-            // Verify each case has exactly 1 execution in its history
-            foreach (var id in caseIds)
+            // At least one must have succeeded
+            Assert.That(successCount, Is.GreaterThanOrEqualTo(1),
+                "At least one concurrent escalation must succeed");
+
+            // CRITICAL: history must contain exactly successCount entries — no lost evidence
+            var status = await svc.GetExecutionStatusAsync(caseId, "actor");
+            Assert.That(status.ExecutionHistory, Has.Count.EqualTo(successCount),
+                $"History must contain exactly {successCount} evidence artifact(s) — " +
+                $"one per successful execution. Had {failCount} failures. " +
+                $"Any discrepancy means evidence was silently dropped.");
+
+            // Every successful execution ID must be traceable in history
+            var historyExecutionIds = status.ExecutionHistory
+                .Select(e => e.ExecutionId)
+                .ToHashSet();
+            foreach (var result in results.Where(r => r.Success))
             {
-                var status = await svc.GetExecutionStatusAsync(id, "actor");
-                Assert.That(status.ExecutionHistory, Has.Count.EqualTo(1),
-                    $"Case {id} should have exactly 1 execution in history");
+                Assert.That(historyExecutionIds, Does.Contain(result.ExecutionId),
+                    $"ExecutionId {result.ExecutionId} from a successful execution is missing from history");
             }
         }
     }
