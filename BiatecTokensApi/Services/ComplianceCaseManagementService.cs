@@ -39,8 +39,8 @@ namespace BiatecTokensApi.Services
             {
                 [ComplianceCaseState.Intake]          = new HashSet<ComplianceCaseState> { ComplianceCaseState.EvidencePending, ComplianceCaseState.Blocked },
                 [ComplianceCaseState.EvidencePending] = new HashSet<ComplianceCaseState> { ComplianceCaseState.UnderReview, ComplianceCaseState.Stale, ComplianceCaseState.Blocked },
-                [ComplianceCaseState.UnderReview]     = new HashSet<ComplianceCaseState> { ComplianceCaseState.Approved, ComplianceCaseState.Rejected, ComplianceCaseState.Escalated, ComplianceCaseState.Remediating, ComplianceCaseState.Blocked },
-                [ComplianceCaseState.Escalated]       = new HashSet<ComplianceCaseState> { ComplianceCaseState.UnderReview, ComplianceCaseState.Rejected, ComplianceCaseState.Blocked },
+                [ComplianceCaseState.UnderReview]     = new HashSet<ComplianceCaseState> { ComplianceCaseState.Approved, ComplianceCaseState.Rejected, ComplianceCaseState.Escalated, ComplianceCaseState.Remediating, ComplianceCaseState.EvidencePending, ComplianceCaseState.Blocked },
+                [ComplianceCaseState.Escalated]       = new HashSet<ComplianceCaseState> { ComplianceCaseState.UnderReview, ComplianceCaseState.Rejected, ComplianceCaseState.EvidencePending, ComplianceCaseState.Blocked },
                 [ComplianceCaseState.Remediating]     = new HashSet<ComplianceCaseState> { ComplianceCaseState.UnderReview, ComplianceCaseState.Approved, ComplianceCaseState.Rejected, ComplianceCaseState.Blocked },
                 [ComplianceCaseState.Stale]           = new HashSet<ComplianceCaseState> { ComplianceCaseState.EvidencePending, ComplianceCaseState.Rejected, ComplianceCaseState.Blocked },
                 [ComplianceCaseState.Blocked]         = new HashSet<ComplianceCaseState> { ComplianceCaseState.Intake },
@@ -1768,6 +1768,283 @@ namespace BiatecTokensApi.Services
                 ComplianceCaseState.Blocked         => "The case is blocked. Investigate the blocking reason and transition back to Intake when resolved.",
                 _                                   => "Review the case state and determine the appropriate next step."
             };
+        }
+
+        // ── ApproveComplianceCaseAsync ─────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<ApproveComplianceCaseResponse> ApproveComplianceCaseAsync(
+            string caseId, ApproveComplianceCaseRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new ApproveComplianceCaseResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            var allowedFromStates = new HashSet<ComplianceCaseState>
+                { ComplianceCaseState.UnderReview, ComplianceCaseState.Remediating };
+
+            if (!allowedFromStates.Contains(c.State))
+                return Task.FromResult(new ApproveComplianceCaseResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.INVALID_STATE_TRANSITION,
+                    ErrorMessage = $"Case cannot be approved from state '{c.State}'. " +
+                                   "Approval is only valid from UnderReview or Remediating."
+                });
+
+            var decidedBy = request.ApprovedBy ?? actorId;
+            var now = _timeProvider.GetUtcNow();
+            var decisionId = Guid.NewGuid().ToString("N");
+
+            // Record an approval decision entry
+            var decision = new CaseDecisionRecord
+            {
+                DecisionId        = decisionId,
+                CaseId            = caseId,
+                Kind              = CaseDecisionKind.ApprovalDecision,
+                DecisionSummary   = request.Rationale ?? "Case formally approved.",
+                Outcome           = "Approved",
+                Explanation       = request.ApprovalNotes,
+                ProviderReference = request.ExternalApprovalReference,
+                IsAdverse         = false,
+                DecidedBy         = decidedBy,
+                DecidedAt         = now
+            };
+            c.DecisionHistory.Add(decision);
+
+            // Transition to Approved
+            var fromState = c.State;
+            c.State         = ComplianceCaseState.Approved;
+            c.UpdatedAt     = now;
+            c.ClosedAt      = now;
+            c.ClosureReason = request.Rationale ?? "Approved";
+
+            var idempotencyKey = $"{c.IssuerId}|{c.SubjectId}|{c.Type}";
+            _idempotencyIndex.TryRemove(idempotencyKey, out _);
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.ApprovalDecisionRecorded, decidedBy, now,
+                description: $"Case approved. Rationale: {request.Rationale ?? "(none)"}",
+                fromState: fromState, toState: ComplianceCaseState.Approved,
+                metadata: new Dictionary<string, string>
+                {
+                    ["decisionId"] = decisionId,
+                    ["approvedBy"] = decidedBy,
+                    ["externalRef"] = request.ExternalApprovalReference ?? string.Empty
+                }));
+
+            _logger.LogInformation(
+                "ApproveCase. CaseId={CaseId} DecisionId={DecisionId} DecidedBy={DecidedBy}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                decisionId,
+                LoggingHelper.SanitizeLogInput(decidedBy));
+
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseApprovalReady, decidedBy, caseId,
+                new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId });
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseApprovalGranted, decidedBy, caseId,
+                new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId,
+                      reason = request.Rationale, decidedBy, decisionId,
+                      externalRef = request.ExternalApprovalReference });
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseDecisionRecorded, decidedBy, caseId,
+                new { caseId, decisionId, kind = CaseDecisionKind.ApprovalDecision.ToString(),
+                      outcome = "Approved", decidedBy });
+
+            return Task.FromResult(new ApproveComplianceCaseResponse
+            {
+                Success    = true,
+                Case       = c,
+                DecisionId = decisionId
+            });
+        }
+
+        // ── RejectComplianceCaseAsync ──────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<RejectComplianceCaseResponse> RejectComplianceCaseAsync(
+            string caseId, RejectComplianceCaseRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new RejectComplianceCaseResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            if (string.IsNullOrWhiteSpace(request.Reason))
+                return Task.FromResult(new RejectComplianceCaseResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.MISSING_REQUIRED_FIELD,
+                    ErrorMessage = "Reason is required when rejecting a case."
+                });
+
+            var allowedFromStates = new HashSet<ComplianceCaseState>
+                { ComplianceCaseState.UnderReview, ComplianceCaseState.Escalated, ComplianceCaseState.Remediating };
+
+            if (!allowedFromStates.Contains(c.State))
+                return Task.FromResult(new RejectComplianceCaseResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.INVALID_STATE_TRANSITION,
+                    ErrorMessage = $"Case cannot be rejected from state '{c.State}'. " +
+                                   "Rejection is only valid from UnderReview, Escalated, or Remediating."
+                });
+
+            var decidedBy = request.RejectedBy ?? actorId;
+            var now = _timeProvider.GetUtcNow();
+            var decisionId = Guid.NewGuid().ToString("N");
+
+            // Record a rejection decision entry
+            var decision = new CaseDecisionRecord
+            {
+                DecisionId        = decisionId,
+                CaseId            = caseId,
+                Kind              = CaseDecisionKind.RejectionDecision,
+                DecisionSummary   = request.Reason,
+                Outcome           = "Rejected",
+                Explanation       = request.RejectionNotes,
+                ProviderReference = request.ExternalRejectionReference,
+                IsAdverse         = true,
+                DecidedBy         = decidedBy,
+                DecidedAt         = now
+            };
+            c.DecisionHistory.Add(decision);
+
+            // Transition to Rejected
+            var fromState = c.State;
+            c.State         = ComplianceCaseState.Rejected;
+            c.UpdatedAt     = now;
+            c.ClosedAt      = now;
+            c.ClosureReason = request.Reason;
+
+            var idempotencyKey = $"{c.IssuerId}|{c.SubjectId}|{c.Type}";
+            _idempotencyIndex.TryRemove(idempotencyKey, out _);
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.RejectionDecisionRecorded, decidedBy, now,
+                description: $"Case rejected. Reason: {request.Reason}",
+                fromState: fromState, toState: ComplianceCaseState.Rejected,
+                metadata: new Dictionary<string, string>
+                {
+                    ["decisionId"] = decisionId,
+                    ["rejectedBy"] = decidedBy,
+                    ["externalRef"] = request.ExternalRejectionReference ?? string.Empty
+                }));
+
+            _logger.LogInformation(
+                "RejectCase. CaseId={CaseId} DecisionId={DecisionId} DecidedBy={DecidedBy}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                decisionId,
+                LoggingHelper.SanitizeLogInput(decidedBy));
+
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseApprovalDenied, decidedBy, caseId,
+                new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId,
+                      reason = request.Reason, decidedBy, decisionId,
+                      externalRef = request.ExternalRejectionReference });
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseDecisionRecorded, decidedBy, caseId,
+                new { caseId, decisionId, kind = CaseDecisionKind.RejectionDecision.ToString(),
+                      outcome = "Rejected", decidedBy, isAdverse = true });
+
+            return Task.FromResult(new RejectComplianceCaseResponse
+            {
+                Success    = true,
+                Case       = c,
+                DecisionId = decisionId
+            });
+        }
+
+        // ── ReturnForInformationAsync ──────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<ReturnForInformationResponse> ReturnForInformationAsync(
+            string caseId, ReturnForInformationRequest request, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new ReturnForInformationResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            if (string.IsNullOrWhiteSpace(request.Reason))
+                return Task.FromResult(new ReturnForInformationResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.MISSING_REQUIRED_FIELD,
+                    ErrorMessage = "Reason is required when returning a case for information."
+                });
+
+            var allowedFromStates = new HashSet<ComplianceCaseState>
+                { ComplianceCaseState.UnderReview, ComplianceCaseState.Escalated };
+
+            if (!allowedFromStates.Contains(c.State))
+                return Task.FromResult(new ReturnForInformationResponse
+                {
+                    Success = false, ErrorCode = ErrorCodes.INVALID_STATE_TRANSITION,
+                    ErrorMessage = $"Case cannot be returned for information from state '{c.State}'. " +
+                                   "Return-for-information is only valid from UnderReview or Escalated."
+                });
+
+            var targetState = request.TargetStage == ReturnForInformationTargetStage.Remediating
+                ? ComplianceCaseState.Remediating
+                : ComplianceCaseState.EvidencePending;
+
+            var fromState = c.State;
+            var now = _timeProvider.GetUtcNow();
+
+            c.State     = targetState;
+            c.UpdatedAt = now;
+
+            var itemsText = request.RequestedItems?.Count > 0
+                ? string.Join("; ", request.RequestedItems)
+                : null;
+
+            c.Timeline.Add(BuildTimelineEntry(
+                caseId, CaseTimelineEventType.ReturnedForInformation, actorId, now,
+                description: $"Case returned to {targetState} for information. Reason: {request.Reason}",
+                fromState: fromState, toState: targetState,
+                metadata: new Dictionary<string, string>
+                {
+                    ["reason"] = request.Reason,
+                    ["requestedItems"] = itemsText ?? string.Empty,
+                    ["targetStage"] = targetState.ToString()
+                }));
+
+            _logger.LogInformation(
+                "ReturnForInformation. CaseId={CaseId} TargetState={TargetState} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                targetState.ToString(),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            _ = PersistCaseAsync(c);
+
+            EmitEventFireAndForget(WebhookEventType.ComplianceCaseReturnedForInformation, actorId, caseId,
+                new
+                {
+                    caseId,
+                    issuerId        = c.IssuerId,
+                    subjectId       = c.SubjectId,
+                    reason          = request.Reason,
+                    requestedItems  = request.RequestedItems,
+                    targetStage     = targetState.ToString(),
+                    returnedBy      = actorId,
+                    additionalNotes = request.AdditionalNotes
+                });
+
+            if (targetState == ComplianceCaseState.EvidencePending)
+                EmitEventFireAndForget(WebhookEventType.ComplianceCaseEvidenceRequested, actorId, caseId,
+                    new { caseId, issuerId = c.IssuerId, subjectId = c.SubjectId,
+                          reason = request.Reason, requestedItems = request.RequestedItems });
+
+            return Task.FromResult(new ReturnForInformationResponse
+            {
+                Success         = true,
+                Case            = c,
+                ReturnedToStage = targetState
+            });
         }
 
         // ── Private helpers ────────────────────────────────────────────────────

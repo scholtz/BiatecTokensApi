@@ -178,5 +178,38 @@ namespace BiatecTokensApi.Services.Interface
         /// Returns a response with <c>HandoffStatus = null</c> when no handoff has been initiated.
         /// </summary>
         Task<GetHandoffStatusResponse> GetHandoffStatusAsync(string caseId, string actorId);
+
+        // ── Approval workflow parity ───────────────────────────────────────────
+
+        /// <summary>
+        /// Formally approves a compliance case. Transitions to <see cref="ComplianceCaseState.Approved"/>,
+        /// records a structured <see cref="CaseDecisionKind.ApprovalDecision"/> audit entry with the
+        /// provided rationale and notes, and emits a
+        /// <see cref="Models.Webhook.WebhookEventType.ComplianceCaseApprovalGranted"/> event.
+        /// Fail-closed: only cases in <see cref="ComplianceCaseState.UnderReview"/> or
+        /// <see cref="ComplianceCaseState.Remediating"/> can be approved.
+        /// </summary>
+        Task<ApproveComplianceCaseResponse> ApproveComplianceCaseAsync(string caseId, ApproveComplianceCaseRequest request, string actorId);
+
+        /// <summary>
+        /// Formally rejects a compliance case. Transitions to <see cref="ComplianceCaseState.Rejected"/>,
+        /// records a structured <see cref="CaseDecisionKind.RejectionDecision"/> audit entry with the
+        /// required rejection reason, and emits a
+        /// <see cref="Models.Webhook.WebhookEventType.ComplianceCaseApprovalDenied"/> event.
+        /// Fail-closed: only cases in <see cref="ComplianceCaseState.UnderReview"/>,
+        /// <see cref="ComplianceCaseState.Escalated"/>, or <see cref="ComplianceCaseState.Remediating"/>
+        /// can be rejected. Reason is required.
+        /// </summary>
+        Task<RejectComplianceCaseResponse> RejectComplianceCaseAsync(string caseId, RejectComplianceCaseRequest request, string actorId);
+
+        /// <summary>
+        /// Returns a compliance case to an earlier stage (EvidencePending or Remediating) with a
+        /// structured reason explaining what information or correction is needed. Records a timeline entry
+        /// and emits a <see cref="Models.Webhook.WebhookEventType.ComplianceCaseReturnedForInformation"/> event.
+        /// Fail-closed: only cases in <see cref="ComplianceCaseState.UnderReview"/> or
+        /// <see cref="ComplianceCaseState.Escalated"/> can be returned for information.
+        /// <see cref="ReturnForInformationRequest.Reason"/> is required.
+        /// </summary>
+        Task<ReturnForInformationResponse> ReturnForInformationAsync(string caseId, ReturnForInformationRequest request, string actorId);
     }
 }

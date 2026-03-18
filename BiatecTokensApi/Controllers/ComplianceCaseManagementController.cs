@@ -772,6 +772,88 @@ namespace BiatecTokensApi.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // ── Approval workflow parity ───────────────────────────────────────────
+
+        /// <summary>
+        /// Formally approves a compliance case. Transitions to Approved state, records a structured
+        /// ApprovalDecision audit entry with the provided rationale and notes, and emits
+        /// ComplianceCaseApprovalGranted and ComplianceCaseDecisionRecorded webhook events.
+        /// Fail-closed: only cases in UnderReview or Remediating can be approved.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpPost("{caseId}/approve")]
+        [ProducesResponseType(typeof(ApproveComplianceCaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApproveComplianceCaseResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApproveComplianceCaseResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ApproveCase(string caseId, [FromBody] ApproveComplianceCaseRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "ApproveCase. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.ApproveComplianceCaseAsync(caseId, request, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Formally rejects a compliance case. Transitions to Rejected state, records a structured
+        /// RejectionDecision audit entry with the required reason, and emits ComplianceCaseApprovalDenied
+        /// and ComplianceCaseDecisionRecorded webhook events.
+        /// Fail-closed: Reason is required; only UnderReview, Escalated, or Remediating cases can be rejected.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpPost("{caseId}/reject")]
+        [ProducesResponseType(typeof(RejectComplianceCaseResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(RejectComplianceCaseResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(RejectComplianceCaseResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> RejectCase(string caseId, [FromBody] RejectComplianceCaseRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "RejectCase. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.RejectComplianceCaseAsync(caseId, request, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Returns a compliance case to an earlier lifecycle stage (EvidencePending or Remediating)
+        /// with a structured reason explaining what information or correction is needed.
+        /// Records a ReturnedForInformation timeline entry and emits a
+        /// ComplianceCaseReturnedForInformation webhook event.
+        /// Fail-closed: Reason is required; only UnderReview or Escalated cases can be returned.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpPost("{caseId}/return-for-information")]
+        [ProducesResponseType(typeof(ReturnForInformationResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ReturnForInformationResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ReturnForInformationResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ReturnForInformation(string caseId, [FromBody] ReturnForInformationRequest request)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "ReturnForInformation. CaseId={CaseId} TargetStage={TargetStage} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                request.TargetStage.ToString(),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.ReturnForInformationAsync(caseId, request, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────
 
         private string GetActorId() =>

@@ -70,7 +70,13 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
         /// <summary>A KYC, AML, sanctions, or approval decision was recorded against the case.</summary>
         DecisionRecorded,
         /// <summary>The downstream handoff status was updated.</summary>
-        HandoffStatusChanged
+        HandoffStatusChanged,
+        /// <summary>An explicit approval decision was recorded via the approve endpoint.</summary>
+        ApprovalDecisionRecorded,
+        /// <summary>An explicit rejection decision was recorded via the reject endpoint.</summary>
+        RejectionDecisionRecorded,
+        /// <summary>The case was returned to an earlier stage requesting additional information.</summary>
+        ReturnedForInformation
     }
 
     // ── Blocker taxonomy ───────────────────────────────────────────────────────
@@ -124,7 +130,11 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
         /// <summary>A manual compliance review decision was recorded.</summary>
         ManualReviewDecision,
         /// <summary>An escalation review decision was recorded.</summary>
-        EscalationDecision
+        EscalationDecision,
+        /// <summary>A formal case approval decision recorded via the approve endpoint.</summary>
+        ApprovalDecision,
+        /// <summary>A formal case rejection decision recorded via the reject endpoint.</summary>
+        RejectionDecision
     }
 
     // ── Handoff stage ──────────────────────────────────────────────────────────
@@ -1748,6 +1758,158 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
 
         /// <summary>The handoff status (null when no handoff has been initiated).</summary>
         public CaseHandoffStatus? HandoffStatus { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    // ── Approval / rejection / return-for-information request and response types ──
+
+    /// <summary>
+    /// Request to formally approve a compliance case.
+    /// Transitions the case to <see cref="ComplianceCaseState.Approved"/>, records an
+    /// <see cref="CaseDecisionKind.ApprovalDecision"/> audit record, and emits
+    /// <see cref="BiatecTokensApi.Models.Webhook.WebhookEventType.ComplianceCaseApprovalGranted"/>.
+    /// </summary>
+    public class ApproveComplianceCaseRequest
+    {
+        /// <summary>Plain-language rationale for the approval (strongly recommended for audit trail).</summary>
+        public string? Rationale { get; set; }
+
+        /// <summary>Optional structured notes capturing reviewer observations or evidence references.</summary>
+        public string? ApprovalNotes { get; set; }
+
+        /// <summary>
+        /// Identity of the approver (overrides the HTTP actor when provided, e.g. for system-originated approvals).
+        /// When null, the authenticated actor ID is used.
+        /// </summary>
+        public string? ApprovedBy { get; set; }
+
+        /// <summary>Optional reference to the external approval workflow ticket or document ID.</summary>
+        public string? ExternalApprovalReference { get; set; }
+    }
+
+    /// <summary>Response returned after a successful approval action.</summary>
+    public class ApproveComplianceCaseResponse
+    {
+        /// <summary>True when the case was approved successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The updated case snapshot after approval.</summary>
+        public ComplianceCase? Case { get; set; }
+
+        /// <summary>ID of the approval decision record created for audit purposes.</summary>
+        public string? DecisionId { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request to formally reject a compliance case.
+    /// Transitions the case to <see cref="ComplianceCaseState.Rejected"/>, records a
+    /// <see cref="CaseDecisionKind.RejectionDecision"/> audit record, and emits
+    /// <see cref="BiatecTokensApi.Models.Webhook.WebhookEventType.ComplianceCaseApprovalDenied"/>.
+    /// </summary>
+    public class RejectComplianceCaseRequest
+    {
+        /// <summary>Required plain-language reason for the rejection.</summary>
+        public string? Reason { get; set; }
+
+        /// <summary>Optional structured notes capturing reviewer observations, adverse findings, or evidence references.</summary>
+        public string? RejectionNotes { get; set; }
+
+        /// <summary>
+        /// Identity of the rejecting reviewer (overrides the HTTP actor when provided).
+        /// When null, the authenticated actor ID is used.
+        /// </summary>
+        public string? RejectedBy { get; set; }
+
+        /// <summary>Optional reference to the external document or workflow ticket that triggered the rejection.</summary>
+        public string? ExternalRejectionReference { get; set; }
+    }
+
+    /// <summary>Response returned after a successful rejection action.</summary>
+    public class RejectComplianceCaseResponse
+    {
+        /// <summary>True when the case was rejected successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The updated case snapshot after rejection.</summary>
+        public ComplianceCase? Case { get; set; }
+
+        /// <summary>ID of the rejection decision record created for audit purposes.</summary>
+        public string? DecisionId { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Stage to which a case is returned when the reviewer requests additional information.
+    /// </summary>
+    public enum ReturnForInformationTargetStage
+    {
+        /// <summary>
+        /// Return to <see cref="ComplianceCaseState.EvidencePending"/> — reviewer needs additional evidence
+        /// documents before the review can continue.
+        /// </summary>
+        EvidencePending,
+
+        /// <summary>
+        /// Return to <see cref="ComplianceCaseState.Remediating"/> — reviewer has identified corrections
+        /// or outstanding remediation tasks that must be completed before re-evaluation.
+        /// </summary>
+        Remediating
+    }
+
+    /// <summary>
+    /// Request to return a compliance case to an earlier lifecycle stage.
+    /// Transitions the case to <see cref="ComplianceCaseState.EvidencePending"/> or
+    /// <see cref="ComplianceCaseState.Remediating"/> and emits
+    /// <see cref="BiatecTokensApi.Models.Webhook.WebhookEventType.ComplianceCaseReturnedForInformation"/>.
+    /// </summary>
+    public class ReturnForInformationRequest
+    {
+        /// <summary>
+        /// The stage to which the case should be returned.
+        /// Defaults to <see cref="ReturnForInformationTargetStage.EvidencePending"/>.
+        /// </summary>
+        public ReturnForInformationTargetStage TargetStage { get; set; } = ReturnForInformationTargetStage.EvidencePending;
+
+        /// <summary>Required plain-language reason explaining what information or correction is needed.</summary>
+        public string? Reason { get; set; }
+
+        /// <summary>
+        /// Structured list of the specific items, documents, or evidence fields that must be provided
+        /// before the review can continue (e.g., "Valid passport copy", "Updated proof of address").
+        /// </summary>
+        public List<string>? RequestedItems { get; set; }
+
+        /// <summary>Optional notes providing further context to the subject or compliance team.</summary>
+        public string? AdditionalNotes { get; set; }
+    }
+
+    /// <summary>Response returned after a successful return-for-information action.</summary>
+    public class ReturnForInformationResponse
+    {
+        /// <summary>True when the case was returned successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The updated case snapshot after the return.</summary>
+        public ComplianceCase? Case { get; set; }
+
+        /// <summary>The stage the case was transitioned to.</summary>
+        public ComplianceCaseState? ReturnedToStage { get; set; }
 
         /// <summary>Error code when <see cref="Success"/> is false.</summary>
         public string? ErrorCode { get; set; }

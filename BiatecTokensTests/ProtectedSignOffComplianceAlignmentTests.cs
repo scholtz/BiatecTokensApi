@@ -172,8 +172,8 @@ namespace BiatecTokensTests
                 .Where(c => c.Category == EnvironmentCheckCategory.ComplianceWorkflow)
                 .ToList();
 
-            Assert.That(complianceChecks, Has.Count.EqualTo(2),
-                "Expected exactly 2 ComplianceWorkflow checks when services are wired up.");
+            Assert.That(complianceChecks, Has.Count.EqualTo(3),
+                "Expected exactly 3 ComplianceWorkflow checks when services are wired up (KycAmlSignOffServiceAvailable, ComplianceCaseServiceAvailable, ComplianceCaseApprovalWorkflowAvailable).");
         }
 
         // ── ALIGN02: both compliance checks pass when services available ────────
@@ -388,8 +388,8 @@ namespace BiatecTokensTests
 
             Assert.That(withCompliance.TotalCheckCount, Is.GreaterThan(withoutCompliance.TotalCheckCount),
                 "TotalCheckCount must be higher when compliance checks are included.");
-            Assert.That(withCompliance.TotalCheckCount - withoutCompliance.TotalCheckCount, Is.EqualTo(2),
-                "Exactly 2 additional compliance checks are expected.");
+            Assert.That(withCompliance.TotalCheckCount - withoutCompliance.TotalCheckCount, Is.EqualTo(3),
+                "Exactly 3 additional compliance checks are expected (KycAmlSignOff, ComplianceCase, ComplianceCaseApprovalWorkflow).");
         }
 
         // ── ALIGN18: compliance check results are deterministic ─────────────────
@@ -412,7 +412,8 @@ namespace BiatecTokensTests
                     .Where(c => c.Category == EnvironmentCheckCategory.ComplianceWorkflow)
                     .ToList();
 
-                Assert.That(complianceChecks, Has.Count.EqualTo(2));
+                Assert.That(complianceChecks, Has.Count.EqualTo(3),
+                    "Exactly 3 ComplianceWorkflow checks expected across all runs.");
                 Assert.That(complianceChecks.All(c => c.Outcome == EnvironmentCheckOutcome.Pass), Is.True,
                     "Compliance checks must consistently pass when services are wired up.");
             }
@@ -793,6 +794,120 @@ namespace BiatecTokensTests
             using JsonDocument diagDoc = JsonDocument.Parse(diagBody);
             Assert.That(diagDoc.RootElement.GetProperty("isOperational").GetBoolean(), Is.True,
                 "Diagnostics must be operational in the compliance-aligned sign-off journey.");
+        }
+
+        // ── ALIGN21: ComplianceCaseApprovalWorkflowAvailable check is present ──
+
+        [Test]
+        public async Task ALIGN21_ComplianceCaseApprovalWorkflowAvailable_Check_IsPresentWhenServiceWiredUp()
+        {
+            ProtectedSignOffEnvironmentService svc = CreateServiceWith(_kycAmlMock.Object, _casesMock.Object);
+
+            ProtectedSignOffEnvironmentResponse result = await svc.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest
+                {
+                    CorrelationId                  = "align21",
+                    IncludeComplianceWorkflowCheck = true
+                });
+
+            List<string> checkNames = result.Checks
+                .Where(c => c.Category == EnvironmentCheckCategory.ComplianceWorkflow)
+                .Select(c => c.Name)
+                .ToList();
+
+            Assert.That(checkNames, Does.Contain("ComplianceCaseApprovalWorkflowAvailable"),
+                "Stable check name 'ComplianceCaseApprovalWorkflowAvailable' must be present as part of the release-grade approval-workflow parity surface.");
+        }
+
+        [Test]
+        public async Task ALIGN21_ComplianceCaseApprovalWorkflowAvailable_IsPass_WhenServicePresent()
+        {
+            ProtectedSignOffEnvironmentService svc = CreateServiceWith(_kycAmlMock.Object, _casesMock.Object);
+
+            ProtectedSignOffEnvironmentResponse result = await svc.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest
+                {
+                    CorrelationId                  = "align21b",
+                    IncludeComplianceWorkflowCheck = true
+                });
+
+            EnvironmentCheck? check = result.Checks
+                .FirstOrDefault(c => c.Name == "ComplianceCaseApprovalWorkflowAvailable");
+
+            Assert.That(check, Is.Not.Null, "ComplianceCaseApprovalWorkflowAvailable check must be present.");
+            Assert.That(check!.Outcome, Is.EqualTo(EnvironmentCheckOutcome.Pass),
+                "ComplianceCaseApprovalWorkflowAvailable must Pass when the service is available.");
+        }
+
+        [Test]
+        public async Task ALIGN21_ComplianceCaseApprovalWorkflowAvailable_IsDegradedFail_WhenServiceAbsent()
+        {
+            ProtectedSignOffEnvironmentService svc = CreateServiceWith(_kycAmlMock.Object, cases: null);
+
+            ProtectedSignOffEnvironmentResponse result = await svc.CheckEnvironmentReadinessAsync(
+                new ProtectedSignOffEnvironmentRequest
+                {
+                    CorrelationId                  = "align21c",
+                    IncludeComplianceWorkflowCheck = true
+                });
+
+            EnvironmentCheck? check = result.Checks
+                .FirstOrDefault(c => c.Name == "ComplianceCaseApprovalWorkflowAvailable");
+
+            Assert.That(check, Is.Not.Null, "ComplianceCaseApprovalWorkflowAvailable check must be present even when service is absent.");
+            Assert.That(check!.Outcome, Is.EqualTo(EnvironmentCheckOutcome.DegradedFail),
+                "ComplianceCaseApprovalWorkflowAvailable must DegradedFail when the service is absent.");
+        }
+
+        // ── ALIGN22: approval-workflow parity endpoints are accessible via HTTP ──
+
+        [Test]
+        public async Task ALIGN22_ApproveEndpoint_IsAccessible_ViaHttp()
+        {
+            using ComplianceAlignmentFactory factory = new();
+            using HttpClient client = factory.CreateClient();
+
+            // No auth — must return 401 (fail-closed, not 404 or 500)
+            HttpResponseMessage response = await client.PostAsJsonAsync(
+                "/api/v1/compliance-cases/test-case-id/approve",
+                new { rationale = "test" });
+
+            Assert.That((int)response.StatusCode, Is.EqualTo(401).Or.EqualTo(400),
+                "Approve endpoint must be accessible (401 or 400), not 404 or 500.");
+            Assert.That((int)response.StatusCode, Is.Not.EqualTo(404),
+                "Approve endpoint must not return 404 — it must be registered.");
+        }
+
+        [Test]
+        public async Task ALIGN22_RejectEndpoint_IsAccessible_ViaHttp()
+        {
+            using ComplianceAlignmentFactory factory = new();
+            using HttpClient client = factory.CreateClient();
+
+            HttpResponseMessage response = await client.PostAsJsonAsync(
+                "/api/v1/compliance-cases/test-case-id/reject",
+                new { reason = "test rejection" });
+
+            Assert.That((int)response.StatusCode, Is.EqualTo(401).Or.EqualTo(400),
+                "Reject endpoint must be accessible (401 or 400), not 404 or 500.");
+            Assert.That((int)response.StatusCode, Is.Not.EqualTo(404),
+                "Reject endpoint must not return 404 — it must be registered.");
+        }
+
+        [Test]
+        public async Task ALIGN22_ReturnForInformationEndpoint_IsAccessible_ViaHttp()
+        {
+            using ComplianceAlignmentFactory factory = new();
+            using HttpClient client = factory.CreateClient();
+
+            HttpResponseMessage response = await client.PostAsJsonAsync(
+                "/api/v1/compliance-cases/test-case-id/return-for-information",
+                new { reason = "test return", targetStage = "EvidencePending" });
+
+            Assert.That((int)response.StatusCode, Is.EqualTo(401).Or.EqualTo(400),
+                "ReturnForInformation endpoint must be accessible (401 or 400), not 404 or 500.");
+            Assert.That((int)response.StatusCode, Is.Not.EqualTo(404),
+                "ReturnForInformation endpoint must not return 404 — it must be registered.");
         }
     }
 }

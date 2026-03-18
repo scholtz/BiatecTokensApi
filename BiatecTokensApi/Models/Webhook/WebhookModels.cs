@@ -205,6 +205,12 @@ namespace BiatecTokensApi.Models.Webhook
         /// </summary>
         ComplianceCaseReworkRequested,
 
+        /// <summary>
+        /// A compliance case was returned for additional information — reviewer requested more evidence
+        /// or correction before continuing review
+        /// </summary>
+        ComplianceCaseReturnedForInformation,
+
         // ── Ongoing Monitoring events ──────────────────────────────────────────
 
         /// <summary>
