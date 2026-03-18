@@ -246,7 +246,8 @@ namespace BiatecTokensApi.Services
 
             if (!decisionSuccess)
             {
-                var status = decisionErrorCode == "INVALID_TRANSITION"
+                var status = (decisionErrorCode == "INVALID_TRANSITION" ||
+                              decisionErrorCode == "INVALID_STATE_TRANSITION")
                     ? ProviderBackedCaseExecutionStatus.InvalidState
                     : ProviderBackedCaseExecutionStatus.Failed;
 
@@ -594,7 +595,7 @@ namespace BiatecTokensApi.Services
             try
             {
                 var records = await _kycAmlService.ListRecordsForSubjectAsync(subjectId);
-                if (!records.Success || records.Records == null || records.Records.Count == 0)
+                if (records.Records == null || records.Records.Count == 0)
                 {
                     diagnostics.ProviderFailures.Add(
                         $"No KYC/AML sign-off records found for subject '{subjectId}'. " +
@@ -619,9 +620,9 @@ namespace BiatecTokensApi.Services
                     var readiness = await _kycAmlService.GetReadinessAsync(record.RecordId);
                     if (readiness?.IsApprovalReady == true)
                     {
-                        if (record.CheckKind == Models.KycAmlSignOff.KycAmlSignOffCheckKind.Kyc)
+                        if (record.CheckKind == Models.KycAmlSignOff.KycAmlSignOffCheckKind.IdentityKyc)
                             kycOk = true;
-                        else if (record.CheckKind == Models.KycAmlSignOff.KycAmlSignOffCheckKind.Aml)
+                        else if (record.CheckKind == Models.KycAmlSignOff.KycAmlSignOffCheckKind.AmlScreening)
                             amlOk = true;
                         else if (record.CheckKind == Models.KycAmlSignOff.KycAmlSignOffCheckKind.Combined)
                         {
@@ -812,12 +813,22 @@ namespace BiatecTokensApi.Services
             {
                 try
                 {
+                    Dictionary<string, object>? data = null;
+                    try
+                    {
+                        var json = System.Text.Json.JsonSerializer.Serialize(payload);
+                        data = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                    }
+                    catch
+                    {
+                        data = new Dictionary<string, object> { ["entityId"] = entityId };
+                    }
+
                     await _webhookService.EmitEventAsync(new WebhookEvent
                     {
                         EventType = eventType,
-                        ActorId = actorId,
-                        EntityId = entityId,
-                        Payload = payload
+                        Actor     = actorId,
+                        Data      = data
                     });
                 }
                 catch (Exception ex)
@@ -836,7 +847,7 @@ namespace BiatecTokensApi.Services
         {
             return errorCode switch
             {
-                "INVALID_TRANSITION" =>
+                "INVALID_TRANSITION" or "INVALID_STATE_TRANSITION" =>
                     $"The case is in state '{currentState}' which does not support '{kind}'. " +
                     $"Transition the case to a valid prior state first.",
                 "CASE_NOT_FOUND" =>
