@@ -325,7 +325,7 @@ namespace BiatecTokensTests
             var response = bad!.Value as GetSignOffReleaseReadinessResponse;
             Assert.That(response!.Blockers, Is.Not.Empty);
             Assert.That(response.Blockers[0].Code, Is.EqualTo("EVIDENCE_UNAVAILABLE"));
-            Assert.That(response.Blockers[0].RemediationHint, Is.Not.Null.Or.Empty);
+            Assert.That(response.Blockers[0].RemediationHint, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]

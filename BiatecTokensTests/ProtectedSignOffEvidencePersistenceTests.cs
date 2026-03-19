@@ -166,12 +166,12 @@ namespace BiatecTokensTests
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Record, Is.Not.Null);
-            Assert.That(result.Record!.RecordId, Is.Not.Null.Or.Empty);
+            Assert.That(result.Record!.RecordId, Is.Not.Null.And.Not.Empty);
             Assert.That(result.Record.CaseId, Is.EqualTo("case-001"));
             Assert.That(result.Record.HeadRef, Is.EqualTo("sha-abc123"));
             Assert.That(result.Record.Outcome, Is.EqualTo(ApprovalWebhookOutcome.Approved));
             Assert.That(result.Record.IsValid, Is.True);
-            Assert.That(result.Record.PayloadHash, Is.Not.Null.Or.Empty);
+            Assert.That(result.Record.PayloadHash, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
@@ -210,7 +210,7 @@ namespace BiatecTokensTests
             // Should still succeed (malformed is persisted for audit)
             Assert.That(result.Success, Is.True);
             Assert.That(result.Record!.IsValid, Is.False);
-            Assert.That(result.Record.ValidationError, Is.Not.Null.Or.Empty);
+            Assert.That(result.Record.ValidationError, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
@@ -249,7 +249,7 @@ namespace BiatecTokensTests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorCode, Is.EqualTo("REQUEST_NULL"));
-            Assert.That(result.RemediationHint, Is.Not.Null.Or.Empty);
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
@@ -313,10 +313,10 @@ namespace BiatecTokensTests
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Pack, Is.Not.Null);
-            Assert.That(result.Pack!.PackId, Is.Not.Null.Or.Empty);
+            Assert.That(result.Pack!.PackId, Is.Not.Null.And.Not.Empty);
             Assert.That(result.Pack.HeadRef, Is.EqualTo("sha-abc123"));
             Assert.That(result.Pack.CaseId, Is.EqualTo("case-001"));
-            Assert.That(result.Pack.ContentHash, Is.Not.Null.Or.Empty);
+            Assert.That(result.Pack.ContentHash, Is.Not.Null.And.Not.Empty);
             Assert.That(result.Pack.IsProviderBacked, Is.True);
             Assert.That(result.Pack.Items, Is.Not.Empty);
         }
@@ -395,7 +395,7 @@ namespace BiatecTokensTests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorCode, Is.EqualTo("MISSING_APPROVAL_WEBHOOK"));
-            Assert.That(result.RemediationHint, Is.Not.Null.Or.Empty);
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
@@ -475,7 +475,7 @@ namespace BiatecTokensTests
             Assert.That(result.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable));
             Assert.That(result.HasApprovalWebhook, Is.False);
             Assert.That(result.Blockers, Is.Not.Empty);
-            Assert.That(result.OperatorGuidance, Is.Not.Null.Or.Empty);
+            Assert.That(result.OperatorGuidance, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
@@ -825,9 +825,9 @@ namespace BiatecTokensTests
             {
                 Assert.That(result.Success, Is.True);
                 Assert.That(result.Record, Is.Not.Null);
-                Assert.That(result.Record!.RecordId, Is.Not.Null.Or.Empty);
-                Assert.That(result.Record.CaseId, Is.Not.Null.Or.Empty);
-                Assert.That(result.Record.HeadRef, Is.Not.Null.Or.Empty);
+                Assert.That(result.Record!.RecordId, Is.Not.Null.And.Not.Empty);
+                Assert.That(result.Record.CaseId, Is.Not.Null.And.Not.Empty);
+                Assert.That(result.Record.HeadRef, Is.Not.Null.And.Not.Empty);
                 Assert.That(result.Record.ReceivedAt, Is.Not.EqualTo(default(DateTimeOffset)));
                 Assert.That(result.Record.Metadata, Is.Not.Null);
             });
@@ -843,9 +843,9 @@ namespace BiatecTokensTests
             {
                 Assert.That(result.Success, Is.True);
                 Assert.That(result.Pack, Is.Not.Null);
-                Assert.That(result.Pack!.PackId, Is.Not.Null.Or.Empty);
-                Assert.That(result.Pack.HeadRef, Is.Not.Null.Or.Empty);
-                Assert.That(result.Pack.ContentHash, Is.Not.Null.Or.Empty);
+                Assert.That(result.Pack!.PackId, Is.Not.Null.And.Not.Empty);
+                Assert.That(result.Pack.HeadRef, Is.Not.Null.And.Not.Empty);
+                Assert.That(result.Pack.ContentHash, Is.Not.Null.And.Not.Empty);
                 Assert.That(result.Pack.CreatedAt, Is.Not.EqualTo(default(DateTimeOffset)));
                 Assert.That(result.Pack.ExpiresAt, Is.Not.Null);
                 Assert.That(result.Pack.Items, Is.Not.Empty);
@@ -861,16 +861,16 @@ namespace BiatecTokensTests
             Assert.Multiple(() =>
             {
                 Assert.That(result.Status, Is.Not.EqualTo(default(SignOffReleaseReadinessStatus)));
-                Assert.That(result.HeadRef, Is.Not.Null.Or.Empty);
+                Assert.That(result.HeadRef, Is.Not.Null.And.Not.Empty);
                 Assert.That(result.EvaluatedAt, Is.Not.EqualTo(default(DateTimeOffset)));
                 Assert.That(result.Blockers, Is.Not.Null);
                 Assert.That(result.Blockers, Is.Not.Empty);
                 // Each blocker has a code, description, and remediation hint
                 foreach (var blocker in result.Blockers)
                 {
-                    Assert.That(blocker.Code, Is.Not.Null.Or.Empty);
-                    Assert.That(blocker.Description, Is.Not.Null.Or.Empty);
-                    Assert.That(blocker.RemediationHint, Is.Not.Null.Or.Empty);
+                    Assert.That(blocker.Code, Is.Not.Null.And.Not.Empty);
+                    Assert.That(blocker.Description, Is.Not.Null.And.Not.Empty);
+                    Assert.That(blocker.RemediationHint, Is.Not.Null.And.Not.Empty);
                 }
             });
         }
@@ -1017,7 +1017,7 @@ namespace BiatecTokensTests
             Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
             Assert.That(result.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable));
             Assert.That(result.Blockers.Count, Is.GreaterThan(0));
-            Assert.That(result.OperatorGuidance, Is.Not.Null.Or.Empty);
+            Assert.That(result.OperatorGuidance, Is.Not.Null.And.Not.Empty);
             // All critical blockers have remediation hints
             Assert.That(result.Blockers.Where(b => b.IsCritical).All(b => !string.IsNullOrEmpty(b.RemediationHint)),
                 Is.True, "All critical blockers must have remediation hints");
