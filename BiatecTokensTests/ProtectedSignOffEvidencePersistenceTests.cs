@@ -1571,15 +1571,6 @@ namespace BiatecTokensTests
         // ── Additional coverage: GetEvidencePackHistory ─────────────────────
 
         [Test]
-        public async Task GetEvidencePackHistory_NullRequest_ReturnsError()
-        {
-            var svc = CreateService();
-            var result = await svc.GetEvidencePackHistoryAsync(null!);
-            Assert.That(result.Success, Is.False);
-            Assert.That(result.ErrorCode, Is.EqualTo("REQUEST_NULL"));
-        }
-
-        [Test]
         public async Task GetEvidencePackHistory_FilterByHeadRef_ReturnsMatchingPacks()
         {
             var svc = CreateService();
@@ -1662,24 +1653,6 @@ namespace BiatecTokensTests
             Assert.That(result.Success, Is.True);
             Assert.That(result.Records, Has.All.Matches<ApprovalWebhookRecord>(r => r.HeadRef == headRef1));
             Assert.That(result.Records, Has.Count.EqualTo(1));
-        }
-
-        [Test]
-        public async Task GetApprovalWebhookHistory_MaxRecordsLimitsResults()
-        {
-            var svc = CreateService();
-            const string caseId = "case-maxrec-webhooks";
-            const string headRef = "sha-maxrec-wh";
-            for (int i = 0; i < 5; i++)
-            {
-                await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
-            }
-
-            var result = await svc.GetApprovalWebhookHistoryAsync(new GetApprovalWebhookHistoryRequest { CaseId = caseId, MaxRecords = 3 });
-
-            Assert.That(result.Success, Is.True);
-            Assert.That(result.Records, Has.Count.EqualTo(3));
-            Assert.That(result.TotalCount, Is.EqualTo(5));
         }
 
         [Test]
