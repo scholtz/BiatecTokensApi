@@ -1053,5 +1053,321 @@ namespace BiatecTokensTests
 
             Assert.That(history.Records.Any(r => r.Outcome == ApprovalWebhookOutcome.Escalated), Is.True);
         }
+
+        // ── Additional coverage: TimedOut webhook produces blocked status ──────
+
+        [Test]
+        public async Task GetReleaseReadiness_TimedOutWebhook_IsBlockedWithInvalidWebhookBlocker()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-timedout";
+            const string caseId = "case-timedout";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef,
+                    Outcome = ApprovalWebhookOutcome.TimedOut
+                }, "actor-t");
+
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor-t");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Blockers.Count, Is.GreaterThan(0),
+                "TimedOut webhook must produce at least one blocker");
+        }
+
+        // ── Additional coverage: evidence pack MaxRecords limits results ───────
+
+        [Test]
+        public async Task GetEvidencePackHistory_MaxRecordsLimitsResults()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-maxrec-packs";
+
+            for (int i = 0; i < 5; i++)
+            {
+                await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = $"case-{i}" }, "actor");
+            }
+
+            var result = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = headRef, MaxRecords = 2 });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Packs.Count, Is.LessThanOrEqualTo(2));
+        }
+
+        // ── Additional coverage: metadata propagation in webhook record ────────
+
+        [Test]
+        public async Task RecordApprovalWebhook_WithMetadata_MetadataPersistedInRecord()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            var req = new RecordApprovalWebhookRequest
+            {
+                CaseId = "case-meta", HeadRef = "sha-meta",
+                Outcome = ApprovalWebhookOutcome.Approved,
+                Metadata = new Dictionary<string, string> { ["env"] = "prod", ["version"] = "1.2.3" }
+            };
+
+            var result = await svc.RecordApprovalWebhookAsync(req, "actor-meta");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record!.Metadata, Contains.Key("env"));
+            Assert.That(result.Record.Metadata["env"], Is.EqualTo("prod"));
+        }
+
+        // ── Additional coverage: multiple webhooks — latest webhook used ───────
+
+        [Test]
+        public async Task GetReleaseReadiness_MultipleWebhooks_LatestApprovalIsUsed()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-multi-wh";
+            const string caseId = "case-multi-wh";
+
+            // First: Denied
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Denied
+                }, "actor");
+
+            // Second (newer): Approved
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved
+                }, "actor");
+
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(result.LatestApprovalWebhook, Is.Not.Null);
+            Assert.That(result.LatestApprovalWebhook!.Outcome, Is.EqualTo(ApprovalWebhookOutcome.Approved),
+                "Latest stored webhook must be the Approved one");
+        }
+
+        // ── Additional coverage: content hash is non-null ──────────────────────
+
+        [Test]
+        public async Task PersistSignOffEvidence_TwoCalls_ProduceDifferentContentHashes()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-hash-check";
+            const string caseId = "case-hash";
+
+            var r1 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+            var r2 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            Assert.That(r1.Success, Is.True);
+            Assert.That(r2.Success, Is.True);
+            Assert.That(r1.Pack!.ContentHash, Is.Not.Null.And.Not.Empty);
+            Assert.That(r2.Pack!.ContentHash, Is.Not.Null.And.Not.Empty);
+            // Each pack gets unique PackId → distinct hashes
+            Assert.That(r1.Pack.ContentHash, Is.Not.EqualTo(r2.Pack.ContentHash),
+                "Distinct pack records must produce distinct content hashes");
+        }
+
+        // ── Additional coverage: no-filter history returns records for headRef ─
+
+        [Test]
+        public async Task GetApprovalWebhookHistory_NoCaseIdFilter_ReturnsAllForHeadRef()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-nofilter";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = "caseA", HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved
+                }, "actor");
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = "caseB", HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Escalated
+                }, "actor");
+
+            var result = await svc.GetApprovalWebhookHistoryAsync(
+                new GetApprovalWebhookHistoryRequest { HeadRef = headRef });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Records.Count, Is.GreaterThanOrEqualTo(2),
+                "Without CaseId filter all records for the headRef should be returned");
+        }
+
+        // ── Additional coverage: service always marks pack IsProviderBacked ────
+
+        [Test]
+        public async Task PersistSignOffEvidence_PackIsAlwaysProviderBacked()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            var result = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = "sha-pb", CaseId = "case-pb" }, "actor-pb");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Pack!.IsProviderBacked, Is.True,
+                "In-memory service always sets IsProviderBacked = true");
+        }
+
+        // ── Additional coverage: pack with CaseId contains compliance item ─────
+
+        [Test]
+        public async Task PersistSignOffEvidence_WithCaseId_PackContainsComplianceCaseItem()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            var result = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = "sha-items", CaseId = "case-items" },
+                "actor-items");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Pack!.Items.Count, Is.GreaterThanOrEqualTo(2),
+                "Pack with CaseId must include standard item and compliance case reference item");
+            Assert.That(result.Pack.Items.Any(i => i.EvidenceType == "COMPLIANCE_CASE_REFERENCE"), Is.True);
+        }
+
+        // ── Additional coverage: approved webhook only (no pack) → not Ready ──
+
+        [Test]
+        public async Task GetReleaseReadiness_ApprovedWebhookNoEvidencePack_IsNotReady()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-webhook-only";
+            const string caseId = "case-webhook-only";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved
+                }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(result.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "Approved webhook without evidence pack must not be Ready");
+            Assert.That(result.HasApprovalWebhook, Is.True);
+        }
+
+        // ── Additional coverage: freshness window respected ────────────────────
+
+        [Test]
+        public async Task GetReleaseReadiness_PackWithinFreshnessWindow_NotClassifiedAsStale()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-fresh";
+            const string caseId = "case-fresh";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved
+                }, "actor");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = headRef, CaseId = caseId, FreshnessWindowHours = 24
+                }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest
+                {
+                    HeadRef = headRef, CaseId = caseId, FreshnessWindowHours = 24
+                });
+
+            Assert.That(result.EvidenceFreshness, Is.Not.EqualTo(SignOffEvidenceFreshnessStatus.Stale),
+                "Evidence pack just created must not be classified as Stale");
+        }
+
+        // ── Additional coverage: ActorId propagation in webhook record ─────────
+
+        [Test]
+        public async Task RecordApprovalWebhook_ActorIdPreservedInRecord()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string expectedActor = "approver@company.com";
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = "case-actor", HeadRef = "sha-actor",
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    ActorId = expectedActor
+                }, "system-actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record!.ActorId, Is.EqualTo(expectedActor));
+        }
+
+        // ── Additional coverage: Reason propagation in webhook record ──────────
+
+        [Test]
+        public async Task RecordApprovalWebhook_ReasonPreservedInRecord()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string expectedReason = "All KYC checks passed and AML clear";
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = "case-reason", HeadRef = "sha-reason",
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    Reason = expectedReason
+                }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record!.Reason, Is.EqualTo(expectedReason));
+        }
+
+        // ── Additional coverage: CreatedBy propagation in evidence pack ────────
+
+        [Test]
+        public async Task PersistSignOffEvidence_CreatedByMatchesActorId()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string actorId = "test-operator@example.com";
+            var result = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = "sha-createdby", CaseId = "case-createdby" },
+                actorId);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Pack!.CreatedBy, Is.EqualTo(actorId));
+        }
+
+        // ── Additional coverage: E2E with provider-backed approval → Ready ─────
+
+        [Test]
+        public async Task E2E_ApprovedWebhookAndEvidencePack_StatusIsReady()
+        {
+            var (svc, _) = CreateServiceWithCapture();
+            const string headRef = "sha-e2e-grade";
+            const string caseId = "case-e2e-grade";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved
+                }, "approver");
+
+            var persistResult = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "approver");
+
+            Assert.That(persistResult.Success, Is.True);
+            Assert.That(persistResult.Pack!.IsProviderBacked, Is.True);
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
+        }
     }
 }

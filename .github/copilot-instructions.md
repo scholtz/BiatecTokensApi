@@ -1616,3 +1616,33 @@ private sealed class FakeHttpClientFactory : IHttpClientFactory
    - Fallback to GUID correlation ID when header is absent
    - Fallback to "anonymous" when no identity claims are present
    - Response body round-trip (service response is returned as-is in result.Value)
+
+**Lesson Learned (2026-03-19 - Protected Sign-Off Evidence, Issue #597, PR #598)**: The PR required multiple revision cycles because additional tests were added with incorrect field/enum names (`SignOffReleaseBlockerCategory.InvalidApproval` does not exist; `PersistSignOffEvidenceRequest.IsProviderBacked` does not exist). These compilation errors were not caught before committing because the build was not re-run after adding the new tests.
+
+**Root cause of iterative quality issues**: When adding extra tests after a passing baseline, always verify exact field and enum names from the *actual model source file* before writing assertions that reference them. Do NOT infer property names from documentation or descriptions — always check the actual C# class definition.
+
+**MANDATORY PRE-COMMIT CHECKLIST for adding extra tests**:
+
+1. **Verify every field/enum reference before writing**:
+   ```bash
+   grep -n "public.*{ get" BiatecTokensApi/Models/Foo/FooModels.cs
+   grep -n "public enum BarCategory" BiatecTokensApi/Models/Foo/FooModels.cs -A 30
+   ```
+
+2. **Build immediately after adding new tests** (before report_progress):
+   ```bash
+   dotnet build BiatecTokensApi.sln --configuration Release --no-restore 2>&1 | grep "error CS"
+   ```
+   If any `error CS` lines appear, fix them before proceeding.
+
+3. **Run targeted tests before committing**:
+   ```bash
+   dotnet test BiatecTokensTests --filter "FullyQualifiedName~FooTests" --no-build --configuration Release
+   ```
+
+4. **Never assume a field exists on a model** — request models (e.g. `PersistSignOffEvidenceRequest`) often have fewer fields than the corresponding response/domain model (e.g. `ProtectedSignOffEvidencePack`).
+
+**Specific names to remember for ProtectedSignOffEvidencePersistence**:
+- `SignOffReleaseBlockerCategory` values: `MissingApproval`, `ApprovalDenied`, `MissingEvidence`, `StaleEvidence`, `HeadMismatch`, `EnvironmentNotReady`, `CaseNotApproved`, `UnresolvedEscalation`, `MalformedWebhook`, `Other` — there is NO `InvalidApproval`
+- `PersistSignOffEvidenceRequest` fields: `HeadRef`, `CaseId`, `FreshnessWindowHours`, `RequireReleaseGrade`, `RequireApprovalWebhook` — there is NO `IsProviderBacked` or `Items`
+- `IsProviderBacked` and `Items` are on `ProtectedSignOffEvidencePack` (response/domain), NOT on the request
