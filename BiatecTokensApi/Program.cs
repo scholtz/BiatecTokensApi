@@ -145,6 +145,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all KycAmlSignOff types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.KycAmlSignOff")
                         return $"KycAmlSignOff{type.Name}";
+                    // Use namespace-qualified names for all ProviderBackedCompliance types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.ProviderBackedCompliance")
+                        return $"ProviderBackedCompliance{type.Name}";
                     return type.Name;
                 });
                 
@@ -512,6 +515,15 @@ namespace BiatecTokensApi
             builder.Services.AddSingleton<IComplianceOperationsService>(sp =>
                 new ComplianceOperationsService(
                     sp.GetRequiredService<ILogger<ComplianceOperationsService>>(),
+                    null,
+                    sp.GetService<IWebhookService>()));
+
+            // Register provider-backed compliance execution service (Issue: provider-backed compliance execution)
+            builder.Services.AddSingleton<IProviderBackedComplianceExecutionService>(sp =>
+                new ProviderBackedComplianceExecutionService(
+                    sp.GetRequiredService<IComplianceCaseManagementService>(),
+                    sp.GetRequiredService<ILogger<ProviderBackedComplianceExecutionService>>(),
+                    sp.GetService<IKycAmlSignOffEvidenceService>(),
                     null,
                     sp.GetService<IWebhookService>()));
 

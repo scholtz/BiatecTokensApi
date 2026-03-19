@@ -381,7 +381,20 @@ namespace BiatecTokensApi.Models.Webhook
         /// A KYC/AML sign-off subject is blocked due to adverse findings, provider
         /// unavailability, stale evidence, or incomplete remediation.
         /// </summary>
-        KycAmlSignOffBlocked
+        KycAmlSignOffBlocked,
+
+        // ── Provider-backed compliance execution events ───────────────────────────
+
+        /// <summary>
+        /// A provider-backed compliance decision was fully executed and evidence was recorded
+        /// (approval, rejection, return-for-information, or escalation).
+        /// </summary>
+        ComplianceCaseExecutionCompleted,
+
+        /// <summary>
+        /// A sanctions review was requested as part of a provider-backed compliance execution.
+        /// </summary>
+        ComplianceCaseSanctionsReviewRequested
     }
 
     /// <summary>

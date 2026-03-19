@@ -1588,3 +1588,31 @@ private sealed class FakeHttpClientFactory : IHttpClientFactory
 ```
 
 **Why this happens**: The production `IHttpClientFactory` (AddHttpClient in DI) returns a fresh `HttpClient` with a pooled `HttpClientHandler` on every `CreateClient()` call. The test fake must replicate this behaviour for multi-delivery scenarios.
+
+**Lesson Learned (2026-03-19 - Provider-backed Compliance Execution, Issue #591)**: PR was rejected multiple times due to build failures and missing test coverage. Root causes:
+
+1. **Referenced non-existent fields/enum values**: Always verify field and enum names from the *actual source file* before referencing them in new code:
+   - `WebhookEvent.ActorId/EntityId/Payload` do NOT exist → use `Actor` and `Data` (Dictionary)
+   - `KycAmlSignOffCheckKind.Kyc/Aml` do NOT exist → use `IdentityKyc`/`AmlScreening`
+   - `ListKycAmlSignOffRecordsResponse.Success` does NOT exist on that type
+   - Always do: `grep -n "public.*{ get" Models/Foo/FooModels.cs` before writing code that accesses those fields
+
+2. **ConcurrentDictionary.AddOrUpdate + mutable List = silent data loss**: Never use `AddOrUpdate` with a mutable collection value. Use `GetOrAdd(key, _ => new ConcurrentQueue<>()).Enqueue(item)` instead.
+
+3. **Missing DI registration**: When creating a new service/interface pair, ALWAYS register it in `Program.cs` (and add a Swashbuckle schema prefix if the namespace has new public types) BEFORE submitting the PR.
+
+4. **New services MUST have an HTTP controller**: A service with no controller is not accessible from the API. When implementing a new service, ALWAYS create the corresponding controller in `BiatecTokensApi/Controllers/` with:
+   - `[Authorize]` attribute
+   - `[Route("api/v1/<feature-name>")]`
+   - Endpoints for every public service method
+   - Correct HTTP status codes: 200 OK (success), 400 BadRequest (service failure), 404 NotFound (CASE_NOT_FOUND / resource-not-found errors)
+   - XML documentation comments on the class and each endpoint
+
+5. **Controller tests are mandatory**: Every new controller MUST have a corresponding `*ControllerTests.cs` file covering:
+   - HTTP 200/400/404 response codes for each endpoint
+   - Actor ID propagation (from ClaimTypes.NameIdentifier → service actorId)
+   - Case/resource ID propagation (route param → service parameter)
+   - Correlation ID propagation (X-Correlation-Id header → service correlationId)
+   - Fallback to GUID correlation ID when header is absent
+   - Fallback to "anonymous" when no identity claims are present
+   - Response body round-trip (service response is returned as-is in result.Value)
