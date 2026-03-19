@@ -211,5 +211,27 @@ namespace BiatecTokensApi.Services.Interface
         /// <see cref="ReturnForInformationRequest.Reason"/> is required.
         /// </summary>
         Task<ReturnForInformationResponse> ReturnForInformationAsync(string caseId, ReturnForInformationRequest request, string actorId);
+
+        // ── Evidence availability ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Computes and returns the case-level evidence availability summary with explicit
+        /// Complete / Partial / Stale / Unavailable semantics.
+        /// Designed for direct frontend cockpit consumption — the caller does not need to
+        /// infer availability from low-level evidence item flags.
+        /// Automatically checks bundle freshness before computing.
+        /// </summary>
+        Task<GetEvidenceAvailabilityResponse> GetEvidenceAvailabilityAsync(string caseId, string actorId);
+
+        // ── Orchestration view ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns a comprehensive orchestration view of a compliance case — the single authoritative
+        /// snapshot needed by the frontend operations cockpit to render role-aware operator journeys.
+        /// Combines current state, evidence availability, active blockers, SLA metadata,
+        /// handoff status, available transitions, and next-action guidance in one call.
+        /// Fail-closed: returns explicit error when the case is not found.
+        /// </summary>
+        Task<GetOrchestrationViewResponse> GetOrchestrationViewAsync(string caseId, string actorId);
     }
 }

@@ -2145,5 +2145,321 @@ namespace BiatecTokensApi.Services
                 }
             });
         }
+
+        // ── GetEvidenceAvailabilityAsync ───────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<GetEvidenceAvailabilityResponse> GetEvidenceAvailabilityAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new GetEvidenceAvailabilityResponse
+                {
+                    Success      = false,
+                    ErrorCode    = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            CheckAndApplyEvidenceFreshness(c);
+
+            var now          = _timeProvider.GetUtcNow();
+            var availability = ComputeEvidenceAvailability(c, now);
+
+            return Task.FromResult(new GetEvidenceAvailabilityResponse { Success = true, Availability = availability });
+        }
+
+        // ── GetOrchestrationViewAsync ──────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public Task<GetOrchestrationViewResponse> GetOrchestrationViewAsync(string caseId, string actorId)
+        {
+            if (!_cases.TryGetValue(caseId, out var c))
+                return Task.FromResult(new GetOrchestrationViewResponse
+                {
+                    Success      = false,
+                    ErrorCode    = ErrorCodes.NOT_FOUND,
+                    ErrorMessage = $"Case {caseId} not found"
+                });
+
+            CheckAndApplyEvidenceFreshness(c);
+
+            var now          = _timeProvider.GetUtcNow();
+            var availability = ComputeEvidenceAvailability(c, now);
+            var blockers     = ComputeBlockers(c, now);
+            var sla          = c.SlaMetadata;
+            var handoff      = c.HandoffStatus;
+
+            var isTerminal = _terminalStates.Contains(c.State);
+
+            // Available transitions from current state
+            var transitions = new List<CaseAvailableTransition>();
+            if (_validTransitions.TryGetValue(c.State, out var targets))
+            {
+                foreach (var target in targets)
+                {
+                    var (label, description) = GetTransitionLabel(c.State, target);
+                    bool availableNow       = !isTerminal;
+                    string? unavailableReason = null;
+
+                    // Fail-closed: can't approve if there are fail-closed blockers
+                    if (target == ComplianceCaseState.Approved)
+                    {
+                        var failClosedBlockers = blockers.Where(b => b.IsFailClosed).ToList();
+                        if (failClosedBlockers.Count > 0)
+                        {
+                            availableNow      = false;
+                            unavailableReason = $"{failClosedBlockers.Count} fail-closed blocker(s) must be resolved first.";
+                        }
+                    }
+
+                    transitions.Add(new CaseAvailableTransition
+                    {
+                        ToState           = target,
+                        Label             = label,
+                        Description       = description,
+                        IsAvailableNow    = availableNow,
+                        UnavailableReason = unavailableReason
+                    });
+                }
+            }
+
+            // Next actions for the operator
+            var nextActions = ComputeNextActions(c, blockers, availability, now);
+
+            var view = new CaseOrchestrationView
+            {
+                CaseId               = c.CaseId,
+                State                = c.State,
+                StateDescription     = GetStateDescription(c.State),
+                Priority             = c.Priority,
+                UrgencyBand          = sla is not null ? ComputeUrgencyBand(sla.ReviewDueAt, now) : CaseUrgencyBand.Normal,
+                IsTerminal           = isTerminal,
+                IsActive             = !isTerminal,
+                EvidenceAvailability = availability,
+                ActiveBlockers       = blockers.Where(b => b.IsFailClosed).ToList(),
+                CanProceed           = !blockers.Any(b => b.IsFailClosed),
+                SlaMetadata          = sla,
+                HandoffStatus        = handoff,
+                AvailableTransitions = transitions,
+                NextActions          = nextActions,
+                AssignedReviewerId   = c.AssignedReviewerId,
+                AssignedTeamId       = c.AssignedTeamId,
+                IssuerId             = c.IssuerId,
+                SubjectId            = c.SubjectId,
+                CaseType             = c.Type,
+                Jurisdiction         = c.Jurisdiction,
+                CreatedAt            = c.CreatedAt,
+                UpdatedAt            = c.UpdatedAt,
+                DecisionCount        = c.DecisionHistory.Count,
+                OpenEscalations      = c.Escalations.Count(e => e.Status == EscalationStatus.Open),
+                OpenRemediationTasks = c.RemediationTasks.Count(t => t.Status == RemediationTaskStatus.Open),
+                ComputedAt           = now
+            };
+
+            _logger.LogInformation(
+                "GetOrchestrationView. CaseId={CaseId} State={State} EvidenceStatus={EvidenceStatus} Blockers={Blockers} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                c.State.ToString(),
+                availability.Status.ToString(),
+                blockers.Count(b => b.IsFailClosed),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            return Task.FromResult(new GetOrchestrationViewResponse { Success = true, View = view });
+        }
+
+        // ── Private orchestration helpers ──────────────────────────────────────
+
+        /// <summary>Computes the case-level evidence availability summary.</summary>
+        private CaseEvidenceAvailabilitySummary ComputeEvidenceAvailability(ComplianceCase c, DateTimeOffset now)
+        {
+            var summaries     = c.EvidenceSummaries;
+            bool bundleExpired = c.EvidenceExpiresAt.HasValue && c.EvidenceExpiresAt.Value < now;
+
+            var validTypes   = new List<string>();
+            var staleTypes   = new List<string>();
+            var pendingTypes = new List<string>();
+
+            int validCount   = 0;
+            int staleCount   = 0;
+            int pendingCount = 0;
+            int rejectedCount = 0;
+
+            foreach (var ev in summaries)
+            {
+                switch (ev.Status)
+                {
+                    case CaseEvidenceStatus.Valid:
+                        validCount++;
+                        validTypes.Add(ev.EvidenceType);
+                        break;
+                    case CaseEvidenceStatus.Stale:
+                        staleCount++;
+                        staleTypes.Add(ev.EvidenceType);
+                        break;
+                    case CaseEvidenceStatus.Pending:
+                    case CaseEvidenceStatus.Missing:
+                        pendingCount++;
+                        pendingTypes.Add(ev.EvidenceType);
+                        break;
+                    case CaseEvidenceStatus.Rejected:
+                        rejectedCount++;
+                        pendingTypes.Add(ev.EvidenceType); // rejected items require re-submission
+                        break;
+                }
+            }
+
+            // Derive overall status
+            CaseEvidenceAvailabilityStatus status;
+            string operatorSummary;
+            string? hint;
+
+            bool hasEvidence = summaries.Count > 0;
+            bool allValid    = hasEvidence && staleCount == 0 && pendingCount == 0 && rejectedCount == 0 && !bundleExpired;
+            bool allStale    = hasEvidence && staleCount == summaries.Count && !bundleExpired;
+
+            if (!hasEvidence)
+            {
+                // No evidence captured at all → Unavailable
+                status         = CaseEvidenceAvailabilityStatus.Unavailable;
+                operatorSummary = "No evidence has been captured for this case. Evidence collection must begin before the case can proceed.";
+                hint           = "Attach at least one evidence item to proceed.";
+            }
+            else if (bundleExpired)
+            {
+                // Case-level bundle has expired → Stale (entire bundle is stale regardless of item states)
+                status         = CaseEvidenceAvailabilityStatus.Stale;
+                operatorSummary = $"The evidence bundle expired at {c.EvidenceExpiresAt:O}. All evidence must be refreshed before the case can proceed.";
+                hint           = "Refresh the entire evidence bundle. Contact the subject to re-submit up-to-date documentation.";
+            }
+            else if (allValid)
+            {
+                status         = CaseEvidenceAvailabilityStatus.Complete;
+                operatorSummary = $"All {validCount} evidence item(s) are valid and within their validity period. This case is evidence-complete.";
+                hint           = null;
+            }
+            else if (allStale)
+            {
+                // All items are individually stale, bundle not yet expired at case level
+                status         = CaseEvidenceAvailabilityStatus.Stale;
+                operatorSummary = $"All {staleCount} evidence item(s) have expired and must be refreshed before the case can proceed.";
+                hint           = $"Refresh or replace the following stale items: {string.Join(", ", staleTypes)}.";
+            }
+            else
+            {
+                // Mix of valid + stale/pending/rejected → Partial
+                status         = CaseEvidenceAvailabilityStatus.Partial;
+                operatorSummary = $"{validCount} valid, {staleCount} stale, {pendingCount} pending/missing, {rejectedCount} rejected evidence item(s).";
+                hint           = "Resolve stale, missing, and rejected evidence items to achieve complete evidence coverage.";
+            }
+
+            return new CaseEvidenceAvailabilitySummary
+            {
+                CaseId              = c.CaseId,
+                Status              = status,
+                TotalEvidenceItems  = summaries.Count,
+                ValidItems          = validCount,
+                StaleItems          = staleCount,
+                PendingItems        = pendingCount,
+                RejectedItems       = rejectedCount,
+                MissingItems        = 0,  // reserved for future required-evidence-type checking
+                IsBundleExpired     = bundleExpired,
+                BundleExpiresAt     = c.EvidenceExpiresAt,
+                StaleEvidenceTypes  = staleTypes,
+                ValidEvidenceTypes  = validTypes,
+                PendingOrMissingTypes = pendingTypes,
+                OperatorSummary     = operatorSummary,
+                RemediationHint     = hint,
+                EvaluatedAt         = now
+            };
+        }
+
+        /// <summary>Returns a human-readable description of a compliance case state.</summary>
+        private static string GetStateDescription(ComplianceCaseState state) => state switch
+        {
+            ComplianceCaseState.Intake         => "Case created and awaiting initial processing.",
+            ComplianceCaseState.EvidencePending => "Waiting for required evidence to be submitted.",
+            ComplianceCaseState.UnderReview    => "Case is under active compliance review.",
+            ComplianceCaseState.Escalated      => "Case has been escalated due to a compliance concern.",
+            ComplianceCaseState.Remediating    => "Case has open remediation tasks that must be resolved.",
+            ComplianceCaseState.Approved       => "Case has been formally approved — no further action required.",
+            ComplianceCaseState.Rejected       => "Case has been formally rejected — closed with rejection outcome.",
+            ComplianceCaseState.Stale          => "Case evidence has expired and must be refreshed before review can continue.",
+            ComplianceCaseState.Blocked        => "Case is blocked pending manual intervention.",
+            _                                  => state.ToString()
+        };
+
+        /// <summary>Returns a human-readable label and description for a state transition.</summary>
+        private static (string label, string description) GetTransitionLabel(
+            ComplianceCaseState from, ComplianceCaseState to) => (from, to) switch
+        {
+            (_, ComplianceCaseState.EvidencePending) => ("Request Evidence",    "Request additional evidence from the subject."),
+            (_, ComplianceCaseState.UnderReview)     => ("Start Review",        "Move the case into active compliance review."),
+            (_, ComplianceCaseState.Escalated)       => ("Escalate",            "Escalate the case to senior review."),
+            (_, ComplianceCaseState.Remediating)     => ("Request Remediation", "Return the case for remediation tasks."),
+            (_, ComplianceCaseState.Approved)        => ("Approve",             "Formally approve the case — terminal action."),
+            (_, ComplianceCaseState.Rejected)        => ("Reject",              "Formally reject the case — terminal action."),
+            (_, ComplianceCaseState.Blocked)         => ("Block",               "Block the case pending manual intervention."),
+            (_, ComplianceCaseState.Stale)           => ("Mark Stale",          "Mark the case as stale due to expired evidence."),
+            _                                        => (to.ToString(),          $"Transition to {to}.")
+        };
+
+        /// <summary>Computes the ordered list of next recommended actions for an operator.</summary>
+        private static List<string> ComputeNextActions(
+            ComplianceCase c,
+            List<CaseBlocker> blockers,
+            CaseEvidenceAvailabilitySummary availability,
+            DateTimeOffset now)
+        {
+            var actions = new List<string>();
+
+            // Assignment
+            if (string.IsNullOrWhiteSpace(c.AssignedReviewerId) && string.IsNullOrWhiteSpace(c.AssignedTeamId))
+                actions.Add("Assign this case to a reviewer or team.");
+
+            // Evidence
+            if (availability.Status == CaseEvidenceAvailabilityStatus.Unavailable)
+                actions.Add("Capture at least one evidence item before the case can proceed.");
+            else if (availability.Status == CaseEvidenceAvailabilityStatus.Stale)
+                actions.Add("Refresh all stale evidence items.");
+            else if (availability.Status == CaseEvidenceAvailabilityStatus.Partial)
+                actions.Add("Resolve partial evidence: submit missing or re-submit rejected items.");
+
+            // Fail-closed blockers
+            foreach (var b in blockers.Where(x => x.IsFailClosed).Take(3))
+                if (!string.IsNullOrWhiteSpace(b.RemediationHint))
+                    actions.Add(b.RemediationHint!);
+
+            // State-specific guidance
+            switch (c.State)
+            {
+                case ComplianceCaseState.Intake:
+                    actions.Add("Transition the case to Evidence Pending or directly to Under Review if evidence is already available.");
+                    break;
+                case ComplianceCaseState.EvidencePending:
+                    if (availability.Status == CaseEvidenceAvailabilityStatus.Complete)
+                        actions.Add("Evidence is complete — transition the case to Under Review.");
+                    break;
+                case ComplianceCaseState.UnderReview:
+                    if (!blockers.Any(b => b.IsFailClosed))
+                        actions.Add("No blockers found — the case can be approved or escalated.");
+                    break;
+                case ComplianceCaseState.Escalated:
+                    actions.Add("Resolve the open escalation before the case can proceed.");
+                    break;
+                case ComplianceCaseState.Remediating:
+                    int openTasks = c.RemediationTasks.Count(t => t.Status == RemediationTaskStatus.Open);
+                    if (openTasks > 0)
+                        actions.Add($"Resolve {openTasks} open remediation task(s) to return the case to review.");
+                    break;
+                case ComplianceCaseState.Approved:
+                    if (c.HandoffStatus is null || c.HandoffStatus.Stage == CaseHandoffStage.NotStarted)
+                        actions.Add("Initiate the downstream handoff workflow.");
+                    break;
+                case ComplianceCaseState.Stale:
+                    actions.Add("Refresh expired evidence and transition back to Evidence Pending or Under Review.");
+                    break;
+            }
+
+            return actions;
+        }
     }
 }
