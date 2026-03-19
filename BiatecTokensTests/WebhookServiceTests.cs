@@ -1145,6 +1145,11 @@ namespace BiatecTokensTests
         // Provider-backed compliance execution events
         [TestCase(WebhookEventType.ComplianceCaseExecutionCompleted)]
         [TestCase(WebhookEventType.ComplianceCaseSanctionsReviewRequested)]
+        [TestCase(WebhookEventType.VerificationJourneyStarted)]
+        [TestCase(WebhookEventType.VerificationJourneyStageAdvanced)]
+        [TestCase(WebhookEventType.VerificationJourneyApprovalReady)]
+        [TestCase(WebhookEventType.VerificationJourneyDegraded)]
+        [TestCase(WebhookEventType.VerificationJourneyFailed)]
         public async Task EmitEvent_AllEventTypes_CanBeDelivered(WebhookEventType eventType)
         {
             bool delivered = false;
