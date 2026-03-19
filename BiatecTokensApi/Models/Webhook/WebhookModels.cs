@@ -394,7 +394,36 @@ namespace BiatecTokensApi.Models.Webhook
         /// <summary>
         /// A sanctions review was requested as part of a provider-backed compliance execution.
         /// </summary>
-        ComplianceCaseSanctionsReviewRequested
+        ComplianceCaseSanctionsReviewRequested,
+
+        /// <summary>
+        /// A live-provider KYC/AML verification journey was started for a subject.
+        /// </summary>
+        VerificationJourneyStarted,
+
+        /// <summary>
+        /// A live-provider verification journey advanced to a new stage.
+        /// </summary>
+        VerificationJourneyStageAdvanced,
+
+        /// <summary>
+        /// A live-provider verification journey reached the ApprovalReady stage —
+        /// all checks passed with provider-backed evidence.
+        /// </summary>
+        VerificationJourneyApprovalReady,
+
+        /// <summary>
+        /// A live-provider verification journey entered a degraded state due to a
+        /// provider error, missing configuration, or missing provider dependency.
+        /// No approval should be issued. Actionable diagnostics are available.
+        /// </summary>
+        VerificationJourneyDegraded,
+
+        /// <summary>
+        /// A live-provider verification journey entered a terminal failure state.
+        /// Evidence cannot be used for approval gating; a new journey must be started.
+        /// </summary>
+        VerificationJourneyFailed
     }
 
     /// <summary>

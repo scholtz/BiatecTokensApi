@@ -148,6 +148,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ProviderBackedCompliance types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ProviderBackedCompliance")
                         return $"ProviderBackedCompliance{type.Name}";
+                    // Use namespace-qualified names for all LiveProviderVerificationJourney types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.LiveProviderVerificationJourney")
+                        return $"LiveProviderVerificationJourney{type.Name}";
                     return type.Name;
                 });
                 
@@ -525,6 +528,13 @@ namespace BiatecTokensApi
                     sp.GetRequiredService<ILogger<ProviderBackedComplianceExecutionService>>(),
                     sp.GetService<IKycAmlSignOffEvidenceService>(),
                     null,
+                    sp.GetService<IWebhookService>()));
+
+            // Register live-provider verification journey service
+            builder.Services.AddSingleton<ILiveProviderVerificationJourneyService>(sp =>
+                new LiveProviderVerificationJourneyService(
+                    sp.GetRequiredService<ILogger<LiveProviderVerificationJourneyService>>(),
+                    sp.GetService<IKycAmlSignOffEvidenceService>(),
                     sp.GetService<IWebhookService>()));
 
             // Register background workers
