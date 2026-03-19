@@ -1567,5 +1567,530 @@ namespace BiatecTokensTests
             Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
             Assert.That(readiness.Blockers.Any(b => b.Code == "APPROVAL_MISSING"), Is.True);
         }
+
+        // ── Additional coverage: GetEvidencePackHistory ─────────────────────
+
+        [Test]
+        public async Task GetEvidencePackHistory_NullRequest_ReturnsError()
+        {
+            var svc = CreateService();
+            var result = await svc.GetEvidencePackHistoryAsync(null!);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("REQUEST_NULL"));
+        }
+
+        [Test]
+        public async Task GetEvidencePackHistory_FilterByHeadRef_ReturnsMatchingPacks()
+        {
+            var svc = CreateService();
+            const string headRef1 = "sha-hist-hr1";
+            const string headRef2 = "sha-hist-hr2";
+
+            await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = headRef1 }, "actor");
+            await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = headRef2 }, "actor");
+
+            var result = await svc.GetEvidencePackHistoryAsync(new GetEvidencePackHistoryRequest { HeadRef = headRef1 });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Packs, Has.All.Matches<ProtectedSignOffEvidencePack>(p => p.HeadRef == headRef1));
+        }
+
+        [Test]
+        public async Task GetEvidencePackHistory_FilterByCaseId_ReturnsOnlyMatchingPacks()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-hist-casefilter";
+            const string caseA = "case-filter-A";
+            const string caseB = "case-filter-B";
+
+            await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseA }, "actor");
+            await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseB }, "actor");
+
+            var result = await svc.GetEvidencePackHistoryAsync(new GetEvidencePackHistoryRequest { HeadRef = headRef, CaseId = caseA });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Packs.All(p => p.CaseId == caseA), Is.True);
+            Assert.That(result.Packs, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task GetEvidencePackHistory_NoFilter_ReturnsAllPacks()
+        {
+            var svc = CreateService();
+            await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = "sha-allpacks-1" }, "actor");
+            await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = "sha-allpacks-2" }, "actor");
+            await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = "sha-allpacks-3" }, "actor");
+
+            var result = await svc.GetEvidencePackHistoryAsync(new GetEvidencePackHistoryRequest());
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.TotalCount, Is.GreaterThanOrEqualTo(3));
+        }
+
+        [Test]
+        public async Task GetEvidencePackHistory_MaxRecords_IsRespected()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-maxrec-packs";
+            for (int i = 0; i < 5; i++)
+            {
+                await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest { HeadRef = headRef }, "actor");
+            }
+
+            var result = await svc.GetEvidencePackHistoryAsync(new GetEvidencePackHistoryRequest { HeadRef = headRef, MaxRecords = 2 });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Packs, Has.Count.EqualTo(2));
+            Assert.That(result.TotalCount, Is.EqualTo(5));
+        }
+
+        // ── Additional coverage: GetApprovalWebhookHistory ──────────────────
+
+        [Test]
+        public async Task GetApprovalWebhookHistory_FilterByHeadRef_ReturnsOnlyMatching()
+        {
+            var svc = CreateService();
+            const string caseId = "case-hr-filter";
+            const string headRef1 = "sha-hrfilter-1";
+            const string headRef2 = "sha-hrfilter-2";
+
+            await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef1, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+            await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef2, Outcome = ApprovalWebhookOutcome.Denied }, "actor");
+
+            var result = await svc.GetApprovalWebhookHistoryAsync(new GetApprovalWebhookHistoryRequest { CaseId = caseId, HeadRef = headRef1 });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Records, Has.All.Matches<ApprovalWebhookRecord>(r => r.HeadRef == headRef1));
+            Assert.That(result.Records, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task GetApprovalWebhookHistory_MaxRecordsLimitsResults()
+        {
+            var svc = CreateService();
+            const string caseId = "case-maxrec-webhooks";
+            const string headRef = "sha-maxrec-wh";
+            for (int i = 0; i < 5; i++)
+            {
+                await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+            }
+
+            var result = await svc.GetApprovalWebhookHistoryAsync(new GetApprovalWebhookHistoryRequest { CaseId = caseId, MaxRecords = 3 });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Records, Has.Count.EqualTo(3));
+            Assert.That(result.TotalCount, Is.EqualTo(5));
+        }
+
+        [Test]
+        public async Task GetApprovalWebhookHistory_OrderedNewestFirst()
+        {
+            var svc = CreateService();
+            const string caseId = "case-order-test";
+            const string headRef = "sha-order";
+
+            await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor1");
+            await Task.Delay(5); // ensure distinct timestamps
+            await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Escalated }, "actor2");
+
+            var result = await svc.GetApprovalWebhookHistoryAsync(new GetApprovalWebhookHistoryRequest { CaseId = caseId });
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Records.Count, Is.EqualTo(2));
+            // Newest (Escalated) should be first
+            Assert.That(result.Records[0].Outcome, Is.EqualTo(ApprovalWebhookOutcome.Escalated));
+        }
+
+        // ── Additional coverage: PersistSignOffEvidence edge cases ───────────
+
+        [Test]
+        public async Task PersistSignOffEvidence_CustomFreshnessWindow_SetsFutureExpiry()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-custom-freshness";
+            const int windowHours = 48;
+
+            var before = DateTimeOffset.UtcNow;
+            var result = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, FreshnessWindowHours = windowHours }, "actor");
+            var after = DateTimeOffset.UtcNow;
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Pack, Is.Not.Null);
+            Assert.That(result.Pack!.ExpiresAt, Is.Not.Null);
+            Assert.That(result.Pack!.ExpiresAt!.Value, Is.GreaterThan(before.AddHours(windowHours - 1)));
+            Assert.That(result.Pack!.ExpiresAt!.Value, Is.LessThan(after.AddHours(windowHours + 1)));
+        }
+
+        [Test]
+        public async Task PersistSignOffEvidence_WithoutCaseId_PackItemsHaveNoComplianceCaseItem()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-no-caseid";
+
+            var result = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Pack!.Items.Any(i => i.EvidenceType == "COMPLIANCE_CASE_REFERENCE"), Is.False);
+        }
+
+        [Test]
+        public async Task PersistSignOffEvidence_WithCaseId_IncludesComplianceCaseItem()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-with-caseid";
+            const string caseId = "case-with-cid";
+
+            var result = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Pack!.Items.Any(i => i.EvidenceType == "COMPLIANCE_CASE_REFERENCE"), Is.True);
+        }
+
+        [Test]
+        public async Task PersistSignOffEvidence_WithApproval_PackContainsApprovalWebhookItem()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-with-approval-item";
+            const string caseId = "case-with-approval-item";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            var result = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Pack!.Items.Any(i => i.EvidenceType == "APPROVAL_WEBHOOK"), Is.True);
+        }
+
+        // ── Additional coverage: GetReleaseReadiness edge cases ──────────────
+
+        [Test]
+        public async Task GetReleaseReadiness_EmptyHeadRef_ReturnsIndeterminate()
+        {
+            var svc = CreateService();
+
+            var result = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest { HeadRef = "" });
+
+            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate));
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_HEAD_REF"));
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_HasApprovalWebhook_IsSetCorrectly()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-has-approval-flag";
+            const string caseId = "case-has-approval-flag";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(result.HasApprovalWebhook, Is.True);
+            Assert.That(result.LatestApprovalWebhook, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_NoApprovalWebhook_HasApprovalWebhookIsFalse()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-no-approval-flag";
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef });
+
+            Assert.That(result.HasApprovalWebhook, Is.False);
+            Assert.That(result.LatestApprovalWebhook, Is.Null);
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_EvidenceFreshnessIsSetInResponse()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-freshness-in-response";
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef });
+
+            // No evidence → Unavailable
+            Assert.That(readiness.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable));
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_LatestEvidencePackIsPopulatedWhenReady()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-pack-in-response";
+            const string caseId = "case-pack-in-response";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
+            Assert.That(result.LatestEvidencePack, Is.Not.Null);
+            Assert.That(result.LatestEvidencePack!.HeadRef, Is.EqualTo(headRef));
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_BlockedStatus_SuccessIsFalse()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-blocked-success-false";
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef });
+
+            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Success, Is.False);
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_ReadyStatus_SuccessIsTrue()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-ready-success-true";
+            const string caseId = "case-ready-success-true";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
+            Assert.That(result.Success, Is.True);
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_AllBlockersHaveRemediationHint()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-remediation-hints";
+
+            // Denied + no evidence → multiple blockers
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = "case-rh", HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Denied }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = "case-rh" });
+
+            Assert.That(result.Blockers, Is.Not.Empty);
+            Assert.That(result.Blockers, Has.All.Matches<SignOffReleaseBlocker>(b => !string.IsNullOrEmpty(b.RemediationHint)));
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_BlockersHaveCategory_NotUnspecified()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-blocker-category";
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef });
+
+            Assert.That(result.Blockers, Is.Not.Empty);
+            Assert.That(result.Blockers, Has.All.Matches<SignOffReleaseBlocker>(b => b.Category != default));
+        }
+
+        [Test]
+        public async Task GetReleaseReadiness_BlockersHaveCode_NotEmpty()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-blocker-code";
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef });
+
+            Assert.That(result.Blockers, Has.All.Matches<SignOffReleaseBlocker>(b => !string.IsNullOrEmpty(b.Code)));
+        }
+
+        // ── Additional coverage: RecordApprovalWebhook edge cases ───────────
+
+        [Test]
+        public async Task RecordApprovalWebhook_WhitespaceCaseId_ReturnsMissingCaseIdError()
+        {
+            var svc = CreateService();
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = "   ", HeadRef = "sha-wscid", Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_CASE_ID"));
+        }
+
+        [Test]
+        public async Task RecordApprovalWebhook_WhitespaceHeadRef_ReturnsMissingHeadRefError()
+        {
+            var svc = CreateService();
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = "case-ws", HeadRef = "  ", Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("MISSING_HEAD_REF"));
+        }
+
+        [Test]
+        public async Task RecordApprovalWebhook_Approved_RecordIsValid()
+        {
+            var svc = CreateService();
+            const string caseId = "case-validity-test";
+            const string headRef = "sha-validity-test";
+
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record, Is.Not.Null);
+            Assert.That(result.Record!.IsValid, Is.True);
+        }
+
+        [Test]
+        public async Task RecordApprovalWebhook_Denied_RecordIsValid()
+        {
+            var svc = CreateService();
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = "case-denied-valid", HeadRef = "sha-denied-valid", Outcome = ApprovalWebhookOutcome.Denied }, "actor");
+
+            // Denied is a valid (well-formed) webhook - just has denied outcome
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record!.IsValid, Is.True);
+        }
+
+        [Test]
+        public async Task RecordApprovalWebhook_Escalated_RecordIsValid()
+        {
+            var svc = CreateService();
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = "case-esc-valid", HeadRef = "sha-esc-valid", Outcome = ApprovalWebhookOutcome.Escalated }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record!.IsValid, Is.True);
+        }
+
+        [Test]
+        public async Task RecordApprovalWebhook_RecordIdIsPopulated()
+        {
+            var svc = CreateService();
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = "case-id-pop", HeadRef = "sha-id-pop", Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record!.RecordId, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public async Task RecordApprovalWebhook_ReceivedAtIsPopulated()
+        {
+            var before = DateTimeOffset.UtcNow.AddSeconds(-1);
+            var svc = CreateService();
+            var result = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = "case-recv-at", HeadRef = "sha-recv-at", Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Record!.ReceivedAt, Is.GreaterThan(before));
+        }
+
+        // ── Additional coverage: E2E scenarios ──────────────────────────────
+
+        [Test]
+        public async Task E2E_MultipleCases_EachHasIsolatedEvidence()
+        {
+            var svc = CreateService();
+
+            // Case A: approved and evidenced → Ready
+            const string headRef = "sha-multi-cases";
+            const string caseA = "case-multi-A";
+            const string caseB = "case-multi-B";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseA, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseA }, "actor");
+
+            // Case B: only denied webhook, no evidence
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseB, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Denied }, "actor");
+
+            var readinessA = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseA });
+            var readinessB = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseB });
+
+            Assert.That(readinessA.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
+            Assert.That(readinessB.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+        }
+
+        [Test]
+        public async Task E2E_Idempotency_MultipleReadinessCallsReturnSameResult()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-idempotency";
+            const string caseId = "case-idempotency";
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            var r1 = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+            var r2 = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+            var r3 = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(r1.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
+            Assert.That(r2.Status, Is.EqualTo(r1.Status));
+            Assert.That(r3.Status, Is.EqualTo(r1.Status));
+        }
+
+        [Test]
+        public async Task E2E_DeniedThenApproved_LatestApprovalWins()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-denied-then-approved";
+            const string caseId = "case-dta";
+
+            // First deny, then approve
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Denied, Reason = "Initial denial" }, "reviewer");
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "approver");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+
+            var result = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
+            Assert.That(result.HasApprovalWebhook, Is.True);
+        }
+
+        [Test]
+        public async Task E2E_ConcurrentEvidencePersistence_AllPacksStored()
+        {
+            var svc = CreateService();
+            const string headRef = "sha-concurrent-persist";
+
+            var tasks = Enumerable.Range(0, 10)
+                .Select(i => svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = $"case-conc-{i}" }, "actor"))
+                .ToArray();
+
+            var results = await Task.WhenAll(tasks);
+
+            Assert.That(results, Has.All.Matches<PersistSignOffEvidenceResponse>(r => r.Success));
+
+            var history = await svc.GetEvidencePackHistoryAsync(new GetEvidencePackHistoryRequest { HeadRef = headRef });
+            Assert.That(history.TotalCount, Is.EqualTo(10));
+        }
     }
 }
