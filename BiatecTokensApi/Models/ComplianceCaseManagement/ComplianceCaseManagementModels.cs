@@ -1917,4 +1917,252 @@ namespace BiatecTokensApi.Models.ComplianceCaseManagement
         /// <summary>Human-readable error message.</summary>
         public string? ErrorMessage { get; set; }
     }
+
+    // ── Evidence Availability (case-level semantics) ──────────────────────────
+
+    /// <summary>
+    /// Case-level evidence availability status, designed for frontend cockpit consumption.
+    /// Expresses the overall completeness of evidence across the entire case rather than
+    /// per-item status. Enables the UI to show "Evidence is complete", "Evidence is partial",
+    /// "Evidence is stale", or "Evidence is unavailable" without inferring state from low-level flags.
+    /// </summary>
+    public enum CaseEvidenceAvailabilityStatus
+    {
+        /// <summary>
+        /// All required evidence is present, valid, and within its validity period.
+        /// The case is evidence-complete and can proceed to review.
+        /// </summary>
+        Complete,
+
+        /// <summary>
+        /// Some required evidence is present but one or more items are missing or pending.
+        /// The case cannot proceed to full review until the gaps are resolved.
+        /// </summary>
+        Partial,
+
+        /// <summary>
+        /// Evidence was previously present but has passed its expiry date.
+        /// The evidence bundle must be refreshed before the case can proceed.
+        /// </summary>
+        Stale,
+
+        /// <summary>
+        /// Required evidence cannot be obtained due to a provider failure, configuration error,
+        /// or explicit block. Manual intervention may be required.
+        /// </summary>
+        Unavailable
+    }
+
+    /// <summary>
+    /// Case-level evidence availability summary, computed from the individual evidence items
+    /// on a case. Provides operator-friendly semantics (Complete/Partial/Stale/Unavailable),
+    /// item counts, and a remediation hint suitable for the operations cockpit.
+    /// </summary>
+    public class CaseEvidenceAvailabilitySummary
+    {
+        /// <summary>Case identifier this summary belongs to.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Overall evidence availability status for the case.</summary>
+        public CaseEvidenceAvailabilityStatus Status { get; set; }
+
+        /// <summary>Total number of evidence items attached to the case.</summary>
+        public int TotalEvidenceItems { get; set; }
+
+        /// <summary>Number of evidence items in a valid, non-expired state.</summary>
+        public int ValidItems { get; set; }
+
+        /// <summary>Number of evidence items that are in a stale (expired) state.</summary>
+        public int StaleItems { get; set; }
+
+        /// <summary>Number of evidence items currently in a pending state (awaiting capture).</summary>
+        public int PendingItems { get; set; }
+
+        /// <summary>Number of evidence items explicitly rejected.</summary>
+        public int RejectedItems { get; set; }
+
+        /// <summary>Number of evidence types required but not yet attached.</summary>
+        public int MissingItems { get; set; }
+
+        /// <summary>True when the overall evidence bundle has passed its case-level expiry date.</summary>
+        public bool IsBundleExpired { get; set; }
+
+        /// <summary>When the case-level evidence bundle expires (null if no bundle expiry is set).</summary>
+        public DateTimeOffset? BundleExpiresAt { get; set; }
+
+        /// <summary>Evidence types that are stale and require refresh.</summary>
+        public List<string> StaleEvidenceTypes { get; set; } = new();
+
+        /// <summary>Evidence types that are present and valid.</summary>
+        public List<string> ValidEvidenceTypes { get; set; } = new();
+
+        /// <summary>Evidence types that are pending or missing.</summary>
+        public List<string> PendingOrMissingTypes { get; set; } = new();
+
+        /// <summary>
+        /// Operator-facing explanation of the current evidence availability status.
+        /// Suitable for direct display in the operations cockpit.
+        /// </summary>
+        public string OperatorSummary { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Remediation hint describing the specific action required to move evidence to Complete status.
+        /// Null when evidence is already Complete.
+        /// </summary>
+        public string? RemediationHint { get; set; }
+
+        /// <summary>When this availability summary was computed.</summary>
+        public DateTimeOffset EvaluatedAt { get; set; }
+    }
+
+    /// <summary>Response wrapping the case-level evidence availability summary.</summary>
+    public class GetEvidenceAvailabilityResponse
+    {
+        /// <summary>True when the availability was computed successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The computed evidence availability summary.</summary>
+        public CaseEvidenceAvailabilitySummary? Availability { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    // ── Orchestration view ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Represents a single available state transition from the current case state,
+    /// enriched with a human-readable label and the conditions that must be met.
+    /// </summary>
+    public class CaseAvailableTransition
+    {
+        /// <summary>The target state this transition leads to.</summary>
+        public ComplianceCaseState ToState { get; set; }
+
+        /// <summary>Short, operator-friendly label for this transition (e.g., "Start Review").</summary>
+        public string Label { get; set; } = string.Empty;
+
+        /// <summary>Description of when this transition is appropriate.</summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>True when this transition is available now (no blocking conditions).</summary>
+        public bool IsAvailableNow { get; set; }
+
+        /// <summary>
+        /// Reason why this transition is not available right now (null when IsAvailableNow = true).
+        /// </summary>
+        public string? UnavailableReason { get; set; }
+    }
+
+    /// <summary>
+    /// Comprehensive operational view of a compliance case, designed as the single authoritative
+    /// snapshot the frontend cockpit needs to render role-aware operator journeys.
+    /// Combines lifecycle state, evidence availability, blockers, SLA status, handoff status,
+    /// available transitions, and next-action guidance into one response.
+    /// </summary>
+    public class CaseOrchestrationView
+    {
+        /// <summary>Unique case identifier.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>Current lifecycle state.</summary>
+        public ComplianceCaseState State { get; set; }
+
+        /// <summary>Human-readable description of the current state for operator display.</summary>
+        public string StateDescription { get; set; } = string.Empty;
+
+        /// <summary>Priority level for this case.</summary>
+        public CasePriority Priority { get; set; }
+
+        /// <summary>SLA urgency band derived from due dates.</summary>
+        public CaseUrgencyBand UrgencyBand { get; set; }
+
+        /// <summary>True when this case is in a terminal state (Approved or Rejected).</summary>
+        public bool IsTerminal { get; set; }
+
+        /// <summary>True when this case is in an active state that can still receive transitions.</summary>
+        public bool IsActive { get; set; }
+
+        /// <summary>Case-level evidence availability summary.</summary>
+        public CaseEvidenceAvailabilitySummary EvidenceAvailability { get; set; } = new();
+
+        /// <summary>Structured blockers currently preventing the case from proceeding.</summary>
+        public List<CaseBlocker> ActiveBlockers { get; set; } = new();
+
+        /// <summary>True when there are no fail-closed blockers (case can proceed).</summary>
+        public bool CanProceed { get; set; }
+
+        /// <summary>SLA metadata for this case (null when no SLA has been set).</summary>
+        public CaseSlaMetadata? SlaMetadata { get; set; }
+
+        /// <summary>Current downstream handoff status (null when no handoff has been initiated).</summary>
+        public CaseHandoffStatus? HandoffStatus { get; set; }
+
+        /// <summary>
+        /// Available state transitions from the current state, with availability flags and labels.
+        /// Provides the frontend with the exact set of actions the operator can take.
+        /// </summary>
+        public List<CaseAvailableTransition> AvailableTransitions { get; set; } = new();
+
+        /// <summary>
+        /// Ordered list of next recommended actions for the operator.
+        /// Derived from the current state, blockers, and evidence availability.
+        /// </summary>
+        public List<string> NextActions { get; set; } = new();
+
+        /// <summary>User ID of the reviewer currently assigned (null if unassigned).</summary>
+        public string? AssignedReviewerId { get; set; }
+
+        /// <summary>Team ID currently assigned (null if unassigned).</summary>
+        public string? AssignedTeamId { get; set; }
+
+        /// <summary>Issuer scoping this case.</summary>
+        public string IssuerId { get; set; } = string.Empty;
+
+        /// <summary>Identifier of the subject being evaluated.</summary>
+        public string SubjectId { get; set; } = string.Empty;
+
+        /// <summary>Classification of this case.</summary>
+        public CaseType CaseType { get; set; }
+
+        /// <summary>Jurisdiction code relevant to this case.</summary>
+        public string? Jurisdiction { get; set; }
+
+        /// <summary>When the case was created.</summary>
+        public DateTimeOffset CreatedAt { get; set; }
+
+        /// <summary>When the case was last modified.</summary>
+        public DateTimeOffset UpdatedAt { get; set; }
+
+        /// <summary>Number of decision records linked to this case.</summary>
+        public int DecisionCount { get; set; }
+
+        /// <summary>Number of open escalations.</summary>
+        public int OpenEscalations { get; set; }
+
+        /// <summary>Number of open remediation tasks.</summary>
+        public int OpenRemediationTasks { get; set; }
+
+        /// <summary>When this orchestration view was computed.</summary>
+        public DateTimeOffset ComputedAt { get; set; }
+    }
+
+    /// <summary>Response wrapping the comprehensive orchestration view of a compliance case.</summary>
+    public class GetOrchestrationViewResponse
+    {
+        /// <summary>True when the view was computed successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The computed orchestration view.</summary>
+        public CaseOrchestrationView? View { get; set; }
+
+        /// <summary>Error code when <see cref="Success"/> is false.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message.</summary>
+        public string? ErrorMessage { get; set; }
+    }
 }

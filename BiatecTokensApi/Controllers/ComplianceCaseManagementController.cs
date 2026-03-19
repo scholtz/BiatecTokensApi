@@ -854,6 +854,66 @@ namespace BiatecTokensApi.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // ── Evidence availability ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the case-level evidence availability summary with explicit
+        /// Complete / Partial / Stale / Unavailable semantics.
+        /// Designed for direct frontend cockpit consumption — the caller does not need to
+        /// infer availability from low-level per-item evidence flags.
+        /// Automatically checks bundle freshness before computing.
+        /// Returns 404 when the case is not found.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/evidence-availability")]
+        [ProducesResponseType(typeof(GetEvidenceAvailabilityResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GetEvidenceAvailabilityResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetEvidenceAvailability(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetEvidenceAvailability. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetEvidenceAvailabilityAsync(caseId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return Ok(result);
+        }
+
+        // ── Orchestration view ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the comprehensive orchestration view of a compliance case — the single
+        /// authoritative snapshot needed by the frontend operations cockpit to render
+        /// role-aware operator journeys without additional round-trips.
+        /// Combines current state, evidence availability (Complete/Partial/Stale/Unavailable),
+        /// active fail-closed blockers, SLA metadata, handoff status, available transitions with
+        /// labels, and next-action guidance in one response.
+        /// Automatically checks evidence freshness before computing.
+        /// Returns 404 when the case is not found.
+        /// </summary>
+        /// <param name="caseId">Unique case identifier.</param>
+        [HttpGet("{caseId}/orchestration-view")]
+        [ProducesResponseType(typeof(GetOrchestrationViewResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GetOrchestrationViewResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetOrchestrationView(string caseId)
+        {
+            var actorId = GetActorId();
+
+            _logger.LogInformation(
+                "GetOrchestrationView. CaseId={CaseId} Actor={Actor}",
+                LoggingHelper.SanitizeLogInput(caseId),
+                LoggingHelper.SanitizeLogInput(actorId));
+
+            var result = await _service.GetOrchestrationViewAsync(caseId, actorId);
+            if (!result.Success && result.ErrorCode == ErrorCodes.NOT_FOUND) return NotFound(result);
+            return Ok(result);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────
 
         private string GetActorId() =>
