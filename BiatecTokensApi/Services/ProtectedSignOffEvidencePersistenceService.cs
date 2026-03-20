@@ -505,12 +505,14 @@ namespace BiatecTokensApi.Services
 
             // ── Evaluate approval webhook ─────────────────────────────────────
             var latestApproval = GetLatestApprovedWebhookForHead(request.HeadRef, request.CaseId);
-            bool hasApprovalWebhook = latestApproval != null;
+            // HasApprovalWebhook is true if ANY webhook (Approved, Denied, Malformed, etc.) was received
+            var allWebhooksForResponse = GetAllWebhooksForHead(request.HeadRef, request.CaseId).ToList();
+            bool hasApprovalWebhook = allWebhooksForResponse.Any();
 
-            if (!hasApprovalWebhook)
+            if (latestApproval == null)
             {
                 // Check if there is any webhook at all (to distinguish missing vs denied)
-                var allWebhooks = GetAllWebhooksForHead(request.HeadRef, request.CaseId);
+                var allWebhooks = allWebhooksForResponse;
                 var latestDenied = allWebhooks.FirstOrDefault(w => w.Outcome == ApprovalWebhookOutcome.Denied);
                 var latestMalformed = allWebhooks.FirstOrDefault(w => w.Outcome == ApprovalWebhookOutcome.Malformed);
 
