@@ -19,6 +19,26 @@ namespace BiatecTokensApi.Services
     /// </para>
     ///
     /// <para>
+    /// <strong>⚠ DURABILITY NOTICE — MVP Milestone Scope:</strong><br/>
+    /// This implementation uses <c>ConcurrentDictionary</c>/<c>ConcurrentQueue</c>
+    /// in-process volatile storage. All persisted evidence and webhook records are
+    /// lost on process restart. This is an explicit MVP scope decision and is
+    /// acceptable for development milestone validation.
+    /// <br/><br/>
+    /// <strong>Implications for operators:</strong> Evidence packs and approval
+    /// webhook records do NOT survive application restarts. In-flight sign-off
+    /// workflows must be re-submitted after any restart. The readiness APIs will
+    /// return <c>Indeterminate</c> or <c>Blocked</c> (with a
+    /// <c>MissingEvidence</c> blocker) after a restart until new evidence is
+    /// ingested for the current head.
+    /// <br/><br/>
+    /// <strong>Migration path:</strong> Replace <c>_webhookHistory</c> and
+    /// <c>_evidencePacks</c> dictionaries with a durable provider (database,
+    /// distributed cache, event store) in a subsequent milestone. The service
+    /// interface and domain model are designed to be storage-agnostic.
+    /// </para>
+    ///
+    /// <para>
     /// Fail-closed rules (all produce a non-success response with diagnostics):
     /// <list type="bullet">
     ///   <item>Null or empty request → Failed with validation error.</item>
@@ -27,6 +47,7 @@ namespace BiatecTokensApi.Services
     ///   <item>Evidence freshness window exceeded → Stale.</item>
     ///   <item>Evidence pack head ref does not match request head ref → HeadMismatch.</item>
     ///   <item>Approval webhook outcome is Denied → Blocked with ApprovalDenied blocker.</item>
+    ///   <item>No evidence after process restart → Blocked/Indeterminate (in-memory only).</item>
     /// </list>
     /// </para>
     /// </summary>
@@ -35,6 +56,10 @@ namespace BiatecTokensApi.Services
         private readonly IWebhookService? _webhookService;
         private readonly ILogger<ProtectedSignOffEvidencePersistenceService> _logger;
         private readonly TimeProvider _timeProvider;
+
+        // ── In-memory volatile storage (MVP milestone scope) ─────────────────
+        // ⚠ These collections are NOT durable. All data is lost on process restart.
+        // See class-level XML summary for migration path.
 
         // Webhook records keyed by caseId → ordered queue (newest appended)
         private readonly ConcurrentDictionary<string, ConcurrentQueue<ApprovalWebhookRecord>> _webhookHistory = new();

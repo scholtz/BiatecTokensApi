@@ -119,40 +119,46 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
     /// </summary>
     public enum SignOffReleaseBlockerCategory
     {
+        /// <summary>
+        /// Sentinel value — a blocker must never carry this category.
+        /// Its presence indicates that category assignment was omitted in the service layer.
+        /// </summary>
+        Unspecified = 0,
+
         /// <summary>Required approval webhook has not been received.</summary>
-        MissingApproval,
+        MissingApproval = 1,
 
         /// <summary>Approval was explicitly denied by a reviewer.</summary>
-        ApprovalDenied,
+        ApprovalDenied = 2,
 
         /// <summary>Evidence pack is absent for the current head.</summary>
-        MissingEvidence,
+        MissingEvidence = 3,
 
         /// <summary>Evidence pack is present but has expired or is beyond freshness window.</summary>
-        StaleEvidence,
+        StaleEvidence = 4,
 
         /// <summary>
         /// Evidence was produced for a different head than the current evaluation target.
         /// </summary>
-        HeadMismatch,
+        HeadMismatch = 5,
 
         /// <summary>Protected-environment checks have not passed.</summary>
-        EnvironmentNotReady,
+        EnvironmentNotReady = 6,
 
         /// <summary>A compliance case required for sign-off is not in an approved state.</summary>
-        CaseNotApproved,
+        CaseNotApproved = 7,
 
         /// <summary>
         /// An escalation is outstanding and must be resolved before approval can
         /// be finalised.
         /// </summary>
-        UnresolvedEscalation,
+        UnresolvedEscalation = 8,
 
         /// <summary>The approval webhook arrived but contained malformed or missing data.</summary>
-        MalformedWebhook,
+        MalformedWebhook = 9,
 
         /// <summary>A catch-all for blockers that do not fit other categories.</summary>
-        Other
+        Other = 10
     }
 
     // ══════════════════════════════════════════════════════════════════════════

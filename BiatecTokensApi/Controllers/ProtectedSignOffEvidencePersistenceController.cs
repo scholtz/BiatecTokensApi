@@ -27,6 +27,13 @@ namespace BiatecTokensApi.Controllers
     /// - **Fail-closed semantics**: RequireApprovalWebhook and RequireReleaseGrade guards
     ///   prevent partial evidence from reaching release-grade status.
     ///
+    /// **⚠ DURABILITY NOTICE (MVP Milestone)**: The underlying service uses volatile
+    /// in-process storage. All evidence records and webhook history are lost on process
+    /// restart. This is an explicit MVP scope decision. After a restart, readiness
+    /// endpoints will return Indeterminate or Blocked until new evidence is ingested for
+    /// the current head. Durable storage (database/cache) is planned for a subsequent
+    /// milestone.
+    ///
     /// Endpoints:
     /// - `POST /webhooks/approval`              – Record an incoming approval or escalation webhook.
     /// - `POST /evidence`                        – Persist a sign-off evidence pack for a head ref.
