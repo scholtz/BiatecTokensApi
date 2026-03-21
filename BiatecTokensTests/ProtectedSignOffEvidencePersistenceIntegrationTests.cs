@@ -201,7 +201,7 @@ namespace BiatecTokensTests
             RecordApprovalWebhookResponse? body = await resp.Content.ReadFromJsonAsync<RecordApprovalWebhookResponse>();
             Assert.That(body, Is.Not.Null);
             Assert.That(body!.Success, Is.True);
-            Assert.That(body.RecordId, Is.Not.Null.And.Not.Empty);
+            Assert.That(body.Record!.RecordId, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
@@ -233,7 +233,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    ,
                     RequireReleaseGrade = false
                 });
 
@@ -243,7 +242,7 @@ namespace BiatecTokensTests
             PersistSignOffEvidenceResponse? body = await resp.Content.ReadFromJsonAsync<PersistSignOffEvidenceResponse>();
             Assert.That(body, Is.Not.Null);
             Assert.That(body!.Success, Is.True);
-            Assert.That(body.PackId, Is.Not.Null.And.Not.Empty);
+            Assert.That(body.Pack!.PackId, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
@@ -257,7 +256,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    ,  // requires a prior approved webhook
                     RequireReleaseGrade = false
                 });
 
@@ -286,7 +284,7 @@ namespace BiatecTokensTests
 
             GetSignOffReleaseReadinessResponse? body = await resp.Content.ReadFromJsonAsync<GetSignOffReleaseReadinessResponse>();
             Assert.That(body, Is.Not.Null);
-            Assert.That(body!.ReadinessStatus,
+            Assert.That(body!.Status,
                 Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate)
                 .Or.EqualTo(SignOffReleaseReadinessStatus.Pending),
                 "Head with no evidence should be Indeterminate or Pending");
@@ -315,7 +313,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    ,
                     RequireReleaseGrade = false
                 });
             Assert.That(persistResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -332,7 +329,7 @@ namespace BiatecTokensTests
             Assert.That(readinessResp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             GetSignOffReleaseReadinessResponse? body = await readinessResp.Content.ReadFromJsonAsync<GetSignOffReleaseReadinessResponse>();
             Assert.That(body, Is.Not.Null);
-            Assert.That(body!.ReadinessStatus, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
+            Assert.That(body!.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "After recording approved webhook and persisting evidence, readiness must be Ready");
         }
 
@@ -384,12 +381,12 @@ namespace BiatecTokensTests
             // 1. Record approved webhook
             var webhookResult = await PostWebhookAsync(caseId, headRef, ApprovalWebhookOutcome.Approved, corr);
             Assert.That(webhookResult.Success, Is.True, "Recording webhook must succeed");
-            Assert.That(webhookResult.RecordId, Is.Not.Null.And.Not.Empty);
+            Assert.That(webhookResult.Record!.RecordId, Is.Not.Null.And.Not.Empty);
 
             // 2. Persist evidence
             var evidenceResult = await PostEvidenceAsync(headRef, caseId, false, false);
             Assert.That(evidenceResult.Success, Is.True, "Persisting evidence must succeed");
-            Assert.That(evidenceResult.PackId, Is.Not.Null.And.Not.Empty);
+            Assert.That(evidenceResult.Pack!.PackId, Is.Not.Null.And.Not.Empty);
 
             // 3. Check readiness
             var readinessResult = await PostReadinessAsync(headRef, caseId, requireWebhook: true);
@@ -447,7 +444,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    ,
                     RequireReleaseGrade = true  // requires release-grade evidence
                 });
 
@@ -513,7 +509,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    ,
                     RequireReleaseGrade = false
                 });
 
@@ -682,7 +677,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    ,
                     RequireReleaseGrade = false,
                     FreshnessWindowHours = 0  // zero-hour window = expired immediately
                 });
@@ -759,7 +753,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    ,
                     RequireReleaseGrade = false
                 });
 
@@ -812,7 +805,6 @@ namespace BiatecTokensTests
                     {
                         HeadRef = headRef,
                         CaseId = caseId,
-                        ,
                         RequireReleaseGrade = false
                     });
 
@@ -866,7 +858,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    RequireApprovalWebhook = requireWebhook,
                     RequireReleaseGrade = requireReleaseGrade
                 });
             resp.EnsureSuccessStatusCode();
@@ -881,7 +872,6 @@ namespace BiatecTokensTests
                 {
                     HeadRef = headRef,
                     CaseId = caseId,
-                    RequireApprovalWebhook = requireWebhook
                 });
             return (await resp.Content.ReadFromJsonAsync<GetSignOffReleaseReadinessResponse>())!;
         }
