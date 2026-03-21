@@ -183,6 +183,7 @@ jobs:
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
+        continue-on-error: true  # Required: prevents 403 from PR comment posting cascading into job failure
         with:
           files: '**/test-results-sanitized.trx'
           check_name: 'PR Test Results'
