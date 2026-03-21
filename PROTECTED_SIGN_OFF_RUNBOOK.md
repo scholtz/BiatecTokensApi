@@ -729,6 +729,198 @@ artifact-backed evidence manifest for product-owner sign-off.
 
 ---
 
+## Evidence Persistence and Approval-Webhook Parity
+
+This section documents the operational behavior of the protected sign-off **evidence persistence
+subsystem** (`/api/v1/protected-signoff-evidence`). This subsystem is the authoritative backend
+store for approval webhook outcomes, evidence packs, and release-readiness status.
+
+### Evidence Persistence Endpoints
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/v1/protected-signoff-evidence/webhooks/approval` | POST | Record an incoming approval or escalation webhook outcome |
+| `/api/v1/protected-signoff-evidence/evidence` | POST | Persist a protected sign-off evidence pack for the current head |
+| `/api/v1/protected-signoff-evidence/release-readiness` | POST | Evaluate and retrieve release-readiness status |
+| `/api/v1/protected-signoff-evidence/webhooks/approval/history` | GET | List persisted webhook records (filterable by case ID and head ref) |
+| `/api/v1/protected-signoff-evidence/evidence/history` | GET | List persisted evidence packs (filterable by head ref and case ID) |
+
+All endpoints require JWT authentication. Unauthenticated requests return `401 Unauthorized`.
+
+### Release-Readiness Status Values
+
+The `/release-readiness` endpoint returns one of these `status` values:
+
+| Status | Meaning | Frontend Narrative |
+|---|---|---|
+| `Ready` | All sign-off checks passed, evidence fresh, no blockers | "Approved — release can proceed" |
+| `Pending` | Evidence exists but incomplete | "Awaiting sign-off steps" |
+| `Blocked` | Hard blocker prevents release | "Blocked — action required" |
+| `Stale` | Evidence expired or produced for different head | "Evidence stale — re-run sign-off" |
+| `Indeterminate` | Required services or evidence unavailable | "Status unknown — check configuration" |
+
+### Blocker Categories
+
+The `blockers` array in the readiness response uses these categories:
+
+| Category | Meaning | Remediation |
+|---|---|---|
+| `MissingEvidence` | No evidence pack for current head | Run sign-off workflow for this head ref |
+| `StaleEvidence` | Evidence past freshness window | Re-run sign-off to refresh the pack |
+| `HeadMismatch` | Evidence for different head | Run sign-off against the current head ref |
+| `MissingApproval` | No approval webhook received | Trigger approval workflow and ensure webhook delivery |
+| `ApprovalDenied` | Approval was explicitly denied | Review denial reason and re-submit for approval |
+| `MalformedWebhook` | Webhook payload was malformed | Re-deliver with a valid, complete payload |
+| `EnvironmentNotReady` | Protected-environment checks failed | Resolve environment configuration issues |
+| `UnresolvedEscalation` | Escalation outstanding | Resolve escalation before finalising approval |
+
+### Operator Guidance Field
+
+Every release-readiness response includes an `operatorGuidance` string that is safe to surface
+directly in operator UIs. Examples:
+
+- **Ready**: `"All sign-off checks passed. The release is approved and ready to proceed."`
+- **Blocked (MissingEvidence + MissingApproval)**: `"Action required: evidence pack is absent for this head, approval webhook has not been received"`
+- **Stale**: `"Evidence is stale or mismatched. Re-run the protected sign-off workflow against the current head."`
+- **Blocked (ApprovalDenied)**: `"Action required: approval was denied"`
+
+### Deployed-Path Workflow (Normal Operation)
+
+The canonical deployed-path workflow for a protected release:
+
+```
+1. Approval workflow triggers → delivers webhook to:
+   POST /api/v1/protected-signoff-evidence/webhooks/approval
+   { "caseId": "...", "headRef": "<SHA>", "outcome": "Approved", "correlationId": "..." }
+
+2. Operator persists evidence pack:
+   POST /api/v1/protected-signoff-evidence/evidence
+   { "headRef": "<SHA>", "caseId": "...", "requireApprovalWebhook": true }
+
+3. Frontend/tooling checks release readiness:
+   POST /api/v1/protected-signoff-evidence/release-readiness
+   { "headRef": "<SHA>", "caseId": "..." }
+   → Expects: { "status": "Ready", "blockers": [], "operatorGuidance": "..." }
+
+4. Audit: retrieve history
+   GET /api/v1/protected-signoff-evidence/webhooks/approval/history?caseId=...&headRef=...
+   GET /api/v1/protected-signoff-evidence/evidence/history?headRef=...&caseId=...
+```
+
+### Webhook Delivery Ordering
+
+The service handles both orderings:
+
+- **Webhook before evidence** (normal): Evidence pack will be marked `IsReleaseGrade=true`
+  and will include a reference to the approval webhook.
+- **Evidence before webhook** (late delivery): Evidence pack will be marked `IsReleaseGrade=false`
+  (no approval webhook at time of persistence). Re-persist evidence after webhook arrives to
+  capture the release-grade state.
+- **Out-of-order escalation**: If an escalation webhook arrives before the final approval,
+  the service correctly identifies the latest approval when evaluating readiness.
+
+### Idempotency and Deduplication
+
+The service does **not** deduplicate webhook records. If the same webhook is delivered twice
+(replay), both records are persisted and appear in history. This is intentional: operators
+need an auditable record of every delivery attempt. The readiness evaluation uses the latest
+**Approved** webhook when computing release-readiness, so duplicate deliveries do not cause
+incorrect `Ready` states.
+
+### Freshness Windows
+
+Evidence packs have a configurable freshness window (`freshnessWindowHours`, default 24 hours).
+After the window expires:
+
+- The evidence pack is reclassified as `Stale`.
+- The release-readiness endpoint returns `SignOffReleaseReadinessStatus.Stale`.
+- A `StaleEvidence` blocker appears in the `blockers` array.
+- Re-running the sign-off workflow and persisting a new evidence pack restores `Ready` status.
+
+To query readiness with a custom freshness window:
+```json
+POST /api/v1/protected-signoff-evidence/release-readiness
+{ "headRef": "<SHA>", "caseId": "...", "freshnessWindowHours": 4 }
+```
+
+### Process-Restart Behavior (MVP In-Memory Storage)
+
+> ⚠ **MVP Milestone Notice:** Evidence packs and webhook records are stored in-process volatile
+> memory. All data is lost on application restart.
+
+After a process restart:
+- Evidence history returns empty lists.
+- Release-readiness returns `Blocked` or `Indeterminate` with a `MissingEvidence` blocker.
+- Approval webhook history returns an empty list.
+- Operators must re-run the sign-off workflow to re-populate evidence.
+
+This behavior is explicit and fail-closed. The backend never reports `Ready` for stale
+in-memory state from a previous process run.
+
+**Migration path:** Replace `_webhookHistory` and `_evidencePacks` in
+`ProtectedSignOffEvidencePersistenceService` with a durable provider (database, distributed
+cache, or event store). The service interface and domain model are designed to be storage-agnostic.
+
+### Fail-Closed Rules
+
+The evidence persistence service is strictly fail-closed:
+
+1. **Null/empty HeadRef** → `ErrorCode: MISSING_HEAD_REF`, not a default/empty response.
+2. **RequireApprovalWebhook=true, no prior webhook** → `ErrorCode: MISSING_APPROVAL_WEBHOOK` (400).
+3. **RequireReleaseGrade=true, no prior webhook** → `ErrorCode: NOT_RELEASE_GRADE` (400).
+4. **Denied approval webhook** → `ApprovalDenied` blocker in readiness, never `Ready`.
+5. **Malformed webhook payload** → `MalformedWebhook` blocker, never `Ready`.
+6. **TimedOut / DeliveryError outcome** → Treated as non-approval, blocks release.
+7. **No evidence at all** → `MissingEvidence` blocker + `MissingApproval` blocker.
+8. **Stale evidence** → `StaleEvidence` blocker, `Stale` overall status.
+
+No success-shaped response is ever returned when authoritative evidence is missing.
+
+### Troubleshooting Evidence Persistence
+
+#### Problem: `release-readiness` returns `Blocked` with `MissingEvidence`
+**Cause:** No evidence pack has been persisted for the requested head ref.  
+**Fix:** Run `POST /evidence` with the correct `headRef` value.
+
+#### Problem: `release-readiness` returns `Blocked` with `MissingApproval`
+**Cause:** No approved webhook has been recorded for this head ref (or the webhook arrived
+with a `Denied`, `Malformed`, `TimedOut`, or `DeliveryError` outcome).  
+**Fix:** Trigger the approval workflow and ensure it delivers an `Approved` outcome webhook.
+Check webhook history: `GET /webhooks/approval/history?headRef=<SHA>`.
+
+#### Problem: `release-readiness` returns `Stale`
+**Cause:** Evidence pack exists but has passed its freshness window.  
+**Fix:** Re-run the sign-off workflow and persist a new evidence pack with `POST /evidence`.
+
+#### Problem: Evidence pack says `IsReleaseGrade=false`
+**Cause:** Evidence was persisted before the approval webhook was received.  
+**Fix:** Record the approval webhook first, then re-persist the evidence pack.
+
+#### Problem: `release-readiness` returns `Blocked` after process restart
+**Cause:** In-memory storage was cleared by the restart.  
+**Fix:** Re-run the full sign-off workflow (webhook → evidence → readiness).
+
+#### Problem: Duplicate webhook records in history
+**Cause:** Same webhook was delivered multiple times (replay).  
+**Behavior:** Both records are preserved by design. The readiness evaluation uses the latest
+`Approved` record, so duplicate deliveries do not cause incorrect states.
+
+### Deployed-Path Parity Validation
+
+The `ProtectedSignOffDeployedParityTests` test class (DP01–DP20) proves that all of the above
+behaviors hold in promoted, production-like conditions using `WebApplicationFactory`. These tests
+are the authoritative in-process evidence for deployed-path parity.
+
+Run locally to validate:
+```bash
+dotnet test BiatecTokensTests \
+  --filter "FullyQualifiedName~ProtectedSignOffDeployedParityTests" \
+  --configuration Release
+# Expected: Passed!  - Failed: 0, Passed: 20, Total: 20
+```
+
+---
+
 ## Related Resources
 
 - Business roadmap: https://github.com/scholtz/biatec-tokens/blob/main/business-owner-roadmap.md
