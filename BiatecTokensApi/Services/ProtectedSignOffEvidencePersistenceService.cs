@@ -172,7 +172,7 @@ namespace BiatecTokensApi.Services
                 HeadRef = request.HeadRef,
                 Outcome = request.Outcome,
                 ReceivedAt = _timeProvider.GetUtcNow(),
-                ActorId = request.ActorId,
+                ActorId = request.ActorId ?? actorId,
                 Reason = request.Reason,
                 CorrelationId = correlationId,
                 IsValid = isValid,

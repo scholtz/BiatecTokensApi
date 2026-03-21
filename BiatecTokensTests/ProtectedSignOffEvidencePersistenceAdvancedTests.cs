@@ -409,24 +409,23 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task PersistEvidence_CorrelationIdFromRequest_PreservedInPack()
+        public async Task PersistEvidence_CorrelationIdFromWebhook_PreservedInPack()
         {
             var svc = CreateService();
             const string head = "sha-corr-pack-1";
             var correlationId = Guid.NewGuid().ToString("N");
 
             await svc.RecordApprovalWebhookAsync(
-                new RecordApprovalWebhookRequest { CaseId = "case-corr-pack-1", HeadRef = head, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+                new RecordApprovalWebhookRequest { CaseId = "case-corr-pack-1", HeadRef = head, Outcome = ApprovalWebhookOutcome.Approved, CorrelationId = correlationId }, "actor");
 
             var resp = await svc.PersistSignOffEvidenceAsync(
                 new PersistSignOffEvidenceRequest
                 {
                     HeadRef = head,
-                    CaseId = "case-corr-pack-1",
-                    CorrelationId = correlationId
+                    CaseId = "case-corr-pack-1"
                 }, "actor");
 
-            Assert.That(resp.Pack!.CorrelationId, Is.EqualTo(correlationId));
+            Assert.That(resp.Pack!.ApprovalWebhook!.CorrelationId, Is.EqualTo(correlationId));
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -474,7 +473,7 @@ namespace BiatecTokensTests
             Assert.That(resp.Pack.HeadRef, Is.Not.Null.And.Not.Empty, "HeadRef must be set.");
             Assert.That(resp.Pack.CreatedAt, Is.Not.EqualTo(default(DateTimeOffset)), "PersistedAt must be set.");
             Assert.That(resp.Pack.ContentHash, Is.Not.Null.And.Not.Empty, "ContentHash must be set.");
-            Assert.That(resp.Pack.FreshnessStatus, Is.Not.EqualTo(default(SignOffEvidenceFreshnessStatus)),
+            Assert.That(resp.Pack!.FreshnessStatus, Is.EqualTo(SignOffEvidenceFreshnessStatus.Complete),
                 "FreshnessStatus must be set.");
         }
 
@@ -493,7 +492,7 @@ namespace BiatecTokensTests
             var resp = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
-            Assert.That(resp.Status, Is.Not.EqualTo(default(SignOffReleaseReadinessStatus)), "Status must be set.");
+            Assert.That(resp.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready), "Status must be set.");
             Assert.That(resp.EvaluatedAt, Is.Not.EqualTo(default(DateTimeOffset)), "EvaluatedAt must be set.");
             Assert.That(resp.Blockers, Is.Not.Null, "Blockers list must not be null.");
             Assert.That(resp.OperatorGuidance, Is.Not.Null.And.Not.Empty, "Guidance must be set.");
@@ -1080,7 +1079,7 @@ namespace BiatecTokensTests
                 "Service must remain consistent after large number of operations.");
 
             var hist = await svc.GetApprovalWebhookHistoryAsync(
-                new GetApprovalWebhookHistoryRequest { CaseId = caseId });
+                new GetApprovalWebhookHistoryRequest { CaseId = caseId, MaxRecords = 100 });
             Assert.That(hist.Records, Has.Count.EqualTo(51), "All 51 webhooks must be in history.");
         }
     }
