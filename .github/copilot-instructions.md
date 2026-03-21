@@ -1646,3 +1646,36 @@ private sealed class FakeHttpClientFactory : IHttpClientFactory
 - `SignOffReleaseBlockerCategory` values: `MissingApproval`, `ApprovalDenied`, `MissingEvidence`, `StaleEvidence`, `HeadMismatch`, `EnvironmentNotReady`, `CaseNotApproved`, `UnresolvedEscalation`, `MalformedWebhook`, `Other` — there is NO `InvalidApproval`
 - `PersistSignOffEvidenceRequest` fields: `HeadRef`, `CaseId`, `FreshnessWindowHours`, `RequireReleaseGrade`, `RequireApprovalWebhook` — there is NO `IsProviderBacked` or `Items`
 - `IsProviderBacked` and `Items` are on `ProtectedSignOffEvidencePack` (response/domain), NOT on the request
+
+**Lesson Learned (2026-03-21 - Protected Sign-Off Evidence, Issue #597, PR #598 — repeated review cycles)**: The PR went through 5+ review/fix cycles due to recurring build failures and runtime test failures. Root causes and mandatory rules to prevent recurrence:
+
+1. **Never generate test code that references API without reading source first**. Before writing any test assertion like `response.SomeField` or `SomeEnum.SomeValue`, run:
+   ```bash
+   grep -n "public" BiatecTokensApi/Models/FeatureName/FeatureNameModels.cs
+   ```
+   Do NOT infer property names from context, documentation, or prior test file patterns.
+
+2. **Test response property paths must match the actual model hierarchy**. For the ProtectedSignOff service:
+   - `PersistSignOffEvidenceResponse.Pack.PackId` (nested under `Pack`)
+   - `RecordApprovalWebhookResponse.Record.RecordId` (nested under `Record`)
+   - `GetSignOffReleaseReadinessResponse.Status` (NOT `ReadinessStatus`)
+   - `GetSignOffReleaseReadinessResponse.Status == Blocked` when no evidence exists (fail-closed)
+   - `OperatorGuidance` IS populated for `Ready` state: "All sign-off checks passed. The release is approved and ready to proceed."
+   - `SignOffEvidenceFreshnessStatus.Complete == 0` (zero-valued enum — do NOT use `Is.Not.EqualTo(default(...))`)
+   - `SignOffReleaseReadinessStatus.Ready == 0` (zero-valued enum — same issue)
+
+3. **Zero-valued enums require `Is.EqualTo(EnumType.Value)` not `Is.Not.EqualTo(default(EnumType))`**. When the expected enum value is the first/zero value in the enum definition, `default(EnumType) == EnumType.FirstValue`. Always assert `Is.EqualTo(ExpectedValue)` — never `Is.Not.EqualTo(default(...))` unless you understand the enum ordering.
+
+4. **Service bugs revealed during this PR** (fixed in commits 91c4cef and b534a74):
+   - `GetHistoryAsync` was ignoring `MaxRecords` cap — always test pagination cap explicitly
+   - `ActorId` in webhook records was `request.ActorId` only — fix to `request.ActorId ?? actorId` to honour method-level actorId
+   - `CorrelationId` was read from `PersistSignOffEvidenceRequest` (wrong type) instead of `RecordApprovalWebhookRequest` (correct type) 
+   - `OperatorGuidance` was `null` for `Ready` state — always test happy-path field presence
+
+5. **Boundary/advanced test files generated for a new service MUST be built and run before committing**:
+   ```bash
+   dotnet build BiatecTokensApi.sln --configuration Release --no-restore 2>&1 | grep "error CS"
+   dotnet test BiatecTokensTests --filter "FullyQualifiedName~BoundaryTests" --no-build --configuration Release
+   dotnet test BiatecTokensTests --filter "FullyQualifiedName~AdvancedTests" --no-build --configuration Release
+   ```
+   Do NOT commit test files that have never been locally built and run.
