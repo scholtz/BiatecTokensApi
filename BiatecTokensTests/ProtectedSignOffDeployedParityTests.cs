@@ -74,6 +74,8 @@ namespace BiatecTokensTests
 
         private sealed class AdvancableTimeProvider : TimeProvider
         {
+            // NOTE: This class is intentionally not thread-safe.
+            // Tests using it are marked [NonParallelizable] and exercise single-threaded flows.
             private DateTimeOffset _now;
             public AdvancableTimeProvider(DateTimeOffset now) => _now = now;
             public void Advance(TimeSpan delta) => _now = _now.Add(delta);
@@ -252,6 +254,10 @@ namespace BiatecTokensTests
 
         // ════════════════════════════════════════════════════════════════════
         // DP04: No evidence on fresh head → Blocked with both missing blockers
+        //
+        // When a valid HeadRef is provided but has no evidence or webhooks,
+        // the service returns Blocked (not Indeterminate). Indeterminate is
+        // reserved for missing/null HeadRef inputs only.
         // ════════════════════════════════════════════════════════════════════
 
         [Test]
@@ -265,12 +271,12 @@ namespace BiatecTokensTests
             // Controller returns 400 for non-Ready states
             var readiness = await readinessResp.Content.ReadFromJsonAsync<GetSignOffReleaseReadinessResponse>();
             Assert.That(readiness, Is.Not.Null);
-            Assert.That(readiness!.Status,
-                Is.EqualTo(SignOffReleaseReadinessStatus.Blocked)
-                .Or.EqualTo(SignOffReleaseReadinessStatus.Indeterminate),
-                "DP04: fresh head with no evidence must be Blocked or Indeterminate");
+            // A valid HeadRef with no evidence yields Blocked (not Indeterminate).
+            // Indeterminate is only returned for missing/null HeadRef inputs.
+            Assert.That(readiness!.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                "DP04: fresh head with valid HeadRef but no evidence must be Blocked");
             Assert.That(readiness.Blockers, Is.Not.Empty,
-                "DP04: non-Ready status must include at least one blocker");
+                "DP04: Blocked state must include at least one blocker");
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -584,10 +590,10 @@ namespace BiatecTokensTests
 
             Assert.That(readiness1.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP13: headRef1 with webhook + evidence must be Ready");
-            Assert.That(readiness2.Status,
-                Is.EqualTo(SignOffReleaseReadinessStatus.Blocked)
-                .Or.EqualTo(SignOffReleaseReadinessStatus.Indeterminate),
-                "DP13: headRef2 without any evidence must be Blocked/Indeterminate (no cross-contamination)");
+            // headRef2 has no evidence and a valid HeadRef → Blocked (not Indeterminate).
+            // Indeterminate is only for null/missing HeadRef inputs.
+            Assert.That(readiness2.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                "DP13: headRef2 without any evidence must be Blocked (no cross-contamination from headRef1)");
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -724,10 +730,15 @@ namespace BiatecTokensTests
             var readiness2 = await svc2.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness2.Status,
-                Is.EqualTo(SignOffReleaseReadinessStatus.Blocked)
-                .Or.EqualTo(SignOffReleaseReadinessStatus.Indeterminate),
-                "DP16: after process restart (new instance), evidence must be gone → Blocked/Indeterminate");
+            // A valid HeadRef with no evidence in the new instance yields Blocked.
+            // Indeterminate is reserved for null/missing HeadRef inputs.
+            Assert.That(readiness2.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                "DP16: after process restart (new instance), evidence must be gone → Blocked (fail-closed)");
+            // MissingEvidence blocker must be present to confirm fail-closed behavior
+            Assert.That(
+                readiness2.Blockers.Any(b => b.Category == SignOffReleaseBlockerCategory.MissingEvidence),
+                Is.True,
+                "DP16: Blocked state after restart must include MissingEvidence blocker");
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -800,10 +811,11 @@ namespace BiatecTokensTests
                 Assert.That(root.TryGetProperty("hasApprovalWebhook", out _), Is.True, "DP18: 'hasApprovalWebhook' field required");
                 Assert.That(root.TryGetProperty("evaluatedAt", out _), Is.True, "DP18: 'evaluatedAt' field required");
 
-                // Status may be a string or integer (enum ordinal) depending on serializer settings
-                string statusValue = statusEl.ValueKind == JsonValueKind.String
-                    ? statusEl.GetString() ?? ""
-                    : statusEl.GetInt32().ToString();
+                // The API serializes enums as integers (no JsonStringEnumConverter registered).
+                // Status=Ready is ordinal 0. Store the raw integer for determinism check.
+                string statusValue = statusEl.ValueKind == JsonValueKind.Number
+                    ? statusEl.GetInt32().ToString()
+                    : statusEl.GetString() ?? "";
                 statuses.Add(statusValue);
                 guidances.Add(guidanceEl.ValueKind == JsonValueKind.Null ? null : guidanceEl.GetString());
             }
