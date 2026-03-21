@@ -423,7 +423,45 @@ namespace BiatecTokensApi.Models.Webhook
         /// A live-provider verification journey entered a terminal failure state.
         /// Evidence cannot be used for approval gating; a new journey must be started.
         /// </summary>
-        VerificationJourneyFailed
+        VerificationJourneyFailed,
+
+        // ── Protected sign-off evidence persistence events ────────────────────
+
+        /// <summary>
+        /// An approval or escalation webhook was received and persisted for a protected
+        /// sign-off flow. Emitted for all non-malformed outcomes (Approved, Escalated, Denied).
+        /// </summary>
+        ProtectedSignOffApprovalWebhookReceived,
+
+        /// <summary>
+        /// An escalation webhook was received and persisted. The case has been escalated
+        /// to a higher reviewer; a final approval or denial is still pending.
+        /// </summary>
+        ProtectedSignOffEscalationWebhookReceived,
+
+        /// <summary>
+        /// A protected sign-off evidence pack was successfully persisted for a head ref.
+        /// Includes freshness status and release-grade flag.
+        /// </summary>
+        ProtectedSignOffEvidencePersisted,
+
+        /// <summary>
+        /// A release-readiness evaluation determined that the current head is fully ready
+        /// for promotion: all required approvals received and evidence is complete and fresh.
+        /// </summary>
+        ProtectedSignOffReleaseReadySignaled,
+
+        /// <summary>
+        /// A release-readiness evaluation determined that evidence is stale or was captured
+        /// against a different head ref. Re-execution of the sign-off workflow is required.
+        /// </summary>
+        ProtectedSignOffEvidenceStale,
+
+        /// <summary>
+        /// A protected sign-off evidence evaluation detected a head mismatch — the evidence
+        /// pack head ref does not match the evaluated head ref.
+        /// </summary>
+        ProtectedSignOffHeadMismatch
     }
 
     /// <summary>

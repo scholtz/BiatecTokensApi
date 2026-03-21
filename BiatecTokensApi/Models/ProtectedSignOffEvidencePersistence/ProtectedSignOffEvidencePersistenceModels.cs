@@ -1,0 +1,587 @@
+namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
+{
+    // ══════════════════════════════════════════════════════════════════════════
+    // Enumerations
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Describes the freshness state of a protected sign-off evidence package
+    /// relative to the current release head.
+    /// </summary>
+    public enum SignOffEvidenceFreshnessStatus
+    {
+        /// <summary>
+        /// Evidence exists for the current head commit, all checks passed, and
+        /// nothing has expired. The evidence is authoritative for release decisions.
+        /// </summary>
+        Complete,
+
+        /// <summary>
+        /// Evidence exists but one or more evidence items are missing, incomplete,
+        /// or pending. The evidence pack is not yet sufficient for release gating.
+        /// </summary>
+        Partial,
+
+        /// <summary>
+        /// Evidence was captured for the current head but has since passed its
+        /// freshness window. The evidence must be refreshed before it can gate release.
+        /// </summary>
+        Stale,
+
+        /// <summary>
+        /// No evidence record exists for the current head. Sign-off has never been
+        /// attempted or was never persisted for this head.
+        /// </summary>
+        Unavailable,
+
+        /// <summary>
+        /// Evidence exists but was captured against a different head commit than the
+        /// one currently being evaluated. The evidence may be valid for a prior head
+        /// but cannot gate the current head.
+        /// </summary>
+        HeadMismatch
+    }
+
+    /// <summary>
+    /// Outcome of an approval webhook received for a protected sign-off flow.
+    /// </summary>
+    public enum ApprovalWebhookOutcome
+    {
+        /// <summary>Approval webhook delivered and processed successfully.</summary>
+        Approved,
+
+        /// <summary>
+        /// Escalation webhook delivered — the case has been escalated to a higher
+        /// reviewer before a final approval or denial decision.
+        /// </summary>
+        Escalated,
+
+        /// <summary>Approval was denied; the release is blocked.</summary>
+        Denied,
+
+        /// <summary>
+        /// Webhook payload arrived but was malformed, missing required fields,
+        /// or could not be deserialized. The outcome is treated as unknown.
+        /// </summary>
+        Malformed,
+
+        /// <summary>
+        /// A delivery was attempted but the webhook never arrived within the
+        /// expected window.
+        /// </summary>
+        TimedOut,
+
+        /// <summary>
+        /// The webhook delivery encountered an error that was not recoverable.
+        /// </summary>
+        DeliveryError
+    }
+
+    /// <summary>
+    /// Aggregated release-readiness status for the current head.
+    /// </summary>
+    public enum SignOffReleaseReadinessStatus
+    {
+        /// <summary>
+        /// All required approvals received, evidence is complete and fresh, and no
+        /// blockers are outstanding. The release can proceed.
+        /// </summary>
+        Ready,
+
+        /// <summary>
+        /// One or more required inputs are missing or incomplete. The system is
+        /// actively awaiting evidence, approvals, or remediation.
+        /// </summary>
+        Pending,
+
+        /// <summary>
+        /// A hard blocker prevents release. Evidence is missing, approval was denied,
+        /// or a protected-environment check failed. Release is not permitted.
+        /// </summary>
+        Blocked,
+
+        /// <summary>
+        /// Evidence exists but is stale or was produced for a mismatched head.
+        /// Re-execution of the sign-off workflow is required.
+        /// </summary>
+        Stale,
+
+        /// <summary>
+        /// The system cannot determine readiness because required backend services
+        /// or evidence records are unavailable.
+        /// </summary>
+        Indeterminate
+    }
+
+    /// <summary>
+    /// Category of a release-readiness blocker, enabling the frontend to group
+    /// and prioritise operator actions.
+    /// </summary>
+    public enum SignOffReleaseBlockerCategory
+    {
+        /// <summary>
+        /// Sentinel value — a blocker must never carry this category.
+        /// Its presence indicates that category assignment was omitted in the service layer.
+        /// </summary>
+        Unspecified = 0,
+
+        /// <summary>Required approval webhook has not been received.</summary>
+        MissingApproval = 1,
+
+        /// <summary>Approval was explicitly denied by a reviewer.</summary>
+        ApprovalDenied = 2,
+
+        /// <summary>Evidence pack is absent for the current head.</summary>
+        MissingEvidence = 3,
+
+        /// <summary>Evidence pack is present but has expired or is beyond freshness window.</summary>
+        StaleEvidence = 4,
+
+        /// <summary>
+        /// Evidence was produced for a different head than the current evaluation target.
+        /// </summary>
+        HeadMismatch = 5,
+
+        /// <summary>Protected-environment checks have not passed.</summary>
+        EnvironmentNotReady = 6,
+
+        /// <summary>A compliance case required for sign-off is not in an approved state.</summary>
+        CaseNotApproved = 7,
+
+        /// <summary>
+        /// An escalation is outstanding and must be resolved before approval can
+        /// be finalised.
+        /// </summary>
+        UnresolvedEscalation = 8,
+
+        /// <summary>The approval webhook arrived but contained malformed or missing data.</summary>
+        MalformedWebhook = 9,
+
+        /// <summary>A catch-all for blockers that do not fit other categories.</summary>
+        Other = 10
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Core Domain Models
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// A persisted record of an approval or escalation webhook outcome that
+    /// arrived for a protected sign-off flow.
+    /// </summary>
+    public class ApprovalWebhookRecord
+    {
+        /// <summary>Unique identifier for this webhook record.</summary>
+        public string RecordId { get; set; } = string.Empty;
+
+        /// <summary>Identifier of the compliance case this webhook relates to.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The head commit SHA or release tag against which this webhook was recorded.
+        /// </summary>
+        public string HeadRef { get; set; } = string.Empty;
+
+        /// <summary>The outcome carried by this webhook payload.</summary>
+        public ApprovalWebhookOutcome Outcome { get; set; }
+
+        /// <summary>UTC timestamp when this webhook was received and persisted.</summary>
+        public DateTimeOffset ReceivedAt { get; set; }
+
+        /// <summary>
+        /// The actor (reviewer, system, or service principal) that originated the webhook.
+        /// </summary>
+        public string? ActorId { get; set; }
+
+        /// <summary>
+        /// Optional reason provided with the approval, denial, or escalation decision.
+        /// </summary>
+        public string? Reason { get; set; }
+
+        /// <summary>
+        /// Correlation ID propagated from the originating workflow run, if available.
+        /// </summary>
+        public string? CorrelationId { get; set; }
+
+        /// <summary>
+        /// True when the payload was validated as structurally correct and
+        /// semantically meaningful.
+        /// </summary>
+        public bool IsValid { get; set; }
+
+        /// <summary>
+        /// Validation error message when <see cref="IsValid"/> is false.
+        /// </summary>
+        public string? ValidationError { get; set; }
+
+        /// <summary>Raw payload hash (SHA-256 hex) for integrity verification.</summary>
+        public string? PayloadHash { get; set; }
+
+        /// <summary>Additional metadata key/value pairs from the webhook payload.</summary>
+        public Dictionary<string, string> Metadata { get; set; } = new();
+    }
+
+    /// <summary>
+    /// A persisted evidence pack for a protected sign-off against a specific head.
+    /// </summary>
+    public class ProtectedSignOffEvidencePack
+    {
+        /// <summary>Unique identifier for this evidence pack.</summary>
+        public string PackId { get; set; } = string.Empty;
+
+        /// <summary>The head commit SHA or release tag this evidence was captured against.</summary>
+        public string HeadRef { get; set; } = string.Empty;
+
+        /// <summary>Identifier of the associated compliance case, if any.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>Freshness status of this evidence pack.</summary>
+        public SignOffEvidenceFreshnessStatus FreshnessStatus { get; set; }
+
+        /// <summary>UTC timestamp when the evidence pack was created.</summary>
+        public DateTimeOffset CreatedAt { get; set; }
+
+        /// <summary>UTC timestamp when the evidence pack was last evaluated for freshness.</summary>
+        public DateTimeOffset LastEvaluatedAt { get; set; }
+
+        /// <summary>UTC timestamp after which the evidence is considered stale.</summary>
+        public DateTimeOffset? ExpiresAt { get; set; }
+
+        /// <summary>
+        /// True when the evidence pack was produced by a live or sandbox provider
+        /// (not simulated).
+        /// </summary>
+        public bool IsProviderBacked { get; set; }
+
+        /// <summary>
+        /// True when the evidence pack meets release-grade criteria: provider-backed,
+        /// not expired, and all required checks passed.
+        /// </summary>
+        public bool IsReleaseGrade { get; set; }
+
+        /// <summary>
+        /// The approval webhook record associated with this evidence pack, if received.
+        /// </summary>
+        public ApprovalWebhookRecord? ApprovalWebhook { get; set; }
+
+        /// <summary>
+        /// List of individual evidence items included in this pack (KYC, AML, sanctions,
+        /// compliance case approval, etc.).
+        /// </summary>
+        public List<EvidencePackItem> Items { get; set; } = new();
+
+        /// <summary>
+        /// SHA-256 content hash of the serialised evidence pack for integrity verification.
+        /// </summary>
+        public string? ContentHash { get; set; }
+
+        /// <summary>
+        /// Actor who triggered the evidence pack creation.
+        /// </summary>
+        public string? CreatedBy { get; set; }
+    }
+
+    /// <summary>
+    /// A single item within a <see cref="ProtectedSignOffEvidencePack"/>.
+    /// </summary>
+    public class EvidencePackItem
+    {
+        /// <summary>Type identifier for this evidence item (e.g. KYC_DOCUMENT, AML_CHECK, APPROVAL_WEBHOOK).</summary>
+        public string EvidenceType { get; set; } = string.Empty;
+
+        /// <summary>Source service or system that produced this evidence item.</summary>
+        public string? SourceService { get; set; }
+
+        /// <summary>True when this evidence item is complete and valid.</summary>
+        public bool IsPresent { get; set; }
+
+        /// <summary>UTC timestamp when this evidence item was captured.</summary>
+        public DateTimeOffset? CapturedAt { get; set; }
+
+        /// <summary>UTC timestamp after which this evidence item is stale, if applicable.</summary>
+        public DateTimeOffset? ExpiresAt { get; set; }
+
+        /// <summary>True when this item is past its expiry timestamp.</summary>
+        public bool IsExpired => ExpiresAt.HasValue && DateTimeOffset.UtcNow > ExpiresAt.Value;
+
+        /// <summary>Optional reference to an external record (e.g. a compliance case ID).</summary>
+        public string? ExternalReference { get; set; }
+
+        /// <summary>Detail note for operator visibility.</summary>
+        public string? Detail { get; set; }
+    }
+
+    /// <summary>
+    /// A blocker preventing release readiness for the current head.
+    /// </summary>
+    public class SignOffReleaseBlocker
+    {
+        /// <summary>Category of this blocker.</summary>
+        public SignOffReleaseBlockerCategory Category { get; set; }
+
+        /// <summary>Machine-readable error code for this blocker.</summary>
+        public string Code { get; set; } = string.Empty;
+
+        /// <summary>Human-readable description of the blocker for operator visibility.</summary>
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Concise, action-oriented guidance for the operator to resolve this blocker.
+        /// </summary>
+        public string RemediationHint { get; set; } = string.Empty;
+
+        /// <summary>True when this blocker is critical and prevents any release promotion.</summary>
+        public bool IsCritical { get; set; }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // API Request / Response Models
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Request to record an incoming approval or escalation webhook outcome.
+    /// </summary>
+    public class RecordApprovalWebhookRequest
+    {
+        /// <summary>Identifier of the compliance case this webhook relates to.</summary>
+        public string CaseId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The head commit SHA or release tag against which this approval was granted.
+        /// </summary>
+        public string HeadRef { get; set; } = string.Empty;
+
+        /// <summary>The outcome carried by the webhook payload.</summary>
+        public ApprovalWebhookOutcome Outcome { get; set; }
+
+        /// <summary>
+        /// The actor (reviewer or service principal) that originated the webhook.
+        /// </summary>
+        public string? ActorId { get; set; }
+
+        /// <summary>Reason provided with the decision.</summary>
+        public string? Reason { get; set; }
+
+        /// <summary>Correlation ID propagated from the originating workflow.</summary>
+        public string? CorrelationId { get; set; }
+
+        /// <summary>Optional raw payload for hash computation and audit.</summary>
+        public string? RawPayload { get; set; }
+
+        /// <summary>Additional metadata key/value pairs from the webhook payload.</summary>
+        public Dictionary<string, string>? Metadata { get; set; }
+    }
+
+    /// <summary>
+    /// Response to a <see cref="RecordApprovalWebhookRequest"/>.
+    /// </summary>
+    public class RecordApprovalWebhookResponse
+    {
+        /// <summary>True when the webhook was persisted successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The persisted webhook record.</summary>
+        public ApprovalWebhookRecord? Record { get; set; }
+
+        /// <summary>Machine-readable error code on failure.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message on failure.</summary>
+        public string? ErrorMessage { get; set; }
+
+        /// <summary>Actionable guidance when the record was not persisted.</summary>
+        public string? RemediationHint { get; set; }
+    }
+
+    /// <summary>
+    /// Request to persist or refresh a protected sign-off evidence pack.
+    /// </summary>
+    public class PersistSignOffEvidenceRequest
+    {
+        /// <summary>The head commit SHA or release tag to capture evidence against.</summary>
+        public string HeadRef { get; set; } = string.Empty;
+
+        /// <summary>Compliance case to include in the evidence pack.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>
+        /// Freshness window in hours. Evidence captured within this window is
+        /// considered not stale. Defaults to 24 hours.
+        /// </summary>
+        public int FreshnessWindowHours { get; set; } = 24;
+
+        /// <summary>
+        /// When true, the call fails if the evidence pack cannot be marked as
+        /// release-grade (i.e., all items must be provider-backed).
+        /// </summary>
+        public bool RequireReleaseGrade { get; set; }
+
+        /// <summary>
+        /// When true, the call fails if a required approval webhook has not been received
+        /// for this head ref.
+        /// </summary>
+        public bool RequireApprovalWebhook { get; set; }
+    }
+
+    /// <summary>
+    /// Response to a <see cref="PersistSignOffEvidenceRequest"/>.
+    /// </summary>
+    public class PersistSignOffEvidenceResponse
+    {
+        /// <summary>True when the evidence pack was persisted successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>The persisted evidence pack.</summary>
+        public ProtectedSignOffEvidencePack? Pack { get; set; }
+
+        /// <summary>Machine-readable error code on failure.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message on failure.</summary>
+        public string? ErrorMessage { get; set; }
+
+        /// <summary>Actionable guidance when the pack was not persisted.</summary>
+        public string? RemediationHint { get; set; }
+    }
+
+    /// <summary>
+    /// Request to evaluate the release readiness for a given head ref.
+    /// </summary>
+    public class GetSignOffReleaseReadinessRequest
+    {
+        /// <summary>The head commit SHA or release tag to evaluate.</summary>
+        public string HeadRef { get; set; } = string.Empty;
+
+        /// <summary>Compliance case to include in the evaluation, if applicable.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>
+        /// Freshness window in hours used to classify stale evidence.
+        /// Defaults to 24 hours.
+        /// </summary>
+        public int FreshnessWindowHours { get; set; } = 24;
+    }
+
+    /// <summary>
+    /// Response describing the aggregated release readiness for the current head.
+    /// Provides a single authoritative object for operator dashboards and the
+    /// release evidence center.
+    /// </summary>
+    public class GetSignOffReleaseReadinessResponse
+    {
+        /// <summary>True when release is fully ready (no blockers).</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Aggregated readiness status.</summary>
+        public SignOffReleaseReadinessStatus Status { get; set; }
+
+        /// <summary>The head ref that was evaluated.</summary>
+        public string HeadRef { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Evidence freshness status for the evaluated head ref.
+        /// </summary>
+        public SignOffEvidenceFreshnessStatus EvidenceFreshness { get; set; }
+
+        /// <summary>True when a valid approval webhook has been received for this head.</summary>
+        public bool HasApprovalWebhook { get; set; }
+
+        /// <summary>The most recently received approval webhook for this head, if any.</summary>
+        public ApprovalWebhookRecord? LatestApprovalWebhook { get; set; }
+
+        /// <summary>The most recent evidence pack for this head, if any.</summary>
+        public ProtectedSignOffEvidencePack? LatestEvidencePack { get; set; }
+
+        /// <summary>
+        /// Ordered list of blockers preventing release. Empty when <see cref="Status"/> is Ready.
+        /// </summary>
+        public List<SignOffReleaseBlocker> Blockers { get; set; } = new();
+
+        /// <summary>
+        /// Top-level operator guidance summarising next actions required before release.
+        /// Null when status is Ready.
+        /// </summary>
+        public string? OperatorGuidance { get; set; }
+
+        /// <summary>UTC timestamp when this readiness evaluation was performed.</summary>
+        public DateTimeOffset EvaluatedAt { get; set; }
+
+        /// <summary>Machine-readable error code on error.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message on error.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request to retrieve the approval webhook history for a given case and head ref.
+    /// </summary>
+    public class GetApprovalWebhookHistoryRequest
+    {
+        /// <summary>Compliance case ID to filter by.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>Head ref to filter by. If null, returns history for all head refs.</summary>
+        public string? HeadRef { get; set; }
+
+        /// <summary>Maximum number of records to return. Defaults to 50.</summary>
+        public int MaxRecords { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// Response containing approval webhook history records.
+    /// </summary>
+    public class GetApprovalWebhookHistoryResponse
+    {
+        /// <summary>True when the query succeeded.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Ordered list of approval webhook records (newest first).</summary>
+        public List<ApprovalWebhookRecord> Records { get; set; } = new();
+
+        /// <summary>Total number of records in the store matching the filter.</summary>
+        public int TotalCount { get; set; }
+
+        /// <summary>Machine-readable error code on failure.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message on failure.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request to retrieve evidence pack history for a given head ref.
+    /// </summary>
+    public class GetEvidencePackHistoryRequest
+    {
+        /// <summary>Head ref to filter by. If null, returns all packs.</summary>
+        public string? HeadRef { get; set; }
+
+        /// <summary>Case ID to filter by. If null, returns packs for all cases.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>Maximum number of records to return. Defaults to 50.</summary>
+        public int MaxRecords { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// Response containing evidence pack history.
+    /// </summary>
+    public class GetEvidencePackHistoryResponse
+    {
+        /// <summary>True when the query succeeded.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Ordered list of evidence packs (newest first).</summary>
+        public List<ProtectedSignOffEvidencePack> Packs { get; set; } = new();
+
+        /// <summary>Total number of packs in the store matching the filter.</summary>
+        public int TotalCount { get; set; }
+
+        /// <summary>Machine-readable error code on failure.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Human-readable error message on failure.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+}

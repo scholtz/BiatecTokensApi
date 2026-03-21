@@ -1150,6 +1150,12 @@ namespace BiatecTokensTests
         [TestCase(WebhookEventType.VerificationJourneyApprovalReady)]
         [TestCase(WebhookEventType.VerificationJourneyDegraded)]
         [TestCase(WebhookEventType.VerificationJourneyFailed)]
+        [TestCase(WebhookEventType.ProtectedSignOffApprovalWebhookReceived)]
+        [TestCase(WebhookEventType.ProtectedSignOffEscalationWebhookReceived)]
+        [TestCase(WebhookEventType.ProtectedSignOffEvidencePersisted)]
+        [TestCase(WebhookEventType.ProtectedSignOffReleaseReadySignaled)]
+        [TestCase(WebhookEventType.ProtectedSignOffEvidenceStale)]
+        [TestCase(WebhookEventType.ProtectedSignOffHeadMismatch)]
         public async Task EmitEvent_AllEventTypes_CanBeDelivered(WebhookEventType eventType)
         {
             bool delivered = false;
