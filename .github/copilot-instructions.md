@@ -1679,3 +1679,42 @@ private sealed class FakeHttpClientFactory : IHttpClientFactory
    dotnet test BiatecTokensTests --filter "FullyQualifiedName~AdvancedTests" --no-build --configuration Release
    ```
    Do NOT commit test files that have never been locally built and run.
+
+**Lesson Learned (2026-03-21 - Deployed Parity PR, Issue #599, PR #600)**: Product owner requested "Fix build and fix tests, make sure it is aligned with product definition, update copilot instructions so it does not repeat, increase test coverage." Root causes:
+
+1. **PR description did not start with `Fixes #599`** — used "Related Issues: #598" (wrong syntax, wrong issue number). This is the most critical mandatory rule: use `Fixes #NNN` as the VERY FIRST line of every PR description. Never use "Related Issues" syntax.
+
+2. **Test coverage was insufficient** — only 20 deployed-path parity tests were added. For a "deployed parity" or "promoted to production" issue, the product owner expects comprehensive coverage: 40+ tests covering RawPayload/PayloadHash, Metadata persistence, RequireReleaseGrade variants, ContentHash stability, pagination ordering, history filtering, multiple authentication edge cases (401 for unauthenticated), multi-actor workflows, FreshnessWindowHours boundary (0 defaults to 24h), and empty HeadRef semantics.
+
+3. **CI showed `action_required`** — this is NOT a test failure. It's GitHub's security restriction requiring maintainer approval before running CI on agent PRs. Product owners see this as "CI not passing." When this happens, include in the PR body: "CI requires maintainer approval before running (GitHub security restriction for agent PRs). Tests confirmed passing locally — 40/40 deployed parity tests pass." Do not claim CI is green without evidence.
+
+**MANDATORY RULES for Deployed-Parity / Promotion Issues**:
+
+1. **PR description MUST start with `Fixes #NNN` referencing the CORRECT issue number** (the one the product owner assigned you, NOT the PR that introduced the feature).
+
+2. **Test count for deployed-parity issues must be ≥ 40** covering:
+   - All success/failure outcomes for each endpoint (Approved, Denied, Escalated, TimedOut, DeliveryError, Malformed)
+   - Actor propagation, CorrelationId threading, RawPayload/PayloadHash, Metadata persistence
+   - RequireReleaseGrade=true with and without prior webhook
+   - RequireApprovalWebhook=true with and without prior webhook
+   - ContentHash stability, pack identity fields (PackId, HeadRef, CaseId, CreatedAt)
+   - FreshnessWindowHours=0 defaults to 24h
+   - Evidence history and webhook history filtering, ordering (newest-first), MaxRecords boundary
+   - Multi-head isolation (no cross-contamination)
+   - Process-restart simulation
+   - Unauthenticated access returns 401 for all endpoints
+   - Multi-actor workflow (different actors for webhook and evidence)
+   - 3-factory determinism (DP20 pattern)
+   - Empty/null HeadRef returns Indeterminate with MISSING_HEAD_REF error code
+
+3. **Always run the final test count check before report_progress**:
+   ```bash
+   grep -c "\[Test\]" BiatecTokensTests/ProtectedSignOffDeployedParityTests.cs
+   # Must be ≥ 40
+   ```
+
+4. **After adding new tests, ALWAYS confirm count**:
+   ```bash
+   dotnet test BiatecTokensTests --filter "FullyQualifiedName~DeployedParity" --no-build --configuration Release
+   # Must show Passed! - Failed: 0, Passed: ≥40
+   ```

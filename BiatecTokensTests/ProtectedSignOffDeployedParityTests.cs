@@ -913,6 +913,553 @@ namespace BiatecTokensTests
         }
 
         // ════════════════════════════════════════════════════════════════════
+        // DP21: RawPayload provided → PayloadHash computed and stored in record
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP21_RawPayload_IsHashedAndStoredInRecord()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+            string rawPayload = """{"approver":"user@example.com","timestamp":"2026-03-21T20:00:00Z"}""";
+
+            var resp = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    RawPayload = rawPayload
+                }, "actor-dp21");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Record!.PayloadHash, Is.Not.Null.And.Not.Empty,
+                "DP21: RawPayload must produce a non-empty PayloadHash in the record");
+            Assert.That(resp.Record.PayloadHash!.Length, Is.EqualTo(64),
+                "DP21: PayloadHash must be a 64-char lowercase SHA-256 hex string");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP22: Metadata key/value pairs stored in webhook record
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP22_Metadata_IsPreservedInWebhookRecord()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            var metadata = new Dictionary<string, string>
+            {
+                ["source"] = "github-actions",
+                ["runId"] = "99887766",
+                ["environment"] = "production"
+            };
+
+            var resp = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    Metadata = metadata
+                }, "actor-dp22");
+
+            Assert.That(resp.Success, Is.True);
+            Assert.That(resp.Record!.Metadata, Is.Not.Null);
+            Assert.That(resp.Record.Metadata["source"], Is.EqualTo("github-actions"),
+                "DP22: webhook record must preserve metadata key 'source'");
+            Assert.That(resp.Record.Metadata["runId"], Is.EqualTo("99887766"),
+                "DP22: webhook record must preserve metadata key 'runId'");
+            Assert.That(resp.Record.Metadata["environment"], Is.EqualTo("production"),
+                "DP22: webhook record must preserve metadata key 'environment'");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP23: RequireReleaseGrade=true with prior webhook succeeds
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP23_RequireReleaseGrade_WithPriorWebhook_Succeeds()
+        {
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            // Record approved webhook
+            await _client.PostAsJsonAsync($"{BaseUrl}/webhooks/approval",
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef,
+                    Outcome = ApprovalWebhookOutcome.Approved
+                });
+
+            // Now persist with RequireReleaseGrade=true
+            var resp = await _client.PostAsJsonAsync($"{BaseUrl}/evidence",
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = headRef, CaseId = caseId,
+                    RequireReleaseGrade = true
+                });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "DP23: RequireReleaseGrade=true with prior approved webhook must succeed");
+            var result = await resp.Content.ReadFromJsonAsync<PersistSignOffEvidenceResponse>();
+            Assert.That(result!.Success, Is.True);
+            Assert.That(result.Pack!.IsReleaseGrade, Is.True,
+                "DP23: evidence with RequireReleaseGrade=true must be marked as release-grade");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP24: RequireReleaseGrade=true without prior webhook → 400
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP24_RequireReleaseGrade_WithoutWebhook_Returns400()
+        {
+            string headRef = UniqueHead();
+            string caseId = UniqueCase();
+
+            var resp = await _client.PostAsJsonAsync($"{BaseUrl}/evidence",
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = headRef, CaseId = caseId,
+                    RequireReleaseGrade = true
+                });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
+                "DP24: RequireReleaseGrade=true without prior webhook must return 400");
+            var result = await resp.Content.ReadFromJsonAsync<PersistSignOffEvidenceResponse>();
+            Assert.That(result!.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("NOT_RELEASE_GRADE"),
+                "DP24: error code must be NOT_RELEASE_GRADE");
+            Assert.That(result.RemediationHint, Is.Not.Null.And.Not.Empty,
+                "DP24: remediationHint must be non-empty");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP25: Evidence pack content hash is stable for identical inputs
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP25_EvidenceContentHash_IsNonEmptyAndPresentInPack()
+        {
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            await PostWebhookAsync(caseId, headRef, ApprovalWebhookOutcome.Approved);
+            var evidenceResp = await PostEvidenceAsync(headRef, caseId);
+
+            Assert.That(evidenceResp.Pack!.ContentHash, Is.Not.Null.And.Not.Empty,
+                "DP25: evidence pack must have a non-empty ContentHash");
+            Assert.That(evidenceResp.Pack.ContentHash!.Length, Is.EqualTo(64),
+                "DP25: ContentHash must be a 64-char SHA-256 hex string");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP26: Evidence pack has non-empty PackId and correct HeadRef/CaseId
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP26_EvidencePack_HasCorrectIdentityFields()
+        {
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            var evidenceResp = await PostEvidenceAsync(headRef, caseId);
+
+            Assert.That(evidenceResp.Pack!.PackId, Is.Not.Null.And.Not.Empty,
+                "DP26: PackId must be non-empty");
+            Assert.That(evidenceResp.Pack.HeadRef, Is.EqualTo(headRef),
+                "DP26: pack HeadRef must match the requested HeadRef");
+            Assert.That(evidenceResp.Pack.CaseId, Is.EqualTo(caseId),
+                "DP26: pack CaseId must match the requested CaseId");
+            Assert.That(evidenceResp.Pack.CreatedAt, Is.Not.EqualTo(DateTimeOffset.MinValue),
+                "DP26: pack CreatedAt must be populated");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP27: Evidence pack has non-empty Items list
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP27_EvidencePack_HasNonEmptyItemsList()
+        {
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            var evidenceResp = await PostEvidenceAsync(headRef, caseId);
+
+            Assert.That(evidenceResp.Pack!.Items, Is.Not.Null.And.Not.Empty,
+                "DP27: evidence pack must have at least one item in the Items list");
+            Assert.That(evidenceResp.Pack.Items.All(i => !string.IsNullOrEmpty(i.EvidenceType)), Is.True,
+                "DP27: every evidence item must have a non-empty EvidenceType");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP28: Webhook record has correct identity fields
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP28_WebhookRecord_HasCorrectIdentityFields()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            var resp = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    ActorId = "release-approver",
+                    Reason = "All checks passed in staging"
+                }, "fallback-actor");
+
+            Assert.That(resp.Record!.RecordId, Is.Not.Null.And.Not.Empty,
+                "DP28: RecordId must be non-empty");
+            Assert.That(resp.Record.CaseId, Is.EqualTo(caseId),
+                "DP28: record CaseId must match the request");
+            Assert.That(resp.Record.HeadRef, Is.EqualTo(headRef),
+                "DP28: record HeadRef must match the request");
+            Assert.That(resp.Record.Outcome, Is.EqualTo(ApprovalWebhookOutcome.Approved),
+                "DP28: record Outcome must match the request");
+            Assert.That(resp.Record.ActorId, Is.EqualTo("release-approver"),
+                "DP28: record ActorId must match the request-level ActorId");
+            Assert.That(resp.Record.Reason, Is.EqualTo("All checks passed in staging"),
+                "DP28: record Reason must be preserved");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP29: FreshnessWindowHours=0 defaults to 24 hours
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP29_FreshnessWindowHours_Zero_DefaultsTo24Hours()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+
+            // Explicit 0 value should default to 24 hours
+            var resp = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId, FreshnessWindowHours = 0 }, "actor");
+
+            Assert.That(resp.Success, Is.True);
+            // ExpiresAt should be approximately 24 hours from now (allow +/- 1 min for test execution)
+            var expectedExpiry = DateTimeOffset.UtcNow.AddHours(24);
+            Assert.That(resp.Pack!.ExpiresAt, Is.Not.Null,
+                "DP29: evidence pack must have ExpiresAt set when FreshnessWindowHours=0 defaults to 24");
+            Assert.That(Math.Abs((resp.Pack.ExpiresAt!.Value - expectedExpiry).TotalMinutes), Is.LessThan(2),
+                "DP29: ExpiresAt must be approximately 24 hours from creation time");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP30: Evidence history filter by caseId only (no headRef) works
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP30_EvidenceHistory_FilterByCaseIdOnly_ReturnsCorrectPacks()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string otherCaseId = UniqueCase();
+            string headRef1 = UniqueHead();
+            string headRef2 = UniqueHead();
+
+            // Persist evidence for caseId across two head refs
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef1, CaseId = caseId }, "actor");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef2, CaseId = caseId }, "actor");
+
+            // Persist evidence for otherCaseId
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef1, CaseId = otherCaseId }, "actor");
+
+            // Get history filtered by caseId only
+            var history = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { CaseId = caseId });
+
+            Assert.That(history.Success, Is.True);
+            Assert.That(history.TotalCount, Is.EqualTo(2),
+                "DP30: filtering by caseId must return exactly the 2 packs for that case");
+            Assert.That(history.Packs.All(p => p.CaseId == caseId), Is.True,
+                "DP30: all returned packs must have the requested caseId");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP31: Webhook history filter by caseId only returns correct records
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP31_WebhookHistory_FilterByCaseIdOnly_ReturnsCorrectRecords()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string otherCaseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Approved }, "actor");
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Escalated }, "actor");
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = otherCaseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Denied }, "actor");
+
+            var history = await svc.GetApprovalWebhookHistoryAsync(
+                new GetApprovalWebhookHistoryRequest { CaseId = caseId });
+
+            Assert.That(history.Success, Is.True);
+            Assert.That(history.TotalCount, Is.EqualTo(2),
+                "DP31: filtering by caseId must return exactly the 2 records for that case");
+            Assert.That(history.Records.All(r => r.CaseId == caseId), Is.True,
+                "DP31: all returned records must have the requested caseId");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP32: Evidence history returned in newest-first order
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP32_EvidenceHistory_ReturnedInNewestFirstOrder()
+        {
+            var baseTime = DateTimeOffset.UtcNow;
+            var timeProvider = new AdvancableTimeProvider(baseTime);
+            var svc = new ProtectedSignOffEvidencePersistenceService(
+                NullLogger<ProtectedSignOffEvidencePersistenceService>.Instance,
+                timeProvider: timeProvider);
+
+            string headRef = UniqueHead();
+
+            // Persist 3 packs with advancing time
+            for (int i = 0; i < 3; i++)
+            {
+                await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = headRef }, "actor");
+                timeProvider.Advance(TimeSpan.FromMinutes(5));
+            }
+
+            var history = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = headRef });
+
+            Assert.That(history.TotalCount, Is.EqualTo(3));
+            // Verify newest first: each pack's CreatedAt should be descending
+            for (int i = 0; i < history.Packs.Count - 1; i++)
+            {
+                Assert.That(history.Packs[i].CreatedAt, Is.GreaterThanOrEqualTo(history.Packs[i + 1].CreatedAt),
+                    $"DP32: pack at index {i} must be newer than pack at index {i + 1}");
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP33: Webhook history returned in newest-first order
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP33_WebhookHistory_ReturnedInNewestFirstOrder()
+        {
+            var baseTime = DateTimeOffset.UtcNow;
+            var timeProvider = new AdvancableTimeProvider(baseTime);
+            var svc = new ProtectedSignOffEvidencePersistenceService(
+                NullLogger<ProtectedSignOffEvidencePersistenceService>.Instance,
+                timeProvider: timeProvider);
+
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            for (int i = 0; i < 3; i++)
+            {
+                await svc.RecordApprovalWebhookAsync(
+                    new RecordApprovalWebhookRequest
+                    {
+                        CaseId = caseId, HeadRef = headRef,
+                        Outcome = ApprovalWebhookOutcome.Approved
+                    }, "actor");
+                timeProvider.Advance(TimeSpan.FromMinutes(3));
+            }
+
+            var history = await svc.GetApprovalWebhookHistoryAsync(
+                new GetApprovalWebhookHistoryRequest { CaseId = caseId });
+
+            Assert.That(history.TotalCount, Is.EqualTo(3));
+            for (int i = 0; i < history.Records.Count - 1; i++)
+            {
+                Assert.That(history.Records[i].ReceivedAt, Is.GreaterThanOrEqualTo(history.Records[i + 1].ReceivedAt),
+                    $"DP33: record at index {i} must be newer than record at index {i + 1}");
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP34: Readiness with HasApprovalWebhook=true when only non-Approved webhook exists
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP34_HasApprovalWebhook_TrueEvenForDeniedWebhook()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            // Only a denied webhook — HasApprovalWebhook tracks any webhook presence
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest { CaseId = caseId, HeadRef = headRef, Outcome = ApprovalWebhookOutcome.Denied }, "actor");
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
+
+            Assert.That(readiness.HasApprovalWebhook, Is.True,
+                "DP34: HasApprovalWebhook must be true when any webhook (even Denied) was received");
+            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                "DP34: status must be Blocked because only a Denied webhook exists");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP35: Unauthenticated webhook record request returns 401
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP35_UnauthenticatedWebhookRecord_Returns401()
+        {
+            await using var factory = new DeployedParityFactory();
+            using var unauthClient = factory.CreateClient();
+
+            var resp = await unauthClient.PostAsJsonAsync($"{BaseUrl}/webhooks/approval",
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = UniqueCase(), HeadRef = UniqueHead(),
+                    Outcome = ApprovalWebhookOutcome.Approved
+                });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
+                "DP35: unauthenticated webhook record must return 401");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP36: Unauthenticated evidence persist request returns 401
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP36_UnauthenticatedEvidencePersist_Returns401()
+        {
+            await using var factory = new DeployedParityFactory();
+            using var unauthClient = factory.CreateClient();
+
+            var resp = await unauthClient.PostAsJsonAsync($"{BaseUrl}/evidence",
+                new PersistSignOffEvidenceRequest { HeadRef = UniqueHead() });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
+                "DP36: unauthenticated evidence persist must return 401");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP37: Unauthenticated readiness request returns 401
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP37_UnauthenticatedReadiness_Returns401()
+        {
+            await using var factory = new DeployedParityFactory();
+            using var unauthClient = factory.CreateClient();
+
+            var resp = await unauthClient.PostAsJsonAsync($"{BaseUrl}/release-readiness",
+                new GetSignOffReleaseReadinessRequest { HeadRef = UniqueHead() });
+
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
+                "DP37: unauthenticated readiness check must return 401");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP38: Multi-actor workflow — different actors for webhook and evidence
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP38_MultiActor_WebhookAndEvidenceHaveDifferentActors()
+        {
+            var svc = CreateService();
+            string caseId = UniqueCase();
+            string headRef = UniqueHead();
+
+            var webhookResp = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = headRef,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    ActorId = "external-approver-system"
+                }, "fallback");
+
+            var evidenceResp = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId },
+                "release-pipeline-service");
+
+            Assert.That(webhookResp.Record!.ActorId, Is.EqualTo("external-approver-system"),
+                "DP38: webhook actor must be the request-level actor");
+            Assert.That(evidenceResp.Pack!.CreatedBy, Is.EqualTo("release-pipeline-service"),
+                "DP38: evidence pack actor (CreatedBy) must be the evidence method-level actor");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP39: Evidence history MaxRecords=1 returns most recent pack
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP39_EvidenceHistory_MaxRecords1_ReturnsMostRecentPack()
+        {
+            var baseTime = DateTimeOffset.UtcNow;
+            var timeProvider = new AdvancableTimeProvider(baseTime);
+            var svc = new ProtectedSignOffEvidencePersistenceService(
+                NullLogger<ProtectedSignOffEvidencePersistenceService>.Instance,
+                timeProvider: timeProvider);
+
+            string headRef = UniqueHead();
+
+            // Create 3 packs with advancing time
+            var packIds = new List<string>();
+            for (int i = 0; i < 3; i++)
+            {
+                var r = await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = headRef }, "actor");
+                packIds.Add(r.Pack!.PackId);
+                timeProvider.Advance(TimeSpan.FromHours(1));
+            }
+
+            var history = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = headRef, MaxRecords = 1 });
+
+            Assert.That(history.TotalCount, Is.EqualTo(3),
+                "DP39: TotalCount must reflect all 3 packs");
+            Assert.That(history.Packs.Count, Is.EqualTo(1),
+                "DP39: Records list must be capped at MaxRecords=1");
+            Assert.That(history.Packs[0].PackId, Is.EqualTo(packIds[2]),
+                "DP39: MaxRecords=1 must return the most recently created pack");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP40: Readiness with null request body returns error response
+        // ════════════════════════════════════════════════════════════════════
+
+        [Test]
+        public async Task DP40_ReadinessWithEmptyHeadRef_ReturnsIndeterminate()
+        {
+            var svc = CreateService();
+
+            // Empty HeadRef → Indeterminate
+            var resp = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = "" });
+
+            Assert.That(resp.Success, Is.False,
+                "DP40: empty HeadRef must return Success=false");
+            Assert.That(resp.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate),
+                "DP40: empty HeadRef must return Indeterminate status (not Blocked)");
+            Assert.That(resp.ErrorCode, Is.EqualTo("MISSING_HEAD_REF"),
+                "DP40: error code must be MISSING_HEAD_REF");
+            Assert.That(resp.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "DP40: OperatorGuidance must be present even for missing-HeadRef error");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
         // Private helpers
         // ════════════════════════════════════════════════════════════════════
 
