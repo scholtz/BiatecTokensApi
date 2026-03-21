@@ -571,6 +571,7 @@ namespace BiatecTokensApi.Services
             if (criticalBlockers.Count == 0 && blockers.Count == 0)
             {
                 overallStatus = SignOffReleaseReadinessStatus.Ready;
+                operatorGuidance = "All sign-off checks passed. The release is approved and ready to proceed.";
             }
             else if (freshnessStatus is SignOffEvidenceFreshnessStatus.Stale or SignOffEvidenceFreshnessStatus.HeadMismatch
                      && criticalBlockers.All(b => b.Category is SignOffReleaseBlockerCategory.StaleEvidence or SignOffReleaseBlockerCategory.HeadMismatch))

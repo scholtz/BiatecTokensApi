@@ -647,7 +647,7 @@ namespace BiatecTokensTests
             Assert.That(result.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Complete));
             Assert.That(result.HasApprovalWebhook, Is.True);
             Assert.That(result.Blockers, Is.Empty);
-            Assert.That(result.OperatorGuidance, Is.Null);
+            Assert.That(result.OperatorGuidance, Is.Not.Null.And.Not.Empty);
             Assert.That(result.LatestApprovalWebhook, Is.Not.Null);
             Assert.That(result.LatestEvidencePack, Is.Not.Null);
         }
