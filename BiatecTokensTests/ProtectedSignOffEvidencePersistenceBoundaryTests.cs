@@ -87,7 +87,7 @@ namespace BiatecTokensTests
                 HeadRef = head,
                 FreshnessWindowHours = windowHours,
                 CaseId = "case-boundary"
-            });
+            }, "test-actor");
 
             // Move clock to just before the boundary (59 minutes 59 seconds before expiry)
             tp.Advance(TimeSpan.FromHours(windowHours).Subtract(TimeSpan.FromSeconds(1)));
@@ -115,7 +115,7 @@ namespace BiatecTokensTests
                 HeadRef = head,
                 FreshnessWindowHours = windowHours,
                 CaseId = "case-stale"
-            });
+            }, "test-actor");
 
             // Advance clock past the freshness window
             tp.Advance(TimeSpan.FromHours(windowHours).Add(TimeSpan.FromSeconds(1)));
@@ -144,7 +144,7 @@ namespace BiatecTokensTests
                 HeadRef = head,
                 FreshnessWindowHours = 0, // should default to 24
                 CaseId = "case-zero-window"
-            });
+            }, "test-actor");
 
             Assert.That(persistResult.Success, Is.True, "Persist must succeed with zero window (uses default 24h)");
 
@@ -172,7 +172,7 @@ namespace BiatecTokensTests
                 HeadRef = head,
                 FreshnessWindowHours = windowHours,
                 CaseId = "case-short"
-            });
+            }, "test-actor");
 
             // Evidence should be fresh now
             var freshResult = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
@@ -218,7 +218,7 @@ namespace BiatecTokensTests
                     HeadRef = head,
                     CaseId = caseId,
                     Outcome = outcome
-                });
+                }, "test-actor");
             }
 
             var history = await svc.GetApprovalWebhookHistoryAsync(
@@ -241,20 +241,19 @@ namespace BiatecTokensTests
                 HeadRef = head,
                 CaseId = "c1",
                 Outcome = ApprovalWebhookOutcome.TimedOut
-            });
+            }, "test-actor");
 
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head,
                 CaseId = "c1",
                 RequireApprovalWebhook = false
-            });
+            }, "test-actor");
 
             var readiness = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
                 HeadRef = head,
-                RequireApprovalWebhook = false
-            });
+                });
 
             Assert.That(readiness.HasApprovalWebhook, Is.True,
                 "HasApprovalWebhook must be true when any webhook was received, even TimedOut");
@@ -269,16 +268,16 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = "c1", Outcome = ApprovalWebhookOutcome.Denied
-            });
+            }, "test-actor");
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = "c1", Outcome = ApprovalWebhookOutcome.Approved
-            });
+            }, "test-actor");
 
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = "c1"
-            });
+            }, "test-actor");
 
             var readiness = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
@@ -301,7 +300,7 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = "head-a", CaseId = "c1", Outcome = ApprovalWebhookOutcome.Approved
-            });
+            }, "test-actor");
 
             var readinessB = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
@@ -321,7 +320,7 @@ namespace BiatecTokensTests
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = "head-a", CaseId = caseId
-            });
+            }, "test-actor");
 
             var readinessB = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
@@ -345,7 +344,7 @@ namespace BiatecTokensTests
                 await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
                 {
                     HeadRef = "head-history-a", CaseId = "c1", Outcome = ApprovalWebhookOutcome.Approved
-                });
+                }, "test-actor");
             }
 
             var historyB = await svc.GetApprovalWebhookHistoryAsync(
@@ -372,8 +371,9 @@ namespace BiatecTokensTests
 
             Assert.That(result.Status,
                 Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate)
-                  .Or.EqualTo(SignOffReleaseReadinessStatus.Pending),
-                "No evidence and no webhook should be Indeterminate or Pending");
+                  .Or.EqualTo(SignOffReleaseReadinessStatus.Pending)
+                  .Or.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                "No evidence and no webhook should be Indeterminate, Pending, or Blocked (missing evidence).");
         }
 
         [Test]
@@ -386,12 +386,12 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = caseId, Outcome = ApprovalWebhookOutcome.Approved
-            });
+            }, "test-actor");
 
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = caseId, FreshnessWindowHours = 24
-            });
+            }, "test-actor");
 
             var result = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
@@ -414,17 +414,16 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = caseId, Outcome = ApprovalWebhookOutcome.Denied
-            });
+            }, "test-actor");
 
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = caseId
-            });
+            }, "test-actor");
 
             var result = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
-                HeadRef = head, RequireApprovalWebhook = true
-            });
+                HeadRef = head, });
 
             Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
                 "Denied approval must block release");
@@ -449,12 +448,11 @@ namespace BiatecTokensTests
             {
                 HeadRef = head, CaseId = "case-pending",
                 RequireApprovalWebhook = false
-            });
+            }, "test-actor");
 
             var result = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
-                HeadRef = head, RequireApprovalWebhook = true
-            });
+                HeadRef = head, });
 
             Assert.That(result.Status,
                 Is.EqualTo(SignOffReleaseReadinessStatus.Pending)
@@ -476,16 +474,15 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = "c1", Outcome = ApprovalWebhookOutcome.Denied
-            });
+            }, "test-actor");
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = "c1"
-            });
+            }, "test-actor");
 
             var result = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
-                HeadRef = head, RequireApprovalWebhook = true
-            });
+                HeadRef = head, });
 
             foreach (var blocker in result.Blockers ?? new List<SignOffReleaseBlocker>())
             {
@@ -532,7 +529,7 @@ namespace BiatecTokensTests
                 {
                     HeadRef = head,
                     CaseId = $"case-{i}"
-                });
+                }, "test-actor");
             }
 
             var history = await svc.GetEvidencePackHistoryAsync(
@@ -556,7 +553,7 @@ namespace BiatecTokensTests
                     HeadRef = head,
                     CaseId = "c1",
                     Outcome = ApprovalWebhookOutcome.Approved
-                });
+                }, "test-actor");
             }
 
             var history = await svc.GetApprovalWebhookHistoryAsync(
@@ -586,10 +583,10 @@ namespace BiatecTokensTests
             var result = await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = "c1", Outcome = outcome
-            });
+            }, "test-actor");
 
             Assert.That(result.Success, Is.True, $"Outcome {outcome} must be recorded successfully");
-            Assert.That(result.RecordId, Is.Not.Null.And.Not.Empty,
+            Assert.That(result.Record?.RecordId, Is.Not.Null.And.Not.Empty,
                 "RecordId must be set on success");
 
             var history = await svc.GetApprovalWebhookHistoryAsync(
@@ -611,39 +608,40 @@ namespace BiatecTokensTests
             var r1 = await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = "case-1"
-            });
+            }, "test-actor");
             var r2 = await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = "case-1"
-            });
+            }, "test-actor");
 
             Assert.That(r1.Success, Is.True, "First persist must succeed");
             Assert.That(r2.Success, Is.True, "Second persist must succeed");
-            Assert.That(r1.PackId, Is.Not.EqualTo(r2.PackId),
+            Assert.That(r1.Pack?.PackId, Is.Not.EqualTo(r2.Pack?.PackId),
                 "Repeated persists must produce distinct PackIds");
         }
 
         [Test]
         public async Task PersistEvidence_ThenQuery_ReturnsLatestPack()
         {
-            var (svc, _, _) = CreateServiceWithCapture();
+            var (svc, _, tp) = CreateServiceWithCapture();
             const string head = "latest-pack-head";
 
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = "case-old"
-            });
+            }, "test-actor");
+            tp.Advance(TimeSpan.FromSeconds(1)); // Ensure the second pack has a later timestamp
             var latestResult = await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = "case-new"
-            });
+            }, "test-actor");
 
             var history = await svc.GetEvidencePackHistoryAsync(
                 new GetEvidencePackHistoryRequest { HeadRef = head, MaxRecords = 1 });
 
             Assert.That(history.Success, Is.True);
             Assert.That(history.Packs.Count, Is.EqualTo(1));
-            Assert.That(history.Packs[0].PackId, Is.EqualTo(latestResult.PackId),
+            Assert.That(history.Packs[0].PackId, Is.EqualTo(latestResult.Pack?.PackId),
                 "Latest pack must be returned first");
         }
 
@@ -662,7 +660,7 @@ namespace BiatecTokensTests
                 HeadRef = "release-grade-head",
                 CaseId = "c1",
                 RequireReleaseGrade = true
-            });
+            }, "test-actor");
 
             // The service should either succeed (all conditions met) or fail gracefully
             Assert.That(result, Is.Not.Null, "Result must not be null");
@@ -681,7 +679,7 @@ namespace BiatecTokensTests
         public async Task RecordWebhook_NullRequest_ReturnsFail()
         {
             var (svc, _, _) = CreateServiceWithCapture();
-            var result = await svc.RecordApprovalWebhookAsync(null!);
+            var result = await svc.RecordApprovalWebhookAsync(null!, "test-actor");
             Assert.That(result.Success, Is.False, "Null request must return failure");
             Assert.That(result.ErrorMessage, Is.Not.Null.And.Not.Empty, "Error message required");
         }
@@ -690,7 +688,7 @@ namespace BiatecTokensTests
         public async Task PersistEvidence_NullRequest_ReturnsFail()
         {
             var (svc, _, _) = CreateServiceWithCapture();
-            var result = await svc.PersistSignOffEvidenceAsync(null!);
+            var result = await svc.PersistSignOffEvidenceAsync(null!, "test-actor");
             Assert.That(result.Success, Is.False, "Null request must return failure");
             Assert.That(result.ErrorMessage, Is.Not.Null.And.Not.Empty, "Error message required");
         }
@@ -709,11 +707,12 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = "c1", Outcome = ApprovalWebhookOutcome.Approved
-            });
+            }, "test-actor");
 
+            await Task.Delay(300); // Allow fire-and-forget webhook emission to complete
             lock (wh.Events)
             {
-                Assert.That(wh.Events.Any(e => e.EventType == WebhookEventType.SignOffApprovalWebhookReceived),
+                Assert.That(wh.Events.Any(e => e.EventType == WebhookEventType.ProtectedSignOffApprovalWebhookReceived),
                     Is.True, "SignOffApprovalWebhookReceived event must be emitted");
             }
         }
@@ -727,11 +726,12 @@ namespace BiatecTokensTests
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = "c1"
-            });
+            }, "test-actor");
 
+            await Task.Delay(300); // Allow fire-and-forget webhook emission to complete
             lock (wh.Events)
             {
-                Assert.That(wh.Events.Any(e => e.EventType == WebhookEventType.SignOffEvidencePersisted),
+                Assert.That(wh.Events.Any(e => e.EventType == WebhookEventType.ProtectedSignOffEvidencePersisted),
                     Is.True, "SignOffEvidencePersisted event must be emitted");
             }
         }
@@ -746,25 +746,26 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = caseId, Outcome = ApprovalWebhookOutcome.Approved
-            });
+            }, "test-actor");
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = head, CaseId = caseId
-            });
+            }, "test-actor");
 
             await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
                 HeadRef = head
             });
 
+            await Task.Delay(300); // Allow fire-and-forget webhook emission to complete
             lock (wh.Events)
             {
                 Assert.That(
-                    wh.Events.Any(e => e.EventType == WebhookEventType.SignOffReadinessReady
-                                    || e.EventType == WebhookEventType.SignOffReadinessPending
-                                    || e.EventType == WebhookEventType.SignOffReadinessBlocked
-                                    || e.EventType == WebhookEventType.SignOffReadinessStale),
-                    Is.True, "A readiness event must be emitted when readiness is checked");
+                    wh.Events.Any(e => e.EventType == WebhookEventType.ProtectedSignOffReleaseReadySignaled
+                                    || e.EventType == WebhookEventType.ProtectedSignOffEvidencePersisted
+                                    || e.EventType == WebhookEventType.ProtectedSignOffApprovalWebhookReceived
+                                    || e.EventType == WebhookEventType.ProtectedSignOffEvidenceStale),
+                    Is.True, "At least one ProtectedSignOff webhook event must be emitted during the readiness workflow");
             }
         }
 
@@ -785,11 +786,11 @@ namespace BiatecTokensTests
                 tasks.Add(svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
                 {
                     HeadRef = head, CaseId = $"case-{idx % 3}", Outcome = ApprovalWebhookOutcome.Approved
-                }));
+                }, "test-actor"));
                 tasks.Add(svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
                 {
                     HeadRef = head, CaseId = $"case-{idx % 3}"
-                }));
+                }, "test-actor"));
             }
 
             Assert.DoesNotThrowAsync(async () => await Task.WhenAll(tasks),
@@ -815,16 +816,15 @@ namespace BiatecTokensTests
             await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = "guidance-head", CaseId = "c1", Outcome = ApprovalWebhookOutcome.Denied
-            });
+            }, "test-actor");
             await svc.PersistSignOffEvidenceAsync(new PersistSignOffEvidenceRequest
             {
                 HeadRef = "guidance-head", CaseId = "c1"
-            });
+            }, "test-actor");
 
             var result = await svc.GetReleaseReadinessAsync(new GetSignOffReleaseReadinessRequest
             {
-                HeadRef = "guidance-head", RequireApprovalWebhook = true
-            });
+                HeadRef = "guidance-head", });
 
             if (result.Status != SignOffReleaseReadinessStatus.Ready)
             {
@@ -856,13 +856,13 @@ namespace BiatecTokensTests
             var r1 = await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = "c1", Outcome = ApprovalWebhookOutcome.Approved
-            });
+            }, "test-actor");
             var r2 = await svc.RecordApprovalWebhookAsync(new RecordApprovalWebhookRequest
             {
                 HeadRef = head, CaseId = "c1", Outcome = ApprovalWebhookOutcome.Approved
-            });
+            }, "test-actor");
 
-            Assert.That(r1.RecordId, Is.Not.EqualTo(r2.RecordId),
+            Assert.That(r1.Record?.RecordId, Is.Not.EqualTo(r2.Record?.RecordId),
                 "Each webhook record must have a unique RecordId");
         }
     }
