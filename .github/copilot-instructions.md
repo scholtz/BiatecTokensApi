@@ -1718,3 +1718,13 @@ private sealed class FakeHttpClientFactory : IHttpClientFactory
    dotnet test BiatecTokensTests --filter "FullyQualifiedName~DeployedParity" --no-build --configuration Release
    # Must show Passed! - Failed: 0, Passed: ≥40
    ```
+
+5. **"Product definition alignment" means covering ALL roadmap-identified service gaps**, not just the primary service in the issue title. Check the roadmap for other services that are listed as incomplete and add deployed-path parity tests for those too. For example:
+   - "KYC Integration (48%): live-provider journeys and release-grade protected evidence are still missing" → add `LiveProviderVerificationJourneyDeployedParityTests.cs`
+   - The total test count across ALL new deployed-parity test files should be ≥ 60 (40 primary + 20 secondary service)
+
+6. **Roadmap checklist**: Before submitting a deployed-parity PR, run:
+   ```bash
+   curl https://raw.githubusercontent.com/scholtz/biatec-tokens/refs/heads/main/business-owner-roadmap.md 2>/dev/null | grep -i "missing\|not started\|0%\|[0-4][0-9]%"
+   ```
+   Find ALL services mentioned as incomplete and add at least 10-20 deployed-path tests for each.
