@@ -285,9 +285,8 @@ namespace BiatecTokensTests
         // ── QH08: 2 days → DueSoon ────────────────────────────────────────
 
         [Test]
-        public async Task QH08_DueIn2Days_SlaBoundary_IsDueSoon()
+        public void QH08_DueIn2Days_SlaBoundary_IsDueSoon()
         {
-            await Task.CompletedTask;
             var (svc, _) = CreateService();
             var now   = BaseTime.DateTime;
             var dueAt = now.AddDays(2);
@@ -301,9 +300,8 @@ namespace BiatecTokensTests
         // ── QH09: Past due → Overdue ──────────────────────────────────────
 
         [Test]
-        public async Task QH09_PastDue_SlaBoundary_IsOverdue()
+        public void QH09_PastDue_SlaBoundary_IsOverdue()
         {
-            await Task.CompletedTask;
             var (svc, _) = CreateService();
             var now   = BaseTime.DateTime;
             var dueAt = now.AddDays(-1);
@@ -317,9 +315,8 @@ namespace BiatecTokensTests
         // ── QH10: No deadline → OnTrack ───────────────────────────────────
 
         [Test]
-        public async Task QH10_NoDeadline_SlaStatus_IsOnTrack()
+        public void QH10_NoDeadline_SlaStatus_IsOnTrack()
         {
-            await Task.CompletedTask;
             var (svc, _) = CreateService();
 
             var status = svc.ClassifySlaStatus(null, BaseTime.DateTime);
@@ -331,9 +328,8 @@ namespace BiatecTokensTests
         // ── QH11: Fail-closed scores higher within same SLA bucket ─────────
 
         [Test]
-        public async Task QH11_FailClosedScoresHigher_WithinSameSLABucket()
+        public void QH11_FailClosedScoresHigher_WithinSameSLABucket()
         {
-            await Task.CompletedTask;
             var (svc, _) = CreateService();
             var now = BaseTime.DateTime;
 
@@ -347,9 +343,8 @@ namespace BiatecTokensTests
         // ── QH12: Blocked > Overdue > DueSoon > OnTrack (priority ordering) ─
 
         [Test]
-        public async Task QH12_PriorityOrdering_BlockedOverduedueSoonOnTrack()
+        public void QH12_PriorityOrdering_BlockedOverduedueSoonOnTrack()
         {
-            await Task.CompletedTask;
             var (svc, _) = CreateService();
             var now = BaseTime.DateTime;
 
@@ -366,9 +361,8 @@ namespace BiatecTokensTests
         // ── QH13: Older items outrank newer items within same SLA bucket ───
 
         [Test]
-        public async Task QH13_OlderItemsOutrank_NewerItemsInSameBucket()
+        public void QH13_OlderItemsOutrank_NewerItemsInSameBucket()
         {
-            await Task.CompletedTask;
             var (svc, _) = CreateService();
             var now = BaseTime.DateTime;
 
