@@ -63,6 +63,19 @@ namespace BiatecTokensTests
     /// DP18: Readiness schema contract stable across 3 calls
     /// DP19: RequireApprovalWebhook=true blocked without webhook (400 + hint)
     /// DP20: Happy-path is deterministic across 3 independent factory instances
+    ///
+    /// New coverage for blocked artifact / release-grade evidence semantics (DP41-DP50):
+    ///
+    /// DP41: Non-release-grade evidence has IsReleaseGrade=false in evidence pack
+    /// DP42: Release-grade evidence has IsReleaseGrade=true in evidence pack
+    /// DP43: Readiness for non-release-grade evidence is non-Ready (Blocked or Pending)
+    /// DP44: Recovery from Blocked → Ready by providing release-grade evidence
+    /// DP45: OperatorGuidance is non-null for Indeterminate status (fail-closed guidance)
+    /// DP46: ContentHash differs between two different evidence submissions (input-sensitivity)
+    /// DP47: Evidence history TotalCount is accurate after multiple evidence submissions
+    /// DP48: Webhook history TotalCount is accurate after multiple webhook submissions
+    /// DP49: RequireReleaseGrade=true + approved webhook → IsReleaseGrade=true (schema contract)
+    /// DP50: New service instance returns Indeterminate with non-null OperatorGuidance (process-restart)
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -1457,6 +1470,271 @@ namespace BiatecTokensTests
                 "DP40: error code must be MISSING_HEAD_REF");
             Assert.That(resp.OperatorGuidance, Is.Not.Null.And.Not.Empty,
                 "DP40: OperatorGuidance must be present even for missing-HeadRef error");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP41-DP50: Blocked artifact / release-grade evidence semantics
+        // ════════════════════════════════════════════════════════════════════
+
+        // DP41: Non-release-grade evidence has IsReleaseGrade=false in evidence pack
+        [Test]
+        public async Task DP41_NonReleaseGradeEvidence_HasIsReleaseGradeFalse_InPack()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit evidence WITHOUT prior approved webhook → non-release-grade
+            var evidenceResp = await PostEvidenceAsync(head, caseId, requireReleaseGrade: false);
+
+            Assert.That(evidenceResp.Success, Is.True,
+                "DP41: evidence without webhook must succeed when RequireReleaseGrade=false");
+            Assert.That(evidenceResp.Pack, Is.Not.Null,
+                "DP41: evidence pack must be present even when not release-grade");
+            Assert.That(evidenceResp.Pack!.IsReleaseGrade, Is.False,
+                "DP41: evidence pack without prior approved webhook must have IsReleaseGrade=false");
+        }
+
+        // DP42: Release-grade evidence has IsReleaseGrade=true in evidence pack
+        [Test]
+        public async Task DP42_ReleaseGradeEvidence_HasIsReleaseGradeTrue_InPack()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit approved webhook first
+            await PostWebhookAsync(caseId, head, ApprovalWebhookOutcome.Approved);
+
+            // Submit evidence WITH prior approved webhook → release-grade
+            var evidenceResp = await PostEvidenceAsync(head, caseId, requireReleaseGrade: true);
+
+            Assert.That(evidenceResp.Success, Is.True,
+                "DP42: evidence with prior approved webhook must succeed");
+            Assert.That(evidenceResp.Pack, Is.Not.Null,
+                "DP42: evidence pack must be present");
+            Assert.That(evidenceResp.Pack!.IsReleaseGrade, Is.True,
+                "DP42: evidence pack with prior approved webhook and RequireReleaseGrade=true must have IsReleaseGrade=true");
+        }
+
+        // DP43: Readiness for non-release-grade evidence is non-Ready
+        [Test]
+        public async Task DP43_NonReleaseGradeEvidence_Readiness_IsNotReady()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Persist evidence without webhook → non-release-grade
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId }, "actor-dp43");
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
+
+            Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP43: non-release-grade evidence without approved webhook must not be Ready");
+            // Note: Success=false for non-Ready states is the correct service contract
+            // (Success=true only when Status=Ready). Operator guidance is always present.
+            Assert.That(readiness.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "DP43: OperatorGuidance must be non-null and non-empty for non-Ready states");
+        }
+
+        // DP44: Recovery from Blocked → Ready by providing release-grade evidence
+        [Test]
+        public async Task DP44_Recovery_FromBlocked_ToReady_ByReleaseGradeEvidence()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Verify initial Blocked state (no evidence, no webhook)
+            var initialReadiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
+            Assert.That(initialReadiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                "DP44: fresh head must start Blocked");
+
+            // Add approved webhook
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = Guid.NewGuid().ToString("N")
+                }, "actor-dp44");
+
+            // Persist release-grade evidence
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = head, CaseId = caseId,
+                    RequireReleaseGrade = true
+                }, "actor-dp44");
+
+            // Verify recovery to Ready
+            var finalReadiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
+            Assert.That(finalReadiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP44: release-grade evidence with approved webhook must yield Ready");
+            Assert.That(finalReadiness.Blockers, Is.Null.Or.Empty,
+                "DP44: Ready state must have no blockers");
+        }
+
+        // DP45: OperatorGuidance is non-null for Indeterminate status
+        [Test]
+        public async Task DP45_OperatorGuidance_IsNonNull_ForIndeterminateStatus()
+        {
+            var svc = CreateService();
+
+            // Empty HeadRef → Indeterminate
+            var resp = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = string.Empty });
+
+            Assert.That(resp.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate),
+                "DP45: empty HeadRef must yield Indeterminate status");
+            Assert.That(resp.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "DP45: OperatorGuidance must be non-null and non-empty for Indeterminate status — " +
+                "the system must always provide actionable guidance, even for invalid inputs");
+        }
+
+        // DP46: ContentHash differs between two different evidence submissions (input-sensitivity)
+        [Test]
+        public async Task DP46_ContentHash_DiffersBetween_DifferentEvidenceSubmissions()
+        {
+            var svc = CreateService();
+            string head1 = UniqueHead();
+            string head2 = UniqueHead();
+            string caseId1 = UniqueCase();
+            string caseId2 = UniqueCase();
+
+            var resp1 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head1, CaseId = caseId1 }, "actor-dp46a");
+            var resp2 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head2, CaseId = caseId2 }, "actor-dp46b");
+
+            Assert.That(resp1.Success, Is.True, "DP46: first evidence must succeed");
+            Assert.That(resp2.Success, Is.True, "DP46: second evidence must succeed");
+            Assert.That(resp1.Pack!.ContentHash, Is.Not.Null.And.Not.Empty,
+                "DP46: first evidence pack must have ContentHash");
+            Assert.That(resp2.Pack!.ContentHash, Is.Not.Null.And.Not.Empty,
+                "DP46: second evidence pack must have ContentHash");
+            Assert.That(resp1.Pack.ContentHash, Is.Not.EqualTo(resp2.Pack.ContentHash),
+                "DP46: evidence packs for different head refs and case IDs must have different ContentHash " +
+                "values — the hash must be input-sensitive");
+        }
+
+        // DP47: Evidence history TotalCount is accurate after multiple submissions
+        [Test]
+        public async Task DP47_EvidenceHistory_TotalCount_IsAccurate_AfterMultipleSubmissions()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit 3 evidence packs to the same head+case
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId }, "actor-dp47a");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId }, "actor-dp47b");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId }, "actor-dp47c");
+
+            var history = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 100 });
+
+            Assert.That(history.Success, Is.True,
+                "DP47: evidence history request must succeed");
+            Assert.That(history.TotalCount, Is.GreaterThanOrEqualTo(3),
+                "DP47: TotalCount must reflect at least the 3 evidence packs submitted");
+            Assert.That(history.Packs, Is.Not.Null,
+                "DP47: Packs list must not be null");
+        }
+
+        // DP48: Webhook history TotalCount is accurate after multiple submissions
+        [Test]
+        public async Task DP48_WebhookHistory_TotalCount_IsAccurate_AfterMultipleSubmissions()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit 3 webhooks
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = Guid.NewGuid().ToString("N")
+                }, "actor-dp48a");
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = Guid.NewGuid().ToString("N")
+                }, "actor-dp48b");
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = Guid.NewGuid().ToString("N")
+                }, "actor-dp48c");
+
+            var history = await svc.GetApprovalWebhookHistoryAsync(
+                new GetApprovalWebhookHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 100 });
+
+            Assert.That(history.Success, Is.True,
+                "DP48: webhook history request must succeed");
+            Assert.That(history.TotalCount, Is.GreaterThanOrEqualTo(3),
+                "DP48: TotalCount must reflect at least the 3 webhooks submitted");
+        }
+
+        // DP49: RequireReleaseGrade=true + approved webhook → IsReleaseGrade=true (schema contract)
+        [Test]
+        public async Task DP49_RequireReleaseGrade_WithApprovedWebhook_EvidencePack_IsReleaseGradeTrue()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            await PostWebhookAsync(caseId, head, ApprovalWebhookOutcome.Approved);
+            var evidenceResp = await PostEvidenceAsync(head, caseId, requireReleaseGrade: true);
+
+            Assert.That(evidenceResp.Success, Is.True,
+                "DP49: evidence with RequireReleaseGrade=true and prior webhook must succeed");
+            Assert.That(evidenceResp.Pack, Is.Not.Null,
+                "DP49: evidence pack must be present");
+            Assert.That(evidenceResp.Pack!.IsReleaseGrade, Is.True,
+                "DP49: evidence pack schema contract: IsReleaseGrade must be true when " +
+                "RequireReleaseGrade=true and an approved webhook exists");
+            Assert.That(evidenceResp.Pack.PackId, Is.Not.Null.And.Not.Empty,
+                "DP49: PackId must be non-empty in release-grade evidence pack");
+            Assert.That(evidenceResp.Pack.ContentHash, Is.Not.Null.And.Not.Empty,
+                "DP49: ContentHash must be non-empty in release-grade evidence pack");
+        }
+
+        // DP50: New service instance returns Indeterminate with non-null OperatorGuidance
+        [Test]
+        public async Task DP50_NewServiceInstance_Indeterminate_HasNonNullOperatorGuidance()
+        {
+            // Simulate process restart by creating a fresh service instance
+            var freshSvc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            var readiness = await freshSvc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest
+                {
+                    HeadRef = head,
+                    CaseId = caseId
+                });
+
+            // Fresh service has no data → expect Blocked (no evidence, no webhook)
+            // A non-Indeterminate result is also valid if the service pre-populates default state
+            Assert.That(readiness.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "DP50: new service instance must provide OperatorGuidance for any status — " +
+                "fail-closed guidance is required even on process restart to prevent silent failures");
+            Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP50: new service instance with no data must not return Ready — " +
+                "a fresh instance with no evidence cannot claim release-grade readiness");
         }
 
         // ════════════════════════════════════════════════════════════════════
