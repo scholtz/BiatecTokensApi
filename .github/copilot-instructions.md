@@ -1728,3 +1728,46 @@ private sealed class FakeHttpClientFactory : IHttpClientFactory
    curl https://raw.githubusercontent.com/scholtz/biatec-tokens/refs/heads/main/business-owner-roadmap.md 2>/dev/null | grep -i "missing\|not started\|0%\|[0-4][0-9]%"
    ```
    Find ALL services mentioned as incomplete and add at least 10-20 deployed-path tests for each.
+
+**Lesson Learned (2026-03-22 - Issue #601, PR compliance orchestration)**: Product owner rejected the first PR iteration as "not finished in proper quality" citing insufficient test coverage even though 80 tests were added. Root causes:
+
+1. ❌ PR description used "Related Issues: #601" instead of "Fixes #601" on the first line
+2. ❌ Test coverage was insufficient: only covered the primary compliance case lifecycle but NOT the two biggest roadmap gaps (KYC Integration 48%, AML Screening 43%, Regulatory Integration 24%)
+3. ❌ Model field names were assumed without verification — multiple compile errors on first run (e.g., `Record` vs `DecisionRecord`, `AmlScreening` vs `AmlClear`, `Rationale` vs `Reason`, `MissingEvidenceTypes` vs `MissingEvidence`)
+4. ❌ Service behavior was assumed without reading the implementation — `CapturedAt` must be set in evidence requests for the `MissingEvidence` blocker to clear; `MissingEvidence` list is unused by `EvaluateReadiness`; export appends `CaseExported` timeline entry which changes subsequent hash
+
+**Corrective actions taken**:
+1. ✅ Changed PR description first line to `Fixes #601`
+2. ✅ Added `ComplianceKycAmlToCasePipelineTests.cs` (KC01-KC25): 25 tests for KYC/AML → case pipeline
+3. ✅ Added `RegulatoryEvidenceExportPipelineTests.cs` (RE01-RE25): 25 tests for regulatory export pipeline
+4. ✅ Total new tests: 130 (from 80 to 130, +62.5%)
+5. ✅ Always read actual model class definitions before writing tests
+6. ✅ Always read service implementation to understand exact behavior before asserting
+
+**MANDATORY VERIFICATION STEPS before submitting any compliance/workflow parity PR**:
+```bash
+# 1. Verify every model field used in test exists in the actual class
+grep -n "class AddDecisionRecordResponse\b\|class RejectComplianceCaseRequest\b" \
+  BiatecTokensApi/Models/ComplianceCaseManagement/ComplianceCaseManagementModels.cs
+
+# 2. Verify every enum value used in test exists
+grep -n "enum CaseDecisionKind\b" BiatecTokensApi/Models/ComplianceCaseManagement/ComplianceCaseManagementModels.cs
+# Then read the enum values
+
+# 3. Build IMMEDIATELY after creating each test file, before moving to next
+dotnet build BiatecTokensTests/BiatecTokensTests.csproj --configuration Release 2>&1 | grep "error CS"
+
+# 4. Check service implementations for non-obvious behavior:
+#    - Does AddEvidence require CapturedAt for blocker logic to clear?
+#    - Does Export add a timeline entry that changes subsequent hashes?
+#    - Is MissingEvidence populated or does info go to BlockingIssues?
+```
+
+**Key behavioral facts about ComplianceCaseManagementService** (verified 2026-03-22):
+- `ComputeBlockers` checks `!c.EvidenceSummaries.Any(e => e.CapturedAt.HasValue)` — evidence without `CapturedAt` set does NOT clear the MissingEvidence fail-closed blocker
+- `GetDecisionHistoryResponse.Decisions` (not `Records`) for decision list
+- `AddDecisionRecordResponse.DecisionRecord` (not `Record`) for the new decision
+- `RejectComplianceCaseRequest.Reason` (not `Rationale`) for rejection reason
+- `CaseReadinessSummary.BlockingIssues` contains blocking text; `MissingEvidence` list is always empty
+- Export adds a `CaseExported` timeline entry AFTER computing the hash, so successive exports of the same case produce different hashes
+- `CaseDecisionKind` has `AmlClear` and `AmlHit` (not `AmlScreening`)
