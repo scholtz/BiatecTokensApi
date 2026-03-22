@@ -76,6 +76,16 @@ namespace BiatecTokensTests
     /// DP48: Webhook history TotalCount is accurate after multiple webhook submissions
     /// DP49: RequireReleaseGrade=true + approved webhook → IsReleaseGrade=true (schema contract)
     /// DP50: New service instance returns Indeterminate with non-null OperatorGuidance (process-restart)
+    /// DP51: ContentHash is deterministic for identical evidence inputs (hash stability)
+    /// DP52: Two consecutive non-release-grade submissions both have IsReleaseGrade=false
+    /// DP53: Evidence history for new caseId returns TotalCount=0 (no phantom records)
+    /// DP54: Evidence pack always has a non-empty PackId
+    /// DP55: Webhook record always has a non-empty RecordId
+    /// DP56: Evidence pack CreatedAt is a valid recent UTC timestamp
+    /// DP57: Multiple caseIds for same headRef have independent evidence histories
+    /// DP58: OperatorGuidance is non-null when status is non-Ready (evidence without webhook)
+    /// DP59: Webhook history for new caseId returns TotalCount=0
+    /// DP60: Different caseIds for same headRef produce different ContentHash values
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -1735,6 +1745,255 @@ namespace BiatecTokensTests
             Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP50: new service instance with no data must not return Ready — " +
                 "a fresh instance with no evidence cannot claim release-grade readiness");
+        }
+
+        // DP51: ContentHash is deterministic for identical evidence inputs
+        [Test]
+        public async Task DP51_ContentHash_IsDeterministicForIdenticalInputs()
+        {
+            var svc1 = CreateService();
+            var svc2 = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit identical evidence to two independent service instances
+            var r1 = await svc1.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp51");
+            var r2 = await svc2.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp51");
+
+            Assert.That(r1.Success, Is.True, "DP51: first evidence submission must succeed");
+            Assert.That(r2.Success, Is.True, "DP51: second evidence submission must succeed");
+            Assert.That(r1.Pack, Is.Not.Null, "DP51: first pack must not be null");
+            Assert.That(r2.Pack, Is.Not.Null, "DP51: second pack must not be null");
+            Assert.That(r1.Pack!.ContentHash, Is.EqualTo(r2.Pack!.ContentHash),
+                "DP51: ContentHash must be deterministic — identical evidence requests " +
+                "must produce identical content hashes across independent service instances");
+        }
+
+        // DP52: Two consecutive non-release-grade submissions: both have IsReleaseGrade=false
+        [Test]
+        public async Task DP52_TwoConsecutiveNonReleaseGradeSubmissions_BothHaveIsReleaseGradeFalse()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // No webhook — both submissions should be non-release-grade
+            var r1 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, RequireReleaseGrade = false },
+                "actor-dp52");
+            var r2 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, RequireReleaseGrade = false },
+                "actor-dp52");
+
+            Assert.That(r1.Success, Is.True, "DP52: first submission must succeed");
+            Assert.That(r2.Success, Is.True, "DP52: second submission must succeed");
+            Assert.That(r1.Pack!.IsReleaseGrade, Is.False,
+                "DP52: first evidence without approved webhook must have IsReleaseGrade=false");
+            Assert.That(r2.Pack!.IsReleaseGrade, Is.False,
+                "DP52: second evidence without approved webhook must also have IsReleaseGrade=false — " +
+                "repeated submissions without an approval webhook must not become release-grade");
+        }
+
+        // DP53: Evidence history for a new caseId returns TotalCount=0
+        [Test]
+        public async Task DP53_EvidenceHistory_ForNewCaseId_ReturnsTotalCountZero()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string neverUsedCaseId = $"case-dp53-never-{Guid.NewGuid():N}";
+
+            var history = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest
+                {
+                    HeadRef = head,
+                    CaseId = neverUsedCaseId,
+                    MaxRecords = 10
+                });
+
+            Assert.That(history.Success, Is.True, "DP53: history request for new caseId must succeed");
+            Assert.That(history.TotalCount, Is.EqualTo(0),
+                "DP53: TotalCount must be 0 for a caseId that has never had evidence submitted — " +
+                "no phantom records should exist for uninitialized cases");
+            Assert.That(history.Packs, Is.Not.Null, "DP53: Packs list must not be null");
+            Assert.That(history.Packs!.Count, Is.EqualTo(0),
+                "DP53: Packs list must be empty for a caseId with no submissions");
+        }
+
+        // DP54: Evidence pack always has a non-empty PackId
+        [Test]
+        public async Task DP54_EvidencePack_AlwaysHasNonEmptyPackId()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            var r = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp54");
+
+            Assert.That(r.Success, Is.True, "DP54: evidence submission must succeed");
+            Assert.That(r.Pack, Is.Not.Null, "DP54: Pack must not be null");
+            Assert.That(r.Pack!.PackId, Is.Not.Null.And.Not.Empty,
+                "DP54: every evidence pack must have a non-empty PackId for identity and " +
+                "referencing in history queries and downstream consumers");
+        }
+
+        // DP55: Webhook record always has a non-empty RecordId
+        [Test]
+        public async Task DP55_WebhookRecord_AlwaysHasNonEmptyRecordId()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            var r = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    HeadRef = head, CaseId = caseId,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = Guid.NewGuid().ToString("N")
+                },
+                "actor-dp55");
+
+            Assert.That(r.Success, Is.True, "DP55: webhook record must succeed");
+            Assert.That(r.Record, Is.Not.Null, "DP55: Record must not be null");
+            Assert.That(r.Record!.RecordId, Is.Not.Null.And.Not.Empty,
+                "DP55: every webhook record must have a non-empty RecordId for identity and " +
+                "cross-referencing in evidence packs and history queries");
+        }
+
+        // DP56: Evidence pack CreatedAt is a valid recent UTC timestamp
+        [Test]
+        public async Task DP56_EvidencePack_CreatedAt_IsRecentUtcTimestamp()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            DateTimeOffset before = DateTimeOffset.UtcNow.AddSeconds(-5);
+
+            var r = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp56");
+
+            DateTimeOffset after = DateTimeOffset.UtcNow.AddSeconds(5);
+
+            Assert.That(r.Success, Is.True, "DP56: evidence submission must succeed");
+            Assert.That(r.Pack, Is.Not.Null, "DP56: Pack must not be null");
+            Assert.That(r.Pack!.CreatedAt, Is.Not.EqualTo(default(DateTimeOffset)),
+                "DP56: evidence pack CreatedAt must be set");
+            Assert.That(r.Pack.CreatedAt, Is.GreaterThanOrEqualTo(before),
+                "DP56: evidence pack CreatedAt must be at or after the test start time");
+            Assert.That(r.Pack.CreatedAt, Is.LessThanOrEqualTo(after),
+                "DP56: evidence pack CreatedAt must be at or before the test end time — " +
+                "timestamps outside the 10s window indicate incorrect clock usage");
+        }
+
+        // DP57: Multiple caseIds for same headRef have independent evidence histories
+        [Test]
+        public async Task DP57_MultipleCaseIds_ForSameHeadRef_HaveIndependentHistories()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId1 = UniqueCase();
+            string caseId2 = UniqueCase();
+
+            // Submit evidence to caseId1 only
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId1 },
+                "actor-dp57");
+
+            var hist1 = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId1, MaxRecords = 10 });
+            var hist2 = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId2, MaxRecords = 10 });
+
+            Assert.That(hist1.TotalCount, Is.GreaterThanOrEqualTo(1),
+                "DP57: caseId1 with evidence submission must have TotalCount >= 1");
+            Assert.That(hist2.TotalCount, Is.EqualTo(0),
+                "DP57: caseId2 with no evidence submissions must have TotalCount=0 — " +
+                "different caseIds sharing the same headRef must have independent histories");
+        }
+
+        // DP58: OperatorGuidance is non-null when status is Pending
+        [Test]
+        public async Task DP58_OperatorGuidance_IsNonNull_ForPendingStatus()
+        {
+            // Pending status occurs when evidence exists but no webhook yet
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit evidence but no webhook → expect Blocked or Pending
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp58");
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
+
+            // Status must not be Ready (no webhook)
+            Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP58: evidence without approved webhook must not be Ready");
+            Assert.That(readiness.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "DP58: OperatorGuidance must be non-null and non-empty for any non-Ready status — " +
+                "operators need actionable guidance to understand why the status is not Ready");
+        }
+
+        // DP59: Webhook history for new caseId returns TotalCount=0
+        [Test]
+        public async Task DP59_WebhookHistory_ForNewCaseId_ReturnsTotalCountZero()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string neverUsedCaseId = $"case-dp59-never-{Guid.NewGuid():N}";
+
+            var history = await svc.GetApprovalWebhookHistoryAsync(
+                new GetApprovalWebhookHistoryRequest
+                {
+                    HeadRef = head,
+                    CaseId = neverUsedCaseId,
+                    MaxRecords = 10
+                });
+
+            Assert.That(history.Success, Is.True, "DP59: webhook history for new caseId must succeed");
+            Assert.That(history.TotalCount, Is.EqualTo(0),
+                "DP59: TotalCount must be 0 for a caseId that has never had a webhook recorded — " +
+                "no phantom webhook records should exist for uninitialized cases");
+            Assert.That(history.Records, Is.Not.Null, "DP59: Records list must not be null");
+            Assert.That(history.Records.Count, Is.EqualTo(0),
+                "DP59: Records list must be empty for a caseId with no webhook submissions");
+        }
+
+        // DP60: Evidence submitted for the same case after content changes yields different ContentHash
+        [Test]
+        public async Task DP60_DifferentCaseIds_ProduceDifferentContentHashes()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId1 = UniqueCase();
+            string caseId2 = UniqueCase();
+
+            // Two different caseIds should yield different content hashes
+            var r1 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId1 },
+                "actor-dp60");
+            var r2 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId2 },
+                "actor-dp60");
+
+            Assert.That(r1.Success, Is.True, "DP60: first submission must succeed");
+            Assert.That(r2.Success, Is.True, "DP60: second submission must succeed");
+            Assert.That(r1.Pack!.ContentHash, Is.Not.Null.And.Not.Empty,
+                "DP60: first pack must have ContentHash");
+            Assert.That(r2.Pack!.ContentHash, Is.Not.Null.And.Not.Empty,
+                "DP60: second pack must have ContentHash");
+            Assert.That(r1.Pack.ContentHash, Is.Not.EqualTo(r2.Pack.ContentHash),
+                "DP60: different caseIds with the same headRef must produce different ContentHash values — " +
+                "the hash function must include the caseId as an input to ensure content uniqueness");
         }
 
         // ════════════════════════════════════════════════════════════════════
