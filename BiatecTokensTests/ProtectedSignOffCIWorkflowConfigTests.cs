@@ -55,6 +55,8 @@ namespace BiatecTokensTests
     /// CI34: Evidence manifest includes releaseGradeNote field.
     /// CI35: Tier 1 summary includes permissive-lane notice distinguishing it from release-grade evidence.
     /// CI36: Runbook has explicit Permissive CI vs Release-Grade Evidence section.
+    /// CI37: Workflow has a blocked-artifact step that runs on prerequisite failure (fail-closed artifact semantics).
+    /// CI38: Blocked manifest includes isReleaseGradeEvidence:false, blocked:true, blockedReason, schemaVersion.
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -1177,6 +1179,156 @@ namespace BiatecTokensTests
                 "conditions under which it is 'true'.  Product owners need to know exactly " +
                 "what to check in the manifest before approving a release.\n\n" +
                 "Add a 'What makes a run release-grade' subsection to the runbook.");
+        }
+
+        // ─── CI37: Workflow has a blocked-artifact step that runs on prerequisite failure ──
+        //
+        // When Step 0 (prerequisite validation) fails because secrets are missing or
+        // malformed, the workflow MUST produce a downloadable artifact so that product
+        // owners and reviewers can immediately understand WHY the run was blocked without
+        // having to read CI logs or re-run the workflow.
+        //
+        // This implements fail-closed artifact semantics: an artifact is ALWAYS uploaded,
+        // whether the run succeeded (release-grade evidence) or failed at prerequisites
+        // (blocked evidence).  This was the root cause of issue #603 — the failed run
+        // 23410028363 uploaded no artifact because the prerequisite step exited before
+        // the evidence directory was created.
+        //
+        // This test prevents the blocked-manifest step from being removed.
+
+        [Test]
+        public void CI37_WorkflowYaml_HasBlockedEvidenceManifestStep_OnPrerequisiteFailure()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The Tier 2 section must contain a step that:
+            //   (a) uses `if: failure() && steps.setup.conclusion == 'failure'` so it only
+            //       runs when Step 0 failed;
+            //   (b) creates the ./ProtectedRunEvidence/ directory; and
+            //   (c) writes a blocked manifest to ./ProtectedRunEvidence/00_evidence_manifest.json.
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            bool hasPrerequisiteFailureCondition =
+                tier2Section.Contains("steps.setup.conclusion == 'failure'") ||
+                tier2Section.Contains("steps.setup.conclusion == \"failure\"");
+
+            bool createsEvidenceDir =
+                tier2Section.Contains("mkdir -p ./ProtectedRunEvidence") &&
+                tier2Section.Contains("Create blocked evidence manifest");
+
+            bool uploadsBlockedArtifact =
+                tier2Section.Contains("blocked-") ||
+                (tier2Section.Contains("format('blocked") || tier2Section.Contains("format(\"blocked"));
+
+            Assert.That(hasPrerequisiteFailureCondition, Is.True,
+                "protected-sign-off.yml Tier 2 job must have a step with condition " +
+                "'if: failure() && steps.setup.conclusion == ''failure''' that runs when " +
+                "Step 0 (prerequisites) fails.  Without this step, the workflow uploads no " +
+                "artifact when secrets are missing, leaving product owners without an " +
+                "actionable record of why the run was blocked.\n\n" +
+                "Root cause of issue #603: run 23410028363 failed at Step 0 and uploaded " +
+                "no artifact, so there was no evidence artifact showing the blocked state.\n\n" +
+                "Add a 'Create blocked evidence manifest (prerequisite failure)' step with " +
+                "if: failure() && steps.setup.conclusion == 'failure'.");
+
+            Assert.That(createsEvidenceDir, Is.True,
+                "The blocked-manifest step must create ./ProtectedRunEvidence/ and write " +
+                "00_evidence_manifest.json so the existing upload-artifact step can upload it.");
+
+            Assert.That(uploadsBlockedArtifact, Is.True,
+                "The evidence artifact upload step must use a fallback name when the " +
+                "correlation ID is empty (prerequisite failure).  Use the GitHub Actions " +
+                "expression '|| format(...)' to produce 'blocked-<run_id>-<attempt>' when " +
+                "steps.setup.outputs.correlation_id is empty.\n\n" +
+                "Without the fallback name, the artifact upload step would use an empty name " +
+                "and either fail or produce an unidentifiable artifact.");
+        }
+
+        // ─── CI38: Blocked manifest template includes required fail-closed fields ────
+        //
+        // The blocked evidence manifest that is written when prerequisites fail must
+        // include the same schema-critical fields as a successful manifest:
+        //   • `isReleaseGradeEvidence: false`   — primary sign-off criterion (always false when blocked)
+        //   • `blocked: true`                   — explicit flag distinguishing "blocked" from "failed"
+        //   • `blockedReason`                   — human-readable explanation of the block cause
+        //   • `blockedAt`                        — which step caused the block
+        //   • `schemaVersion`                    — manifest schema for downstream consumers
+        //
+        // These fields ensure that frontend evidence center consumers and human reviewers
+        // can tell the difference between "configuration success" and "credible release proof"
+        // just by opening the manifest — no log reading required.
+
+        [Test]
+        public void CI38_WorkflowYaml_BlockedManifest_IncludesRequiredFailClosedFields()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Find the blocked-manifest step (runs on prerequisite failure) in Tier 2
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            // Find the blocked-manifest step specifically
+            int blockedStepStart = tier2Section.IndexOf("Create blocked evidence manifest", StringComparison.Ordinal);
+            // Take a generous window covering the step body
+            string blockedStepSection = blockedStepStart >= 0
+                ? tier2Section.Substring(blockedStepStart, Math.Min(3000, tier2Section.Length - blockedStepStart))
+                : string.Empty;
+
+            Assert.That(blockedStepSection, Is.Not.Empty,
+                "Could not find the 'Create blocked evidence manifest' step in the Tier 2 " +
+                "job.  This step is required to emit a fail-closed artifact when prerequisites fail.");
+
+            Assert.That(
+                blockedStepSection.Contains("\"isReleaseGradeEvidence\": false"),
+                Is.True,
+                "The blocked manifest must include '\"isReleaseGradeEvidence\": false'.  " +
+                "This is the primary product-owner sign-off criterion and must be explicitly " +
+                "false in a blocked manifest so reviewers cannot mistake it for release evidence.");
+
+            Assert.That(
+                blockedStepSection.Contains("\"blocked\": true"),
+                Is.True,
+                "The blocked manifest must include '\"blocked\": true' that explicitly " +
+                "distinguishes a prerequisites-blocked run from a run that failed during evidence " +
+                "collection.  Without this field, a reviewer cannot tell why isReleaseGradeEvidence " +
+                "is false without reading the CI logs.");
+
+            Assert.That(
+                blockedStepSection.Contains("blockedReason"),
+                Is.True,
+                "The blocked manifest must include a 'blockedReason' field with a human-readable " +
+                "explanation of why the run was blocked.  This field is the primary operator-facing " +
+                "explanation and must be present so reviewers and frontend consumers can surface the " +
+                "reason without additional log access.");
+
+            Assert.That(
+                blockedStepSection.Contains("schemaVersion"),
+                Is.True,
+                "The blocked manifest must include 'schemaVersion' for downstream consumers " +
+                "to identify the manifest format.  Consistency with successful manifests is required " +
+                "so the frontend evidence center can parse both blocked and successful artifacts " +
+                "with the same schema version.");
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────
