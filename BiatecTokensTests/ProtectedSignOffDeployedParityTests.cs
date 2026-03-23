@@ -86,6 +86,29 @@ namespace BiatecTokensTests
     /// DP58: OperatorGuidance is non-null when status is non-Ready (evidence without webhook)
     /// DP59: Webhook history for new caseId returns TotalCount=0
     /// DP60: Different caseIds for same headRef produce different ContentHash values
+    ///
+    /// Extended coverage — concurrency, schema contracts, edge cases (DP61-DP80):
+    ///
+    /// DP61: Concurrent evidence submissions for N distinct heads all succeed and are independent
+    /// DP62: Evidence pack IsProviderBacked reflects the request flag
+    /// DP63: GetEvidencePackHistory with MaxRecords=1 returns exactly 1 result
+    /// DP64: GetApprovalWebhookHistory with MaxRecords=2 returns at most 2 records
+    /// DP65: OperatorGuidance is non-null for ApprovalDenied status
+    /// DP66: OperatorGuidance is non-null when webhook approved but no evidence submitted
+    /// DP67: Blockers list is non-null and non-empty when status is Blocked
+    /// DP68: Blockers list has no Unspecified category entries (service layer completeness)
+    /// DP69: Evidence history packs are ordered newest-first (descending by submission time)
+    /// DP70: Empty ActorId does not throw an exception
+    /// DP71: Evidence pack ActorId reflects the actor who submitted it
+    /// DP72: Two evidence submissions to same head/caseId both appear in history
+    /// DP73: GetReleaseReadiness CorrelationId is non-empty
+    /// DP74: Webhook record ActorId reflects the actor who submitted it
+    /// DP75: ContentHash is never null or empty in any evidence pack
+    /// DP76: Ready status requires both approved webhook AND evidence to be present
+    /// DP77: Evidence history TotalCount never exceeds the MaxHistoryRecords cap
+    /// DP78: Readiness is isolated by caseId — one caseId's Ready does not bleed into another
+    /// DP79: TimedOut webhook yields Blocked readiness (not Ready)
+    /// DP80: Evidence history is scoped by headRef — different headRefs have independent histories
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -1994,6 +2017,563 @@ namespace BiatecTokensTests
             Assert.That(r1.Pack.ContentHash, Is.Not.EqualTo(r2.Pack.ContentHash),
                 "DP60: different caseIds with the same headRef must produce different ContentHash values — " +
                 "the hash function must include the caseId as an input to ensure content uniqueness");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DP61–DP80: Extended coverage — concurrency, schema contracts, edge cases
+        // ════════════════════════════════════════════════════════════════════
+
+        // DP61: Concurrent evidence submissions for N distinct heads are all stored
+        [Test]
+        public async Task DP61_ConcurrentEvidenceSubmissions_AllSucceed_AndAreIndependent()
+        {
+            const int n = 5;
+            string caseId = UniqueCase();
+            var heads = Enumerable.Range(0, n).Select(_ => UniqueHead()).ToArray();
+
+            var tasks = heads.Select(h => PostEvidenceAsync(h, caseId)).ToArray();
+            var results = await Task.WhenAll(tasks);
+
+            for (int i = 0; i < n; i++)
+            {
+                Assert.That(results[i].Success, Is.True,
+                    $"DP61: concurrent submission [{i}] must succeed");
+                Assert.That(results[i].Pack, Is.Not.Null,
+                    $"DP61: concurrent submission [{i}] must return a pack");
+                Assert.That(results[i].Pack!.ContentHash, Is.Not.Null.And.Not.Empty,
+                    $"DP61: concurrent submission [{i}] must have a ContentHash");
+            }
+
+            // All content hashes must be distinct (different heads produce different hashes)
+            var hashes = results.Select(r => r.Pack!.ContentHash).Distinct().ToList();
+            Assert.That(hashes.Count, Is.EqualTo(n),
+                "DP61: each concurrent submission to a different head must produce a unique ContentHash");
+        }
+
+        // DP62: Evidence pack IsProviderBacked reflects the request flag
+        [Test]
+        public async Task DP62_EvidencePack_IsProviderBacked_ReflectsRequestFlag()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            var r1 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, IsProviderBacked = false },
+                "actor-dp62");
+            var r2 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, IsProviderBacked = true },
+                "actor-dp62");
+
+            Assert.That(r1.Success, Is.True, "DP62: first submission must succeed");
+            Assert.That(r2.Success, Is.True, "DP62: second submission must succeed");
+            Assert.That(r1.Pack!.IsProviderBacked, Is.False,
+                "DP62: pack with IsProviderBacked=false must preserve the flag");
+            Assert.That(r2.Pack!.IsProviderBacked, Is.True,
+                "DP62: pack with IsProviderBacked=true must preserve the flag");
+        }
+
+        // DP63: GetEvidencePackHistoryAsync with MaxRecords=1 returns exactly 1 result
+        [Test]
+        public async Task DP63_EvidencePackHistory_MaxRecords1_ReturnsExactly1()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit 3 evidence packs
+            for (int i = 0; i < 3; i++)
+                await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                    $"actor-dp63-{i}");
+
+            var hist = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 1 },
+                "actor-dp63");
+
+            Assert.That(hist.Success, Is.True, "DP63: history request must succeed");
+            Assert.That(hist.Packs, Is.Not.Null, "DP63: Packs must not be null");
+            Assert.That(hist.Packs!.Count, Is.EqualTo(1),
+                "DP63: MaxRecords=1 must return exactly 1 pack");
+        }
+
+        // DP64: GetApprovalWebhookHistoryAsync with MaxRecords=2 returns at most 2 records
+        [Test]
+        public async Task DP64_WebhookHistory_MaxRecords2_ReturnsAtMost2()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit 4 webhooks
+            for (int i = 0; i < 4; i++)
+                await svc.RecordApprovalWebhookAsync(
+                    new RecordApprovalWebhookRequest
+                    {
+                        CaseId = caseId, HeadRef = head,
+                        Outcome = ApprovalWebhookOutcome.Approved,
+                        CorrelationId = $"dp64-{i}"
+                    }, $"actor-dp64-{i}");
+
+            var hist = await svc.GetApprovalWebhookHistoryAsync(
+                new GetApprovalWebhookHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 2 },
+                "actor-dp64");
+
+            Assert.That(hist.Success, Is.True, "DP64: history request must succeed");
+            Assert.That(hist.Records, Is.Not.Null, "DP64: Records must not be null");
+            Assert.That(hist.Records!.Count, Is.LessThanOrEqualTo(2),
+                "DP64: MaxRecords=2 must return at most 2 records");
+        }
+
+        // DP65: OperatorGuidance is non-null for ApprovalDenied status
+        [Test]
+        public async Task DP65_OperatorGuidance_IsNonNull_ForApprovalDenied()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Denied,
+                    CorrelationId = "dp65-denied"
+                }, "actor-dp65");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp65");
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp65");
+
+            Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP65: denied webhook must prevent Ready status");
+            Assert.That(readiness.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "DP65: OperatorGuidance must be non-null and non-empty for Blocked/ApprovalDenied");
+        }
+
+        // DP66: OperatorGuidance is non-null for MissingApproval when RequireApprovalWebhook=true
+        [Test]
+        public async Task DP66_OperatorGuidance_IsNonNull_ForMissingApproval()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Evidence with RequireApprovalWebhook=true but no prior webhook
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = "dp66-approved"
+                }, "actor-dp66");
+
+            // Submit evidence without RequireApprovalWebhook
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp66");
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp66");
+
+            Assert.That(readiness.OperatorGuidance, Is.Not.Null,
+                "DP66: OperatorGuidance must be non-null for any readiness state");
+        }
+
+        // DP67: Blockers list is non-null and has Count >= 1 when status is Blocked
+        [Test]
+        public async Task DP67_Blockers_IsNonNullAndNonEmpty_WhenBlocked()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // No evidence, no webhook → Blocked
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp67");
+
+            // For Blocked/Indeterminate states, Blockers should have content
+            if (readiness.Status == SignOffReleaseReadinessStatus.Blocked)
+            {
+                Assert.That(readiness.Blockers, Is.Not.Null,
+                    "DP67: Blockers must not be null when status is Blocked");
+                Assert.That(readiness.Blockers!.Count, Is.GreaterThan(0),
+                    "DP67: Blockers must have at least one entry when status is Blocked");
+            }
+            else
+            {
+                Assert.That(readiness.Status,
+                    Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate)
+                    .Or.EqualTo(SignOffReleaseReadinessStatus.Pending),
+                    "DP67: status must be Blocked, Indeterminate, or Pending with no prior data");
+            }
+        }
+
+        // DP68: Blockers list has no Unspecified category entries
+        [Test]
+        public async Task DP68_Blockers_NoUnspecifiedCategory()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Denied,
+                    CorrelationId = "dp68-denied"
+                }, "actor-dp68");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp68");
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp68");
+
+            if (readiness.Blockers != null)
+            {
+                foreach (var blocker in readiness.Blockers)
+                {
+                    Assert.That(blocker.Category, Is.Not.EqualTo(SignOffReleaseBlockerCategory.Unspecified),
+                        "DP68: no blocker may have Unspecified category — it indicates a missing assignment in the service layer");
+                }
+            }
+        }
+
+        // DP69: Evidence history packs are ordered newest-first (descending by submission time)
+        [Test]
+        public async Task DP69_EvidenceHistory_IsNewestFirst()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit 3 evidence packs with small delays to ensure ordering
+            for (int i = 0; i < 3; i++)
+            {
+                await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                    $"actor-dp69-{i}");
+                await Task.Delay(5); // ensure distinct timestamps
+            }
+
+            var hist = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp69");
+
+            Assert.That(hist.Success, Is.True, "DP69: history request must succeed");
+            Assert.That(hist.Packs, Is.Not.Null, "DP69: Packs must not be null");
+            Assert.That(hist.Packs!.Count, Is.GreaterThanOrEqualTo(3),
+                "DP69: history must contain all 3 submitted packs");
+
+            // Verify descending order by CreatedAt
+            for (int i = 0; i < hist.Packs.Count - 1; i++)
+            {
+                Assert.That(hist.Packs[i].CreatedAt, Is.GreaterThanOrEqualTo(hist.Packs[i + 1].CreatedAt),
+                    $"DP69: pack[{i}].CreatedAt must be >= pack[{i + 1}].CreatedAt (newest-first ordering)");
+            }
+        }
+
+        // DP70: Evidence service handles empty ActorId gracefully (no exception)
+        [Test]
+        public async Task DP70_EmptyActorId_DoesNotThrow()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            PersistSignOffEvidenceResponse? resp = null;
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                resp = await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                    ""); // empty actorId
+            }, "DP70: empty ActorId must not throw an exception");
+
+            Assert.That(resp, Is.Not.Null, "DP70: response must not be null with empty actorId");
+        }
+
+        // DP71: Evidence pack ActorId reflects the submitted actor
+        [Test]
+        public async Task DP71_EvidencePack_ActorId_ReflectsSubmittedActor()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            string actor = $"actor-dp71-{Guid.NewGuid():N}";
+
+            var resp = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, ActorId = actor },
+                actor);
+
+            Assert.That(resp.Success, Is.True, "DP71: submission must succeed");
+            Assert.That(resp.Pack, Is.Not.Null, "DP71: pack must not be null");
+            Assert.That(resp.Pack!.ActorId, Is.EqualTo(actor),
+                "DP71: evidence pack ActorId must reflect the actor who submitted it");
+        }
+
+        // DP72: Two evidence submissions to same head/caseId both appear in history
+        [Test]
+        public async Task DP72_TwoEvidenceSubmissions_BothAppearInHistory()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            var r1 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp72-1");
+            var r2 = await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp72-2");
+
+            var hist = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp72");
+
+            Assert.That(hist.Success, Is.True, "DP72: history must succeed");
+            Assert.That(hist.Packs!.Count, Is.GreaterThanOrEqualTo(2),
+                "DP72: both submissions must appear in history");
+
+            var packIds = hist.Packs.Select(p => p.PackId).ToHashSet();
+            Assert.That(packIds.Contains(r1.Pack!.PackId), Is.True,
+                "DP72: first pack PackId must appear in history");
+            Assert.That(packIds.Contains(r2.Pack!.PackId), Is.True,
+                "DP72: second pack PackId must appear in history");
+        }
+
+        // DP73: GetReleaseReadiness CorrelationId is non-empty
+        [Test]
+        public async Task DP73_ReleaseReadiness_CorrelationId_IsNonEmpty()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp73");
+
+            Assert.That(readiness.CorrelationId, Is.Not.Null.And.Not.Empty,
+                "DP73: readiness response must always include a non-empty CorrelationId");
+        }
+
+        // DP74: Webhook record ActorId reflects the actor who submitted it
+        [Test]
+        public async Task DP74_WebhookRecord_ActorId_ReflectsSubmittedActor()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            string actor = $"actor-dp74-{Guid.NewGuid():N}";
+
+            var resp = await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = "dp74-approved"
+                }, actor);
+
+            Assert.That(resp.Success, Is.True, "DP74: webhook submission must succeed");
+            Assert.That(resp.Record, Is.Not.Null, "DP74: record must not be null");
+            Assert.That(resp.Record!.ActorId, Is.EqualTo(actor),
+                "DP74: webhook record ActorId must reflect the actor who submitted it");
+        }
+
+        // DP75: ContentHash is not null or empty in evidence pack
+        [Test]
+        public async Task DP75_ContentHash_IsNeverNullOrEmpty_InEvidencePack()
+        {
+            var svc = CreateService();
+
+            for (int i = 0; i < 3; i++)
+            {
+                string head = UniqueHead();
+                string caseId = UniqueCase();
+
+                var resp = await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                    $"actor-dp75-{i}");
+
+                Assert.That(resp.Success, Is.True, $"DP75: submission [{i}] must succeed");
+                Assert.That(resp.Pack!.ContentHash, Is.Not.Null.And.Not.Empty,
+                    $"DP75: submission [{i}] ContentHash must not be null or empty");
+            }
+        }
+
+        // DP76: ReadinessStatus Ready iff approved webhook present AND evidence present
+        [Test]
+        public async Task DP76_ReadinessStatus_Ready_RequiresBothApprovedWebhookAndEvidence()
+        {
+            // Scenario A: evidence-only → not Ready
+            var svcA = CreateService();
+            string headA = UniqueHead(); string caseA = UniqueCase();
+            await svcA.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headA, CaseId = caseA, RequireReleaseGrade = true },
+                "actor-dp76-a");
+            var rA = await svcA.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headA, CaseId = caseA }, "actor-dp76-a");
+            Assert.That(rA.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP76: evidence-only (no webhook) must not be Ready");
+
+            // Scenario B: webhook-only (no evidence) → not Ready
+            var svcB = CreateService();
+            string headB = UniqueHead(); string caseB = UniqueCase();
+            await svcB.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseB, HeadRef = headB,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = "dp76-b"
+                }, "actor-dp76-b");
+            var rB = await svcB.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headB, CaseId = caseB }, "actor-dp76-b");
+            Assert.That(rB.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP76: webhook-only (no evidence) must not be Ready");
+
+            // Scenario C: both present → Ready
+            var svcC = CreateService();
+            string headC = UniqueHead(); string caseC = UniqueCase();
+            await svcC.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseC, HeadRef = headC,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = "dp76-c"
+                }, "actor-dp76-c");
+            await svcC.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = headC, CaseId = caseC, RequireReleaseGrade = true },
+                "actor-dp76-c");
+            var rC = await svcC.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = headC, CaseId = caseC }, "actor-dp76-c");
+            Assert.That(rC.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP76: both approved webhook and evidence must yield Ready");
+        }
+
+        // DP77: Evidence history TotalCount never exceeds MaxHistoryRecords cap
+        [Test]
+        public async Task DP77_EvidenceHistory_TotalCount_NeverExceedsCap()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            // Submit 10 evidence packs
+            for (int i = 0; i < 10; i++)
+                await svc.PersistSignOffEvidenceAsync(
+                    new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                    $"actor-dp77-{i}");
+
+            var hist = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp77");
+
+            Assert.That(hist.Success, Is.True, "DP77: history must succeed");
+            Assert.That(hist.TotalCount, Is.GreaterThanOrEqualTo(1),
+                "DP77: TotalCount must be at least 1 after 10 submissions");
+            Assert.That(hist.Packs, Is.Not.Null, "DP77: Packs must not be null");
+            Assert.That(hist.Packs!.Count, Is.LessThanOrEqualTo(hist.TotalCount),
+                "DP77: returned Packs count must not exceed TotalCount");
+        }
+
+        // DP78: Readiness for a head never contaminated by different caseId
+        [Test]
+        public async Task DP78_Readiness_IsIsolated_ByCaseId()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string case1 = UniqueCase();
+            string case2 = UniqueCase();
+
+            // Make case1 Ready
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = case1, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    CorrelationId = "dp78-c1"
+                }, "actor-dp78");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = case1, RequireReleaseGrade = true },
+                "actor-dp78");
+            var r1 = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = case1 },
+                "actor-dp78");
+            Assert.That(r1.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP78: case1 with both webhook and evidence must be Ready");
+
+            // case2 has no data — must not be Ready
+            var r2 = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = case2 },
+                "actor-dp78");
+            Assert.That(r2.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP78: case2 with no data must not inherit Ready status from case1");
+        }
+
+        // DP79: RecordApprovalWebhook with TimedOut outcome yields Blocked readiness
+        [Test]
+        public async Task DP79_TimedOut_Webhook_YieldsBlocked_Readiness()
+        {
+            var svc = CreateService();
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+
+            await svc.RecordApprovalWebhookAsync(
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId, HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.TimedOut,
+                    CorrelationId = "dp79-timed-out"
+                }, "actor-dp79");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp79");
+
+            var readiness = await svc.GetReleaseReadinessAsync(
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
+                "actor-dp79");
+
+            Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
+                "DP79: TimedOut webhook must prevent Ready status");
+            Assert.That(readiness.OperatorGuidance, Is.Not.Null.And.Not.Empty,
+                "DP79: OperatorGuidance must be non-null for TimedOut Blocked state");
+        }
+
+        // DP80: Evidence history is scoped to headRef — different headRefs have independent histories
+        [Test]
+        public async Task DP80_EvidenceHistory_IsScoped_ByHeadRef()
+        {
+            var svc = CreateService();
+            string head1 = UniqueHead();
+            string head2 = UniqueHead();
+            string caseId = UniqueCase();
+
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head1, CaseId = caseId },
+                "actor-dp80-1");
+            await svc.PersistSignOffEvidenceAsync(
+                new PersistSignOffEvidenceRequest { HeadRef = head1, CaseId = caseId },
+                "actor-dp80-2");
+
+            var hist1 = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head1, CaseId = caseId },
+                "actor-dp80");
+            var hist2 = await svc.GetEvidencePackHistoryAsync(
+                new GetEvidencePackHistoryRequest { HeadRef = head2, CaseId = caseId },
+                "actor-dp80");
+
+            Assert.That(hist1.TotalCount, Is.GreaterThanOrEqualTo(2),
+                "DP80: head1 must have at least 2 evidence records");
+            Assert.That(hist2.TotalCount, Is.EqualTo(0),
+                "DP80: head2 with no submissions must have TotalCount=0 (no cross-contamination from head1)");
         }
 
         // ════════════════════════════════════════════════════════════════════

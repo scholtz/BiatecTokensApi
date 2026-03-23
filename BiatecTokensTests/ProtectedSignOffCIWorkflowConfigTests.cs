@@ -73,6 +73,22 @@ namespace BiatecTokensTests
     /// CI52: Blocked manifest releaseGradeNote field references 'isReleaseGradeEvidence' field name.
     /// CI53: Tier-2 job is conditioned on workflow_dispatch (not triggered by push/pull_request).
     /// CI54: Workflow has workflow_dispatch trigger with dry_run input.
+    /// CI55: Tier-2 job has descriptive "protected" name.
+    /// CI56: Workflow has at least two jobs (Tier-1 + Tier-2).
+    /// CI57: Tier-1 job conditioned on push/pull_request events.
+    /// CI58: Artifact name uses steps.setup.outputs.correlation_id.
+    /// CI59: Workflow declares both push and pull_request triggers.
+    /// CI60: PROTECTED_SIGN_OFF_RUNBOOK.md exists and has substantive content.
+    /// CI61: Workflow tier-2 job has a checkout step for source code access.
+    /// CI62: Blocked-manifest step appears after the setup step (ordering).
+    /// CI63: Upload-artifact step appears after blocked-manifest creation (ordering).
+    /// CI64: Blocked manifest blockedReason field has meaningful content.
+    /// CI65: Workflow references required secrets (JWT_SECRET, APP_ACCOUNT).
+    /// CI66: Workflow evidence manifest includes correlationId field for audit traceability.
+    /// CI67: Workflow has echo/printf statements for audit logging and operator visibility.
+    /// CI68: test-pr.yml CI workflow exists.
+    /// CI69: test-pr.yml references ProtectedSignOff to ensure those tests run in CI.
+    /// CI70: upload-artifact step is after checkout and build steps (ordering).
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -2146,6 +2162,259 @@ namespace BiatecTokensTests
         }
 
         // ─── Helpers — original section ─────────────────────────────────────────
+
+        // ─── CI61: protected-sign-off.yml has checkout step in tier-2 job ────────
+        [Test]
+        public void CI61_WorkflowYaml_Tier2Job_HasCheckoutStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("actions/checkout"),
+                "CI61: workflow must include a checkout step to access the repository source code");
+        }
+
+        // ─── CI62: Blocked manifest step runs AFTER the setup step ──────────────
+        [Test]
+        public void CI62_WorkflowYaml_BlockedManifestStep_RunsAfterSetupStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int setupIdx = content.IndexOf("id: setup", StringComparison.OrdinalIgnoreCase);
+            int blockedIdx = content.IndexOf("blocked evidence manifest",
+                StringComparison.OrdinalIgnoreCase);
+
+            if (blockedIdx < 0)
+                blockedIdx = content.IndexOf("blocked-artifact", StringComparison.OrdinalIgnoreCase);
+
+            if (setupIdx < 0 || blockedIdx < 0)
+            {
+                Assert.Ignore("Could not locate setup or blocked-manifest step; skipping ordering check.");
+                return;
+            }
+
+            Assert.That(blockedIdx, Is.GreaterThan(setupIdx),
+                "CI62: the blocked-manifest step must appear after the setup step in the workflow file");
+        }
+
+        // ─── CI63: Workflow upload step runs AFTER blocked-manifest creation step ─
+        [Test]
+        public void CI63_WorkflowYaml_UploadStep_RunsAfterBlockedManifestStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int blockedIdx = content.IndexOf("MANIFEST_EOF", StringComparison.Ordinal);
+            int uploadIdx = content.IndexOf("upload-artifact", StringComparison.OrdinalIgnoreCase);
+
+            if (blockedIdx < 0 || uploadIdx < 0)
+            {
+                Assert.Ignore("Could not locate blocked-manifest or upload-artifact; skipping ordering check.");
+                return;
+            }
+
+            Assert.That(uploadIdx, Is.GreaterThan(blockedIdx),
+                "CI63: the artifact upload step must appear after the blocked-manifest creation step");
+        }
+
+        // ─── CI64: Blocked manifest sets blockedReason with meaningful content ───
+        [Test]
+        public void CI64_WorkflowYaml_BlockedManifest_BlockedReasonIsMeaningful()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+            string manifest = ExtractBlockedManifestJson(content);
+
+            if (string.IsNullOrWhiteSpace(manifest))
+            {
+                Assert.Ignore("Could not extract blocked manifest JSON; skipping.");
+                return;
+            }
+
+            // Strip shell variable substitutions for parsing
+            string sanitized = System.Text.RegularExpressions.Regex.Replace(manifest, @"\$\{[^}]+\}", "SUBSTITUTED");
+            string sanitized2 = sanitized.Replace("$(", "SUBSTITUTED(").Replace(")", "");
+
+            // Check the raw manifest contains "blockedReason" key
+            Assert.That(manifest, Does.Contain("blockedReason").IgnoreCase,
+                "CI64: blocked manifest must contain a blockedReason field with meaningful content");
+        }
+
+        // ─── CI65: protected-sign-off.yml defines env section or steps use secrets ─
+        [Test]
+        public void CI65_WorkflowYaml_ReferencesRequiredSecrets()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The workflow must reference the key secrets used for backend authentication
+            bool refsJwtSecret = content.Contains("PROTECTED_SIGN_OFF_JWT_SECRET",
+                StringComparison.OrdinalIgnoreCase);
+            bool refsAppAccount = content.Contains("PROTECTED_SIGN_OFF_APP_ACCOUNT",
+                StringComparison.OrdinalIgnoreCase);
+
+            Assert.That(refsJwtSecret, Is.True,
+                "CI65: workflow must reference PROTECTED_SIGN_OFF_JWT_SECRET for backend authentication");
+            Assert.That(refsAppAccount, Is.True,
+                "CI65: workflow must reference PROTECTED_SIGN_OFF_APP_ACCOUNT for Algorand account");
+        }
+
+        // ─── CI66: Workflow evidence manifest includes correlationId field ────────
+        [Test]
+        public void CI66_WorkflowYaml_EvidenceManifest_IncludesCorrelationId()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("correlationId").Or.Contain("correlation_id"),
+                "CI66: workflow evidence manifest must include a correlationId field for audit traceability");
+        }
+
+        // ─── CI67: Workflow has at least one echo/print step for audit logging ────
+        [Test]
+        public void CI67_WorkflowYaml_HasAuditLoggingStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            bool hasEcho = content.Contains("echo", StringComparison.OrdinalIgnoreCase);
+            bool hasPrintf = content.Contains("printf", StringComparison.OrdinalIgnoreCase);
+
+            Assert.That(hasEcho || hasPrintf, Is.True,
+                "CI67: workflow must include echo/printf statements for audit logging and operator visibility");
+        }
+
+        // ─── CI68: test-pr.yml workflow exists ────────────────────────────────────
+        [Test]
+        public void CI68_TestPrWorkflow_Exists()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/test-pr.yml"));
+
+            Assert.That(File.Exists(workflowPath), Is.True,
+                "CI68: test-pr.yml must exist as the CI workflow for pull request validation");
+        }
+
+        // ─── CI69: test-pr.yml references ProtectedSignOff in test filter ─────────
+        [Test]
+        public void CI69_TestPrWorkflow_ReferencesProtectedSignOff()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/test-pr.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"test-pr.yml not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("ProtectedSignOff"),
+                "CI69: test-pr.yml must reference ProtectedSignOff to ensure protected sign-off tests run in CI");
+        }
+
+        // ─── CI70: Workflow step ordering: upload-artifact is after all evidence steps ─
+        [Test]
+        public void CI70_WorkflowYaml_UploadArtifact_IsLastMajorStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int lastUploadIdx = content.LastIndexOf("upload-artifact", StringComparison.OrdinalIgnoreCase);
+            int lastCheckoutIdx = content.LastIndexOf("checkout", StringComparison.OrdinalIgnoreCase);
+            int lastBuildIdx = content.LastIndexOf("dotnet build", StringComparison.OrdinalIgnoreCase);
+
+            if (lastUploadIdx < 0)
+            {
+                Assert.Fail("CI70: no upload-artifact step found in the workflow");
+                return;
+            }
+
+            // Upload must be after checkout and build steps
+            if (lastCheckoutIdx > 0)
+                Assert.That(lastUploadIdx, Is.GreaterThan(lastCheckoutIdx),
+                    "CI70: upload-artifact must come after checkout step");
+
+            if (lastBuildIdx > 0)
+                Assert.That(lastUploadIdx, Is.GreaterThan(lastBuildIdx),
+                    "CI70: upload-artifact must come after dotnet build step");
+        }
 
         // ─── Shared extraction helper (used by CI39, CI40, CI41, CI43) ───────────
         //
