@@ -353,10 +353,18 @@ namespace BiatecTokensApi.Services
                 };
             }
 
-            // Compute content hash
+            // Compute content hash from deterministic request fields only (timestamps/GUIDs excluded)
             var packId = Guid.NewGuid().ToString("N");
             var contentHash = ComputeSha256Hex(
-                JsonSerializer.Serialize(new { packId, headRef = request.HeadRef, caseId = request.CaseId, items, isProviderBacked, isReleaseGrade }));
+                JsonSerializer.Serialize(new
+                {
+                    headRef = request.HeadRef,
+                    caseId = request.CaseId,
+                    requireReleaseGrade = request.RequireReleaseGrade,
+                    requireApprovalWebhook = request.RequireApprovalWebhook,
+                    isProviderBacked,
+                    isReleaseGrade
+                }));
 
             var pack = new ProtectedSignOffEvidencePack
             {

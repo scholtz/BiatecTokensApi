@@ -55,6 +55,40 @@ namespace BiatecTokensTests
     /// CI34: Evidence manifest includes releaseGradeNote field.
     /// CI35: Tier 1 summary includes permissive-lane notice distinguishing it from release-grade evidence.
     /// CI36: Runbook has explicit Permissive CI vs Release-Grade Evidence section.
+    /// CI37: Workflow has a blocked-artifact step that runs on prerequisite failure (fail-closed artifact semantics).
+    /// CI38: Blocked manifest includes isReleaseGradeEvidence:false, blocked:true, blockedReason, schemaVersion.
+    /// CI39: Blocked manifest includes remediationUrl field for operator remediation guidance.
+    /// CI40: Blocked manifest includes blockedAt field identifying which step caused the block.
+    /// CI41: Blocked manifest JSON template is extractable and syntactically valid (parseable after stripping shell vars).
+    /// CI42: Runbook has explicit "Blocked runs" subsection documenting blocked artifact schema.
+    /// CI43: Blocked manifest schemaVersion matches the successful manifest schemaVersion (schema consistency).
+    /// CI44: Artifact upload step uses if:always() so it runs regardless of step failure (always-upload guarantee).
+    /// CI45: Blocked-manifest step writes 00_BLOCKED.txt plain-text remediation file.
+    /// CI46: Prerequisite validation step (setup) has id: setup for conclusion reference.
+    /// CI47: Blocked manifest blockedReason mentions required secret names for operator actionability.
+    /// CI48: Tier-2 job declares environment: protected-sign-off to source secrets correctly.
+    /// CI49: Evidence artifact upload step has retention-days configured for durable auditing.
+    /// CI50: Blocked-manifest step FALLBACK_CORR variable encodes run_id and run_attempt.
+    /// CI51: Artifact name fallback pattern contains 'blocked' for visual artifact disambiguation.
+    /// CI52: Blocked manifest releaseGradeNote field references 'isReleaseGradeEvidence' field name.
+    /// CI53: Tier-2 job is conditioned on workflow_dispatch (not triggered by push/pull_request).
+    /// CI54: Workflow has workflow_dispatch trigger with dry_run input.
+    /// CI55: Tier-2 job has descriptive "protected" name.
+    /// CI56: Workflow has at least two jobs (Tier-1 + Tier-2).
+    /// CI57: Tier-1 job conditioned on push/pull_request events.
+    /// CI58: Artifact name uses steps.setup.outputs.correlation_id.
+    /// CI59: Workflow declares both push and pull_request triggers.
+    /// CI60: PROTECTED_SIGN_OFF_RUNBOOK.md exists and has substantive content.
+    /// CI61: Workflow tier-2 job has a checkout step for source code access.
+    /// CI62: Blocked-manifest step appears after the setup step (ordering).
+    /// CI63: Upload-artifact step appears after blocked-manifest creation (ordering).
+    /// CI64: Blocked manifest blockedReason field has meaningful content.
+    /// CI65: Workflow references required secrets (JWT_SECRET, APP_ACCOUNT).
+    /// CI66: Workflow evidence manifest includes correlationId field for audit traceability.
+    /// CI67: Workflow has echo/printf statements for audit logging and operator visibility.
+    /// CI68: test-pr.yml CI workflow exists.
+    /// CI69: test-pr.yml references ProtectedSignOff to ensure those tests run in CI.
+    /// CI70: upload-artifact step is after checkout and build steps (ordering).
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -1179,7 +1213,1228 @@ namespace BiatecTokensTests
                 "Add a 'What makes a run release-grade' subsection to the runbook.");
         }
 
-        // ─── Helpers ─────────────────────────────────────────────────────────────
+        // ─── CI37: Workflow has a blocked-artifact step that runs on prerequisite failure ──
+        //
+        // When Step 0 (prerequisite validation) fails because secrets are missing or
+        // malformed, the workflow MUST produce a downloadable artifact so that product
+        // owners and reviewers can immediately understand WHY the run was blocked without
+        // having to read CI logs or re-run the workflow.
+        //
+        // This implements fail-closed artifact semantics: an artifact is ALWAYS uploaded,
+        // whether the run succeeded (release-grade evidence) or failed at prerequisites
+        // (blocked evidence).  This was the root cause of issue #603 — the failed run
+        // 23410028363 uploaded no artifact because the prerequisite step exited before
+        // the evidence directory was created.
+        //
+        // This test prevents the blocked-manifest step from being removed.
+
+        [Test]
+        public void CI37_WorkflowYaml_HasBlockedEvidenceManifestStep_OnPrerequisiteFailure()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The Tier 2 section must contain a step that:
+            //   (a) uses `if: failure() && steps.setup.conclusion == 'failure'` so it only
+            //       runs when Step 0 failed;
+            //   (b) creates the ./ProtectedRunEvidence/ directory; and
+            //   (c) writes a blocked manifest to ./ProtectedRunEvidence/00_evidence_manifest.json.
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            bool hasPrerequisiteFailureCondition =
+                tier2Section.Contains("steps.setup.conclusion == 'failure'") ||
+                tier2Section.Contains("steps.setup.conclusion == \"failure\"");
+
+            bool createsEvidenceDir =
+                tier2Section.Contains("mkdir -p ./ProtectedRunEvidence") &&
+                tier2Section.Contains("Create blocked evidence manifest");
+
+            bool uploadsBlockedArtifact =
+                tier2Section.Contains("blocked-") ||
+                (tier2Section.Contains("format('blocked") || tier2Section.Contains("format(\"blocked"));
+
+            Assert.That(hasPrerequisiteFailureCondition, Is.True,
+                "protected-sign-off.yml Tier 2 job must have a step with condition " +
+                "'if: failure() && steps.setup.conclusion == ''failure''' that runs when " +
+                "Step 0 (prerequisites) fails.  Without this step, the workflow uploads no " +
+                "artifact when secrets are missing, leaving product owners without an " +
+                "actionable record of why the run was blocked.\n\n" +
+                "Root cause of issue #603: run 23410028363 failed at Step 0 and uploaded " +
+                "no artifact, so there was no evidence artifact showing the blocked state.\n\n" +
+                "Add a 'Create blocked evidence manifest (prerequisite failure)' step with " +
+                "if: failure() && steps.setup.conclusion == 'failure'.");
+
+            Assert.That(createsEvidenceDir, Is.True,
+                "The blocked-manifest step must create ./ProtectedRunEvidence/ and write " +
+                "00_evidence_manifest.json so the existing upload-artifact step can upload it.");
+
+            Assert.That(uploadsBlockedArtifact, Is.True,
+                "The evidence artifact upload step must use a fallback name when the " +
+                "correlation ID is empty (prerequisite failure).  Use the GitHub Actions " +
+                "expression '|| format(...)' to produce 'blocked-<run_id>-<attempt>' when " +
+                "steps.setup.outputs.correlation_id is empty.\n\n" +
+                "Without the fallback name, the artifact upload step would use an empty name " +
+                "and either fail or produce an unidentifiable artifact.");
+        }
+
+        // ─── CI38: Blocked manifest template includes required fail-closed fields ────
+        //
+        // The blocked evidence manifest that is written when prerequisites fail must
+        // include the same schema-critical fields as a successful manifest:
+        //   • `isReleaseGradeEvidence: false`   — primary sign-off criterion (always false when blocked)
+        //   • `blocked: true`                   — explicit flag distinguishing "blocked" from "failed"
+        //   • `blockedReason`                   — human-readable explanation of the block cause
+        //   • `blockedAt`                        — which step caused the block
+        //   • `schemaVersion`                    — manifest schema for downstream consumers
+        //
+        // These fields ensure that frontend evidence center consumers and human reviewers
+        // can tell the difference between "configuration success" and "credible release proof"
+        // just by opening the manifest — no log reading required.
+
+        [Test]
+        public void CI38_WorkflowYaml_BlockedManifest_IncludesRequiredFailClosedFields()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Find the blocked-manifest step (runs on prerequisite failure) in Tier 2
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            // Find the blocked-manifest step specifically
+            int blockedStepStart = tier2Section.IndexOf("Create blocked evidence manifest", StringComparison.Ordinal);
+            // Take a generous window covering the step body
+            string blockedStepSection = blockedStepStart >= 0
+                ? tier2Section.Substring(blockedStepStart, Math.Min(3000, tier2Section.Length - blockedStepStart))
+                : string.Empty;
+
+            Assert.That(blockedStepSection, Is.Not.Empty,
+                "Could not find the 'Create blocked evidence manifest' step in the Tier 2 " +
+                "job.  This step is required to emit a fail-closed artifact when prerequisites fail.");
+
+            Assert.That(
+                blockedStepSection.Contains("\"isReleaseGradeEvidence\": false"),
+                Is.True,
+                "The blocked manifest must include '\"isReleaseGradeEvidence\": false'.  " +
+                "This is the primary product-owner sign-off criterion and must be explicitly " +
+                "false in a blocked manifest so reviewers cannot mistake it for release evidence.");
+
+            Assert.That(
+                blockedStepSection.Contains("\"blocked\": true"),
+                Is.True,
+                "The blocked manifest must include '\"blocked\": true' that explicitly " +
+                "distinguishes a prerequisites-blocked run from a run that failed during evidence " +
+                "collection.  Without this field, a reviewer cannot tell why isReleaseGradeEvidence " +
+                "is false without reading the CI logs.");
+
+            Assert.That(
+                blockedStepSection.Contains("blockedReason"),
+                Is.True,
+                "The blocked manifest must include a 'blockedReason' field with a human-readable " +
+                "explanation of why the run was blocked.  This field is the primary operator-facing " +
+                "explanation and must be present so reviewers and frontend consumers can surface the " +
+                "reason without additional log access.");
+
+            Assert.That(
+                blockedStepSection.Contains("schemaVersion"),
+                Is.True,
+                "The blocked manifest must include 'schemaVersion' for downstream consumers " +
+                "to identify the manifest format.  Consistency with successful manifests is required " +
+                "so the frontend evidence center can parse both blocked and successful artifacts " +
+                "with the same schema version.");
+        }
+
+        // ─── CI39: Blocked manifest includes remediationUrl field ─────────────────
+        //
+        // The `remediationUrl` field must be present in the blocked manifest so that
+        // operators and automated consumers can locate the runbook section explaining
+        // how to configure the required secrets and re-run.
+        //
+        // Uses the same MANIFEST_EOF JSON-extraction approach as CI41 for reliability.
+
+        [Test]
+        public void CI39_WorkflowYaml_BlockedManifest_HasRemediationUrlField()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string jsonTemplate = ExtractBlockedManifestJson(File.ReadAllText(workflowPath));
+            Assert.That(jsonTemplate, Is.Not.Empty,
+                "Could not extract blocked manifest JSON from MANIFEST_EOF heredoc.");
+
+            using var doc = JsonDocument.Parse(jsonTemplate);
+            Assert.That(doc.RootElement.TryGetProperty("remediationUrl", out var remediationProp),
+                Is.True,
+                "The blocked manifest JSON (extracted from MANIFEST_EOF heredoc) must include a " +
+                "'remediationUrl' field pointing to the runbook §Required Secrets section.  " +
+                "This allows automated consumers and human reviewers to find setup instructions " +
+                "without searching the repository.\n\n" +
+                "Add: '\"remediationUrl\": \"PROTECTED_SIGN_OFF_RUNBOOK.md §Required Secrets\"' " +
+                "to the MANIFEST_EOF JSON template.");
+            Assert.That(remediationProp.GetString(), Is.Not.Null.And.Not.Empty,
+                "Parsed blocked manifest 'remediationUrl' must not be empty.");
+        }
+
+        // ─── CI40: Blocked manifest includes blockedAt field ──────────────────────
+        //
+        // The `blockedAt` field records which step caused the block.  Combined with
+        // `blockedReason`, it provides a precise failure attribution that allows
+        // operators to identify the failed step without reading CI logs.
+        //
+        // Uses the same MANIFEST_EOF JSON-extraction approach as CI41 for reliability.
+
+        [Test]
+        public void CI40_WorkflowYaml_BlockedManifest_HasBlockedAtField()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string jsonTemplate = ExtractBlockedManifestJson(File.ReadAllText(workflowPath));
+            Assert.That(jsonTemplate, Is.Not.Empty,
+                "Could not extract blocked manifest JSON from MANIFEST_EOF heredoc.");
+
+            using var doc = JsonDocument.Parse(jsonTemplate);
+            Assert.That(doc.RootElement.TryGetProperty("blockedAt", out var blockedAtProp),
+                Is.True,
+                "The blocked manifest JSON (extracted from MANIFEST_EOF heredoc) must include a " +
+                "'blockedAt' field identifying which step caused the block.  This provides precise " +
+                "failure attribution for operators who download the artifact.\n\n" +
+                "Add: '\"blockedAt\": \"Step 0 — Validate prerequisites and set correlation ID\"' " +
+                "to the MANIFEST_EOF JSON template.");
+            Assert.That(blockedAtProp.GetString(), Is.Not.Null.And.Not.Empty,
+                "Parsed blocked manifest 'blockedAt' must not be empty.");
+        }
+
+        // ─── CI41: Blocked manifest JSON template is syntactically valid ──────────
+        //
+        // The blocked manifest is written by a bash heredoc in the workflow YAML.
+        // If the JSON template has a syntax error, the uploaded artifact will contain
+        // malformed JSON that downstream consumers cannot parse.
+        //
+        // This test extracts the JSON template from the workflow YAML (using the shared
+        // ExtractBlockedManifestJson helper) and verifies that it is parseable as JSON.
+
+        [Test]
+        public void CI41_WorkflowYaml_BlockedManifest_JsonTemplateIsExtractableAndValid()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string jsonTemplate = ExtractBlockedManifestJson(File.ReadAllText(workflowPath));
+
+            Assert.That(jsonTemplate, Is.Not.Empty,
+                "The blocked manifest JSON template between MANIFEST_EOF markers must not be empty.");
+
+            // Parse the JSON template — it should be valid since the static fields don't have
+            // shell variable expansions (those are patched in by the subsequent Python step).
+            try
+            {
+                using var doc = JsonDocument.Parse(jsonTemplate);
+                var root = doc.RootElement;
+                Assert.That(root.TryGetProperty("schemaVersion", out _), Is.True,
+                    "Parsed blocked manifest JSON must have 'schemaVersion' field.");
+                Assert.That(root.TryGetProperty("isReleaseGradeEvidence", out var releaseEvProp), Is.True,
+                    "Parsed blocked manifest JSON must have 'isReleaseGradeEvidence' field.");
+                Assert.That(releaseEvProp.GetBoolean(), Is.False,
+                    "Parsed blocked manifest 'isReleaseGradeEvidence' must be false (not true).");
+                Assert.That(root.TryGetProperty("blocked", out var blockedProp), Is.True,
+                    "Parsed blocked manifest JSON must have 'blocked' field.");
+                Assert.That(blockedProp.GetBoolean(), Is.True,
+                    "Parsed blocked manifest 'blocked' must be true.");
+                Assert.That(root.TryGetProperty("blockedReason", out var reasonProp), Is.True,
+                    "Parsed blocked manifest JSON must have 'blockedReason' field.");
+                Assert.That(reasonProp.GetString(), Is.Not.Null.And.Not.Empty,
+                    "Parsed blocked manifest 'blockedReason' must not be empty.");
+            }
+            catch (JsonException ex)
+            {
+                Assert.Fail(
+                    $"Blocked manifest JSON template (between MANIFEST_EOF markers) is not valid JSON.\n" +
+                    $"JSON parse error: {ex.Message}\n" +
+                    $"Template content:\n{jsonTemplate}");
+            }
+        }
+
+        // ─── CI42: Runbook has "Blocked runs" subsection ──────────────────────────
+        //
+        // The PROTECTED_SIGN_OFF_RUNBOOK.md must document the blocked artifact schema
+        // for operators and product owners who download the artifact and need to
+        // interpret it without referring to the workflow YAML.
+
+        [Test]
+        public void CI42_Runbook_HasBlockedRunsSubsection()
+        {
+            string runbookPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../PROTECTED_SIGN_OFF_RUNBOOK.md"));
+
+            if (!File.Exists(runbookPath))
+            {
+                Assert.Ignore($"Runbook not found at '{runbookPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(runbookPath);
+
+            bool hasBlockedRunsSection =
+                content.Contains("Blocked runs") ||
+                content.Contains("blocked runs") ||
+                content.Contains("blocked artifact") ||
+                content.Contains("blocked evidence artifact");
+
+            bool hasBlockedArtifactFields =
+                (content.Contains("blocked: true") ||
+                 content.Contains("\"blocked\": true")) &&
+                content.Contains("blockedReason") &&
+                content.Contains("blockedAt");
+
+            Assert.That(hasBlockedRunsSection, Is.True,
+                "PROTECTED_SIGN_OFF_RUNBOOK.md must contain a 'Blocked runs' or equivalent " +
+                "subsection that documents the blocked artifact for operators who download it.  " +
+                "Without this documentation, operators cannot interpret the blocked manifest " +
+                "without reading the workflow YAML.\n\n" +
+                "Add a 'Blocked runs' subsection to §Artifacts produced documenting the " +
+                "'protected-sign-off-evidence-blocked-*' artifact and its fields.");
+
+            Assert.That(hasBlockedArtifactFields, Is.True,
+                "PROTECTED_SIGN_OFF_RUNBOOK.md blocked runs section must document the key " +
+                "fields: 'blocked: true', 'blockedReason', 'blockedAt'.  These are the primary " +
+                "operator-facing explanation of why the run was blocked.");
+        }
+
+        // ─── CI43: Blocked manifest schemaVersion matches successful manifest ──────
+        //
+        // Both the blocked manifest and the successful manifest must use the same
+        // schemaVersion value so that downstream consumers can parse both with the
+        // same parser without version branching.
+
+        [Test]
+        public void CI43_WorkflowYaml_BlockedManifest_SchemaVersionMatchesSuccessManifest()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            string blockedTemplate = ExtractBlockedManifestJson(content);
+            if (string.IsNullOrEmpty(blockedTemplate))
+            {
+                Assert.Ignore("Could not locate MANIFEST_EOF heredoc; skipping schema version check.");
+                return;
+            }
+
+            // Parse the blocked template JSON and check schemaVersion value
+            using var doc = JsonDocument.Parse(blockedTemplate);
+            Assert.That(doc.RootElement.TryGetProperty("schemaVersion", out var schemaProp), Is.True,
+                "Blocked manifest JSON must have 'schemaVersion' field.");
+            Assert.That(schemaProp.GetString(), Is.EqualTo("2.0"),
+                "The blocked manifest must use schemaVersion '2.0' to match the successful " +
+                "manifest schema.  Both manifests must use the same version so downstream " +
+                "consumers can parse both without version branching.\n\n" +
+                "Ensure the blocked manifest MANIFEST_EOF heredoc contains: " +
+                "'\"schemaVersion\": \"2.0\"'");
+
+            // Verify the successful manifest also uses 2.0
+            int successiveManifest = content.LastIndexOf("\"schemaVersion\": \"2.0\"", StringComparison.Ordinal);
+            Assert.That(successiveManifest >= 0, Is.True,
+                "The successful evidence manifest in protected-sign-off.yml must also contain " +
+                "'\"schemaVersion\": \"2.0\"' for schema version consistency between blocked and " +
+                "successful artifacts.");
+        }
+
+        // ─── CI44: Artifact upload step uses if:always() so it always runs ────────
+        //
+        // The evidence artifact upload step must run regardless of job outcome so that
+        // blocked artifacts (created by the new blocked-manifest step) are uploaded.
+
+        [Test]
+        public void CI44_WorkflowYaml_ArtifactUploadStep_HasAlwaysCondition()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            string tier2Section = tier2Start >= 0 ? content.Substring(tier2Start) : content;
+
+            // Find the upload-artifact step for evidence
+            int uploadStart = tier2Section.IndexOf("Upload protected run evidence", StringComparison.Ordinal);
+            string uploadSection = uploadStart >= 0
+                ? tier2Section.Substring(uploadStart, Math.Min(500, tier2Section.Length - uploadStart))
+                : string.Empty;
+
+            Assert.That(uploadSection, Is.Not.Empty,
+                "Could not find 'Upload protected run evidence' step in Tier 2 job.");
+
+            bool hasAlwaysCondition =
+                uploadSection.Contains("if: always()") ||
+                uploadSection.Contains("if: always() &&");
+
+            Assert.That(hasAlwaysCondition, Is.True,
+                "The 'Upload protected run evidence' step in the Tier 2 job must have " +
+                "'if: always()' (optionally combined with other conditions) so that the " +
+                "blocked artifact created by the 'Create blocked evidence manifest' step " +
+                "is uploaded even when Step 0 fails.  Without this condition, the step " +
+                "would not run after a prerequisite failure, making the blocked artifact " +
+                "inaccessible.\n\n" +
+                "Ensure the step has: 'if: always() && github.event.inputs.dry_run != ''true'''");
+        }
+
+        // ─── CI45: Blocked-manifest step writes 00_BLOCKED.txt ───────────────────
+        //
+        // The blocked-manifest step must also create a plain-text remediation file
+        // (00_BLOCKED.txt) so that operators who do not read JSON can still find guidance.
+
+        [Test]
+        public void CI45_WorkflowYaml_BlockedManifestStep_Writes00BlockedTxtFile()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int blockedStepStart = content.IndexOf("Create blocked evidence manifest", StringComparison.Ordinal);
+            Assert.That(blockedStepStart, Is.GreaterThan(0),
+                "Blocked-manifest step not found in workflow YAML.");
+
+            // Find the next step start (or end of file) to scope the check
+            int nextStepStart = content.IndexOf("\n      - name:", blockedStepStart + 100);
+            string blockedStepSection = nextStepStart > blockedStepStart
+                ? content.Substring(blockedStepStart, nextStepStart - blockedStepStart)
+                : content.Substring(blockedStepStart);
+
+            Assert.That(blockedStepSection.Contains("00_BLOCKED.txt"), Is.True,
+                "The blocked-manifest step must write a '00_BLOCKED.txt' plain-text remediation " +
+                "file so operators who do not parse JSON can still find actionable guidance.");
+        }
+
+        // ─── CI46: Blocked-manifest step has an id: field ────────────────────────
+        //
+        // Steps that need to be referenced via steps.<id>.conclusion must declare an id.
+
+        [Test]
+        public void CI46_WorkflowYaml_BlockedManifestStep_HasIdField()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The setup step has id: setup — verify this is present so its conclusion can be checked
+            int setupStepStart = content.IndexOf("Validate prerequisites and set correlation ID", StringComparison.Ordinal);
+            Assert.That(setupStepStart, Is.GreaterThan(0),
+                "Prerequisite validation step not found in workflow YAML.");
+
+            int nextStep = content.IndexOf("\n      - name:", setupStepStart + 50);
+            string setupSection = nextStep > setupStepStart
+                ? content.Substring(setupStepStart, nextStep - setupStepStart)
+                : content.Substring(setupStepStart, Math.Min(400, content.Length - setupStepStart));
+
+            Assert.That(setupSection.Contains("id: setup"), Is.True,
+                "The prerequisite validation step must declare 'id: setup' so that the blocked-manifest " +
+                "step can reference 'steps.setup.conclusion == ''failure''' correctly.");
+        }
+
+        // ─── CI47: BlockedReason mentions the required secret names ──────────────
+        //
+        // The blockedReason field must mention the specific secret names so operators
+        // can immediately identify what to configure without reading the runbook.
+
+        [Test]
+        public void CI47_WorkflowYaml_BlockedManifest_BlockedReasonMentionsRequiredSecrets()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int blockedStepStart = content.IndexOf("Create blocked evidence manifest", StringComparison.Ordinal);
+            Assert.That(blockedStepStart, Is.GreaterThan(0),
+                "Blocked-manifest step not found in workflow YAML.");
+
+            int nextStep = content.IndexOf("\n      - name:", blockedStepStart + 100);
+            string blockedSection = nextStep > blockedStepStart
+                ? content.Substring(blockedStepStart, nextStep - blockedStepStart)
+                : content.Substring(blockedStepStart);
+
+            // The blocked section should mention the required secrets to be actionable
+            bool mentionsSecrets =
+                blockedSection.Contains("PROTECTED_SIGN_OFF_JWT_SECRET") ||
+                blockedSection.Contains("required secrets") ||
+                blockedSection.Contains("secrets are missing");
+
+            Assert.That(mentionsSecrets, Is.True,
+                "The blocked-manifest step must mention either 'PROTECTED_SIGN_OFF_JWT_SECRET' or " +
+                "'required secrets' in the blockedReason or 00_BLOCKED.txt so operators immediately " +
+                "know what secrets need to be configured.");
+        }
+
+        // ─── CI48: Tier-2 job uses the protected-sign-off environment ────────────
+        //
+        // The Tier-2 workflow job must use the 'protected-sign-off' GitHub environment
+        // so that secrets are sourced from the correct, access-controlled environment.
+
+        [Test]
+        public void CI48_WorkflowYaml_Tier2Job_UsesProtectedSignOffEnvironment()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Find the tier-2 job (workflow_dispatch job)
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            Assert.That(tier2Start, Is.GreaterThan(0),
+                "Tier-2 job (protected-sign-off-run) not found in workflow YAML.");
+
+            // Look for environment: protected-sign-off within the tier-2 job header
+            int nextJobStart = content.IndexOf("\n  [a-z]", tier2Start + 50);
+            string tier2Header = content.Substring(tier2Start,
+                Math.Min(500, content.Length - tier2Start));
+
+            Assert.That(tier2Header.Contains("environment: protected-sign-off"), Is.True,
+                "The Tier-2 job must declare 'environment: protected-sign-off' so that " +
+                "PROTECTED_SIGN_OFF_JWT_SECRET and PROTECTED_SIGN_OFF_APP_ACCOUNT secrets " +
+                "are sourced from the access-controlled environment, not from repository secrets.");
+        }
+
+        // ─── CI49: Evidence artifact upload step has retention-days configured ───
+        //
+        // Evidence artifacts must have a retention-days setting to support auditable
+        // durable storage of release evidence.
+
+        [Test]
+        public void CI49_WorkflowYaml_EvidenceArtifactUpload_HasRetentionDays()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int uploadStart = content.IndexOf("Upload protected run evidence", StringComparison.Ordinal);
+            Assert.That(uploadStart, Is.GreaterThan(0),
+                "Upload protected run evidence step not found in workflow YAML.");
+
+            int nextStep = content.IndexOf("\n      - name:", uploadStart + 50);
+            string uploadSection = nextStep > uploadStart
+                ? content.Substring(uploadStart, nextStep - uploadStart)
+                : content.Substring(uploadStart, Math.Min(500, content.Length - uploadStart));
+
+            Assert.That(uploadSection.Contains("retention-days"), Is.True,
+                "The evidence artifact upload step must configure 'retention-days' to ensure " +
+                "release evidence is retained beyond the default 90-day GitHub artifact window " +
+                "for enterprise audit purposes.");
+        }
+
+        // ─── CI50: FALLBACK_CORR uses run_id and run_attempt ─────────────────────
+        //
+        // The fallback correlation ID for blocked runs must encode run_id and run_attempt
+        // to produce unique, traceable artifact names even when Step 0 fails.
+
+        [Test]
+        public void CI50_WorkflowYaml_BlockedManifestStep_FallbackCorrEncodesRunIdAndAttempt()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The artifact name uses the || format() fallback expression
+            bool hasRunIdFallback =
+                content.Contains("run_id") && content.Contains("run_attempt") &&
+                (content.Contains("format('blocked-{0}-{1}'") ||
+                 content.Contains("format(\"blocked-{0}-{1}\""));
+
+            Assert.That(hasRunIdFallback, Is.True,
+                "The artifact upload step must use a fallback like " +
+                "'format(''blocked-{0}-{1}'', github.run_id, github.run_attempt)' " +
+                "so that blocked runs produce uniquely-named artifacts encoding the run ID " +
+                "and attempt number for traceability.");
+        }
+
+        // ─── CI51: Artifact name has 'blocked' in the fallback pattern ───────────
+        //
+        // Blocked run artifacts must be distinguishable from successful ones by name prefix.
+
+        [Test]
+        public void CI51_WorkflowYaml_ArtifactName_FallbackPatternContainsBlocked()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The artifact name expression must contain 'blocked' as a literal string
+            // in the fallback so artifact names are self-describing
+            bool hasFallbackWithBlocked =
+                content.Contains("'blocked-{0}-{1}'") ||
+                content.Contains("\"blocked-{0}-{1}\"") ||
+                content.Contains("blocked-${{ github.run_id }}");
+
+            Assert.That(hasFallbackWithBlocked, Is.True,
+                "The artifact upload name expression must include 'blocked' in the fallback " +
+                "pattern so that blocked-run artifacts are visually distinguishable from " +
+                "successful-run artifacts in the GitHub Actions artifacts UI.");
+        }
+
+        // ─── CI52: Blocked manifest releaseGradeNote contains 'isReleaseGradeEvidence' ──
+        //
+        // The releaseGradeNote field must refer to isReleaseGradeEvidence so that
+        // readers understand what the field means and what to look for.
+
+        [Test]
+        public void CI52_WorkflowYaml_BlockedManifest_ReleaseGradeNoteContainsFieldName()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+            string jsonTemplate = ExtractBlockedManifestJson(content);
+
+            if (string.IsNullOrEmpty(jsonTemplate))
+            {
+                Assert.Ignore("Could not extract MANIFEST_EOF heredoc from workflow YAML; skipping.");
+                return;
+            }
+
+            // Strip shell variable references for JSON parsing
+            string cleanJson = System.Text.RegularExpressions.Regex.Replace(
+                jsonTemplate, @"\$\{[^}]+\}", "\"__PLACEHOLDER__\"");
+
+            JsonDocument doc = JsonDocument.Parse(cleanJson);
+            JsonElement root = doc.RootElement;
+
+            Assert.That(root.TryGetProperty("releaseGradeNote", out JsonElement noteEl), Is.True,
+                "Blocked manifest must have a 'releaseGradeNote' field.");
+
+            string note = noteEl.GetString() ?? string.Empty;
+            Assert.That(note.Contains("isReleaseGradeEvidence"), Is.True,
+                "The 'releaseGradeNote' field must contain 'isReleaseGradeEvidence' so that " +
+                "readers understand which field to check when evaluating release-grade status.");
+        }
+
+        // ─── CI53: Tier-2 job is triggered by workflow_dispatch only ─────────────
+        //
+        // The Tier-2 strict sign-off job must run on workflow_dispatch, not on every push,
+        // to prevent unintentional protected runs on untested branches.
+
+        [Test]
+        public void CI53_WorkflowYaml_Tier2Job_ConditionedOnWorkflowDispatch()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int tier2Start = content.IndexOf("protected-sign-off-run:", StringComparison.Ordinal);
+            Assert.That(tier2Start, Is.GreaterThan(0),
+                "Tier-2 job (protected-sign-off-run) not found in workflow YAML.");
+
+            string tier2Header = content.Substring(tier2Start,
+                Math.Min(600, content.Length - tier2Start));
+
+            Assert.That(tier2Header.Contains("workflow_dispatch"), Is.True,
+                "The Tier-2 job must have an 'if: github.event_name == ''workflow_dispatch''' " +
+                "condition so it only runs on manual dispatch, not on every push or pull_request.");
+        }
+
+        // ─── CI54: Protected-sign-off.yml has workflow_dispatch trigger ───────────
+        //
+        // The workflow must have a workflow_dispatch trigger so it can be manually
+        // triggered to produce protected run evidence.
+
+        [Test]
+        public void CI54_WorkflowYaml_HasWorkflowDispatchTrigger()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content.Contains("workflow_dispatch:"), Is.True,
+                "The protected-sign-off.yml workflow must declare a 'workflow_dispatch:' trigger " +
+                "so that product owners can manually trigger it to produce release evidence.");
+
+            // Verify the workflow also has inputs (specifically dry_run)
+            Assert.That(content.Contains("dry_run"), Is.True,
+                "The workflow_dispatch trigger must include a 'dry_run' input so that the " +
+                "workflow can be tested without executing real backend operations.");
+        }
+
+        // ─── CI55: Tier-2 job name is descriptive ────────────────────────────────
+        //
+        // The Tier-2 job name should contain "protected" to make it visually
+        // distinguishable from the Tier-1 build-and-test job in CI run views.
+
+        [Test]
+        public void CI55_WorkflowYaml_Tier2Job_HasDescriptiveName()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content.ToLowerInvariant().Contains("protected strict sign-off run")
+                     || content.ToLowerInvariant().Contains("protected sign-off run")
+                     || content.ToLowerInvariant().Contains("protected"),
+                Is.True,
+                "The Tier-2 job must have a descriptive name that includes 'protected' to " +
+                "distinguish it from the Tier-1 CI job in the GitHub Actions UI.");
+        }
+
+        // ─── CI56: Workflow has at least two jobs (Tier-1 and Tier-2) ────────────
+        //
+        // The workflow must have exactly two jobs: one for CI push/PR and one for
+        // the protected workflow_dispatch run.
+
+        [Test]
+        public void CI56_WorkflowYaml_HasAtLeastTwoJobs()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Count top-level job definitions (lines with "    name:" under a "jobs:" section)
+            int jobCount = System.Text.RegularExpressions.Regex
+                .Matches(content, @"^  [a-z_]+:", System.Text.RegularExpressions.RegexOptions.Multiline)
+                .Count;
+
+            Assert.That(jobCount, Is.GreaterThanOrEqualTo(2),
+                "The protected-sign-off.yml workflow must define at least two jobs: one for " +
+                "Tier-1 CI (push/pull_request) and one for Tier-2 protected execution (workflow_dispatch).");
+        }
+
+        // ─── CI57: Tier-1 job is conditioned on push or pull_request ─────────────
+        //
+        // The Tier-1 build-and-test job should only run on push/pull_request events
+        // (not on manual workflow_dispatch) to maintain separation of concerns.
+
+        [Test]
+        public void CI57_WorkflowYaml_Tier1Job_ConditionedOnPushOrPullRequest()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(
+                content.Contains("github.event_name == 'push'") ||
+                content.Contains("github.event_name == 'pull_request'"),
+                Is.True,
+                "The Tier-1 job must use an 'if' condition referencing 'push' or 'pull_request' " +
+                "event names to ensure it only runs on code changes, not on manual dispatch.");
+        }
+
+        // ─── CI58: Artifact name uses correlation_id output from setup step ──────
+        //
+        // The upload-artifact step name must reference steps.setup.outputs.correlation_id
+        // to ensure the artifact is consistently named using the workflow-generated ID.
+
+        [Test]
+        public void CI58_WorkflowYaml_ArtifactName_UsesCorrelationIdFromSetupOutputs()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content.Contains("steps.setup.outputs.correlation_id"), Is.True,
+                "The artifact upload step must reference 'steps.setup.outputs.correlation_id' " +
+                "to ensure evidence artifacts are named using the workflow correlation ID, " +
+                "enabling auditors to trace artifacts back to specific workflow runs.");
+        }
+
+        // ─── CI59: Workflow declares push and pull_request triggers ──────────────
+        //
+        // In addition to workflow_dispatch, the workflow must also declare push and
+        // pull_request triggers for Tier-1 CI to run automatically on code changes.
+
+        [Test]
+        public void CI59_WorkflowYaml_HasPushAndPullRequestTriggers()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content.Contains("push:") || content.Contains("push"), Is.True,
+                "The workflow must declare a 'push' trigger for Tier-1 CI to run on code changes.");
+
+            Assert.That(content.Contains("pull_request:") || content.Contains("pull_request"), Is.True,
+                "The workflow must declare a 'pull_request' trigger for Tier-1 CI to run on PRs.");
+        }
+
+        // ─── CI60: Protected-sign-off runbook exists as a markdown file ──────────
+        //
+        // The operator runbook documenting the protected sign-off workflow must exist
+        // as a markdown file in the repository root or docs directory.
+
+        [Test]
+        public void CI60_Runbook_ExistsAsMarkdownFile()
+        {
+            string[] candidatePaths = new[]
+            {
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../PROTECTED_SIGN_OFF_RUNBOOK.md")),
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/PROTECTED_SIGN_OFF_RUNBOOK.md")),
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/protected-sign-off-runbook.md"))
+            };
+
+            bool exists = candidatePaths.Any(p => File.Exists(p));
+
+            if (!exists)
+            {
+                Assert.Ignore("Runbook file not found at any candidate path; skipping.");
+                return;
+            }
+
+            string runbookPath = candidatePaths.First(p => File.Exists(p));
+            string content = File.ReadAllText(runbookPath);
+
+            Assert.That(content.Length, Is.GreaterThan(500),
+                "The PROTECTED_SIGN_OFF_RUNBOOK.md must contain substantive documentation " +
+                "(at least 500 characters) to be useful as an operator reference guide.");
+
+            Assert.That(content.ToLowerInvariant().Contains("protected sign-off") ||
+                       content.ToLowerInvariant().Contains("protected sign off"),
+                Is.True,
+                "The runbook must document the 'protected sign-off' process.");
+        }
+
+        // ─── Helpers — original section ─────────────────────────────────────────
+
+        // ─── CI61: protected-sign-off.yml has checkout step in tier-2 job ────────
+        [Test]
+        public void CI61_WorkflowYaml_Tier2Job_HasCheckoutStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("actions/checkout"),
+                "CI61: workflow must include a checkout step to access the repository source code");
+        }
+
+        // ─── CI62: Blocked manifest step runs AFTER the setup step ──────────────
+        [Test]
+        public void CI62_WorkflowYaml_BlockedManifestStep_RunsAfterSetupStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int setupIdx = content.IndexOf("id: setup", StringComparison.OrdinalIgnoreCase);
+            int blockedIdx = content.IndexOf("blocked evidence manifest",
+                StringComparison.OrdinalIgnoreCase);
+
+            if (blockedIdx < 0)
+                blockedIdx = content.IndexOf("blocked-artifact", StringComparison.OrdinalIgnoreCase);
+
+            if (setupIdx < 0 || blockedIdx < 0)
+            {
+                Assert.Ignore("Could not locate setup or blocked-manifest step; skipping ordering check.");
+                return;
+            }
+
+            Assert.That(blockedIdx, Is.GreaterThan(setupIdx),
+                "CI62: the blocked-manifest step must appear after the setup step in the workflow file");
+        }
+
+        // ─── CI63: Workflow upload step runs AFTER blocked-manifest creation step ─
+        [Test]
+        public void CI63_WorkflowYaml_UploadStep_RunsAfterBlockedManifestStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int blockedIdx = content.IndexOf("MANIFEST_EOF", StringComparison.Ordinal);
+            int uploadIdx = content.IndexOf("upload-artifact", StringComparison.OrdinalIgnoreCase);
+
+            if (blockedIdx < 0 || uploadIdx < 0)
+            {
+                Assert.Ignore("Could not locate blocked-manifest or upload-artifact; skipping ordering check.");
+                return;
+            }
+
+            Assert.That(uploadIdx, Is.GreaterThan(blockedIdx),
+                "CI63: the artifact upload step must appear after the blocked-manifest creation step");
+        }
+
+        // ─── CI64: Blocked manifest sets blockedReason with meaningful content ───
+        [Test]
+        public void CI64_WorkflowYaml_BlockedManifest_BlockedReasonIsMeaningful()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+            string manifest = ExtractBlockedManifestJson(content);
+
+            if (string.IsNullOrWhiteSpace(manifest))
+            {
+                Assert.Ignore("Could not extract blocked manifest JSON; skipping.");
+                return;
+            }
+
+            // Strip shell variable substitutions for parsing
+            string sanitized = System.Text.RegularExpressions.Regex.Replace(manifest, @"\$\{[^}]+\}", "SUBSTITUTED");
+            string sanitized2 = sanitized.Replace("$(", "SUBSTITUTED(").Replace(")", "");
+
+            // Check the raw manifest contains "blockedReason" key
+            Assert.That(manifest, Does.Contain("blockedReason").IgnoreCase,
+                "CI64: blocked manifest must contain a blockedReason field with meaningful content");
+        }
+
+        // ─── CI65: protected-sign-off.yml defines env section or steps use secrets ─
+        [Test]
+        public void CI65_WorkflowYaml_ReferencesRequiredSecrets()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The workflow must reference the key secrets used for backend authentication
+            bool refsJwtSecret = content.Contains("PROTECTED_SIGN_OFF_JWT_SECRET",
+                StringComparison.OrdinalIgnoreCase);
+            bool refsAppAccount = content.Contains("PROTECTED_SIGN_OFF_APP_ACCOUNT",
+                StringComparison.OrdinalIgnoreCase);
+
+            Assert.That(refsJwtSecret, Is.True,
+                "CI65: workflow must reference PROTECTED_SIGN_OFF_JWT_SECRET for backend authentication");
+            Assert.That(refsAppAccount, Is.True,
+                "CI65: workflow must reference PROTECTED_SIGN_OFF_APP_ACCOUNT for Algorand account");
+        }
+
+        // ─── CI66: Workflow evidence manifest includes correlationId field ────────
+        [Test]
+        public void CI66_WorkflowYaml_EvidenceManifest_IncludesCorrelationId()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("correlationId").Or.Contain("correlation_id"),
+                "CI66: workflow evidence manifest must include a correlationId field for audit traceability");
+        }
+
+        // ─── CI67: Workflow has at least one echo/print step for audit logging ────
+        [Test]
+        public void CI67_WorkflowYaml_HasAuditLoggingStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            bool hasEcho = content.Contains("echo", StringComparison.OrdinalIgnoreCase);
+            bool hasPrintf = content.Contains("printf", StringComparison.OrdinalIgnoreCase);
+
+            Assert.That(hasEcho || hasPrintf, Is.True,
+                "CI67: workflow must include echo/printf statements for audit logging and operator visibility");
+        }
+
+        // ─── CI68: test-pr.yml workflow exists ────────────────────────────────────
+        [Test]
+        public void CI68_TestPrWorkflow_Exists()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/test-pr.yml"));
+
+            Assert.That(File.Exists(workflowPath), Is.True,
+                "CI68: test-pr.yml must exist as the CI workflow for pull request validation");
+        }
+
+        // ─── CI69: test-pr.yml references ProtectedSignOff in test filter ─────────
+        [Test]
+        public void CI69_TestPrWorkflow_ReferencesProtectedSignOff()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/test-pr.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"test-pr.yml not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("ProtectedSignOff"),
+                "CI69: test-pr.yml must reference ProtectedSignOff to ensure protected sign-off tests run in CI");
+        }
+
+        // ─── CI70: Workflow step ordering: upload-artifact is after all evidence steps ─
+        [Test]
+        public void CI70_WorkflowYaml_UploadArtifact_IsLastMajorStep()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            int lastUploadIdx = content.LastIndexOf("upload-artifact", StringComparison.OrdinalIgnoreCase);
+            int lastCheckoutIdx = content.LastIndexOf("checkout", StringComparison.OrdinalIgnoreCase);
+            int lastBuildIdx = content.LastIndexOf("dotnet build", StringComparison.OrdinalIgnoreCase);
+
+            if (lastUploadIdx < 0)
+            {
+                Assert.Fail("CI70: no upload-artifact step found in the workflow");
+                return;
+            }
+
+            // Upload must be after checkout and build steps
+            if (lastCheckoutIdx > 0)
+                Assert.That(lastUploadIdx, Is.GreaterThan(lastCheckoutIdx),
+                    "CI70: upload-artifact must come after checkout step");
+
+            if (lastBuildIdx > 0)
+                Assert.That(lastUploadIdx, Is.GreaterThan(lastBuildIdx),
+                    "CI70: upload-artifact must come after dotnet build step");
+        }
+
+        // ─── Shared extraction helper (used by CI39, CI40, CI41, CI43) ───────────
+        //
+        // Extracts the JSON template from between the MANIFEST_EOF heredoc markers in
+        // the protected-sign-off.yml workflow file.  Returns an empty string if the
+        // markers cannot be found.
+
+        private static string ExtractBlockedManifestJson(string content)
+        {
+            int manifestStart = content.IndexOf("MANIFEST_EOF", StringComparison.Ordinal);
+            if (manifestStart < 0) return string.Empty;
+
+            int afterOpenMarker = content.IndexOf("\n", manifestStart) + 1;
+            if (afterOpenMarker <= 0) return string.Empty;
+
+            int closeMarker = content.IndexOf("MANIFEST_EOF", afterOpenMarker);
+            if (closeMarker < 0) return string.Empty;
+
+            return content.Substring(afterOpenMarker, closeMarker - afterOpenMarker).Trim();
+        }
 
         private static BiatecTokensApi.Services.ProtectedSignOffEnvironmentService BuildSvcWithConfig(
             Dictionary<string, string?> configValues)

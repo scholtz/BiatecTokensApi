@@ -542,6 +542,12 @@ evidence, even if individual checks appear to have passed.
 
 ### Artifacts produced
 
+The workflow **always** uploads an artifact when triggered via `workflow_dispatch`, whether the
+run succeeded or failed at prerequisites.  This implements fail-closed artifact semantics: reviewers
+always have a downloadable record explaining the outcome.
+
+#### Successful runs (Step 0 passed)
+
 Each successful run saves two artifacts retained for 90 days:
 
 | Artifact | Contents |
@@ -554,6 +560,25 @@ The evidence manifest (`00_evidence_manifest.json`) contains:
 - `isReleaseGradeEvidence` — **primary sign-off criterion** (`true` only when lifecycle + environment both verified under protected secrets)
 - `observedGovernanceCheckOutcome` — extracted from the runtime API response, not hardcoded
 - Per-check results: `environmentStatus`, `isReadyForProtectedRun`, `fixturesProvisioned`, `lifecycleVerified`, `reachedStage`, `diagnosticsOperational`
+
+#### Blocked runs (Step 0 failed — prerequisites missing or malformed)
+
+When Step 0 (prerequisite validation) fails because required secrets are absent or invalid, the
+workflow creates and uploads a **blocked evidence artifact**:
+
+| Artifact | Contents |
+|---|---|
+| `protected-sign-off-evidence-blocked-<run-id>-<attempt>` | `00_evidence_manifest.json` (blocked), `00_BLOCKED.txt` (plain-text remediation guide) |
+
+The blocked manifest explicitly states:
+- `"isReleaseGradeEvidence": false` — this run is NOT release evidence
+- `"blocked": true` — distinguishes prerequisites-blocked from a run that failed during collection
+- `"blockedReason"` — human-readable explanation of the block cause
+- `"blockedAt"` — which step caused the block ("Step 0 — Validate prerequisites")
+- `"remediationUrl"` — link to the §Required Secrets section of this runbook
+
+This design ensures that product owners and reviewers always receive an artifact they can open to
+understand the run outcome without reading CI logs or re-running the workflow.
 
 ### Release gate enforcement
 

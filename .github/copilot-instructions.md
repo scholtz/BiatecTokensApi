@@ -1771,3 +1771,33 @@ dotnet build BiatecTokensTests/BiatecTokensTests.csproj --configuration Release 
 - `CaseReadinessSummary.BlockingIssues` contains blocking text; `MissingEvidence` list is always empty
 - Export adds a `CaseExported` timeline entry AFTER computing the hash, so successive exports of the same case produce different hashes
 - `CaseDecisionKind` has `AmlClear` and `AmlHit` (not `AmlScreening`)
+
+**Lesson Learned (2026-03-22 - Issue #603, PR #604)**: Product owner rejected initial PR citing "not finished in proper quality" and requesting higher test coverage. Root causes:
+
+1. ❌ PR description used "Related Issues: #603" instead of "Fixes #603" on the first line
+2. ❌ Test coverage was too thin: only 2 new tests (CI37/CI38) for a workflow change that touched blocked-artifact semantics, runbook, and fail-closed behavior. Product owner expects multiple layers of coverage for every change.
+3. ❌ Tests only checked for string presence in YAML — no test actually parsed the JSON template to verify it's valid, no tests for individual required fields (`remediationUrl`, `blockedAt`, `schemaVersion` version match), no test for the upload step's `if: always()` condition
+4. ❌ New deployed-parity tests for the affected service (ProtectedSignOffEvidencePersistenceService) were not added even though the issue touched release-grade evidence semantics directly covered by that service
+
+**Corrective actions taken**:
+1. ✅ Changed PR description first line to `Fixes #603`
+2. ✅ Added CI39-CI44 (6 new tests): `remediationUrl` field, `blockedAt` field, JSON template validity (parses MANIFEST_EOF heredoc as JSON), runbook "Blocked runs" subsection, schema version consistency, upload step `if: always()` condition
+3. ✅ Added DP41-DP50 (10 new tests): non-release-grade `IsReleaseGrade=false`, release-grade `IsReleaseGrade=true`, readiness non-Ready for non-release-grade, recovery from Blocked→Ready, OperatorGuidance for Indeterminate, ContentHash input-sensitivity, TotalCount accuracy, schema contract for IsReleaseGrade, process-restart OperatorGuidance
+4. ✅ Total: 16 new tests (from 2 to 18 for this change)
+5. ✅ Updated copilot instructions with the lesson
+
+**MANDATORY TEST COVERAGE TIERS for workflow/evidence changes**:
+
+When any change touches:
+- A workflow YAML file → add at minimum 5-8 CI tests covering each new step, each new field, and structural invariants
+- An evidence manifest JSON template → add test that parses the JSON (not just string-contains)
+- A runbook (.md) → add test verifying the new section is present and contains required content
+- A backend service contract (e.g. `isReleaseGrade`, `blocked`) → add 5-10 DP/service tests covering both happy path and blocked path
+
+**Model field names for ProtectedSignOffEvidencePersistenceService** (verified 2026-03-22):
+- `PersistSignOffEvidenceResponse.Pack` (NOT `.EvidencePack`) → the evidence pack field
+- `GetEvidencePackHistoryResponse.Packs` (NOT `.Records`) → the list of evidence packs
+- `GetApprovalWebhookHistoryResponse.Records` → the list of webhook records
+- `GetSignOffReleaseReadinessResponse.Success = (overallStatus == Ready)` → `Success=false` for Blocked/Pending/Stale (this is correct behavior, NOT a bug)
+- Service methods `PersistSignOffEvidenceAsync(request, actorId)` and `RecordApprovalWebhookAsync(request, actorId)` require the `actorId` string as a second parameter
+- History endpoints use HTTP GET (not POST) — use service directly (`svc.GetEvidencePackHistoryAsync(...)`) in unit/integration tests, not `_client.PostAsJsonAsync`

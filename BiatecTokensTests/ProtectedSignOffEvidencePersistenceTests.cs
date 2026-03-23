@@ -1160,24 +1160,22 @@ namespace BiatecTokensTests
         // ── Additional coverage: content hash is non-null ──────────────────────
 
         [Test]
-        public async Task PersistSignOffEvidence_TwoCalls_ProduceDifferentContentHashes()
+        public async Task PersistSignOffEvidence_TwoCalls_WithDifferentInputs_ProduceDifferentContentHashes()
         {
             var (svc, _) = CreateServiceWithCapture();
-            const string headRef = "sha-hash-check";
-            const string caseId = "case-hash";
 
             var r1 = await svc.PersistSignOffEvidenceAsync(
-                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+                new PersistSignOffEvidenceRequest { HeadRef = "sha-hash-check-A", CaseId = "case-hash-A" }, "actor");
             var r2 = await svc.PersistSignOffEvidenceAsync(
-                new PersistSignOffEvidenceRequest { HeadRef = headRef, CaseId = caseId }, "actor");
+                new PersistSignOffEvidenceRequest { HeadRef = "sha-hash-check-B", CaseId = "case-hash-B" }, "actor");
 
             Assert.That(r1.Success, Is.True);
             Assert.That(r2.Success, Is.True);
             Assert.That(r1.Pack!.ContentHash, Is.Not.Null.And.Not.Empty);
             Assert.That(r2.Pack!.ContentHash, Is.Not.Null.And.Not.Empty);
-            // Each pack gets unique PackId → distinct hashes
+            // Different input fields → different content hashes (input-sensitivity)
             Assert.That(r1.Pack.ContentHash, Is.Not.EqualTo(r2.Pack.ContentHash),
-                "Distinct pack records must produce distinct content hashes");
+                "Evidence packs with different inputs must produce distinct content hashes");
         }
 
         // ── Additional coverage: no-filter history returns records for headRef ─

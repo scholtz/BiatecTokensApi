@@ -272,6 +272,72 @@ jobs:
           echo "correlation_id=$CORR" >> "$GITHUB_OUTPUT"
           echo "✅ Prerequisites validated (presence + sanity).  Correlation ID: $CORR"
 
+      # ── Step 0b: Emit blocked evidence manifest on prerequisite failure ──────
+      # When Step 0 fails (secrets missing or malformed), this step creates a
+      # fail-closed "blocked" evidence manifest in ./ProtectedRunEvidence/ so that
+      # reviewers downloading the artifact can immediately understand WHY the run
+      # did not proceed to evidence collection and what must be configured.
+      #
+      # This ensures the workflow ALWAYS uploads an artifact — a key requirement for
+      # fail-closed release-governance semantics.  A reviewer must never have to
+      # re-run the workflow or read logs just to discover the run was blocked.
+      - name: Create blocked evidence manifest (prerequisite failure)
+        if: failure() && steps.setup.conclusion == 'failure'
+        run: |
+          mkdir -p ./ProtectedRunEvidence
+          FALLBACK_CORR="blocked-${{ github.run_id }}-${{ github.run_attempt }}"
+          RUN_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cat > ./ProtectedRunEvidence/00_evidence_manifest.json << 'MANIFEST_EOF'
+          {
+            "schemaVersion": "2.0",
+            "isReleaseGradeEvidence": false,
+            "blocked": true,
+            "blockedReason": "Prerequisite validation failed — required secrets are missing or malformed in the protected-sign-off environment. This run did not reach evidence collection. See 00_BLOCKED.txt for remediation steps.",
+            "blockedAt": "Step 0 — Validate prerequisites and set correlation ID",
+            "releaseGradeNote": "isReleaseGradeEvidence is true only when lifecycle verification and environment readiness are confirmed under the protected-sign-off environment with valid secrets. Configure the required secrets and re-run.",
+            "remediationUrl": "PROTECTED_SIGN_OFF_RUNBOOK.md §Required Secrets",
+            "results": null
+          }
+          MANIFEST_EOF
+          # Patch in the dynamic fields that cannot be in the heredoc literal
+          python3 - "$FALLBACK_CORR" "$RUN_AT" \
+            "${{ github.run_id }}" "${{ github.run_attempt }}" \
+            "${{ github.sha }}" "${{ github.ref }}" "${{ github.actor }}" << 'PY_EOF'
+          import sys, json
+          corr, run_at, run_id, run_attempt, sha, ref, actor = sys.argv[1:]
+          with open('./ProtectedRunEvidence/00_evidence_manifest.json') as f:
+              d = json.load(f)
+          d['correlationId'] = corr
+          d['runAt'] = run_at
+          d['runId'] = run_id
+          d['runAttempt'] = run_attempt
+          d['sha'] = sha
+          d['ref'] = ref
+          d['actor'] = actor
+          d['environmentLabel'] = 'protected-ci'
+          with open('./ProtectedRunEvidence/00_evidence_manifest.json', 'w') as f:
+              json.dump(d, f, indent=2)
+          print("Patched dynamic fields into blocked manifest")
+          PY_EOF
+          cat > ./ProtectedRunEvidence/00_BLOCKED.txt << BLOCKED_EOF
+          PROTECTED SIGN-OFF RUN — BLOCKED AT PREREQUISITES
+          ==================================================
+
+          This run was blocked at Step 0 (Validate prerequisites) because one or more
+          required secrets are missing or malformed in the protected-sign-off environment.
+
+          isReleaseGradeEvidence: false
+          blocked: true
+
+          Required secrets (set in: Settings -> Environments -> protected-sign-off):
+            * PROTECTED_SIGN_OFF_JWT_SECRET  — JWT signing key, must be >= 32 characters
+            * PROTECTED_SIGN_OFF_APP_ACCOUNT — Algorand mnemonic, exactly 25 words
+
+          See PROTECTED_SIGN_OFF_RUNBOOK.md §Required Secrets for setup instructions.
+          BLOCKED_EOF
+          echo "✅ Blocked evidence manifest written to ./ProtectedRunEvidence/"
+          echo "   (isReleaseGradeEvidence: false, blocked: true)"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -649,11 +715,14 @@ jobs:
           check_name: 'Protected Sign-Off Test Results'
 
       # ── Step G: Upload evidence artifact ────────────────────────────────────
+      # The artifact name uses the correlation ID when Step 0 succeeded, or falls
+      # back to 'blocked-<run_id>-<attempt>' when Step 0 failed.  Either way, the
+      # artifact is always uploaded so reviewers have a durable record of the run.
       - name: Upload protected run evidence
         uses: actions/upload-artifact@v7
         if: always() && github.event.inputs.dry_run != 'true'
         with:
-          name: protected-sign-off-evidence-${{ steps.setup.outputs.correlation_id }}
+          name: protected-sign-off-evidence-${{ steps.setup.outputs.correlation_id || format('blocked-{0}-{1}', github.run_id, github.run_attempt) }}
           path: ./ProtectedRunEvidence/
           retention-days: 90
 
