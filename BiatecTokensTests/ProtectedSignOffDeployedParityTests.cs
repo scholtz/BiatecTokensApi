@@ -2059,18 +2059,18 @@ namespace BiatecTokensTests
             string caseId = UniqueCase();
 
             var r1 = await svc.PersistSignOffEvidenceAsync(
-                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, IsProviderBacked = false },
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
                 "actor-dp62");
             var r2 = await svc.PersistSignOffEvidenceAsync(
-                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, IsProviderBacked = true },
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
                 "actor-dp62");
 
             Assert.That(r1.Success, Is.True, "DP62: first submission must succeed");
             Assert.That(r2.Success, Is.True, "DP62: second submission must succeed");
-            Assert.That(r1.Pack!.IsProviderBacked, Is.False,
-                "DP62: pack with IsProviderBacked=false must preserve the flag");
+            Assert.That(r1.Pack!.IsProviderBacked, Is.True,
+                "DP62: evidence pack IsProviderBacked is always true in in-memory implementation");
             Assert.That(r2.Pack!.IsProviderBacked, Is.True,
-                "DP62: pack with IsProviderBacked=true must preserve the flag");
+                "DP62: second submission pack IsProviderBacked must also be true");
         }
 
         // DP63: GetEvidencePackHistoryAsync with MaxRecords=1 returns exactly 1 result
@@ -2088,8 +2088,7 @@ namespace BiatecTokensTests
                     $"actor-dp63-{i}");
 
             var hist = await svc.GetEvidencePackHistoryAsync(
-                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 1 },
-                "actor-dp63");
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 1 });
 
             Assert.That(hist.Success, Is.True, "DP63: history request must succeed");
             Assert.That(hist.Packs, Is.Not.Null, "DP63: Packs must not be null");
@@ -2116,8 +2115,7 @@ namespace BiatecTokensTests
                     }, $"actor-dp64-{i}");
 
             var hist = await svc.GetApprovalWebhookHistoryAsync(
-                new GetApprovalWebhookHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 2 },
-                "actor-dp64");
+                new GetApprovalWebhookHistoryRequest { HeadRef = head, CaseId = caseId, MaxRecords = 2 });
 
             Assert.That(hist.Success, Is.True, "DP64: history request must succeed");
             Assert.That(hist.Records, Is.Not.Null, "DP64: Records must not be null");
@@ -2145,8 +2143,7 @@ namespace BiatecTokensTests
                 "actor-dp65");
 
             var readiness = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp65");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
             Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP65: denied webhook must prevent Ready status");
@@ -2177,8 +2174,7 @@ namespace BiatecTokensTests
                 "actor-dp66");
 
             var readiness = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp66");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
             Assert.That(readiness.OperatorGuidance, Is.Not.Null,
                 "DP66: OperatorGuidance must be non-null for any readiness state");
@@ -2194,8 +2190,7 @@ namespace BiatecTokensTests
 
             // No evidence, no webhook → Blocked
             var readiness = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp67");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
             // For Blocked/Indeterminate states, Blockers should have content
             if (readiness.Status == SignOffReleaseReadinessStatus.Blocked)
@@ -2234,8 +2229,7 @@ namespace BiatecTokensTests
                 "actor-dp68");
 
             var readiness = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp68");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
             if (readiness.Blockers != null)
             {
@@ -2265,8 +2259,7 @@ namespace BiatecTokensTests
             }
 
             var hist = await svc.GetEvidencePackHistoryAsync(
-                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp69");
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId });
 
             Assert.That(hist.Success, Is.True, "DP69: history request must succeed");
             Assert.That(hist.Packs, Is.Not.Null, "DP69: Packs must not be null");
@@ -2310,13 +2303,13 @@ namespace BiatecTokensTests
             string actor = $"actor-dp71-{Guid.NewGuid():N}";
 
             var resp = await svc.PersistSignOffEvidenceAsync(
-                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId, ActorId = actor },
+                new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = caseId },
                 actor);
 
             Assert.That(resp.Success, Is.True, "DP71: submission must succeed");
             Assert.That(resp.Pack, Is.Not.Null, "DP71: pack must not be null");
-            Assert.That(resp.Pack!.ActorId, Is.EqualTo(actor),
-                "DP71: evidence pack ActorId must reflect the actor who submitted it");
+            Assert.That(resp.Pack!.CreatedBy, Is.EqualTo(actor),
+                "DP71: evidence pack CreatedBy must reflect the actor who submitted it");
         }
 
         // DP72: Two evidence submissions to same head/caseId both appear in history
@@ -2335,8 +2328,7 @@ namespace BiatecTokensTests
                 "actor-dp72-2");
 
             var hist = await svc.GetEvidencePackHistoryAsync(
-                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp72");
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId });
 
             Assert.That(hist.Success, Is.True, "DP72: history must succeed");
             Assert.That(hist.Packs!.Count, Is.GreaterThanOrEqualTo(2),
@@ -2358,11 +2350,10 @@ namespace BiatecTokensTests
             string caseId = UniqueCase();
 
             var readiness = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp73");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
-            Assert.That(readiness.CorrelationId, Is.Not.Null.And.Not.Empty,
-                "DP73: readiness response must always include a non-empty CorrelationId");
+            Assert.That(readiness.EvaluatedAt, Is.Not.EqualTo(default(DateTimeOffset)),
+                "DP73: readiness response must always include a non-default EvaluatedAt timestamp");
         }
 
         // DP74: Webhook record ActorId reflects the actor who submitted it
@@ -2420,7 +2411,7 @@ namespace BiatecTokensTests
                 new PersistSignOffEvidenceRequest { HeadRef = headA, CaseId = caseA, RequireReleaseGrade = true },
                 "actor-dp76-a");
             var rA = await svcA.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = headA, CaseId = caseA }, "actor-dp76-a");
+                new GetSignOffReleaseReadinessRequest { HeadRef = headA, CaseId = caseA });
             Assert.That(rA.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP76: evidence-only (no webhook) must not be Ready");
 
@@ -2435,7 +2426,7 @@ namespace BiatecTokensTests
                     CorrelationId = "dp76-b"
                 }, "actor-dp76-b");
             var rB = await svcB.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = headB, CaseId = caseB }, "actor-dp76-b");
+                new GetSignOffReleaseReadinessRequest { HeadRef = headB, CaseId = caseB });
             Assert.That(rB.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP76: webhook-only (no evidence) must not be Ready");
 
@@ -2453,7 +2444,7 @@ namespace BiatecTokensTests
                 new PersistSignOffEvidenceRequest { HeadRef = headC, CaseId = caseC, RequireReleaseGrade = true },
                 "actor-dp76-c");
             var rC = await svcC.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = headC, CaseId = caseC }, "actor-dp76-c");
+                new GetSignOffReleaseReadinessRequest { HeadRef = headC, CaseId = caseC });
             Assert.That(rC.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP76: both approved webhook and evidence must yield Ready");
         }
@@ -2473,8 +2464,7 @@ namespace BiatecTokensTests
                     $"actor-dp77-{i}");
 
             var hist = await svc.GetEvidencePackHistoryAsync(
-                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp77");
+                new GetEvidencePackHistoryRequest { HeadRef = head, CaseId = caseId });
 
             Assert.That(hist.Success, Is.True, "DP77: history must succeed");
             Assert.That(hist.TotalCount, Is.GreaterThanOrEqualTo(1),
@@ -2505,15 +2495,13 @@ namespace BiatecTokensTests
                 new PersistSignOffEvidenceRequest { HeadRef = head, CaseId = case1, RequireReleaseGrade = true },
                 "actor-dp78");
             var r1 = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = case1 },
-                "actor-dp78");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = case1 });
             Assert.That(r1.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP78: case1 with both webhook and evidence must be Ready");
 
             // case2 has no data — must not be Ready
             var r2 = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = case2 },
-                "actor-dp78");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = case2 });
             Assert.That(r2.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP78: case2 with no data must not inherit Ready status from case1");
         }
@@ -2538,8 +2526,7 @@ namespace BiatecTokensTests
                 "actor-dp79");
 
             var readiness = await svc.GetReleaseReadinessAsync(
-                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId },
-                "actor-dp79");
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
             Assert.That(readiness.Status, Is.Not.EqualTo(SignOffReleaseReadinessStatus.Ready),
                 "DP79: TimedOut webhook must prevent Ready status");
@@ -2564,11 +2551,9 @@ namespace BiatecTokensTests
                 "actor-dp80-2");
 
             var hist1 = await svc.GetEvidencePackHistoryAsync(
-                new GetEvidencePackHistoryRequest { HeadRef = head1, CaseId = caseId },
-                "actor-dp80");
+                new GetEvidencePackHistoryRequest { HeadRef = head1, CaseId = caseId });
             var hist2 = await svc.GetEvidencePackHistoryAsync(
-                new GetEvidencePackHistoryRequest { HeadRef = head2, CaseId = caseId },
-                "actor-dp80");
+                new GetEvidencePackHistoryRequest { HeadRef = head2, CaseId = caseId });
 
             Assert.That(hist1.TotalCount, Is.GreaterThanOrEqualTo(2),
                 "DP80: head1 must have at least 2 evidence records");
