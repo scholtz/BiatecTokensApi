@@ -422,6 +422,11 @@ namespace BiatecTokensTests
         /// Creates a case then directly mutates its state to PendingReview, bypassing
         /// the normal initiate-checks flow. This is intentional: it lets reviewer-action
         /// tests target the state machine without depending on a full journey setup.
+        ///
+        /// WARNING: Direct state mutation is ONLY acceptable in tests. Production code
+        /// must always use the service methods (InitiateProviderChecksAsync,
+        /// RecordReviewerActionAsync) to transition case states so business rules
+        /// and audit-trail integrity are preserved.
         /// </summary>
         private async Task<KycAmlOnboardingCase> CreateCaseInPendingReview(KycAmlOnboardingCaseService svc)
         {

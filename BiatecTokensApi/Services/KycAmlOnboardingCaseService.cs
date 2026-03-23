@@ -31,6 +31,21 @@ namespace BiatecTokensApi.Services
         // SubjectId:IdempotencyKey → CaseId reverse index
         private readonly ConcurrentDictionary<string, string> _idempotencyIndex = new();
 
+        // ── Static state sets (O(1) lookup) ──────────────────────────────────────
+
+        private static readonly HashSet<KycAmlOnboardingCaseState> TerminalStates =
+        [
+            KycAmlOnboardingCaseState.Approved,
+            KycAmlOnboardingCaseState.Rejected,
+            KycAmlOnboardingCaseState.Expired
+        ];
+
+        private static readonly HashSet<KycAmlOnboardingCaseState> ReviewableStates =
+        [
+            KycAmlOnboardingCaseState.PendingReview,
+            KycAmlOnboardingCaseState.UnderReview
+        ];
+
         // ── Dependencies ─────────────────────────────────────────────────────────
 
         private readonly ILiveProviderVerificationJourneyService? _journeyService;
@@ -91,7 +106,7 @@ namespace BiatecTokensApi.Services
                 {
                     _logger.LogInformation(
                         "CreateCase idempotency hit: returning existing case {CaseId} for subject {SubjectId}, CorrelationId={CorrelationId}",
-                        existingId,
+                        LoggingHelper.SanitizeLogInput(existingId),
                         LoggingHelper.SanitizeLogInput(request.SubjectId),
                         LoggingHelper.SanitizeLogInput(correlationId));
 
@@ -136,7 +151,7 @@ namespace BiatecTokensApi.Services
 
             _logger.LogInformation(
                 "CreateCase: created case {CaseId} for subject {SubjectId}, IsProviderConfigured={IsProviderConfigured}, CorrelationId={CorrelationId}",
-                caseId,
+                LoggingHelper.SanitizeLogInput(caseId),
                 LoggingHelper.SanitizeLogInput(request.SubjectId),
                 newCase.IsProviderConfigured,
                 LoggingHelper.SanitizeLogInput(correlationId));
@@ -365,14 +380,7 @@ namespace BiatecTokensApi.Services
             }
 
             // ── 2. Terminal state guard ──────────────────────────────────────────
-            var terminalStates = new[]
-            {
-                KycAmlOnboardingCaseState.Approved,
-                KycAmlOnboardingCaseState.Rejected,
-                KycAmlOnboardingCaseState.Expired
-            };
-
-            if (Array.IndexOf(terminalStates, kycCase.State) >= 0 &&
+            if (TerminalStates.Contains(kycCase.State) &&
                 request.Kind != KycAmlOnboardingActionKind.AddNote)
             {
                 return Task.FromResult(new RecordReviewerActionResponse
@@ -386,15 +394,9 @@ namespace BiatecTokensApi.Services
             }
 
             // ── 3. Apply state transition ────────────────────────────────────────
-            var reviewableStates = new[]
-            {
-                KycAmlOnboardingCaseState.PendingReview,
-                KycAmlOnboardingCaseState.UnderReview
-            };
-
             KycAmlOnboardingCaseState? nextState = request.Kind switch
             {
-                KycAmlOnboardingActionKind.Approve when Array.IndexOf(reviewableStates, kycCase.State) >= 0
+                KycAmlOnboardingActionKind.Approve when ReviewableStates.Contains(kycCase.State)
                     => KycAmlOnboardingCaseState.Approved,
 
                 KycAmlOnboardingActionKind.Approve
@@ -403,13 +405,13 @@ namespace BiatecTokensApi.Services
                 KycAmlOnboardingActionKind.Reject
                     => KycAmlOnboardingCaseState.Rejected,
 
-                KycAmlOnboardingActionKind.Escalate when Array.IndexOf(reviewableStates, kycCase.State) >= 0
+                KycAmlOnboardingActionKind.Escalate when ReviewableStates.Contains(kycCase.State)
                     => KycAmlOnboardingCaseState.Escalated,
 
                 KycAmlOnboardingActionKind.Escalate
                     => null, // invalid transition
 
-                KycAmlOnboardingActionKind.RequestAdditionalInfo when Array.IndexOf(reviewableStates, kycCase.State) >= 0
+                KycAmlOnboardingActionKind.RequestAdditionalInfo when ReviewableStates.Contains(kycCase.State)
                     => KycAmlOnboardingCaseState.RequiresAdditionalInfo,
 
                 KycAmlOnboardingActionKind.RequestAdditionalInfo
