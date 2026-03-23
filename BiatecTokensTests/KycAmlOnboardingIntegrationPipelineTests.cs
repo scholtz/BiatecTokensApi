@@ -823,6 +823,14 @@ namespace BiatecTokensTests
         // IP31–IP35: Webhook emission
         // ═══════════════════════════════════════════════════════════════════════
 
+        /// <summary>Polls until <paramref name="predicate"/> returns true or <paramref name="timeoutMs"/> expires.</summary>
+        private static async Task PollUntilAsync(Func<bool> predicate, int timeoutMs = 5000, int intervalMs = 50)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            while (!predicate() && DateTime.UtcNow < deadline)
+                await Task.Delay(intervalMs);
+        }
+
         /// <summary>IP31 — CreateCase emits at least one webhook event (fire-and-forget).</summary>
         [Test]
         public async Task IP31_CreateCase_EmitsWebhookEvent()
@@ -832,8 +840,8 @@ namespace BiatecTokensTests
 
             await svc.CreateCaseAsync(new CreateOnboardingCaseRequest { SubjectId = "ip31-subject" }, "admin");
 
-            // Webhook is fire-and-forget via Task.Run; give background task time to complete
-            await Task.Delay(200);
+            // Webhook is fire-and-forget via Task.Run; poll until delivered (5s deadline)
+            await PollUntilAsync(() => webhook.Events.Count >= 1);
             Assert.That(webhook.Events.Count, Is.GreaterThanOrEqualTo(1));
         }
 
@@ -844,14 +852,14 @@ namespace BiatecTokensTests
             var webhook = new CapturingWebhook();
             var svc = Build(webhook: webhook);
             var caseId = await CreateCase(svc, "ip32-subject");
-            await Task.Delay(100); // wait for create event
+            await PollUntilAsync(() => webhook.Events.Count >= 1); // wait for create event
             var initialCount = webhook.Events.Count;
 
             await svc.RecordReviewerActionAsync(caseId,
                 new RecordReviewerActionRequest { Kind = KycAmlOnboardingActionKind.AddNote, Notes = "Webhook test note" },
                 "reviewer-1");
 
-            await Task.Delay(200); // wait for fire-and-forget
+            await PollUntilAsync(() => webhook.Events.Count > initialCount); // wait for fire-and-forget
             Assert.That(webhook.Events.Count, Is.GreaterThan(initialCount));
         }
 
@@ -863,12 +871,12 @@ namespace BiatecTokensTests
             var webhook = new CapturingWebhook();
             var svc = Build(journey: journey, webhook: webhook);
             var caseId = await CreateCase(svc, "ip33-subject");
-            await Task.Delay(100); // wait for create event
+            await PollUntilAsync(() => webhook.Events.Count >= 1); // wait for create event
             var initialCount = webhook.Events.Count;
 
             await svc.InitiateProviderChecksAsync(caseId, new InitiateProviderChecksRequest(), "admin");
 
-            await Task.Delay(200); // wait for fire-and-forget
+            await PollUntilAsync(() => webhook.Events.Count > initialCount); // wait for fire-and-forget
             Assert.That(webhook.Events.Count, Is.GreaterThan(initialCount));
         }
 
@@ -885,7 +893,8 @@ namespace BiatecTokensTests
             await svc.RecordReviewerActionAsync(caseId,
                 new RecordReviewerActionRequest { Kind = KycAmlOnboardingActionKind.Reject, Rationale = "Rejected" }, "r2");
 
-            await Task.Delay(300); // wait for all fire-and-forget tasks
+            // Poll until all 3 fire-and-forget tasks complete (5s deadline)
+            await PollUntilAsync(() => webhook.Events.Count >= 3);
             Assert.That(webhook.Events.Count, Is.GreaterThanOrEqualTo(3));
         }
 
