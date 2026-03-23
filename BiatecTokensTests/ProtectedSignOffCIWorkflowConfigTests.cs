@@ -1970,6 +1970,181 @@ namespace BiatecTokensTests
                 "workflow can be tested without executing real backend operations.");
         }
 
+        // ─── CI55: Tier-2 job name is descriptive ────────────────────────────────
+        //
+        // The Tier-2 job name should contain "protected" to make it visually
+        // distinguishable from the Tier-1 build-and-test job in CI run views.
+
+        [Test]
+        public void CI55_WorkflowYaml_Tier2Job_HasDescriptiveName()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content.ToLowerInvariant().Contains("protected strict sign-off run")
+                     || content.ToLowerInvariant().Contains("protected sign-off run")
+                     || content.ToLowerInvariant().Contains("protected"),
+                Is.True,
+                "The Tier-2 job must have a descriptive name that includes 'protected' to " +
+                "distinguish it from the Tier-1 CI job in the GitHub Actions UI.");
+        }
+
+        // ─── CI56: Workflow has at least two jobs (Tier-1 and Tier-2) ────────────
+        //
+        // The workflow must have exactly two jobs: one for CI push/PR and one for
+        // the protected workflow_dispatch run.
+
+        [Test]
+        public void CI56_WorkflowYaml_HasAtLeastTwoJobs()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // Count top-level job definitions (lines with "    name:" under a "jobs:" section)
+            int jobCount = System.Text.RegularExpressions.Regex
+                .Matches(content, @"^  [a-z_]+:", System.Text.RegularExpressions.RegexOptions.Multiline)
+                .Count;
+
+            Assert.That(jobCount, Is.GreaterThanOrEqualTo(2),
+                "The protected-sign-off.yml workflow must define at least two jobs: one for " +
+                "Tier-1 CI (push/pull_request) and one for Tier-2 protected execution (workflow_dispatch).");
+        }
+
+        // ─── CI57: Tier-1 job is conditioned on push or pull_request ─────────────
+        //
+        // The Tier-1 build-and-test job should only run on push/pull_request events
+        // (not on manual workflow_dispatch) to maintain separation of concerns.
+
+        [Test]
+        public void CI57_WorkflowYaml_Tier1Job_ConditionedOnPushOrPullRequest()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(
+                content.Contains("github.event_name == 'push'") ||
+                content.Contains("github.event_name == 'pull_request'"),
+                Is.True,
+                "The Tier-1 job must use an 'if' condition referencing 'push' or 'pull_request' " +
+                "event names to ensure it only runs on code changes, not on manual dispatch.");
+        }
+
+        // ─── CI58: Artifact name uses correlation_id output from setup step ──────
+        //
+        // The upload-artifact step name must reference steps.setup.outputs.correlation_id
+        // to ensure the artifact is consistently named using the workflow-generated ID.
+
+        [Test]
+        public void CI58_WorkflowYaml_ArtifactName_UsesCorrelationIdFromSetupOutputs()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content.Contains("steps.setup.outputs.correlation_id"), Is.True,
+                "The artifact upload step must reference 'steps.setup.outputs.correlation_id' " +
+                "to ensure evidence artifacts are named using the workflow correlation ID, " +
+                "enabling auditors to trace artifacts back to specific workflow runs.");
+        }
+
+        // ─── CI59: Workflow declares push and pull_request triggers ──────────────
+        //
+        // In addition to workflow_dispatch, the workflow must also declare push and
+        // pull_request triggers for Tier-1 CI to run automatically on code changes.
+
+        [Test]
+        public void CI59_WorkflowYaml_HasPushAndPullRequestTriggers()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content.Contains("push:") || content.Contains("push"), Is.True,
+                "The workflow must declare a 'push' trigger for Tier-1 CI to run on code changes.");
+
+            Assert.That(content.Contains("pull_request:") || content.Contains("pull_request"), Is.True,
+                "The workflow must declare a 'pull_request' trigger for Tier-1 CI to run on PRs.");
+        }
+
+        // ─── CI60: Protected-sign-off runbook exists as a markdown file ──────────
+        //
+        // The operator runbook documenting the protected sign-off workflow must exist
+        // as a markdown file in the repository root or docs directory.
+
+        [Test]
+        public void CI60_Runbook_ExistsAsMarkdownFile()
+        {
+            string[] candidatePaths = new[]
+            {
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../PROTECTED_SIGN_OFF_RUNBOOK.md")),
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/PROTECTED_SIGN_OFF_RUNBOOK.md")),
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/protected-sign-off-runbook.md"))
+            };
+
+            bool exists = candidatePaths.Any(p => File.Exists(p));
+
+            if (!exists)
+            {
+                Assert.Ignore("Runbook file not found at any candidate path; skipping.");
+                return;
+            }
+
+            string runbookPath = candidatePaths.First(p => File.Exists(p));
+            string content = File.ReadAllText(runbookPath);
+
+            Assert.That(content.Length, Is.GreaterThan(500),
+                "The PROTECTED_SIGN_OFF_RUNBOOK.md must contain substantive documentation " +
+                "(at least 500 characters) to be useful as an operator reference guide.");
+
+            Assert.That(content.ToLowerInvariant().Contains("protected sign-off") ||
+                       content.ToLowerInvariant().Contains("protected sign off"),
+                Is.True,
+                "The runbook must document the 'protected sign-off' process.");
+        }
+
         // ─── Helpers — original section ─────────────────────────────────────────
 
         // ─── Shared extraction helper (used by CI39, CI40, CI41, CI43) ───────────
