@@ -651,13 +651,14 @@ namespace BiatecTokensTests
             Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
                 "DP24: evidence must return 200");
 
-            var result = await resp.Content.ReadFromJsonAsync<GetOnboardingEvidenceSummaryResponse>();
+            // Read body once as a string, then parse both as typed DTO and as raw JSON.
+            string json = await resp.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<GetOnboardingEvidenceSummaryResponse>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             Assert.That(result!.Success, Is.True, "DP24: Success must be true");
             Assert.That(result.Summary, Is.Not.Null, "DP24: Summary must be populated");
 
-            // IsProviderConfigured is a bool — verify it is explicitly present in JSON
-            string json = await _client.GetAsync($"{BaseUrl}/cases/{caseId}/evidence")
-                .ContinueWith(t => t.Result.Content.ReadAsStringAsync()).Unwrap();
+            // IsProviderConfigured is a bool — verify it is explicitly present in JSON.
             using JsonDocument doc = JsonDocument.Parse(json);
             JsonElement root = doc.RootElement;
 

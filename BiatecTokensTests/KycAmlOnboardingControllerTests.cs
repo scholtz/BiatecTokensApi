@@ -91,6 +91,8 @@ namespace BiatecTokensTests
         /// Uses <see cref="ClaimTypes.Name"/> because <c>GetActorId()</c> reads
         /// <c>User.Identity.Name</c>, which is backed by the Name claim type.
         /// </summary>
+        private const string TestAuthenticationType = "test";
+
         private static KycAmlOnboardingController BuildController(
             IKycAmlOnboardingCaseService svc,
             string actorId = "test-actor",
@@ -101,7 +103,7 @@ namespace BiatecTokensTests
 
             // ClaimTypes.Name drives User.Identity.Name
             var identity = new ClaimsIdentity(
-                new[] { new Claim(ClaimTypes.Name, actorId) }, "test");
+                new[] { new Claim(ClaimTypes.Name, actorId) }, TestAuthenticationType);
             var httpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
             if (correlationIdHeader != null)
                 httpContext.Request.Headers["X-Correlation-Id"] = correlationIdHeader;
