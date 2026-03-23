@@ -154,6 +154,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ProtectedSignOffEvidencePersistence types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence")
                         return $"ProtectedSignOffEvidencePersistence{type.Name}";
+                    // Use namespace-qualified names for all KycAmlOnboarding types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.KycAmlOnboarding")
+                        return $"KycAmlOnboarding{type.Name}";
                     return type.Name;
                 });
                 
@@ -538,6 +541,13 @@ namespace BiatecTokensApi
                 new LiveProviderVerificationJourneyService(
                     sp.GetRequiredService<ILogger<LiveProviderVerificationJourneyService>>(),
                     sp.GetService<IKycAmlSignOffEvidenceService>(),
+                    sp.GetService<IWebhookService>()));
+
+            // Register KYC/AML onboarding case lifecycle service
+            builder.Services.AddSingleton<IKycAmlOnboardingCaseService>(sp =>
+                new KycAmlOnboardingCaseService(
+                    sp.GetRequiredService<ILogger<KycAmlOnboardingCaseService>>(),
+                    sp.GetService<ILiveProviderVerificationJourneyService>(),
                     sp.GetService<IWebhookService>()));
 
             // Register protected sign-off evidence persistence service (Issue: evidence persistence and approval-webhook parity)
