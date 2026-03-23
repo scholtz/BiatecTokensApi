@@ -115,7 +115,7 @@ jobs:
           if [ "$COUNT" -eq 0 ]; then
             # No code changes or no matching tests — run a minimal smoke-test set
             echo "ℹ️  No matching test classes — running smoke tests only"
-            echo "TEST_FILTER=(FullyQualifiedName~HealthCheck | FullyQualifiedName~SwaggerSpec | FullyQualifiedName~ApiIntegration) & FullyQualifiedName!~RealEndpoint" >> "$GITHUB_OUTPUT"
+            echo "TEST_FILTER=(FullyQualifiedName~HealthCheck | FullyQualifiedName~SwaggerSpec | FullyQualifiedName~ApiIntegration | FullyQualifiedName~ProtectedSignOff) & FullyQualifiedName!~RealEndpoint" >> "$GITHUB_OUTPUT"
             echo "SELECTIVE=true" >> "$GITHUB_OUTPUT"
           elif [ "$COUNT" -gt 60 ]; then
             # Too many matches — likely a broad refactor; run everything
