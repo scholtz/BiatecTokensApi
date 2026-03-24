@@ -335,7 +335,7 @@ namespace BiatecTokensTests
                 Task.FromResult(new GetSignOffReleaseReadinessResponse
                 {
                     Success = false,
-                    Status = SignOffReleaseReadinessStatus.Stale,
+                    Status = SignOffReleaseReadinessStatus.DegradedStaleEvidence,
                     EvidenceFreshness = SignOffEvidenceFreshnessStatus.Stale
                 }) };
             var ctrl = BuildController(stub);
