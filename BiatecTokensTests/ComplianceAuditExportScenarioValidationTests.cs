@@ -92,7 +92,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "sv07-subj" });
-            Assert.That(r.Package!.BlockerReviewSection, Is.Not.Null);
+            Assert.That(r.Package!.BlockerReview, Is.Not.Null);
         }
 
         [Test] // SV08
@@ -101,7 +101,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var r = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "sv08-subj" });
-            Assert.That(r.Package!.ApprovalHistorySection, Is.Not.Null);
+            Assert.That(r.Package!.ApprovalHistory, Is.Not.Null);
         }
 
         [Test] // SV09
@@ -110,7 +110,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var r = await svc.AssembleReleaseReadinessExportAsync(
                 new ReleaseReadinessExportRequest { SubjectId = "sv09-subj" });
-            Assert.That(r.Package!.ReleaseReadinessSection, Is.Not.Null);
+            Assert.That(r.Package!.ReleaseReadiness, Is.Not.Null);
         }
 
         [Test] // SV10
@@ -119,7 +119,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var r = await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = "sv10-subj" });
-            Assert.That(r.Package!.OnboardingCaseSection, Is.Not.Null);
+            Assert.That(r.Package!.OnboardingCase, Is.Not.Null);
         }
 
         // ═════════════════════════════════════════════════════════════════════
