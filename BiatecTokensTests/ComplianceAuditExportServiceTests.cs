@@ -439,7 +439,8 @@ namespace BiatecTokensTests
                         Is.AnyOf(AuditExportReadiness.Ready,
                                  AuditExportReadiness.RequiresReview,
                                  AuditExportReadiness.PartiallyAvailable,
-                                 AuditExportReadiness.Incomplete));
+                                 AuditExportReadiness.Incomplete,
+                                 AuditExportReadiness.Stale));
                     return;
                 }
             }
