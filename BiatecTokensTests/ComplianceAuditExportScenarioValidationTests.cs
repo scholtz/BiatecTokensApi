@@ -53,7 +53,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv03-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv03-subj" });
             Assert.That(r.Success, Is.True);
             Assert.That(r.Package!.Scenario, Is.EqualTo(AuditScenario.ComplianceBlockerReview));
         }
@@ -91,7 +91,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv07-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv07-subj" });
             Assert.That(r.Package!.BlockerReviewSection, Is.Not.Null);
         }
 
@@ -141,7 +141,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv12-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv12-subj" });
             foreach (var b in r.Package!.Blockers)
                 Assert.That(b.Title, Is.Not.Null.And.Not.Empty, $"Blocker missing Title: {b.BlockerId}");
         }
@@ -151,7 +151,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv13-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv13-subj" });
             foreach (var b in r.Package!.Blockers)
                 Assert.That(b.Category, Is.Not.Null.And.Not.Empty, $"Blocker missing Category: {b.BlockerId}");
         }
@@ -172,7 +172,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv15-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv15-subj" });
             foreach (var b in r.Package!.Blockers)
                 Assert.That(b.RemediationHint, Is.Not.Null.And.Not.Empty, $"Blocker missing RemediationHint: {b.BlockerId}");
         }
@@ -227,7 +227,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv19-subj", IncludeResolvedBlockers = false });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv19-subj", IncludeResolvedBlockers = false });
             foreach (var b in r.Package!.Blockers)
                 Assert.That(b.IsResolved, Is.False, $"Unexpected resolved blocker {b.BlockerId} in unresolved-only export");
         }
@@ -237,9 +237,9 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var unresolved = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv20-subj", IncludeResolvedBlockers = false });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv20-subj", IncludeResolvedBlockers = false });
             var all = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest
+                new ComplianceBlockerReviewExportRequest
                 {
                     SubjectId = "sv20-subj",
                     IncludeResolvedBlockers = true,
@@ -259,7 +259,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var r1 = await svc.AssembleReleaseReadinessExportAsync(new ReleaseReadinessExportRequest { SubjectId = "sv21a" });
             var r2 = await svc.AssembleOnboardingCaseReviewExportAsync(new OnboardingCaseReviewExportRequest { SubjectId = "sv21b" });
-            var r3 = await svc.AssembleBlockerReviewExportAsync(new BlockerReviewExportRequest { SubjectId = "sv21c" });
+            var r3 = await svc.AssembleBlockerReviewExportAsync(new ComplianceBlockerReviewExportRequest { SubjectId = "sv21c" });
             var r4 = await svc.AssembleApprovalHistoryExportAsync(new ApprovalHistoryExportRequest { SubjectId = "sv21d" });
             Assert.Multiple(() =>
             {
@@ -298,7 +298,7 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv24-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv24-subj" });
             var pkg = r.Package!;
             Assert.That(pkg.Summary!.UnresolvedBlockerCount,
                 Is.EqualTo(pkg.Blockers.Count(b => !b.IsResolved)));
@@ -347,7 +347,7 @@ namespace BiatecTokensTests
             var before = DateTime.UtcNow.AddSeconds(-5);
             var svc = CreateService();
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv29-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv29-subj" });
             var after = DateTime.UtcNow.AddSeconds(5);
             Assert.That(r.Package!.AssembledAt, Is.InRange(before, after));
         }
@@ -424,7 +424,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var id = "corr-sv36-blocker";
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv36-subj", CorrelationId = id });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv36-subj", CorrelationId = id });
             Assert.That(r.Package!.CorrelationId, Is.EqualTo(id));
         }
 
@@ -485,7 +485,7 @@ namespace BiatecTokensTests
             var r2 = await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = "sv41-b", AudienceProfile = profile });
             var r3 = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv41-c", AudienceProfile = profile });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv41-c", AudienceProfile = profile });
             var r4 = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "sv41-d", AudienceProfile = profile });
             Assert.Multiple(() =>
@@ -507,7 +507,7 @@ namespace BiatecTokensTests
             var r2 = await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = "sv42-b", AudienceProfile = profile });
             var r3 = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv42-c", AudienceProfile = profile });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv42-c", AudienceProfile = profile });
             var r4 = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "sv42-d", AudienceProfile = profile });
             Assert.Multiple(() =>
@@ -529,7 +529,7 @@ namespace BiatecTokensTests
             var r2 = await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = "sv43-b", AudienceProfile = profile });
             var r3 = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv43-c", AudienceProfile = profile });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv43-c", AudienceProfile = profile });
             var r4 = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "sv43-d", AudienceProfile = profile });
             Assert.Multiple(() =>
@@ -551,7 +551,7 @@ namespace BiatecTokensTests
             var r2 = await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = "sv44-b", AudienceProfile = profile });
             var r3 = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv44-c", AudienceProfile = profile });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv44-c", AudienceProfile = profile });
             var r4 = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "sv44-d", AudienceProfile = profile });
             Assert.Multiple(() =>
@@ -598,7 +598,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var profile = RegulatoryAudienceProfile.ExternalAuditor;
             var r = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv47-subj", AudienceProfile = profile });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv47-subj", AudienceProfile = profile });
             Assert.That(r.Package!.AudienceProfile, Is.EqualTo(profile));
         }
 
@@ -696,9 +696,9 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var r1 = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv53-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv53-subj" });
             var r2 = await svc.AssembleBlockerReviewExportAsync(
-                new BlockerReviewExportRequest { SubjectId = "sv53-subj", ForceRegenerate = false });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv53-subj", ForceRegenerate = false });
             Assert.That(r1.Package!.ExportId, Is.EqualTo(r2.Package!.ExportId));
         }
 
@@ -710,7 +710,7 @@ namespace BiatecTokensTests
                 new ApprovalHistoryExportRequest { SubjectId = "sv54-subj" });
             var r2 = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "sv54-subj", ForceRegenerate = true });
-            var list = await svc.ListExportsAsync(new ListExportsRequest { SubjectId = "sv54-subj" });
+            var list = await svc.ListExportsAsync("sv54-subj");
             Assert.That(list.Exports.Any(e => e.ExportId == r2.Package!.ExportId), Is.True);
         }
 
