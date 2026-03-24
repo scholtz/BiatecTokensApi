@@ -193,6 +193,9 @@ namespace BiatecTokensApi.Models.ComplianceAuditExport
         /// <summary>Ordered remediation hints to resolve this blocker.</summary>
         public List<string> RemediationHints { get; set; } = new();
 
+        /// <summary>First remediation hint, or null if none are available. Convenience accessor for <see cref="RemediationHints"/>.</summary>
+        public string? RemediationHint => RemediationHints.Count > 0 ? RemediationHints[0] : null;
+
         /// <summary>Suggested owner team (e.g., "compliance", "operations", "legal").</summary>
         public string? OwnerTeam { get; set; }
 
@@ -572,9 +575,77 @@ namespace BiatecTokensApi.Models.ComplianceAuditExport
         /// Populated when <see cref="Scenario"/> is <see cref="AuditScenario.ApprovalHistoryExport"/>.
         /// </summary>
         public AuditApprovalHistorySection? ApprovalHistory { get; set; }
+
+        /// <summary>
+        /// Computed summary of key package metrics for quick-access views and list displays.
+        /// Always non-null; computed from package state at access time.
+        /// </summary>
+        public ComplianceAuditExportPackageSummary Summary => new()
+        {
+            ReadinessText = ReadinessHeadline,
+            ProvenanceRecordCount = ProvenanceRecords.Count,
+            UnresolvedBlockerCount = Blockers.Count(b => !b.IsResolved),
+            SchemaVersion = SchemaVersion,
+            PolicyVersion = PolicyVersion,
+            ExportId = ExportId,
+            SubjectId = SubjectId,
+            AssembledAt = AssembledAt,
+            ExpiresAt = ExpiresAt,
+            AudienceProfile = AudienceProfile,
+            Readiness = Readiness,
+            IsRegulatorReady = IsRegulatorReady,
+            IsReleaseGrade = IsReleaseGrade
+        };
     }
 
     // ── Request models ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Computed summary of key <see cref="ComplianceAuditExportPackage"/> metrics for quick-access
+    /// views and list displays. Always returned as a computed property; never null.
+    /// </summary>
+    public class ComplianceAuditExportPackageSummary
+    {
+        /// <summary>Single-sentence headline explaining the readiness determination.</summary>
+        public string ReadinessText { get; set; } = string.Empty;
+
+        /// <summary>Number of provenance records in the package.</summary>
+        public int ProvenanceRecordCount { get; set; }
+
+        /// <summary>Number of unresolved blockers in the package.</summary>
+        public int UnresolvedBlockerCount { get; set; }
+
+        /// <summary>Schema version of the package format.</summary>
+        public string SchemaVersion { get; set; } = string.Empty;
+
+        /// <summary>Policy version applied during readiness evaluation.</summary>
+        public string PolicyVersion { get; set; } = string.Empty;
+
+        /// <summary>Stable export package identifier.</summary>
+        public string ExportId { get; set; } = string.Empty;
+
+        /// <summary>Subject identifier for the package.</summary>
+        public string SubjectId { get; set; } = string.Empty;
+
+        /// <summary>UTC timestamp when the package was assembled.</summary>
+        public DateTime AssembledAt { get; set; }
+
+        /// <summary>UTC expiry timestamp of the package, if applicable.</summary>
+        public DateTime? ExpiresAt { get; set; }
+
+        /// <summary>Audience profile applied during assembly.</summary>
+        public RegulatoryAudienceProfile AudienceProfile { get; set; }
+
+        /// <summary>Readiness determination for the package.</summary>
+        public AuditExportReadiness Readiness { get; set; }
+
+        /// <summary>Whether the package is regulator-ready.</summary>
+        public bool IsRegulatorReady { get; set; }
+
+        /// <summary>Whether the package is release-grade.</summary>
+        public bool IsReleaseGrade { get; set; }
+    }
+
 
     /// <summary>Base request for assembling a compliance audit export package.</summary>
     public class ComplianceAuditExportBaseRequest
@@ -657,6 +728,9 @@ namespace BiatecTokensApi.Models.ComplianceAuditExport
 
         /// <summary>Whether this result was served from an idempotency cache (not regenerated).</summary>
         public bool IsIdempotentReplay { get; set; }
+
+        /// <summary>Correlation ID for end-to-end request tracing. Propagated from the request or auto-generated.</summary>
+        public string? CorrelationId => Package?.CorrelationId;
 
         /// <summary>Error code when <see cref="Success"/> is false.</summary>
         public string? ErrorCode { get; set; }
