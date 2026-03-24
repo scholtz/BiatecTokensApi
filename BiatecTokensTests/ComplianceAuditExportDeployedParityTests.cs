@@ -606,11 +606,10 @@ namespace BiatecTokensTests
                     new ReleaseReadinessExportRequest { SubjectId = "cax-idem-026", IdempotencyKey = key });
                 var r2 = await _client.PostAsJsonAsync("/api/v1/compliance-audit-export/release-readiness",
                     new ReleaseReadinessExportRequest { SubjectId = "cax-idem-026", IdempotencyKey = key });
-                var pkg1 = (await r1.Content.ReadFromJsonAsync<ComplianceAuditExportResponse>())!.Package!;
-                var pkg2 = (await r2.Content.ReadFromJsonAsync<ComplianceAuditExportResponse>())!.Package!;
-                Assert.That(pkg2.ExportId, Is.EqualTo(pkg1.ExportId));
-                Assert.That((await r2.Content.ReadFromJsonAsync<ComplianceAuditExportResponse>())!.IsIdempotentReplay
-                            || pkg2.ExportId == pkg1.ExportId, Is.True);
+                var body1 = (await r1.Content.ReadFromJsonAsync<ComplianceAuditExportResponse>())!;
+                var body2 = (await r2.Content.ReadFromJsonAsync<ComplianceAuditExportResponse>())!;
+                Assert.That(body2.Package!.ExportId, Is.EqualTo(body1.Package!.ExportId));
+                Assert.That(body2.IsIdempotentReplay || body2.Package.ExportId == body1.Package.ExportId, Is.True);
             }
             finally { SetAuth(null); }
         }
