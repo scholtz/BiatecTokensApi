@@ -377,7 +377,7 @@ namespace BiatecTokensTests
         public async Task CAV19_AudienceProfile_Propagated_AllScenarios()
         {
             var svc = CreateService();
-            var profile = RegulatoryAudienceProfile.RegulatorySubmission;
+            var profile = RegulatoryAudienceProfile.RegulatorReview;
             var rr = (await svc.AssembleReleaseReadinessExportAsync(
                 new ReleaseReadinessExportRequest { SubjectId = "cav19", AudienceProfile = profile })).Package!;
             var oc = (await svc.AssembleOnboardingCaseReviewExportAsync(
@@ -513,9 +513,9 @@ namespace BiatecTokensTests
                 new ReleaseReadinessExportRequest { SubjectId = "cav25" });
             foreach (var prov in result.Package!.ProvenanceRecords)
             {
-                Assert.That(prov.Id, Is.Not.Null.And.Not.Empty, "ProvenanceRecord.Id must be set.");
+                Assert.That(prov.ProvenanceId, Is.Not.Null.And.Not.Empty, "ProvenanceRecord.ProvenanceId must be set.");
                 Assert.That(prov.SourceSystem, Is.Not.Null.And.Not.Empty, "ProvenanceRecord.SourceSystem must be set.");
-                Assert.That(prov.SourceLabel, Is.Not.Null.And.Not.Empty, "ProvenanceRecord.SourceLabel must be set.");
+                Assert.That(prov.EvidenceCategory, Is.Not.Null.And.Not.Empty, "ProvenanceRecord.EvidenceCategory must be set.");
             }
         }
 
