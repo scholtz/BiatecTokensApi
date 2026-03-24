@@ -157,6 +157,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all KycAmlOnboarding types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.KycAmlOnboarding")
                         return $"KycAmlOnboarding{type.Name}";
+                    // Use namespace-qualified names for all ComplianceAuditExport types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.ComplianceAuditExport")
+                        return $"ComplianceAuditExport{type.Name}";
                     return type.Name;
                 });
                 
@@ -507,6 +510,11 @@ namespace BiatecTokensApi
             // Register Regulatory Evidence Package service for regulator-facing evidence packages,
             // package assembly, readiness evaluation, and audience-aware manifest generation
             builder.Services.AddSingleton<IRegulatoryEvidencePackageService, RegulatoryEvidencePackageService>();
+
+            // Register Compliance Audit Export service for scenario-specific audit export packages:
+            // release-readiness sign-off, onboarding case review, compliance blocker review,
+            // and approval-history export
+            builder.Services.AddSingleton<IComplianceAuditExportService, ComplianceAuditExportService>();
 
             // Register Scheduled Reporting service for reporting templates, report runs,
             // schedule definitions, evidence freshness evaluation, and delivery tracking
