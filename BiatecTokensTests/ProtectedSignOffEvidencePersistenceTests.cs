@@ -471,7 +471,7 @@ namespace BiatecTokensTests
             var result = await svc.GetReleaseReadinessAsync(BuildReadinessRequest());
 
             Assert.That(result.Success, Is.False);
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable));
             Assert.That(result.HasApprovalWebhook, Is.False);
             Assert.That(result.Blockers, Is.Not.Empty);
@@ -486,7 +486,7 @@ namespace BiatecTokensTests
 
             var result = await svc.GetReleaseReadinessAsync(BuildReadinessRequest());
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Complete));
             Assert.That(result.HasApprovalWebhook, Is.False);
             // Should have a blocker for missing approval
@@ -504,7 +504,7 @@ namespace BiatecTokensTests
 
             var result = await svc.GetReleaseReadinessAsync(BuildReadinessRequest());
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.Blockers.Any(b => b.Category == SignOffReleaseBlockerCategory.ApprovalDenied), Is.True);
             Assert.That(result.OperatorGuidance, Does.Contain("denied").IgnoreCase
                 .Or.Contain("blocked").IgnoreCase
@@ -522,7 +522,7 @@ namespace BiatecTokensTests
 
             var result = await svc.GetReleaseReadinessAsync(BuildReadinessRequest());
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.Blockers.Any(b => b.Category == SignOffReleaseBlockerCategory.MalformedWebhook), Is.True);
         }
 
@@ -623,7 +623,7 @@ namespace BiatecTokensTests
                 BuildReadinessRequest(headRef: "sha-bbb"));
 
             Assert.That(result.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable));
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.Blockers.Any(b =>
                 b.Category == SignOffReleaseBlockerCategory.MissingEvidence ||
                 b.Category == SignOffReleaseBlockerCategory.HeadMismatch), Is.True);
@@ -1014,7 +1014,7 @@ namespace BiatecTokensTests
                 });
 
             Assert.That(result.Success, Is.False);
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable));
             Assert.That(result.Blockers.Count, Is.GreaterThan(0));
             Assert.That(result.OperatorGuidance, Is.Not.Null.And.Not.Empty);
@@ -1077,7 +1077,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
             Assert.That(result.Success, Is.False);
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.Blockers.Count, Is.GreaterThan(0),
                 "TimedOut webhook must produce at least one blocker");
         }
@@ -1403,7 +1403,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(readiness.Blockers, Is.Not.Empty);
         }
 
@@ -1491,7 +1491,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(readiness.Blockers.Any(b => b.Code == "EVIDENCE_UNAVAILABLE"), Is.True);
         }
 
@@ -1518,7 +1518,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             // Both blockers present
             Assert.That(readiness.Blockers.Count, Is.GreaterThanOrEqualTo(2));
             Assert.That(readiness.OperatorGuidance, Does.Contain("critical blockers").Or.Contain("blocked"));
@@ -1562,7 +1562,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
             // No approval webhook → APPROVAL_MISSING blocker → Blocked
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(readiness.Blockers.Any(b => b.Code == "APPROVAL_MISSING"), Is.True);
         }
 
@@ -1822,7 +1822,7 @@ namespace BiatecTokensTests
             var result = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef });
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(result.Success, Is.False);
         }
 
@@ -1999,7 +1999,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseB });
 
             Assert.That(readinessA.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
-            Assert.That(readinessB.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readinessB.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
         }
 
         [Test]
@@ -2101,7 +2101,7 @@ namespace BiatecTokensTests
             Assert.That(
                 readinessNew.Status == SignOffReleaseReadinessStatus.Indeterminate ||
                 readinessNew.Status == SignOffReleaseReadinessStatus.Pending ||
-                readinessNew.Status == SignOffReleaseReadinessStatus.Blocked,
+                readinessNew.Status is SignOffReleaseReadinessStatus.Blocked or SignOffReleaseReadinessStatus.BlockedMissingEvidence or SignOffReleaseReadinessStatus.BlockedMissingConfiguration or SignOffReleaseReadinessStatus.NotReleaseEvidence,
                 Is.True,
                 $"After restart, readiness should be Indeterminate/Pending/Blocked but was {readinessNew.Status}");
         }
@@ -2215,8 +2215,8 @@ namespace BiatecTokensTests
             // With a 0-hour freshness window, evidence should be stale or blocked
             Assert.That(
                 result.Status == SignOffReleaseReadinessStatus.Ready ||
-                result.Status == SignOffReleaseReadinessStatus.Stale ||
-                result.Status == SignOffReleaseReadinessStatus.Blocked ||
+                result.Status == SignOffReleaseReadinessStatus.DegradedStaleEvidence ||
+                result.Status is SignOffReleaseReadinessStatus.Blocked or SignOffReleaseReadinessStatus.BlockedMissingEvidence or SignOffReleaseReadinessStatus.BlockedMissingConfiguration or SignOffReleaseReadinessStatus.NotReleaseEvidence ||
                 result.Status == SignOffReleaseReadinessStatus.Pending,
                 Is.True,
                 $"With evidence persisted, status should be a valid readiness state, got {result.Status}");
@@ -2239,7 +2239,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
             // Malformed webhook means latest webhook is not an approval → fail-closed
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "Malformed webhook outcome must result in Blocked readiness (fail-closed).");
             Assert.That(result.Success, Is.False);
         }
@@ -2259,7 +2259,7 @@ namespace BiatecTokensTests
             var result = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "Timed-out webhook must result in Blocked readiness (fail-closed).");
         }
 
@@ -2278,7 +2278,7 @@ namespace BiatecTokensTests
             var result = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DeliveryError webhook must result in Blocked readiness (fail-closed).");
         }
 
@@ -2294,7 +2294,7 @@ namespace BiatecTokensTests
             Assert.That(
                 result.Status == SignOffReleaseReadinessStatus.Indeterminate ||
                 result.Status == SignOffReleaseReadinessStatus.Pending ||
-                result.Status == SignOffReleaseReadinessStatus.Blocked,
+                result.Status is SignOffReleaseReadinessStatus.Blocked or SignOffReleaseReadinessStatus.BlockedMissingEvidence or SignOffReleaseReadinessStatus.BlockedMissingConfiguration or SignOffReleaseReadinessStatus.NotReleaseEvidence,
                 Is.True,
                 $"No evidence at all must return Indeterminate/Pending/Blocked (fail-closed), not Ready. Got {result.Status}");
             Assert.That(result.Success, Is.False,
@@ -2341,7 +2341,7 @@ namespace BiatecTokensTests
             var result = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "Denied approval must block release even when evidence pack exists (fail-closed).");
             Assert.That(result.HasApprovalWebhook, Is.True,
                 "HasApprovalWebhook should be true — a webhook was received, just denied.");

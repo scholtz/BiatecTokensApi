@@ -1801,3 +1801,55 @@ When any change touches:
 - `GetSignOffReleaseReadinessResponse.Success = (overallStatus == Ready)` → `Success=false` for Blocked/Pending/Stale (this is correct behavior, NOT a bug)
 - Service methods `PersistSignOffEvidenceAsync(request, actorId)` and `RecordApprovalWebhookAsync(request, actorId)` require the `actorId` string as a second parameter
 - History endpoints use HTTP GET (not POST) — use service directly (`svc.GetEvidencePackHistoryAsync(...)`) in unit/integration tests, not `_client.PostAsJsonAsync`
+
+**Lesson Learned (2026-03-24 - Issue compliance-release-evidence, PR implement-compliance-release-evidence)**: Product owner rejected initial submission as "not finished in proper quality" because of multiple bugs in the initial implementation. Root causes:
+
+1. ❌ Status derivation bug: `criticalBlockers.All(b => b.Category == MissingEvidence)` failed when both `MissingEvidence` AND `MissingApproval` blockers were co-present (no-evidence scenarios always add both). This caused `BlockedMissingEvidence` to never be returned.
+2. ❌ `NotReleaseEvidence` over-firing: Was triggering for `pack + denied/malformed/timed-out webhook` scenarios that semantically should remain `Blocked`. Should only trigger when `!hasApprovalWebhook` (no webhooks received at all).
+3. ❌ `ClassifyFreshness` used `DateTimeOffset.UtcNow` instead of injected `TimeProvider`, causing fake-time tests to see perpetually stale/expired items.
+4. ❌ CRE80 test assertion `Is.Not.EqualTo(default(SignOffReleaseReadinessStatus))` always fails in Ready scenario because `Ready = 0 = default(enum)`.
+5. ❌ Controller test stub returned legacy `Stale` value but assertion checked for `DegradedStaleEvidence`.
+6. ❌ Pre-existing test assertions used `Is.EqualTo(Blocked)` and `Is.EqualTo(Stale)` which broke when new specific states were introduced.
+
+**Corrective actions taken**:
+1. ✅ Reordered status derivation: check `freshnessStatus == Unavailable` directly (not via blocker category filter) → correctly returns `BlockedMissingEvidence`
+2. ✅ `NotReleaseEvidence` only when `!hasApprovalWebhook`; denied/malformed/timed-out → `Blocked`
+3. ✅ `ClassifyFreshness` uses injected `TimeProvider.GetUtcNow()` via `now` variable
+4. ✅ Fixed CRE80 to use `Is.EqualTo(SignOffReleaseReadinessStatus.Ready)`
+5. ✅ Updated controller test stub to return `DegradedStaleEvidence` to match assertions
+6. ✅ Updated all pre-existing ProtectedSignOff test assertions: `Stale` → `DegradedStaleEvidence`, `EqualTo(Blocked)` → `AnyOf(Blocked, BlockedMissingEvidence, BlockedMissingConfiguration, NotReleaseEvidence)`
+
+**MANDATORY: Status derivation must use direct field checks, not blocker category filters**:
+```csharp
+// ❌ WRONG: Fails when multiple blocker categories are co-present
+if (criticalBlockers.All(b => b.Category == SignOffReleaseBlockerCategory.MissingEvidence))
+    return BlockedMissingEvidence;
+
+// ✅ CORRECT: Check the source field directly
+if (freshnessStatus == SignOffEvidenceFreshnessStatus.Unavailable)
+    return BlockedMissingEvidence;
+```
+
+**MANDATORY: When adding new enum values that replace existing ones in test assertions**:
+- Run ALL existing tests for the affected service BEFORE creating new tests
+- Identify every assertion using `Is.EqualTo(OldValue)` that may now get `NewValue` instead
+- Update to `Is.AnyOf(OldValue, NewValue)` for backward compat, OR update to exact new value if the test scenario is deterministic
+- Check controller test stubs: if a stub returns a hardcoded enum value, verify it matches the assertion value
+
+**MANDATORY: Never use `Is.Not.EqualTo(default(EnumType))` in tests where `default == 0 == ExpectedValue`**:
+```csharp
+// ❌ WRONG: Ready = 0 = default, so this assertion always fails when status IS Ready
+Assert.That(response.Status, Is.Not.EqualTo(default(SignOffReleaseReadinessStatus)));
+
+// ✅ CORRECT: Assert the specific expected value
+Assert.That(response.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
+```
+
+**MANDATORY: Always use injected time providers, never static `DateTimeOffset.UtcNow` in services with fake-time tests**:
+```csharp
+// ❌ WRONG: Diverges from injected fake time in tests
+var now = DateTimeOffset.UtcNow;
+
+// ✅ CORRECT: Uses injected TimeProvider
+var now = _timeProvider.GetUtcNow();
+```

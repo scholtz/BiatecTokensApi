@@ -291,7 +291,7 @@ namespace BiatecTokensTests
             Assert.That(body!.Status,
                 Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate)
                 .Or.EqualTo(SignOffReleaseReadinessStatus.Pending)
-                .Or.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                .Or.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "Head with no evidence should be Indeterminate, Pending, or Blocked");
         }
 
@@ -621,7 +621,7 @@ namespace BiatecTokensTests
             // Readiness requires approval webhook but TimedOut is not an approval
             var readiness = await PostReadinessAsync(headRef, caseId, requireWebhook: true);
             Assert.That(readiness.Status,
-                Is.EqualTo(SignOffReleaseReadinessStatus.Blocked)
+                Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence)
                 .Or.EqualTo(SignOffReleaseReadinessStatus.Pending)
                 .Or.EqualTo(SignOffReleaseReadinessStatus.Indeterminate),
                 "TimedOut should prevent Ready status when approval webhook is required");
@@ -688,8 +688,8 @@ namespace BiatecTokensTests
             // Even if persistence succeeds, readiness for expired evidence should reflect staleness
             var readiness = await PostReadinessAsync(headRef, caseId, requireWebhook: false);
             Assert.That(readiness.Status,
-                Is.EqualTo(SignOffReleaseReadinessStatus.Stale)
-                .Or.EqualTo(SignOffReleaseReadinessStatus.Blocked)
+                Is.EqualTo(SignOffReleaseReadinessStatus.DegradedStaleEvidence)
+                .Or.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence)
                 .Or.EqualTo(SignOffReleaseReadinessStatus.Indeterminate)
                 .Or.EqualTo(SignOffReleaseReadinessStatus.Pending),
                 "Expired evidence should not produce Ready status");

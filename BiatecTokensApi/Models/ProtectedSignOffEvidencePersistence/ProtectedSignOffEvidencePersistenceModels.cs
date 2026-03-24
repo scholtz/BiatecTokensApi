@@ -110,7 +110,42 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
         /// The system cannot determine readiness because required backend services
         /// or evidence records are unavailable.
         /// </summary>
-        Indeterminate
+        Indeterminate,
+
+        /// <summary>
+        /// Release is blocked because required protected-environment configuration
+        /// or credentials are missing. The workflow infrastructure cannot verify
+        /// sign-off readiness without valid configuration.
+        /// </summary>
+        BlockedMissingConfiguration,
+
+        /// <summary>
+        /// Release is blocked because the compliance or KYC/AML provider is
+        /// unavailable or unreachable. Evidence cannot be produced until the
+        /// provider connection is restored.
+        /// </summary>
+        BlockedProviderUnavailable,
+
+        /// <summary>
+        /// Release is blocked because no evidence pack exists for the current
+        /// head ref. A protected sign-off run must be executed to produce evidence.
+        /// </summary>
+        BlockedMissingEvidence,
+
+        /// <summary>
+        /// Evidence pack exists but is stale (past its freshness window) or was
+        /// produced for a different head. The workflow must be re-executed to
+        /// produce fresh evidence before release can proceed.
+        /// </summary>
+        DegradedStaleEvidence,
+
+        /// <summary>
+        /// An evidence pack was recorded but does not qualify as release evidence
+        /// because protected configuration, live-provider credentials, or required
+        /// proof artifacts were missing when it was captured. The workflow ran but
+        /// produced a non-release-evidence outcome.
+        /// </summary>
+        NotReleaseEvidence
     }
 
     /// <summary>
@@ -258,6 +293,17 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
         /// not expired, and all required checks passed.
         /// </summary>
         public bool IsReleaseGrade { get; set; }
+
+        /// <summary>
+        /// True when this evidence pack constitutes genuine release evidence — i.e.
+        /// it was produced in a protected environment with live or sandbox provider
+        /// credentials, all required proof artifacts are present, and no configuration
+        /// blockers were encountered. Equivalent to <see cref="IsReleaseGrade"/>.
+        ///
+        /// This field provides an explicit <c>is_release_evidence</c> contract for
+        /// frontend release-evidence center and product-owner tooling.
+        /// </summary>
+        public bool IsReleaseEvidence => IsReleaseGrade;
 
         /// <summary>
         /// The approval webhook record associated with this evidence pack, if received.
@@ -477,6 +523,21 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
 
         /// <summary>The head ref that was evaluated.</summary>
         public string HeadRef { get; set; } = string.Empty;
+
+        /// <summary>
+        /// True when the latest evidence pack for this head qualifies as genuine
+        /// release evidence — produced in a protected environment with live or
+        /// sandbox provider credentials, all required proof artifacts present,
+        /// and no configuration blockers encountered.
+        ///
+        /// This field is false when no evidence exists, when evidence is non-release-grade
+        /// (simulated or unconfigured), or when any blocker prevents release.
+        ///
+        /// Consumers MUST NOT infer readiness solely from this field; use
+        /// <see cref="Status"/> and <see cref="Blockers"/> for the authoritative
+        /// release decision.
+        /// </summary>
+        public bool IsReleaseEvidence { get; set; }
 
         /// <summary>
         /// Evidence freshness status for the evaluated head ref.

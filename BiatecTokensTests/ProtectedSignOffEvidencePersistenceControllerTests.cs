@@ -335,7 +335,7 @@ namespace BiatecTokensTests
                 Task.FromResult(new GetSignOffReleaseReadinessResponse
                 {
                     Success = false,
-                    Status = SignOffReleaseReadinessStatus.Stale,
+                    Status = SignOffReleaseReadinessStatus.DegradedStaleEvidence,
                     EvidenceFreshness = SignOffEvidenceFreshnessStatus.Stale
                 }) };
             var ctrl = BuildController(stub);
@@ -346,7 +346,7 @@ namespace BiatecTokensTests
             Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
             var bad = result as BadRequestObjectResult;
             var response = bad!.Value as GetSignOffReleaseReadinessResponse;
-            Assert.That(response!.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Stale));
+            Assert.That(response!.Status, Is.EqualTo(SignOffReleaseReadinessStatus.DegradedStaleEvidence));
             Assert.That(response.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Stale));
         }
 
