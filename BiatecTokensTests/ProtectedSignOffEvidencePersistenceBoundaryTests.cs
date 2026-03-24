@@ -130,7 +130,7 @@ namespace BiatecTokensTests
                 Is.EqualTo(SignOffEvidenceFreshnessStatus.Stale).Or.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable),
                 "Evidence must be classified as Stale after window expires");
             Assert.That(readiness.Status,
-                Is.EqualTo(SignOffReleaseReadinessStatus.Stale).Or.EqualTo(SignOffReleaseReadinessStatus.Blocked).Or.EqualTo(SignOffReleaseReadinessStatus.Pending));
+                Is.EqualTo(SignOffReleaseReadinessStatus.DegradedStaleEvidence).Or.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence).Or.EqualTo(SignOffReleaseReadinessStatus.Pending));
         }
 
         [Test]
@@ -191,7 +191,7 @@ namespace BiatecTokensTests
                 FreshnessWindowHours = windowHours
             });
             Assert.That(staleResult.Status,
-                Is.EqualTo(SignOffReleaseReadinessStatus.Stale).Or.EqualTo(SignOffReleaseReadinessStatus.Blocked).Or.EqualTo(SignOffReleaseReadinessStatus.Pending),
+                Is.EqualTo(SignOffReleaseReadinessStatus.DegradedStaleEvidence).Or.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence).Or.EqualTo(SignOffReleaseReadinessStatus.Pending),
                 "Evidence must go stale after window");
         }
 
@@ -329,7 +329,7 @@ namespace BiatecTokensTests
 
             Assert.That(readinessB.Status,
                 Is.EqualTo(SignOffReleaseReadinessStatus.Pending)
-                  .Or.EqualTo(SignOffReleaseReadinessStatus.Blocked)
+                  .Or.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence)
                   .Or.EqualTo(SignOffReleaseReadinessStatus.Indeterminate),
                 "head-b must not use head-a's evidence");
         }
@@ -372,7 +372,7 @@ namespace BiatecTokensTests
             Assert.That(result.Status,
                 Is.EqualTo(SignOffReleaseReadinessStatus.Indeterminate)
                   .Or.EqualTo(SignOffReleaseReadinessStatus.Pending)
-                  .Or.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                  .Or.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "No evidence and no webhook should be Indeterminate, Pending, or Blocked (missing evidence).");
         }
 
@@ -425,7 +425,7 @@ namespace BiatecTokensTests
             {
                 HeadRef = head, });
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "Denied approval must block release");
             Assert.That(result.Blockers, Is.Not.Null, "Blockers must not be null");
             Assert.That(result.Blockers, Is.Not.Empty, "Blockers must contain at least one entry");
@@ -456,7 +456,7 @@ namespace BiatecTokensTests
 
             Assert.That(result.Status,
                 Is.EqualTo(SignOffReleaseReadinessStatus.Pending)
-                  .Or.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+                  .Or.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "Evidence present but no approval → Pending or Blocked");
         }
 

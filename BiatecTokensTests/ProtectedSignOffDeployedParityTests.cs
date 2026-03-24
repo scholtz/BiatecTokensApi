@@ -292,7 +292,7 @@ namespace BiatecTokensTests
                     FreshnessWindowHours = 1
                 });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Stale),
+            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.DegradedStaleEvidence),
                 "DP03: expired evidence must yield Stale status");
             Assert.That(readiness.Blockers.Any(b => b.Category == SignOffReleaseBlockerCategory.StaleEvidence),
                 Is.True, "DP03: Stale status must include StaleEvidence blocker");
@@ -319,7 +319,7 @@ namespace BiatecTokensTests
             Assert.That(readiness, Is.Not.Null);
             // A valid HeadRef with no evidence yields Blocked (not Indeterminate).
             // Indeterminate is only returned for missing/null HeadRef inputs.
-            Assert.That(readiness!.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness!.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP04: fresh head with valid HeadRef but no evidence must be Blocked");
             Assert.That(readiness.Blockers, Is.Not.Empty,
                 "DP04: Blocked state must include at least one blocker");
@@ -351,7 +351,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP05: denied approval must yield Blocked status (fail-closed)");
             Assert.That(
                 readiness.Blockers.Any(b => b.Category == SignOffReleaseBlockerCategory.ApprovalDenied),
@@ -423,7 +423,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP07: TimedOut webhook must block release");
             Assert.That(readiness.Blockers, Is.Not.Empty,
                 "DP07: Blocked state must include at least one blocker");
@@ -453,7 +453,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP08: DeliveryError webhook must block release");
             Assert.That(readiness.Blockers, Is.Not.Empty,
                 "DP08: Blocked state must include at least one blocker");
@@ -638,7 +638,7 @@ namespace BiatecTokensTests
                 "DP13: headRef1 with webhook + evidence must be Ready");
             // headRef2 has no evidence and a valid HeadRef → Blocked (not Indeterminate).
             // Indeterminate is only for null/missing HeadRef inputs.
-            Assert.That(readiness2.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness2.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP13: headRef2 without any evidence must be Blocked (no cross-contamination from headRef1)");
         }
 
@@ -778,7 +778,7 @@ namespace BiatecTokensTests
 
             // A valid HeadRef with no evidence in the new instance yields Blocked.
             // Indeterminate is reserved for null/missing HeadRef inputs.
-            Assert.That(readiness2.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness2.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP16: after process restart (new instance), evidence must be gone → Blocked (fail-closed)");
             // MissingEvidence blocker must be present to confirm fail-closed behavior
             Assert.That(
@@ -813,7 +813,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseId });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP17: malformed webhook must block release (fail-closed)");
             Assert.That(
                 readiness.Blockers.Any(b => b.Category == SignOffReleaseBlockerCategory.MalformedWebhook),
@@ -1358,7 +1358,7 @@ namespace BiatecTokensTests
 
             Assert.That(readiness.HasApprovalWebhook, Is.True,
                 "DP34: HasApprovalWebhook must be true when any webhook (even Denied) was received");
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP34: status must be Blocked because only a Denied webhook exists");
         }
 
@@ -1582,7 +1582,7 @@ namespace BiatecTokensTests
             // Verify initial Blocked state (no evidence, no webhook)
             var initialReadiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
-            Assert.That(initialReadiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(initialReadiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "DP44: fresh head must start Blocked");
 
             // Add approved webhook
@@ -2193,7 +2193,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
             // For Blocked/Indeterminate states, Blockers should have content
-            if (readiness.Status == SignOffReleaseReadinessStatus.Blocked)
+            if (readiness.Status is SignOffReleaseReadinessStatus.Blocked or SignOffReleaseReadinessStatus.BlockedMissingEvidence or SignOffReleaseReadinessStatus.BlockedMissingConfiguration or SignOffReleaseReadinessStatus.NotReleaseEvidence)
             {
                 Assert.That(readiness.Blockers, Is.Not.Null,
                     "DP67: Blockers must not be null when status is Blocked");

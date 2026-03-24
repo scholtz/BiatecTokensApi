@@ -1455,9 +1455,9 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(BuildReadiness(headRef, caseId));
 
             // Verify all frontend-consumable fields are populated for Ready state
-            Assert.That(readiness.Status, Is.Not.EqualTo(default(SignOffReleaseReadinessStatus)));
+            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
             Assert.That(readiness.HeadRef, Is.EqualTo(headRef));
-            Assert.That(readiness.EvidenceFreshness, Is.Not.EqualTo(default(SignOffEvidenceFreshnessStatus)));
+            Assert.That(readiness.EvidenceFreshness, Is.EqualTo(SignOffEvidenceFreshnessStatus.Complete));
             Assert.That(readiness.EvaluatedAt, Is.Not.EqualTo(default(DateTimeOffset)));
             Assert.That(readiness.LatestEvidencePack, Is.Not.Null);
             Assert.That(readiness.LatestApprovalWebhook, Is.Not.Null);

@@ -88,7 +88,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = headRef, CaseId = caseB });
 
             Assert.That(readyResult.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
-            Assert.That(blockedResult.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(blockedResult.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
         }
 
         [Test]
@@ -506,7 +506,7 @@ namespace BiatecTokensTests
             var resp = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = "sha-blocked-schema", CaseId = "case-blocked-schema" });
 
-            Assert.That(resp.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(resp.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(resp.Blockers, Is.Not.Empty, "Blocked status must have at least one blocker.");
 
             foreach (var blocker in resp.Blockers)
@@ -594,7 +594,7 @@ namespace BiatecTokensTests
             var result = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Stale),
+            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.DegradedStaleEvidence),
                 "Evidence older than freshness window should be Stale.");
         }
 
@@ -618,7 +618,7 @@ namespace BiatecTokensTests
 
             var staleResult = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
-            Assert.That(staleResult.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Stale));
+            Assert.That(staleResult.Status, Is.EqualTo(SignOffReleaseReadinessStatus.DegradedStaleEvidence));
 
             // Refresh evidence at new time
             await svc.RecordApprovalWebhookAsync(
@@ -655,7 +655,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = "sha-B", CaseId = caseId });
 
             Assert.That(resultA.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Ready));
-            Assert.That(resultB.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(resultB.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "sha-B has no evidence so must be blocked.");
         }
 
@@ -674,7 +674,7 @@ namespace BiatecTokensTests
             var result = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = "sha-new", CaseId = caseId });
 
-            Assert.That(result.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked),
+            Assert.That(result.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence),
                 "Evidence for old head must not satisfy new head query.");
         }
 

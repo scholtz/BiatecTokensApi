@@ -581,29 +581,37 @@ namespace BiatecTokensApi.Services
                 overallStatus = SignOffReleaseReadinessStatus.Ready;
                 operatorGuidance = "All sign-off checks passed. The release is approved and ready to proceed.";
             }
-            else if (freshnessStatus is SignOffEvidenceFreshnessStatus.Stale or SignOffEvidenceFreshnessStatus.HeadMismatch
-                     && criticalBlockers.All(b => b.Category is SignOffReleaseBlockerCategory.StaleEvidence or SignOffReleaseBlockerCategory.HeadMismatch))
-            {
-                overallStatus = SignOffReleaseReadinessStatus.DegradedStaleEvidence;
-                operatorGuidance = "Evidence is stale or mismatched. Re-run the protected sign-off workflow against the current head.";
-            }
             else if (criticalBlockers.Any(b => b.Category == SignOffReleaseBlockerCategory.EnvironmentNotReady))
             {
+                // Protected-environment configuration is missing — highest-priority specific state
                 overallStatus = SignOffReleaseReadinessStatus.BlockedMissingConfiguration;
                 operatorGuidance = BuildOperatorGuidance(criticalBlockers);
             }
-            else if (latestPack != null && !latestPack.IsReleaseGrade && freshnessStatus == SignOffEvidenceFreshnessStatus.Complete)
+            else if (freshnessStatus == SignOffEvidenceFreshnessStatus.Unavailable)
             {
-                // Evidence pack exists and is fresh, but is NOT release-grade — explicit not-release-evidence outcome
+                // No evidence pack exists for this head ref at all
+                overallStatus = SignOffReleaseReadinessStatus.BlockedMissingEvidence;
+                operatorGuidance = BuildOperatorGuidance(
+                    criticalBlockers.Where(b => b.Category == SignOffReleaseBlockerCategory.MissingEvidence).ToList()
+                    is { Count: > 0 } evidenceBlockers
+                        ? evidenceBlockers
+                        : criticalBlockers);
+            }
+            else if (freshnessStatus is SignOffEvidenceFreshnessStatus.Stale or SignOffEvidenceFreshnessStatus.HeadMismatch)
+            {
+                // Evidence exists but is stale or for a different head
+                overallStatus = SignOffReleaseReadinessStatus.DegradedStaleEvidence;
+                operatorGuidance = "Evidence is stale or mismatched. Re-run the protected sign-off workflow against the current head.";
+            }
+            else if (latestPack != null && !latestPack.IsReleaseGrade && freshnessStatus == SignOffEvidenceFreshnessStatus.Complete
+                     && !hasApprovalWebhook)
+            {
+                // Evidence pack exists and is fresh, but is NOT release-grade AND no approval webhook was
+                // ever received — explicit not-release-evidence outcome (workflow ran without live credentials).
+                // When any webhook (even denied/malformed/timed-out) was received, fall through to Blocked.
                 overallStatus = SignOffReleaseReadinessStatus.NotReleaseEvidence;
                 operatorGuidance = "An evidence pack was recorded but does not qualify as release evidence. " +
                     "Ensure the workflow runs with live or sandbox provider credentials and all required checks pass.";
-            }
-            else if (freshnessStatus == SignOffEvidenceFreshnessStatus.Unavailable
-                     && criticalBlockers.All(b => b.Category == SignOffReleaseBlockerCategory.MissingEvidence))
-            {
-                overallStatus = SignOffReleaseReadinessStatus.BlockedMissingEvidence;
-                operatorGuidance = BuildOperatorGuidance(criticalBlockers);
             }
             else if (criticalBlockers.Count > 0)
             {

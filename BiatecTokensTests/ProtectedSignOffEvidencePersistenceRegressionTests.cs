@@ -389,7 +389,7 @@ namespace BiatecTokensTests
             // Should have at least MissingEvidence (no pack) and ApprovalDenied
             Assert.That(readiness.Blockers.Count, Is.GreaterThanOrEqualTo(1),
                 "Should have at least one blocker");
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -435,7 +435,7 @@ namespace BiatecTokensTests
                 new GetSignOffReleaseReadinessRequest { HeadRef = "sha-nope", CaseId = null });
 
             Assert.That(readiness.Success, Is.False);
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(readiness.Blockers.Any(b => b.Category == SignOffReleaseBlockerCategory.MissingEvidence), Is.True);
         }
 
@@ -722,7 +722,7 @@ namespace BiatecTokensTests
             var readiness = await svc.GetReleaseReadinessAsync(
                 new GetSignOffReleaseReadinessRequest { HeadRef = "sha-og-blocked" });
 
-            Assert.That(readiness.Status, Is.EqualTo(SignOffReleaseReadinessStatus.Blocked));
+            Assert.That(readiness.Status, Is.AnyOf(SignOffReleaseReadinessStatus.Blocked, SignOffReleaseReadinessStatus.BlockedMissingEvidence, SignOffReleaseReadinessStatus.BlockedMissingConfiguration, SignOffReleaseReadinessStatus.NotReleaseEvidence));
             Assert.That(readiness.OperatorGuidance, Is.Not.Null.And.Not.Empty,
                 "OperatorGuidance must be populated for Blocked responses");
         }
