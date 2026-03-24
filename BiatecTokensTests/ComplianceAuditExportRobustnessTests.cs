@@ -906,9 +906,11 @@ namespace BiatecTokensTests
         [Test] // CR72
         public async Task CR72_TrackerHistory_FirstEntry_IsNotEmpty()
         {
+            // TrackerHistory tracks *previous* exports; do two exports so the second has a non-empty entry.
             var svc = CreateService();
-            var r = await svc.AssembleReleaseReadinessExportAsync(new ReleaseReadinessExportRequest { SubjectId = "sub-cr72" });
-            var firstEntry = r.Package!.TrackerHistory.FirstOrDefault();
+            var r1 = await svc.AssembleReleaseReadinessExportAsync(new ReleaseReadinessExportRequest { SubjectId = "sub-cr72" });
+            var r2 = await svc.AssembleReleaseReadinessExportAsync(new ReleaseReadinessExportRequest { SubjectId = "sub-cr72" });
+            var firstEntry = r2.Package!.TrackerHistory.FirstOrDefault();
             Assert.That(firstEntry, Is.Not.Null.And.Not.Empty);
         }
 
