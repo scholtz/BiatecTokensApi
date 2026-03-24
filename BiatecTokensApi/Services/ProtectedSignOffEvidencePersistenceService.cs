@@ -584,8 +584,26 @@ namespace BiatecTokensApi.Services
             else if (freshnessStatus is SignOffEvidenceFreshnessStatus.Stale or SignOffEvidenceFreshnessStatus.HeadMismatch
                      && criticalBlockers.All(b => b.Category is SignOffReleaseBlockerCategory.StaleEvidence or SignOffReleaseBlockerCategory.HeadMismatch))
             {
-                overallStatus = SignOffReleaseReadinessStatus.Stale;
+                overallStatus = SignOffReleaseReadinessStatus.DegradedStaleEvidence;
                 operatorGuidance = "Evidence is stale or mismatched. Re-run the protected sign-off workflow against the current head.";
+            }
+            else if (criticalBlockers.Any(b => b.Category == SignOffReleaseBlockerCategory.EnvironmentNotReady))
+            {
+                overallStatus = SignOffReleaseReadinessStatus.BlockedMissingConfiguration;
+                operatorGuidance = BuildOperatorGuidance(criticalBlockers);
+            }
+            else if (latestPack != null && !latestPack.IsReleaseGrade && freshnessStatus == SignOffEvidenceFreshnessStatus.Complete)
+            {
+                // Evidence pack exists and is fresh, but is NOT release-grade — explicit not-release-evidence outcome
+                overallStatus = SignOffReleaseReadinessStatus.NotReleaseEvidence;
+                operatorGuidance = "An evidence pack was recorded but does not qualify as release evidence. " +
+                    "Ensure the workflow runs with live or sandbox provider credentials and all required checks pass.";
+            }
+            else if (freshnessStatus == SignOffEvidenceFreshnessStatus.Unavailable
+                     && criticalBlockers.All(b => b.Category == SignOffReleaseBlockerCategory.MissingEvidence))
+            {
+                overallStatus = SignOffReleaseReadinessStatus.BlockedMissingEvidence;
+                operatorGuidance = BuildOperatorGuidance(criticalBlockers);
             }
             else if (criticalBlockers.Count > 0)
             {
@@ -597,6 +615,9 @@ namespace BiatecTokensApi.Services
                 overallStatus = SignOffReleaseReadinessStatus.Pending;
                 operatorGuidance = "Evidence pack is present but incomplete. Complete all required sign-off steps before releasing.";
             }
+
+            bool isReleaseEvidence = overallStatus == SignOffReleaseReadinessStatus.Ready
+                                     && (latestPack?.IsReleaseGrade ?? false);
 
             if (overallStatus == SignOffReleaseReadinessStatus.Ready)
             {
@@ -616,7 +637,8 @@ namespace BiatecTokensApi.Services
                                 {
                                     ["headRef"] = request.HeadRef,
                                     ["caseId"] = request.CaseId ?? string.Empty,
-                                    ["status"] = overallStatus.ToString()
+                                    ["status"] = overallStatus.ToString(),
+                                    ["isReleaseEvidence"] = isReleaseEvidence
                                 }
                             });
                         }
@@ -635,6 +657,7 @@ namespace BiatecTokensApi.Services
                 Success = overallStatus == SignOffReleaseReadinessStatus.Ready,
                 Status = overallStatus,
                 HeadRef = request.HeadRef,
+                IsReleaseEvidence = isReleaseEvidence,
                 EvidenceFreshness = freshnessStatus,
                 HasApprovalWebhook = hasApprovalWebhook,
                 LatestApprovalWebhook = latestApproval,
@@ -804,8 +827,8 @@ namespace BiatecTokensApi.Services
             if (pack.ExpiresAt.HasValue && now > pack.ExpiresAt.Value)
                 return SignOffEvidenceFreshnessStatus.Stale;
 
-            // Check if all items are present and not expired
-            bool anyExpired = pack.Items.Any(i => i.IsExpired);
+            // Check if all items are present and not expired (using service time, not system clock)
+            bool anyExpired = pack.Items.Any(i => i.ExpiresAt.HasValue && now > i.ExpiresAt.Value);
             bool anyMissing = pack.Items.Any(i => !i.IsPresent);
 
             if (anyExpired || anyMissing)
