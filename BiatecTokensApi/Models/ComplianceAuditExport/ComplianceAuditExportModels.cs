@@ -730,7 +730,12 @@ namespace BiatecTokensApi.Models.ComplianceAuditExport
         public bool IsIdempotentReplay { get; set; }
 
         /// <summary>Correlation ID for end-to-end request tracing. Propagated from the request or auto-generated.</summary>
-        public string? CorrelationId => Package?.CorrelationId;
+        public string? CorrelationId
+        {
+            get => _correlationId ?? Package?.CorrelationId;
+            set => _correlationId = value;
+        }
+        private string? _correlationId;
 
         /// <summary>Error code when <see cref="Success"/> is false.</summary>
         public string? ErrorCode { get; set; }

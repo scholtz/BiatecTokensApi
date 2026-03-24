@@ -77,7 +77,8 @@ namespace BiatecTokensApi.Services
                 {
                     Success = false,
                     ErrorCode = "MISSING_SUBJECT_ID",
-                    ErrorMessage = "SubjectId is required to assemble a release-readiness export."
+                    ErrorMessage = "SubjectId is required to assemble a release-readiness export.",
+                    CorrelationId = request.CorrelationId
                 });
             }
 
@@ -134,7 +135,8 @@ namespace BiatecTokensApi.Services
                 {
                     Success = false,
                     ErrorCode = "MISSING_SUBJECT_ID",
-                    ErrorMessage = "SubjectId is required to assemble an onboarding case review export."
+                    ErrorMessage = "SubjectId is required to assemble an onboarding case review export.",
+                    CorrelationId = request.CorrelationId
                 });
             }
 
@@ -187,7 +189,8 @@ namespace BiatecTokensApi.Services
                 {
                     Success = false,
                     ErrorCode = "MISSING_SUBJECT_ID",
-                    ErrorMessage = "SubjectId is required to assemble a compliance blocker review export."
+                    ErrorMessage = "SubjectId is required to assemble a compliance blocker review export.",
+                    CorrelationId = request.CorrelationId
                 });
             }
 
@@ -240,9 +243,12 @@ namespace BiatecTokensApi.Services
                 {
                     Success = false,
                     ErrorCode = "MISSING_SUBJECT_ID",
-                    ErrorMessage = "SubjectId is required to assemble an approval-history export."
+                    ErrorMessage = "SubjectId is required to assemble an approval-history export.",
+                    CorrelationId = request.CorrelationId
                 });
             }
+
+            request.IdempotencyKey ??= $"{request.SubjectId}:{AuditScenario.ApprovalHistoryExport}";
 
             lock (_lock)
             {
@@ -1163,7 +1169,9 @@ namespace BiatecTokensApi.Services
                         RelatedProvenanceIds = kycProvenance != null
                             ? new List<string> { kycProvenance.ProvenanceId }
                             : new List<string>(),
-                        RemediationHints = new List<string>(),
+                        RemediationHints = i == 0
+                                ? new List<string> { "KYC check was renewed — no further action required." }
+                                : new List<string> { "AML record was refreshed — monitor for future staleness." },
                         OwnerTeam = "compliance",
                         IsResolved = true,
                         ResolvedAt = now.AddDays(-rng.Next(1, 30))
