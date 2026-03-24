@@ -256,15 +256,23 @@ namespace BiatecTokensTests
         [Test] // CE77 — Freshness: Stale via exceeded expiry
         public async Task CE77_ClassifyFreshness_ExpiredEvidence_IsStale()
         {
-            // Use FakeTimeProvider set far in the future so all evidence is stale
+            // Provenance ages are seeded from string hash codes which are process-randomized in .NET.
+            // Scan subjects until we find one whose provenance has at least one Stale record.
+            // Since kycAge is rng.Next(1,200) and FreshnessWindow=90d, ~55% of subjects yield stale KYC.
             var futureNow = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
             var svc = CreateService(new FakeTimeProvider(futureNow));
-            var r = await svc.AssembleReleaseReadinessExportAsync(
-                new ReleaseReadinessExportRequest { SubjectId = "subj-stale-077" });
-            // With time 5 years in the future, all evidence with expiry dates should be Stale
-            var staleCount = r.Package!.ProvenanceRecords.Count(p =>
-                p.FreshnessState == AuditEvidenceFreshness.Stale);
-            Assert.That(staleCount, Is.GreaterThan(0));
+            for (int i = 0; i < 50; i++)
+            {
+                var r = await svc.AssembleReleaseReadinessExportAsync(
+                    new ReleaseReadinessExportRequest { SubjectId = $"subj-stale-scan-{i:000}" });
+                if (r.Package!.ProvenanceRecords.Any(p => p.FreshnessState == AuditEvidenceFreshness.Stale))
+                {
+                    Assert.That(r.Package.ProvenanceRecords
+                        .Any(p => p.FreshnessState == AuditEvidenceFreshness.Stale), Is.True);
+                    return;
+                }
+            }
+            Assert.Fail("No stale evidence found in 50 subjects — ClassifyFreshness Stale branch not covered.");
         }
 
         [Test] // CE78 — Freshness: NearingExpiry via expires-at within 7 days
