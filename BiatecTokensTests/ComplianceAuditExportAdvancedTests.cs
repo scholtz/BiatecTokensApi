@@ -439,24 +439,24 @@ namespace BiatecTokensTests
             var svc = CreateService();
             const string sid = "cav22-shared-subject";
 
-            // Build 2 releases-readiness exports
+            // Build 2 releases-readiness exports (ForceRegenerate so each is a distinct export)
             for (int i = 0; i < 2; i++)
                 await svc.AssembleReleaseReadinessExportAsync(
-                    new ReleaseReadinessExportRequest { SubjectId = sid });
+                    new ReleaseReadinessExportRequest { SubjectId = sid, ForceRegenerate = true });
 
-            // Build 1 approval-history export (different scenario)
+            // Build 1 approval-history export (different scenario, ForceRegenerate for distinct export)
             await svc.AssembleApprovalHistoryExportAsync(
-                new ApprovalHistoryExportRequest { SubjectId = sid });
+                new ApprovalHistoryExportRequest { SubjectId = sid, ForceRegenerate = true });
 
             // The 3rd release-readiness export should have history from the previous 2 RR exports
             var rrResult3 = await svc.AssembleReleaseReadinessExportAsync(
-                new ReleaseReadinessExportRequest { SubjectId = sid });
+                new ReleaseReadinessExportRequest { SubjectId = sid, ForceRegenerate = true });
             Assert.That(rrResult3.Package!.TrackerHistory.Count, Is.EqualTo(2),
                 "RR scenario history should be 2 from previous RR exports.");
 
             // The 2nd approval-history export should have history of 1 from previous AH export
             var ahResult2 = await svc.AssembleApprovalHistoryExportAsync(
-                new ApprovalHistoryExportRequest { SubjectId = sid });
+                new ApprovalHistoryExportRequest { SubjectId = sid, ForceRegenerate = true });
             Assert.That(ahResult2.Package!.TrackerHistory.Count, Is.EqualTo(1),
                 "AH scenario history should be 1 from previous AH export.");
         }
