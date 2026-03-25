@@ -82,8 +82,6 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            request.IdempotencyKey ??= $"{request.SubjectId}:{AuditScenario.ReleaseReadinessSignOff}";
-
             lock (_lock)
             {
                 if (TryGetIdempotentReplay(request.IdempotencyKey, request.ForceRegenerate,
@@ -142,8 +140,6 @@ namespace BiatecTokensApi.Services
                 });
             }
 
-            request.IdempotencyKey ??= $"{request.SubjectId}:{AuditScenario.OnboardingCaseReview}";
-
             lock (_lock)
             {
                 if (TryGetIdempotentReplay(request.IdempotencyKey, request.ForceRegenerate,
@@ -197,8 +193,6 @@ namespace BiatecTokensApi.Services
                     CorrelationId = request.CorrelationId
                 });
             }
-
-            request.IdempotencyKey ??= $"{request.SubjectId}:{AuditScenario.ComplianceBlockerReview}";
 
             lock (_lock)
             {
