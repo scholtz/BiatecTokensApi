@@ -216,7 +216,7 @@ namespace BiatecTokensTests
             var r1 = await svc.AssembleReleaseReadinessExportAsync(new ReleaseReadinessExportRequest
             { SubjectId = "sub-cr16" });
             var r2 = await svc.AssembleReleaseReadinessExportAsync(new ReleaseReadinessExportRequest
-            { SubjectId = "sub-cr16" });
+            { SubjectId = "sub-cr16", ForceRegenerate = true });
             Assert.That(r1.Package!.ExportId, Is.Not.EqualTo(r2.Package!.ExportId));
         }
 

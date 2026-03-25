@@ -398,7 +398,7 @@ namespace BiatecTokensTests
             var r1 = await svc.AssembleReleaseReadinessExportAsync(
                 new ReleaseReadinessExportRequest { SubjectId = "subj-nokey-084", IdempotencyKey = null });
             var r2 = await svc.AssembleReleaseReadinessExportAsync(
-                new ReleaseReadinessExportRequest { SubjectId = "subj-nokey-084", IdempotencyKey = null });
+                new ReleaseReadinessExportRequest { SubjectId = "subj-nokey-084", IdempotencyKey = null, ForceRegenerate = true });
             Assert.That(r1.IsIdempotentReplay, Is.False);
             Assert.That(r2.IsIdempotentReplay, Is.False);
             Assert.That(r1.Package!.ExportId, Is.Not.EqualTo(r2.Package!.ExportId));
@@ -593,9 +593,9 @@ namespace BiatecTokensTests
             await svc.AssembleReleaseReadinessExportAsync(
                 new ReleaseReadinessExportRequest { SubjectId = subjectId });
             await svc.AssembleReleaseReadinessExportAsync(
-                new ReleaseReadinessExportRequest { SubjectId = subjectId });
+                new ReleaseReadinessExportRequest { SubjectId = subjectId, ForceRegenerate = true });
             await svc.AssembleReleaseReadinessExportAsync(
-                new ReleaseReadinessExportRequest { SubjectId = subjectId });
+                new ReleaseReadinessExportRequest { SubjectId = subjectId, ForceRegenerate = true });
 
             var list = await svc.ListExportsAsync(subjectId, limit: 1);
             Assert.That(list.Success, Is.True);

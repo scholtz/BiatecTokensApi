@@ -693,7 +693,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             var subjectId = "subj-tracker-048";
             var r1 = await svc.AssembleReleaseReadinessExportAsync(ReleaseReq(subjectId));
-            var r2 = await svc.AssembleReleaseReadinessExportAsync(ReleaseReq(subjectId));
+            var r2 = await svc.AssembleReleaseReadinessExportAsync(ReleaseReq(subjectId, force: true));
             Assert.That(r2.Package!.TrackerHistory, Does.Contain(r1.Package!.ExportId));
         }
 
