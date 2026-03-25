@@ -442,10 +442,11 @@ namespace BiatecTokensTests
         public async Task SV38_CorrelationId_IdempotentCall_SameCorrelationId_Returned()
         {
             var svc = CreateService();
+            const string idemKey = "sv38-explicit-idempotency-key";
             var r1 = await svc.AssembleReleaseReadinessExportAsync(
-                new ReleaseReadinessExportRequest { SubjectId = "sv38-subj" });
+                new ReleaseReadinessExportRequest { SubjectId = "sv38-subj", IdempotencyKey = idemKey });
             var r2 = await svc.AssembleReleaseReadinessExportAsync(
-                new ReleaseReadinessExportRequest { SubjectId = "sv38-subj" });
+                new ReleaseReadinessExportRequest { SubjectId = "sv38-subj", IdempotencyKey = idemKey });
             // Idempotent call should return same export, same CorrelationId
             Assert.That(r1.Package!.ExportId, Is.EqualTo(r2.Package!.ExportId));
         }
@@ -695,10 +696,11 @@ namespace BiatecTokensTests
         public async Task SV53_ForceRegenerate_False_SameExportId_Returned()
         {
             var svc = CreateService();
+            const string idemKey = "sv53-explicit-idempotency-key";
             var r1 = await svc.AssembleBlockerReviewExportAsync(
-                new ComplianceBlockerReviewExportRequest { SubjectId = "sv53-subj" });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv53-subj", IdempotencyKey = idemKey });
             var r2 = await svc.AssembleBlockerReviewExportAsync(
-                new ComplianceBlockerReviewExportRequest { SubjectId = "sv53-subj", ForceRegenerate = false });
+                new ComplianceBlockerReviewExportRequest { SubjectId = "sv53-subj", IdempotencyKey = idemKey, ForceRegenerate = false });
             Assert.That(r1.Package!.ExportId, Is.EqualTo(r2.Package!.ExportId));
         }
 
