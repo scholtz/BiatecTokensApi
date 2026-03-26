@@ -1853,3 +1853,28 @@ var now = DateTimeOffset.UtcNow;
 // ✅ CORRECT: Uses injected TimeProvider
 var now = _timeProvider.GetUtcNow();
 ```
+
+**Lesson Learned (2026-03-26 - Issue #614, ComplianceAuditExport recurring failures)**:
+
+**Root cause of repeated quality failures across multiple sessions**: The `ComplianceAuditExportService` idempotency semantics were undefined at the start of implementation and changed multiple times across sessions, breaking tests in each revision. Three sessions were required to stabilize the feature.
+
+**Session 1 failure**: The `??=` auto-IdempotencyKey assignment (`"{SubjectId}:{scenario}"`) was added, making null-key calls idempotent. Some tests (SV38/SV53) relied on this, but others (CE48, CR16, etc.) expected unique exports per call.
+
+**Session 2 failure**: The `??=` lines were accidentally removed from 3 of 4 assemble methods, re-breaking SV38/SV53 while partially fixing the unique-export tests.
+
+**Session 3 fix (be85a94)**: Removed ALL `??=` auto-assignment lines — null key = always creates new unique export; explicit key = idempotent replay. Tests SV38/SV53 updated to pass explicit keys.
+
+**MANDATORY: Idempotency contract must be defined BEFORE writing any tests.**
+
+When implementing any service with idempotency:
+1. **Define the null-key semantic explicitly**: null key = new export OR null key = idempotent? Commit to ONE behavior.
+2. **Document it at the top of the service class** as a comment.
+3. **Verify ALL tests agree on that semantic** before committing.
+4. **Never change the semantic** across sessions without updating ALL affected tests simultaneously.
+
+**Confirmed semantic for ComplianceAuditExportService**:
+- `IdempotencyKey == null` → always creates a **new** unique export (UUID auto-generated internally)
+- `IdempotencyKey != null` → idempotent replay: returns cached result if key matches
+- `ForceRegenerate = true` → bypasses cache even for explicit key
+
+**Test coverage rule**: After implementing a service, the test suite should cover ALL readiness states, all 4 scenario variants, null/explicit key behavior, and ForceRegenerate. Add a coverage extension file if the main test file does not cover these dimensions.
