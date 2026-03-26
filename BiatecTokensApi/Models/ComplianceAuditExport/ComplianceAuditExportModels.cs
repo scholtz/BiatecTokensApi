@@ -594,7 +594,8 @@ namespace BiatecTokensApi.Models.ComplianceAuditExport
             AudienceProfile = AudienceProfile,
             Readiness = Readiness,
             IsRegulatorReady = IsRegulatorReady,
-            IsReleaseGrade = IsReleaseGrade
+            IsReleaseGrade = IsReleaseGrade,
+            ContentHash = ContentHash
         };
     }
 
@@ -644,6 +645,9 @@ namespace BiatecTokensApi.Models.ComplianceAuditExport
 
         /// <summary>Whether the package is release-grade.</summary>
         public bool IsReleaseGrade { get; set; }
+
+        /// <summary>Content hash for integrity verification.</summary>
+        public string ContentHash { get; set; } = string.Empty;
     }
 
 

@@ -107,7 +107,7 @@ namespace BiatecTokensTests
                 new ReleaseReadinessExportRequest { SubjectId = "rg06-s1" });
             var r2 = await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = "rg06-s2" });
-            var r3 = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var r3 = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg06-s3" });
             var r4 = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "rg06-s4" });
@@ -275,7 +275,7 @@ namespace BiatecTokensTests
             var svc = CreateService();
             foreach (RegulatoryAudienceProfile profile in Enum.GetValues<RegulatoryAudienceProfile>())
             {
-                var resp = await svc.AssembleComplianceBlockerReviewExportAsync(
+                var resp = await svc.AssembleBlockerReviewExportAsync(
                     new ComplianceBlockerReviewExportRequest
                     {
                         SubjectId = $"rg18-{profile}",
@@ -409,9 +409,9 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             const string key = "rg27-blocker-key";
-            var r1 = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var r1 = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg27-s", IdempotencyKey = key });
-            var r2 = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var r2 = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg27-s", IdempotencyKey = key });
 
             Assert.That(r1.Package!.ExportId, Is.EqualTo(r2.Package!.ExportId));
@@ -476,7 +476,7 @@ namespace BiatecTokensTests
                 new ReleaseReadinessExportRequest { SubjectId = "rg31-s1" });
             var r2 = await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = "rg31-s2" });
-            var r3 = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var r3 = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg31-s3" });
             var r4 = await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = "rg31-s4" });
@@ -517,7 +517,7 @@ namespace BiatecTokensTests
         public async Task RG34_BlockerReviewSection_IsPopulatedForBlockerScenario()
         {
             var svc = CreateService();
-            var resp = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var resp = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg34-subject" });
             Assert.That(resp.Package, Is.Not.Null);
             Assert.That(resp.Package!.BlockerReview, Is.Not.Null,
@@ -528,7 +528,7 @@ namespace BiatecTokensTests
         public async Task RG35_BlockerReview_OpenBlockerCount_IsNonNegative()
         {
             var svc = CreateService();
-            var resp = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var resp = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg35-subject" });
             Assert.That(resp.Package, Is.Not.Null);
             Assert.That(resp.Package!.BlockerReview!.OpenBlockerCount, Is.GreaterThanOrEqualTo(0));
@@ -538,7 +538,7 @@ namespace BiatecTokensTests
         public async Task RG36_BlockerReview_ResolvedBlockerCount_IsNonNegative()
         {
             var svc = CreateService();
-            var resp = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var resp = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg36-subject" });
             Assert.That(resp.Package, Is.Not.Null);
             Assert.That(resp.Package!.BlockerReview!.ResolvedBlockerCount, Is.GreaterThanOrEqualTo(0));
@@ -548,7 +548,7 @@ namespace BiatecTokensTests
         public async Task RG37_EachBlocker_HasNonEmptyBlockerId()
         {
             var svc = CreateService();
-            var resp = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var resp = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg37-subject" });
             Assert.That(resp.Package, Is.Not.Null);
             foreach (var b in resp.Package!.Blockers)
@@ -562,7 +562,7 @@ namespace BiatecTokensTests
         public async Task RG38_EachBlocker_HasNonEmptyTitle()
         {
             var svc = CreateService();
-            var resp = await svc.AssembleComplianceBlockerReviewExportAsync(
+            var resp = await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = "rg38-subject" });
             Assert.That(resp.Package, Is.Not.Null);
             foreach (var b in resp.Package!.Blockers)
@@ -823,7 +823,7 @@ namespace BiatecTokensTests
                 new ReleaseReadinessExportRequest { SubjectId = subjectId });
             await svc.AssembleOnboardingCaseReviewExportAsync(
                 new OnboardingCaseReviewExportRequest { SubjectId = subjectId });
-            await svc.AssembleComplianceBlockerReviewExportAsync(
+            await svc.AssembleBlockerReviewExportAsync(
                 new ComplianceBlockerReviewExportRequest { SubjectId = subjectId });
             await svc.AssembleApprovalHistoryExportAsync(
                 new ApprovalHistoryExportRequest { SubjectId = subjectId });
