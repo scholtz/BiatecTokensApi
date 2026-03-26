@@ -270,11 +270,11 @@ namespace BiatecTokensTests
         {
             var values = Enum.GetValues<StrictArtifactMode>();
             Assert.That(values.Length, Is.EqualTo(5));
-            CollectionAssert.Contains(values, StrictArtifactMode.NotConfigured);
-            CollectionAssert.Contains(values, StrictArtifactMode.Configured);
-            CollectionAssert.Contains(values, StrictArtifactMode.Degraded);
-            CollectionAssert.Contains(values, StrictArtifactMode.StaleEvidence);
-            CollectionAssert.Contains(values, StrictArtifactMode.ReadyReleaseGrade);
+            Assert.That(values, Does.Contain(StrictArtifactMode.NotConfigured));
+            Assert.That(values, Does.Contain(StrictArtifactMode.Configured));
+            Assert.That(values, Does.Contain(StrictArtifactMode.Degraded));
+            Assert.That(values, Does.Contain(StrictArtifactMode.StaleEvidence));
+            Assert.That(values, Does.Contain(StrictArtifactMode.ReadyReleaseGrade));
         }
 
         // ═══════════════════════════════════════════════════════════════════════
