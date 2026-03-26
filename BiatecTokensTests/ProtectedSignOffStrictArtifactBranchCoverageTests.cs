@@ -402,6 +402,8 @@ namespace BiatecTokensTests
             const string head2 = "bc-sha-HEAD-2";
             var svc = Svc();
 
+            // Record approval webhook for head1 first (required for release-grade pack)
+            await svc.RecordApprovalWebhookAsync(Approval(head: head1), "actor");
             await svc.PersistSignOffEvidenceAsync(
                 new PersistSignOffEvidenceRequest
                 {
@@ -442,6 +444,8 @@ namespace BiatecTokensTests
         {
             const string label = "prod-eu";
             var svc = Svc();
+            // Record approval webhook first (required for release-grade pack)
+            await svc.RecordApprovalWebhookAsync(Approval(), "actor");
             await svc.PersistSignOffEvidenceAsync(Persist(label: label, releaseGrade: true), "actor");
             var r = await svc.GetReleaseReadinessAsync(Readiness());
 
@@ -453,14 +457,16 @@ namespace BiatecTokensTests
         }
 
         [Test]
-        public async Task BC30_Mode_NotConfigured_NeverHasEnvironmentLabel()
+        public async Task BC30_Mode_NoPackExists_EnvironmentLabelIsNull()
         {
-            // When no pack exists (NotConfigured mode), EnvironmentLabel must be null
+            // When no pack exists, status is BlockedMissingEvidence → Mode falls through to Configured
+            // (NotConfigured is reserved for EnvironmentNotReady — missing protected-env config)
             var svc = Svc();
             var r = await svc.GetReleaseReadinessAsync(Readiness());
-            Assert.That(r.Mode, Is.EqualTo(StrictArtifactMode.NotConfigured));
+            Assert.That(r.Mode, Is.EqualTo(StrictArtifactMode.Configured),
+                "No-pack state maps to BlockedMissingEvidence → _ fallback → Configured.");
             Assert.That(r.EnvironmentLabel, Is.Null,
-                "NotConfigured mode must not echo any EnvironmentLabel.");
+                "EnvironmentLabel must be null when no pack has been persisted.");
         }
     }
 }
