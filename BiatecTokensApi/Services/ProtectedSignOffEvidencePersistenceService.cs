@@ -380,7 +380,10 @@ namespace BiatecTokensApi.Services
                 ApprovalWebhook = approvalWebhook,
                 Items = items,
                 ContentHash = contentHash,
-                CreatedBy = actorId
+                CreatedBy = actorId,
+                EnvironmentLabel = string.IsNullOrWhiteSpace(request.EnvironmentLabel)
+                    ? null
+                    : request.EnvironmentLabel
             };
 
             // Persist the pack
@@ -672,7 +675,16 @@ namespace BiatecTokensApi.Services
                 LatestEvidencePack = latestPack,
                 Blockers = blockers,
                 OperatorGuidance = operatorGuidance,
-                EvaluatedAt = now
+                EvaluatedAt = now,
+                Mode = overallStatus switch
+                {
+                    SignOffReleaseReadinessStatus.BlockedMissingConfiguration => StrictArtifactMode.NotConfigured,
+                    SignOffReleaseReadinessStatus.BlockedProviderUnavailable => StrictArtifactMode.Degraded,
+                    SignOffReleaseReadinessStatus.DegradedStaleEvidence => StrictArtifactMode.StaleEvidence,
+                    SignOffReleaseReadinessStatus.Ready when isReleaseEvidence => StrictArtifactMode.ReadyReleaseGrade,
+                    _ => StrictArtifactMode.Configured
+                },
+                EnvironmentLabel = latestPack?.EnvironmentLabel
             });
         }
 
