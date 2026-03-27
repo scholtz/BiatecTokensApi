@@ -80,7 +80,7 @@ namespace BiatecTokensApi.Services
                         LoggingHelper.SanitizeLogInput(request.HeadRef));
                 }
 
-                events.Add(MapReleaseReadinessEvent(releaseReadiness, request.CaseId));
+                events.Add(MapReleaseReadinessEvent(releaseReadiness, request.CaseId, request.SubjectId));
             }
 
             IEnumerable<ComplianceEventEnvelope> filtered = events;
@@ -495,7 +495,8 @@ namespace BiatecTokensApi.Services
 
         private static ComplianceEventEnvelope MapReleaseReadinessEvent(
             GetSignOffReleaseReadinessResponse readiness,
-            string? requestedCaseId = null)
+            string? requestedCaseId = null,
+            string? requestedSubjectId = null)
         {
             return new ComplianceEventEnvelope
             {
@@ -506,6 +507,7 @@ namespace BiatecTokensApi.Services
                 CaseId = string.IsNullOrWhiteSpace(requestedCaseId)
                     ? readiness.LatestEvidencePack?.CaseId ?? readiness.LatestApprovalWebhook?.CaseId
                     : requestedCaseId,
+                SubjectId = requestedSubjectId,
                 HeadRef = readiness.HeadRef,
                 Timestamp = readiness.EvaluatedAt,
                 ActorId = readiness.LatestApprovalWebhook?.ActorId ?? readiness.LatestEvidencePack?.CreatedBy,

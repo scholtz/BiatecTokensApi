@@ -522,6 +522,37 @@ namespace BiatecTokensTests
         }
 
         [Test]
+        public async Task GetEventsApi_SubjectAndHeadRefFilter_PreservesReleaseReadinessEvent()
+        {
+            await using var factory = new NotConfiguredReleaseReadinessFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            var createResponse = await client.PostAsJsonAsync("/api/v1/compliance-cases", new CreateComplianceCaseRequest
+            {
+                IssuerId = "issuer-release-subject",
+                SubjectId = "subject-release-subject-filter",
+                Type = CaseType.LaunchPackage,
+                Priority = CasePriority.Critical,
+                Jurisdiction = "US"
+            });
+            createResponse.EnsureSuccessStatusCode();
+
+            HttpResponseMessage response = await client.GetAsync(
+                "/api/v1/compliance-events?subjectId=subject-release-subject-filter&headRef=head-release-1&page=1&pageSize=50");
+            response.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? result = await response.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Events.Count, Is.EqualTo(1));
+            Assert.That(result.Events[0].EventType, Is.EqualTo(ComplianceEventType.ReleaseReadinessEvaluated));
+            Assert.That(result.Events[0].SubjectId, Is.EqualTo("subject-release-subject-filter"));
+            Assert.That(result.Events[0].HeadRef, Is.EqualTo("head-release-1"));
+            Assert.That(result.CurrentState.ReleaseReadiness, Is.Not.Null);
+            Assert.That(result.CurrentState.ReleaseReadiness!.Mode, Is.EqualTo(StrictArtifactMode.NotConfigured));
+            Assert.That(result.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.NotConfigured));
+        }
+
+        [Test]
         public async Task GetCaseTimelineApi_WithHeadRef_IncludesReleaseReadinessEventForRequestedCase()
         {
             await using var factory = new NotConfiguredReleaseReadinessFactory();
