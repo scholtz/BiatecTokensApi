@@ -620,6 +620,44 @@ namespace BiatecTokensTests
             Assert.That(firstPage.CurrentState.RecommendedAction, Does.Contain("Provide protected environment configuration"));
         }
 
+        [Test]
+        public async Task GetEventsApi_WithCaseIdAndHeadRefPagination_OrdersProtectedEventsNewestFirst()
+        {
+            await using var factory = new OrderedProtectedEventsFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            HttpResponseMessage firstPageResponse = await client.GetAsync(
+                "/api/v1/compliance-events?caseId=case-ordered-1&headRef=head-ordered-1&page=1&pageSize=1");
+            firstPageResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? firstPage = await firstPageResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            HttpResponseMessage secondPageResponse = await client.GetAsync(
+                "/api/v1/compliance-events?caseId=case-ordered-1&headRef=head-ordered-1&page=2&pageSize=1");
+            secondPageResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? secondPage = await secondPageResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            HttpResponseMessage thirdPageResponse = await client.GetAsync(
+                "/api/v1/compliance-events?caseId=case-ordered-1&headRef=head-ordered-1&page=3&pageSize=1");
+            thirdPageResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? thirdPage = await thirdPageResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            Assert.That(firstPage, Is.Not.Null);
+            Assert.That(secondPage, Is.Not.Null);
+            Assert.That(thirdPage, Is.Not.Null);
+            Assert.That(firstPage!.TotalCount, Is.EqualTo(3));
+            Assert.That(firstPage.Events[0].EventType, Is.EqualTo(ComplianceEventType.ReleaseReadinessEvaluated));
+            Assert.That(secondPage!.Events[0].EventType, Is.EqualTo(ComplianceEventType.ProtectedSignOffEvidenceCaptured));
+            Assert.That(thirdPage!.Events[0].EventType, Is.EqualTo(ComplianceEventType.ProtectedSignOffApprovalWebhookRecorded));
+            Assert.That(firstPage.Events[0].CaseId, Is.EqualTo("case-ordered-1"));
+            Assert.That(firstPage.Events[0].HeadRef, Is.EqualTo("head-ordered-1"));
+            Assert.That(secondPage.Events[0].CaseId, Is.EqualTo("case-ordered-1"));
+            Assert.That(secondPage.Events[0].HeadRef, Is.EqualTo("head-ordered-1"));
+            Assert.That(thirdPage.Events[0].CaseId, Is.EqualTo("case-ordered-1"));
+            Assert.That(thirdPage.Events[0].HeadRef, Is.EqualTo("head-ordered-1"));
+            Assert.That(firstPage.CurrentState.HighestSeverity, Is.EqualTo(ComplianceEventSeverity.Critical));
+            Assert.That(firstPage.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.NotConfigured));
+        }
+
         private static async Task<HttpClient> CreateAuthenticatedClientAsync(WebApplicationFactory<BiatecTokensApi.Program> factory)
         {
             HttpClient bootstrapClient = factory.CreateClient();
