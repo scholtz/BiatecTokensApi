@@ -153,6 +153,74 @@ namespace BiatecTokensApi.Services
             };
         }
 
+        /// <inheritdoc/>
+        public async Task<ComplianceEventQueueSummaryResponse> GetQueueSummaryAsync(ComplianceEventQueryRequest request, string actorId)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+
+            // Reuse GetEventsAsync with the maximum page size to collect all matching events for counting.
+            ComplianceEventQueryRequest summaryRequest = new()
+            {
+                CaseId = request.CaseId,
+                SubjectId = request.SubjectId,
+                EntityId = request.EntityId,
+                HeadRef = request.HeadRef,
+                EntityKind = request.EntityKind,
+                EventType = request.EventType,
+                Severity = request.Severity,
+                Source = request.Source,
+                Freshness = request.Freshness,
+                DeliveryStatus = request.DeliveryStatus,
+                Page = 1,
+                PageSize = 100
+            };
+
+            ComplianceEventListResponse firstPage = await GetEventsAsync(summaryRequest, actorId);
+            List<ComplianceEventEnvelope> all = firstPage.Events;
+
+            // Paginate through remaining pages if the total exceeds the first page.
+            int totalPages = (int)Math.Ceiling((double)firstPage.TotalCount / 100);
+            for (int p = 2; p <= totalPages; p++)
+            {
+                summaryRequest.Page = p;
+                ComplianceEventListResponse page = await GetEventsAsync(summaryRequest, actorId);
+                all.AddRange(page.Events);
+            }
+
+            ComplianceEventQueueSummary summary = new()
+            {
+                BlockedCount = all.Count(evt => evt.Severity == ComplianceEventSeverity.Critical),
+                ActionNeededCount = all.Count(evt => evt.Severity == ComplianceEventSeverity.Warning),
+                InformationalCount = all.Count(evt => evt.Severity == ComplianceEventSeverity.Informational),
+                WaitingOnProviderCount = all.Count(evt => evt.Freshness == ComplianceEventFreshness.AwaitingProviderCallback),
+                StaleCount = all.Count(evt => evt.Freshness == ComplianceEventFreshness.Stale),
+                NotConfiguredCount = all.Count(evt =>
+                    evt.Freshness == ComplianceEventFreshness.NotConfigured ||
+                    evt.DeliveryStatus == ComplianceEventDeliveryStatus.NotConfigured),
+                UnavailableCount = all.Count(evt => evt.Freshness == ComplianceEventFreshness.Unavailable),
+                FailedDeliveryCount = all.Count(evt => evt.DeliveryStatus == ComplianceEventDeliveryStatus.Failed),
+                PendingDeliveryCount = all.Count(evt => evt.DeliveryStatus == ComplianceEventDeliveryStatus.Waiting),
+                TotalCount = firstPage.TotalCount,
+                RecommendedAction = firstPage.CurrentState.RecommendedAction,
+                ComputedAt = DateTimeOffset.UtcNow
+            };
+
+            _logger.LogInformation(
+                "ComplianceEvents.GetQueueSummary actor={ActorId} total={TotalCount} blocked={BlockedCount} actionNeeded={ActionNeededCount} waitingOnProvider={WaitingOnProviderCount} stale={StaleCount}",
+                actorId,
+                summary.TotalCount,
+                summary.BlockedCount,
+                summary.ActionNeededCount,
+                summary.WaitingOnProviderCount,
+                summary.StaleCount);
+
+            return new ComplianceEventQueueSummaryResponse
+            {
+                Success = true,
+                Summary = summary
+            };
+        }
+
         private async Task AppendComplianceCaseEventsAsync(List<ComplianceEventEnvelope> events, ComplianceEventQueryRequest request)
         {
             List<ComplianceCase> cases = await _complianceCaseRepository.QueryCasesAsync(caseRecord =>

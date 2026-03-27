@@ -772,6 +772,287 @@ namespace BiatecTokensTests
             Assert.That(result.CurrentState.HasNotConfigured, Is.False);
         }
 
+        [Test]
+        public async Task GetQueueSummary_MixedSeverityAndFreshness_CountsEachCategoryCorrectly()
+        {
+            var repo = new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance);
+
+            var onboarding = new FakeOnboardingCaseService
+            {
+                Cases =
+                [
+                    new KycAmlOnboardingCase
+                    {
+                        CaseId = "case-qs-1",
+                        SubjectId = "subject-qs",
+                        CreatedAt = DateTimeOffset.Parse("2026-03-10T09:00:00Z"),
+                        UpdatedAt = DateTimeOffset.Parse("2026-03-10T09:05:00Z"),
+                        State = KycAmlOnboardingCaseState.ConfigurationMissing,
+                        EvidenceState = KycAmlOnboardingEvidenceState.MissingConfiguration,
+                        Timeline =
+                        [
+                            new KycAmlOnboardingTimelineEvent
+                            {
+                                EventId = "qs-onb-1",
+                                EventType = KycAmlOnboardingTimelineEventType.ProviderConfigurationMissing,
+                                OccurredAt = DateTimeOffset.Parse("2026-03-10T09:05:00Z"),
+                                ActorId = "system",
+                                Summary = "Provider config missing.",
+                                ToState = KycAmlOnboardingCaseState.ConfigurationMissing
+                            }
+                        ]
+                    },
+                    new KycAmlOnboardingCase
+                    {
+                        CaseId = "case-qs-2",
+                        SubjectId = "subject-qs",
+                        CreatedAt = DateTimeOffset.Parse("2026-03-10T10:00:00Z"),
+                        UpdatedAt = DateTimeOffset.Parse("2026-03-10T10:05:00Z"),
+                        State = KycAmlOnboardingCaseState.PendingReview,
+                        EvidenceState = KycAmlOnboardingEvidenceState.PendingVerification,
+                        Timeline =
+                        [
+                            new KycAmlOnboardingTimelineEvent
+                            {
+                                EventId = "qs-onb-2",
+                                EventType = KycAmlOnboardingTimelineEventType.ProviderChecksInitiated,
+                                OccurredAt = DateTimeOffset.Parse("2026-03-10T10:05:00Z"),
+                                ActorId = "system",
+                                Summary = "Provider checks initiated.",
+                                ToState = KycAmlOnboardingCaseState.PendingReview
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            var service = new ComplianceEventBackboneService(
+                repo,
+                onboarding,
+                new FakeProtectedSignOffEvidencePersistenceService(),
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventQueueSummaryResponse result = await service.GetQueueSummaryAsync(
+                new ComplianceEventQueryRequest { SubjectId = "subject-qs" },
+                "operator-qs");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Summary.BlockedCount, Is.GreaterThanOrEqualTo(1), "ConfigurationMissing should produce at least one Critical event");
+            Assert.That(result.Summary.ActionNeededCount, Is.GreaterThanOrEqualTo(1), "PendingReview should produce at least one Warning event");
+            Assert.That(result.Summary.WaitingOnProviderCount, Is.GreaterThanOrEqualTo(1), "PendingVerification should produce at least one AwaitingProviderCallback event");
+            Assert.That(result.Summary.TotalCount, Is.GreaterThanOrEqualTo(2));
+            Assert.That(result.Summary.ComputedAt, Is.GreaterThan(DateTimeOffset.UtcNow.AddMinutes(-1)));
+        }
+
+        [Test]
+        public async Task GetQueueSummary_StaleEvidenceEvents_ReflectsStaleCount()
+        {
+            var repo = new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance);
+            var onboarding = new FakeOnboardingCaseService
+            {
+                Cases =
+                [
+                    new KycAmlOnboardingCase
+                    {
+                        CaseId = "case-stale-1",
+                        SubjectId = "subject-stale",
+                        CreatedAt = DateTimeOffset.Parse("2026-01-01T08:00:00Z"),
+                        UpdatedAt = DateTimeOffset.Parse("2026-01-01T08:10:00Z"),
+                        State = KycAmlOnboardingCaseState.PendingReview,
+                        EvidenceState = KycAmlOnboardingEvidenceState.StaleEvidence,
+                        Timeline =
+                        [
+                            new KycAmlOnboardingTimelineEvent
+                            {
+                                EventId = "stale-evt-1",
+                                EventType = KycAmlOnboardingTimelineEventType.ReviewerActionRecorded,
+                                OccurredAt = DateTimeOffset.Parse("2026-01-01T08:10:00Z"),
+                                ActorId = "reviewer-1",
+                                Summary = "Evidence is stale.",
+                                ToState = KycAmlOnboardingCaseState.PendingReview
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            var service = new ComplianceEventBackboneService(
+                repo,
+                onboarding,
+                new FakeProtectedSignOffEvidencePersistenceService(),
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventQueueSummaryResponse result = await service.GetQueueSummaryAsync(
+                new ComplianceEventQueryRequest { SubjectId = "subject-stale" },
+                "operator-stale");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Summary.StaleCount, Is.GreaterThanOrEqualTo(1), "StaleEvidence case should produce Stale freshness event");
+        }
+
+        [Test]
+        public async Task GetQueueSummary_EmptyEventSet_ReturnsZeroCounts()
+        {
+            var repo = new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance);
+            var service = new ComplianceEventBackboneService(
+                repo,
+                new FakeOnboardingCaseService(),
+                new FakeProtectedSignOffEvidencePersistenceService(),
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventQueueSummaryResponse result = await service.GetQueueSummaryAsync(
+                new ComplianceEventQueryRequest { CaseId = "nonexistent-case-empty" },
+                "operator-empty");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Summary.BlockedCount, Is.EqualTo(0));
+            Assert.That(result.Summary.ActionNeededCount, Is.EqualTo(0));
+            Assert.That(result.Summary.WaitingOnProviderCount, Is.EqualTo(0));
+            Assert.That(result.Summary.StaleCount, Is.EqualTo(0));
+            Assert.That(result.Summary.InformationalCount, Is.EqualTo(0));
+            Assert.That(result.Summary.TotalCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task GetQueueSummaryApi_Unauthenticated_ReturnsUnauthorized()
+        {
+            await using var factory = new CustomWebApplicationFactory();
+            using var client = factory.CreateClient();
+
+            HttpResponseMessage response = await client.GetAsync("/api/v1/compliance-events/queue-summary");
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        }
+
+        [Test]
+        public async Task GetQueueSummaryApi_Authenticated_ReturnsQueueSummaryShape()
+        {
+            await using var factory = new CustomWebApplicationFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            var createResponse = await client.PostAsJsonAsync("/api/v1/compliance-cases", new CreateComplianceCaseRequest
+            {
+                IssuerId = "issuer-qs-api",
+                SubjectId = "subject-qs-api",
+                Type = CaseType.InvestorEligibility,
+                Priority = CasePriority.High,
+                Jurisdiction = "US"
+            });
+            createResponse.EnsureSuccessStatusCode();
+
+            HttpResponseMessage summaryResponse = await client.GetAsync(
+                "/api/v1/compliance-events/queue-summary?subjectId=subject-qs-api");
+            summaryResponse.EnsureSuccessStatusCode();
+
+            ComplianceEventQueueSummaryResponse? summary =
+                await summaryResponse.Content.ReadFromJsonAsync<ComplianceEventQueueSummaryResponse>();
+
+            Assert.That(summary, Is.Not.Null);
+            Assert.That(summary!.Success, Is.True);
+            Assert.That(summary.Summary.TotalCount, Is.GreaterThanOrEqualTo(1));
+            Assert.That(summary.Summary.ComputedAt, Is.GreaterThan(DateTimeOffset.UtcNow.AddMinutes(-2)));
+            Assert.That(summary.Summary.BlockedCount, Is.GreaterThanOrEqualTo(0));
+            Assert.That(summary.Summary.ActionNeededCount, Is.GreaterThanOrEqualTo(0));
+            Assert.That(summary.Summary.WaitingOnProviderCount, Is.GreaterThanOrEqualTo(0));
+            Assert.That(summary.Summary.StaleCount, Is.GreaterThanOrEqualTo(0));
+            Assert.That(summary.Summary.InformationalCount, Is.GreaterThanOrEqualTo(0));
+            Assert.That(summary.Summary.NotConfiguredCount, Is.GreaterThanOrEqualTo(0));
+            Assert.That(summary.Summary.FailedDeliveryCount, Is.GreaterThanOrEqualTo(0));
+            Assert.That(summary.Summary.PendingDeliveryCount, Is.GreaterThanOrEqualTo(0));
+        }
+
+        [Test]
+        public async Task GetQueueSummary_NotConfiguredReleaseReadiness_CountedInBlockedAndNotConfigured()
+        {
+            var repo = new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance);
+
+            var protectedSignOff = new FakeProtectedSignOffEvidencePersistenceService
+            {
+                ReleaseReadiness = new GetSignOffReleaseReadinessResponse
+                {
+                    Success = true,
+                    HeadRef = "head-qs-nc",
+                    Status = SignOffReleaseReadinessStatus.BlockedMissingConfiguration,
+                    EvidenceFreshness = SignOffEvidenceFreshnessStatus.Unavailable,
+                    Mode = StrictArtifactMode.NotConfigured,
+                    EvaluatedAt = DateTimeOffset.UtcNow,
+                    OperatorGuidance = "Configure the sign-off environment.",
+                    LatestApprovalWebhook = new ApprovalWebhookRecord
+                    {
+                        RecordId = "qs-webhook-nc-1",
+                        CaseId = "qs-case-nc",
+                        HeadRef = "head-qs-nc",
+                        ReceivedAt = DateTimeOffset.UtcNow.AddMinutes(-10)
+                    }
+                }
+            };
+
+            var service = new ComplianceEventBackboneService(
+                repo,
+                new FakeOnboardingCaseService(),
+                protectedSignOff,
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventQueueSummaryResponse result = await service.GetQueueSummaryAsync(
+                new ComplianceEventQueryRequest { HeadRef = "head-qs-nc" },
+                "operator-nc");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Summary.BlockedCount, Is.GreaterThanOrEqualTo(1),
+                "BlockedMissingConfiguration release-readiness should increment BlockedCount");
+            Assert.That(result.Summary.NotConfiguredCount, Is.GreaterThanOrEqualTo(1),
+                "NotConfigured mode should increment NotConfiguredCount");
+        }
+
+        [Test]
+        public async Task GetQueueSummary_FailedDelivery_ReflectedInFailedDeliveryCount()
+        {
+            var repo = new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance);
+
+            await repo.SaveCaseAsync(new ComplianceCase
+            {
+                CaseId = "case-delivery-fail-1",
+                SubjectId = "subject-del-fail",
+                IssuerId = "issuer-del-fail",
+                Type = CaseType.InvestorEligibility,
+                Priority = CasePriority.High,
+                Jurisdiction = "US",
+                CreatedAt = DateTimeOffset.UtcNow.AddHours(-1),
+                UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(-30),
+                DeliveryRecords =
+                [
+                    new CaseDeliveryRecord
+                    {
+                        DeliveryId = "del-fail-1",
+                        CaseId = "case-delivery-fail-1",
+                        Outcome = CaseDeliveryOutcome.RetryExhausted,
+                        AttemptedAt = DateTimeOffset.UtcNow.AddMinutes(-20)
+                    }
+                ]
+            });
+
+            var service = new ComplianceEventBackboneService(
+                repo,
+                new FakeOnboardingCaseService(),
+                new FakeProtectedSignOffEvidencePersistenceService(),
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventQueueSummaryResponse result = await service.GetQueueSummaryAsync(
+                new ComplianceEventQueryRequest { CaseId = "case-delivery-fail-1" },
+                "operator-del");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Summary.FailedDeliveryCount, Is.GreaterThanOrEqualTo(1),
+                "RetryExhausted delivery should increment FailedDeliveryCount");
+            Assert.That(result.Summary.BlockedCount, Is.GreaterThanOrEqualTo(1),
+                "RetryExhausted delivery maps to Critical severity which should increment BlockedCount");
+        }
+
         private static async Task<HttpClient> CreateAuthenticatedClientAsync(WebApplicationFactory<BiatecTokensApi.Program> factory)
         {
             HttpClient bootstrapClient = factory.CreateClient();

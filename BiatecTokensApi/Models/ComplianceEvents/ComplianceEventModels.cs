@@ -267,6 +267,65 @@ namespace BiatecTokensApi.Models.ComplianceEvents
         public GetSignOffReleaseReadinessResponse? ReleaseReadiness { get; set; }
     }
 
+    /// <summary>
+    /// Operator-dashboard queue summary counts for the compliance-event backbone.
+    /// Each category is counted independently so operators can understand multiple dimensions at once.
+    /// </summary>
+    public class ComplianceEventQueueSummary
+    {
+        /// <summary>Events with Critical severity representing hard blockers or failures.</summary>
+        public int BlockedCount { get; set; }
+
+        /// <summary>Events with Warning severity requiring operator attention.</summary>
+        public int ActionNeededCount { get; set; }
+
+        /// <summary>Events whose freshness is AwaitingProviderCallback, indicating upstream delay.</summary>
+        public int WaitingOnProviderCount { get; set; }
+
+        /// <summary>Events with Stale freshness whose evidence is no longer authoritative.</summary>
+        public int StaleCount { get; set; }
+
+        /// <summary>Events with Informational severity that require no immediate action.</summary>
+        public int InformationalCount { get; set; }
+
+        /// <summary>Events with NotConfigured freshness or delivery status representing missing setup.</summary>
+        public int NotConfiguredCount { get; set; }
+
+        /// <summary>Events with Unavailable freshness representing upstream unavailability.</summary>
+        public int UnavailableCount { get; set; }
+
+        /// <summary>Events with Failed delivery status.</summary>
+        public int FailedDeliveryCount { get; set; }
+
+        /// <summary>Events with Waiting delivery status pending retry or initial attempt.</summary>
+        public int PendingDeliveryCount { get; set; }
+
+        /// <summary>Total events considered when computing the summary.</summary>
+        public int TotalCount { get; set; }
+
+        /// <summary>Top-level operator guidance derived from the most severe current condition.</summary>
+        public string? RecommendedAction { get; set; }
+
+        /// <summary>UTC timestamp when the summary was computed.</summary>
+        public DateTimeOffset ComputedAt { get; set; }
+    }
+
+    /// <summary>Response from the compliance-event queue summary endpoint.</summary>
+    public class ComplianceEventQueueSummaryResponse
+    {
+        /// <summary>True when the summary was computed successfully.</summary>
+        public bool Success { get; set; }
+
+        /// <summary>Queue summary counts broken down by operator-dashboard categories.</summary>
+        public ComplianceEventQueueSummary Summary { get; set; } = new();
+
+        /// <summary>Machine-readable error code on failure.</summary>
+        public string? ErrorCode { get; set; }
+
+        /// <summary>Business-readable error message on failure.</summary>
+        public string? ErrorMessage { get; set; }
+    }
+
     /// <summary>Paginated response from the compliance-event backbone API.</summary>
     public class ComplianceEventListResponse
     {
