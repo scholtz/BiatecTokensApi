@@ -61,7 +61,26 @@ namespace BiatecTokensApi.Services
                         CaseId = request.CaseId
                     });
 
-                events.Add(MapReleaseReadinessEvent(releaseReadiness));
+                string? sourceCaseId = releaseReadiness.LatestEvidencePack?.CaseId ?? releaseReadiness.LatestApprovalWebhook?.CaseId;
+                if (!string.IsNullOrWhiteSpace(request.CaseId) && string.IsNullOrWhiteSpace(sourceCaseId))
+                {
+                    _logger.LogInformation(
+                        "ComplianceEvents.GetEvents binding release-readiness event to requested case because no source case was present. RequestedCaseId={RequestedCaseId} HeadRef={HeadRef}",
+                        LoggingHelper.SanitizeLogInput(request.CaseId),
+                        LoggingHelper.SanitizeLogInput(request.HeadRef));
+                }
+                else if (!string.IsNullOrWhiteSpace(request.CaseId) &&
+                    !string.IsNullOrWhiteSpace(sourceCaseId) &&
+                    !string.Equals(request.CaseId, sourceCaseId, StringComparison.Ordinal))
+                {
+                    _logger.LogWarning(
+                        "ComplianceEvents.GetEvents overriding release-readiness case binding. RequestedCaseId={RequestedCaseId} SourceCaseId={SourceCaseId} HeadRef={HeadRef}",
+                        LoggingHelper.SanitizeLogInput(request.CaseId),
+                        LoggingHelper.SanitizeLogInput(sourceCaseId),
+                        LoggingHelper.SanitizeLogInput(request.HeadRef));
+                }
+
+                events.Add(MapReleaseReadinessEvent(releaseReadiness, request.CaseId));
             }
 
             IEnumerable<ComplianceEventEnvelope> filtered = events;
@@ -474,7 +493,9 @@ namespace BiatecTokensApi.Services
             };
         }
 
-        private static ComplianceEventEnvelope MapReleaseReadinessEvent(GetSignOffReleaseReadinessResponse readiness)
+        private static ComplianceEventEnvelope MapReleaseReadinessEvent(
+            GetSignOffReleaseReadinessResponse readiness,
+            string? requestedCaseId = null)
         {
             return new ComplianceEventEnvelope
             {
@@ -482,7 +503,9 @@ namespace BiatecTokensApi.Services
                 EventType = ComplianceEventType.ReleaseReadinessEvaluated,
                 EntityKind = ComplianceEventEntityKind.ReleaseReadiness,
                 EntityId = readiness.HeadRef,
-                CaseId = readiness.LatestEvidencePack?.CaseId ?? readiness.LatestApprovalWebhook?.CaseId,
+                CaseId = string.IsNullOrWhiteSpace(requestedCaseId)
+                    ? readiness.LatestEvidencePack?.CaseId ?? readiness.LatestApprovalWebhook?.CaseId
+                    : requestedCaseId,
                 HeadRef = readiness.HeadRef,
                 Timestamp = readiness.EvaluatedAt,
                 ActorId = readiness.LatestApprovalWebhook?.ActorId ?? readiness.LatestEvidencePack?.CreatedBy,
@@ -506,7 +529,8 @@ namespace BiatecTokensApi.Services
                     ["mode"] = readiness.Mode.ToString(),
                     ["evidenceFreshness"] = readiness.EvidenceFreshness.ToString(),
                     ["hasApprovalWebhook"] = readiness.HasApprovalWebhook.ToString(),
-                    ["environmentLabel"] = readiness.EnvironmentLabel ?? string.Empty
+                    ["environmentLabel"] = readiness.EnvironmentLabel ?? string.Empty,
+                    ["operatorGuidance"] = readiness.OperatorGuidance ?? string.Empty
                 }
             };
         }

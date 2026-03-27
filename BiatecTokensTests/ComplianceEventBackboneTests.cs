@@ -208,6 +208,95 @@ namespace BiatecTokensTests
         }
 
         [Test]
+        public async Task GetEvents_CaseAndHeadRefFilter_IncludesReleaseReadinessEventWhenEvidenceIsMissing()
+        {
+            var service = new ComplianceEventBackboneService(
+                new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance),
+                new FakeOnboardingCaseService(),
+                new FakeProtectedSignOffEvidencePersistenceService
+                {
+                    ReleaseReadiness = new GetSignOffReleaseReadinessResponse
+                    {
+                        Success = true,
+                        HeadRef = "head-filtered-1",
+                        Status = SignOffReleaseReadinessStatus.BlockedMissingConfiguration,
+                        EvidenceFreshness = SignOffEvidenceFreshnessStatus.Unavailable,
+                        Mode = StrictArtifactMode.NotConfigured,
+                        EvaluatedAt = DateTimeOffset.Parse("2026-03-27T10:07:00Z"),
+                        OperatorGuidance = "Provision protected sign-off configuration before release."
+                    }
+                },
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventListResponse result = await service.GetEventsAsync(new ComplianceEventQueryRequest
+            {
+                CaseId = "case-filtered-1",
+                HeadRef = "head-filtered-1"
+            }, "operator-filter");
+
+            var releaseEvent = result.Events.Single(evt => evt.EventType == ComplianceEventType.ReleaseReadinessEvaluated);
+            Assert.That(result.Success, Is.True);
+            Assert.That(releaseEvent.CaseId, Is.EqualTo("case-filtered-1"));
+            Assert.That(releaseEvent.HeadRef, Is.EqualTo("head-filtered-1"));
+            Assert.That(releaseEvent.Payload["status"], Is.EqualTo(SignOffReleaseReadinessStatus.BlockedMissingConfiguration.ToString()));
+            Assert.That(releaseEvent.Payload["operatorGuidance"], Does.Contain("Provision protected sign-off configuration"));
+            Assert.That(releaseEvent.RecommendedAction, Does.Contain("Provision protected sign-off configuration"));
+        }
+
+        [Test]
+        public async Task GetEvents_FreshnessFilter_AwaitingProviderCallback_ReturnsOnboardingPendingSignal()
+        {
+            var service = new ComplianceEventBackboneService(
+                new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance),
+                new FakeOnboardingCaseService
+                {
+                    Cases =
+                    [
+                        new KycAmlOnboardingCase
+                        {
+                            CaseId = "onboarding-pending-1",
+                            SubjectId = "subject-pending-1",
+                            State = KycAmlOnboardingCaseState.ProviderChecksStarted,
+                            EvidenceState = KycAmlOnboardingEvidenceState.PendingVerification,
+                            CreatedAt = DateTimeOffset.Parse("2026-03-27T10:00:00Z"),
+                            UpdatedAt = DateTimeOffset.Parse("2026-03-27T10:04:00Z"),
+                            Timeline =
+                            [
+                                new KycAmlOnboardingTimelineEvent
+                                {
+                                    EventId = "pending-event-1",
+                                    EventType = KycAmlOnboardingTimelineEventType.ProviderChecksInitiated,
+                                    OccurredAt = DateTimeOffset.Parse("2026-03-27T10:04:00Z"),
+                                    ActorId = "operator-pending",
+                                    Summary = "Provider checks initiated for subject subject-pending-1.",
+                                    ToState = KycAmlOnboardingCaseState.ProviderChecksStarted
+                                }
+                            ]
+                        }
+                    ]
+                },
+                new FakeProtectedSignOffEvidencePersistenceService(),
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventListResponse result = await service.GetEventsAsync(new ComplianceEventQueryRequest
+            {
+                SubjectId = "subject-pending-1",
+                Freshness = ComplianceEventFreshness.AwaitingProviderCallback
+            }, "operator-pending");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.Events, Has.Count.EqualTo(1));
+            Assert.That(result.Events[0].EventType, Is.EqualTo(ComplianceEventType.OnboardingProviderChecksInitiated));
+            Assert.That(result.Events[0].Payload["subjectId"], Is.EqualTo("subject-pending-1"));
+            Assert.That(result.Events[0].Payload["evidenceState"], Is.EqualTo(KycAmlOnboardingEvidenceState.PendingVerification.ToString()));
+            Assert.That(result.Events[0].Payload["toState"], Is.EqualTo(KycAmlOnboardingCaseState.ProviderChecksStarted.ToString()));
+            Assert.That(result.CurrentState.CurrentFreshness, Is.EqualTo(ComplianceEventFreshness.AwaitingProviderCallback));
+        }
+
+        [Test]
         public async Task GetEventsApi_Unauthenticated_ReturnsUnauthorized()
         {
             await using var factory = new CustomWebApplicationFactory();
@@ -317,6 +406,39 @@ namespace BiatecTokensTests
             Assert.That(result.CurrentState.ReleaseReadiness!.Mode, Is.EqualTo(StrictArtifactMode.NotConfigured));
             Assert.That(result.CurrentState.CurrentFreshness, Is.EqualTo(ComplianceEventFreshness.NotConfigured));
             Assert.That(result.Events.Any(evt => evt.EventType == ComplianceEventType.ReleaseReadinessEvaluated), Is.True);
+        }
+
+        [Test]
+        public async Task GetCaseTimelineApi_WithHeadRef_IncludesReleaseReadinessEventForRequestedCase()
+        {
+            await using var factory = new NotConfiguredReleaseReadinessFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            var createResponse = await client.PostAsJsonAsync("/api/v1/compliance-cases", new CreateComplianceCaseRequest
+            {
+                IssuerId = "issuer-release-case",
+                SubjectId = "subject-release-case",
+                Type = CaseType.LaunchPackage,
+                Priority = CasePriority.Critical,
+                Jurisdiction = "US"
+            });
+            createResponse.EnsureSuccessStatusCode();
+            var createBody = await createResponse.Content.ReadFromJsonAsync<CreateComplianceCaseResponse>();
+            var caseId = createBody!.Case!.CaseId;
+
+            HttpResponseMessage response = await client.GetAsync($"/api/v1/compliance-events/cases/{caseId}/timeline?headRef=head-release-1&page=1&pageSize=100");
+            response.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? result = await response.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            var releaseEvent = result!.Events.Single(evt => evt.EventType == ComplianceEventType.ReleaseReadinessEvaluated);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(releaseEvent.CaseId, Is.EqualTo(caseId));
+            Assert.That(releaseEvent.HeadRef, Is.EqualTo("head-release-1"));
+            Assert.That(releaseEvent.Payload["status"], Is.EqualTo(SignOffReleaseReadinessStatus.BlockedMissingConfiguration.ToString()));
+            Assert.That(releaseEvent.Payload["evidenceFreshness"], Is.EqualTo(SignOffEvidenceFreshnessStatus.Unavailable.ToString()));
+            Assert.That(releaseEvent.Payload["mode"], Is.EqualTo(StrictArtifactMode.NotConfigured.ToString()));
+            Assert.That(releaseEvent.Payload["operatorGuidance"], Does.Contain("Provide protected environment configuration"));
+            Assert.That(result.CurrentState.ReleaseReadiness!.Mode, Is.EqualTo(StrictArtifactMode.NotConfigured));
         }
 
         private static async Task<HttpClient> CreateAuthenticatedClientAsync(WebApplicationFactory<BiatecTokensApi.Program> factory)
