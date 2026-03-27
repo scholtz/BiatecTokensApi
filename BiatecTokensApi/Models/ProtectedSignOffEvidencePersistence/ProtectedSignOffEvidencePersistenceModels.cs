@@ -149,6 +149,62 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
     }
 
     /// <summary>
+    /// Operational mode of the strict sign-off artifact, giving downstream consumers
+    /// a single, authoritative signal about whether the protected environment is
+    /// configured before they need to inspect individual status fields.
+    ///
+    /// <para>
+    /// This field is the key discriminator that closes the roadmap's documented
+    /// backend-side MVP blocker. When the protected-sign-off lane is not set up,
+    /// Mode is <see cref="NotConfigured"/> and the artifact must not be used as
+    /// release evidence. When configuration is present and passes all checks,
+    /// Mode advances through <see cref="Configured"/> to
+    /// <see cref="ReadyReleaseGrade"/>.
+    /// </para>
+    /// </summary>
+    public enum StrictArtifactMode
+    {
+        /// <summary>
+        /// Required protected-environment configuration or credentials are absent.
+        /// Evidence produced in this mode is never release-grade.  Operator must
+        /// provision the required secrets and re-run the workflow before release
+        /// sign-off can proceed.
+        /// </summary>
+        NotConfigured,
+
+        /// <summary>
+        /// The strict sign-off lane is configured with all required secrets and
+        /// environment prerequisites. Evidence can be evaluated against release-grade
+        /// criteria. Check <see cref="SignOffReleaseReadinessStatus"/> and the
+        /// <c>Blockers</c> collection for the detailed verdict.
+        /// </summary>
+        Configured,
+
+        /// <summary>
+        /// Configuration is present but one or more optional components are
+        /// unavailable or operating with reduced confidence (e.g., the KYC/AML
+        /// provider is unreachable). Evidence may be produced but cannot be treated
+        /// as full release-grade proof until the degraded component is restored.
+        /// </summary>
+        Degraded,
+
+        /// <summary>
+        /// Evidence exists but is past its freshness window or was captured for a
+        /// different head commit. The strict lane must be re-executed against the
+        /// current head before evidence can gate release.
+        /// </summary>
+        StaleEvidence,
+
+        /// <summary>
+        /// The strict lane is configured, all evidence is fresh and complete, all
+        /// release-grade criteria are satisfied, and an approved webhook has been
+        /// received. This is the highest-confidence state for product-owner and
+        /// regulator review.
+        /// </summary>
+        ReadyReleaseGrade
+    }
+
+    /// <summary>
     /// Category of a release-readiness blocker, enabling the frontend to group
     /// and prioritise operator actions.
     /// </summary>
@@ -325,6 +381,18 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
         /// Actor who triggered the evidence pack creation.
         /// </summary>
         public string? CreatedBy { get; set; }
+
+        /// <summary>
+        /// Label of the protected environment that produced this evidence pack
+        /// (e.g., "protected-ci", "staging", "release-candidate").
+        ///
+        /// Sourced from <see cref="PersistSignOffEvidenceRequest.EnvironmentLabel"/>
+        /// at capture time.  Null when the caller did not supply a label.
+        ///
+        /// Allows audit-export and reporting consumers to trace each evidence pack
+        /// back to the exact protected environment without comparing external metadata.
+        /// </summary>
+        public string? EnvironmentLabel { get; set; }
     }
 
     /// <summary>
@@ -467,6 +535,16 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
         /// for this head ref.
         /// </summary>
         public bool RequireApprovalWebhook { get; set; }
+
+        /// <summary>
+        /// Optional label identifying the protected environment that is producing this
+        /// evidence pack (e.g., "protected-ci", "staging", "release-candidate").
+        ///
+        /// When set, the label is stored on the resulting <see cref="ProtectedSignOffEvidencePack"/>
+        /// so that audit and reporting consumers can trace evidence back to its source
+        /// environment without relying on external metadata.
+        /// </summary>
+        public string? EnvironmentLabel { get; set; }
     }
 
     /// <summary>
@@ -567,11 +645,63 @@ namespace BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence
         /// <summary>UTC timestamp when this readiness evaluation was performed.</summary>
         public DateTimeOffset EvaluatedAt { get; set; }
 
-        /// <summary>Machine-readable error code on error.</summary>
+        /// <summary>
+        /// Machine-readable error code on error.
+        /// </summary>
         public string? ErrorCode { get; set; }
 
         /// <summary>Human-readable error message on error.</summary>
         public string? ErrorMessage { get; set; }
+
+        /// <summary>
+        /// Operational mode of the strict sign-off artifact.
+        ///
+        /// <para>
+        /// This is the primary field for distinguishing a correctly configured
+        /// protected lane from an unconfigured or degraded one, without needing to
+        /// inspect <see cref="Status"/> or <see cref="Blockers"/>.
+        /// </para>
+        ///
+        /// <list type="bullet">
+        ///   <item>
+        ///     <see cref="StrictArtifactMode.NotConfigured"/> — required secrets or
+        ///     environment configuration are absent; this artifact must not be used
+        ///     as release evidence (<see cref="IsReleaseEvidence"/> is always false).
+        ///   </item>
+        ///   <item>
+        ///     <see cref="StrictArtifactMode.Configured"/> — environment is configured;
+        ///     check <see cref="Status"/> and <see cref="Blockers"/> for the full verdict.
+        ///   </item>
+        ///   <item>
+        ///     <see cref="StrictArtifactMode.Degraded"/> — configuration present but an
+        ///     optional provider is unavailable; evidence may still be produced but
+        ///     cannot be treated as full release-grade proof.
+        ///   </item>
+        ///   <item>
+        ///     <see cref="StrictArtifactMode.StaleEvidence"/> — evidence exists but has
+        ///     passed its freshness window or was captured for a different head; the
+        ///     workflow must be re-run before release can proceed.
+        ///   </item>
+        ///   <item>
+        ///     <see cref="StrictArtifactMode.ReadyReleaseGrade"/> — fully configured,
+        ///     fresh, complete, and release-grade. Safe to use as authoritative release
+        ///     proof; <see cref="IsReleaseEvidence"/> is true.
+        ///   </item>
+        /// </list>
+        /// </summary>
+        public StrictArtifactMode Mode { get; set; }
+
+        /// <summary>
+        /// Label of the protected environment that produced the evaluated evidence pack,
+        /// if available (e.g., "protected-ci", "staging", "release-candidate").
+        ///
+        /// Sourced from the latest <see cref="ProtectedSignOffEvidencePack.EnvironmentLabel"/>
+        /// for this head ref.  Null when no pack exists or the pack carried no label.
+        ///
+        /// Enables audit and reporting consumers to confirm evidence originates from
+        /// the expected protected environment without comparing external metadata.
+        /// </summary>
+        public string? EnvironmentLabel { get; set; }
     }
 
     /// <summary>
