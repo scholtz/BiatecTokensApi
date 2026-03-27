@@ -141,6 +141,13 @@ namespace BiatecTokensApi.Services
             };
 
             _cases[caseId] = newCase;
+            newCase.Timeline.Add(BuildTimelineEvent(
+                KycAmlOnboardingTimelineEventType.CaseCreated,
+                actorId,
+                now,
+                $"Onboarding case created for subject {request.SubjectId}.",
+                toState: newCase.State,
+                correlationId: correlationId));
 
             // Register idempotency key
             if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
@@ -218,10 +225,19 @@ namespace BiatecTokensApi.Services
             // ── 2. Provider configured? ──────────────────────────────────────────
             if (_journeyService == null)
             {
+                var configurationMissingPreviousState = kycCase.State;
                 kycCase.State = KycAmlOnboardingCaseState.ConfigurationMissing;
                 kycCase.EvidenceState = KycAmlOnboardingEvidenceState.MissingConfiguration;
                 kycCase.IsProviderConfigured = false;
                 kycCase.UpdatedAt = _time.GetUtcNow();
+                kycCase.Timeline.Add(BuildTimelineEvent(
+                    KycAmlOnboardingTimelineEventType.ProviderConfigurationMissing,
+                    actorId,
+                    kycCase.UpdatedAt,
+                    "Provider checks could not start because no live-provider journey service is configured.",
+                    fromState: configurationMissingPreviousState,
+                    toState: kycCase.State,
+                    correlationId: correlationId));
 
                 _logger.LogWarning(
                     "InitiateProviderChecks: provider not configured for case {CaseId}, CorrelationId={CorrelationId}",
@@ -281,9 +297,18 @@ namespace BiatecTokensApi.Services
                     LoggingHelper.SanitizeLogInput(caseId),
                     LoggingHelper.SanitizeLogInput(correlationId));
 
+                var providerErrorPreviousState = kycCase.State;
                 kycCase.State = KycAmlOnboardingCaseState.ProviderUnavailable;
                 kycCase.EvidenceState = KycAmlOnboardingEvidenceState.ProviderUnavailable;
                 kycCase.UpdatedAt = _time.GetUtcNow();
+                kycCase.Timeline.Add(BuildTimelineEvent(
+                    KycAmlOnboardingTimelineEventType.ProviderUnavailable,
+                    actorId,
+                    kycCase.UpdatedAt,
+                    "Provider checks could not be started because the provider journey service threw an exception.",
+                    fromState: providerErrorPreviousState,
+                    toState: kycCase.State,
+                    correlationId: correlationId));
 
                 return new InitiateProviderChecksResponse
                 {
@@ -298,9 +323,22 @@ namespace BiatecTokensApi.Services
             // ── 6. Handle degraded journey ───────────────────────────────────────
             if (journeyResponse.Journey?.CurrentStage == VerificationJourneyStage.Degraded)
             {
+                var providerDegradedPreviousState = kycCase.State;
                 kycCase.State = KycAmlOnboardingCaseState.ProviderUnavailable;
                 kycCase.EvidenceState = KycAmlOnboardingEvidenceState.ProviderUnavailable;
                 kycCase.UpdatedAt = _time.GetUtcNow();
+                kycCase.Timeline.Add(BuildTimelineEvent(
+                    KycAmlOnboardingTimelineEventType.ProviderUnavailable,
+                    actorId,
+                    kycCase.UpdatedAt,
+                    "Provider checks entered a degraded state and cannot be trusted as complete proof.",
+                    fromState: providerDegradedPreviousState,
+                    toState: kycCase.State,
+                    correlationId: correlationId,
+                    metadata: new Dictionary<string, string>
+                    {
+                        ["journeyId"] = journeyResponse.Journey.JourneyId
+                    }));
 
                 _logger.LogWarning(
                     "InitiateProviderChecks: journey degraded for case {CaseId}, JourneyId={JourneyId}, CorrelationId={CorrelationId}",
@@ -321,6 +359,7 @@ namespace BiatecTokensApi.Services
 
             // ── 7. Success path ──────────────────────────────────────────────────
             var journeyId = journeyResponse.Journey?.JourneyId;
+            var providerStartedPreviousState = kycCase.State;
             kycCase.State = KycAmlOnboardingCaseState.ProviderChecksStarted;
             kycCase.EvidenceState = KycAmlOnboardingEvidenceState.PendingVerification;
             kycCase.VerificationJourneyId = journeyId;
@@ -335,6 +374,19 @@ namespace BiatecTokensApi.Services
                 Rationale = "Provider checks initiated.",
                 Notes = $"JourneyId={journeyId}"
             });
+            kycCase.Timeline.Add(BuildTimelineEvent(
+                KycAmlOnboardingTimelineEventType.ProviderChecksInitiated,
+                actorId,
+                kycCase.UpdatedAt,
+                $"Provider checks initiated for subject {kycCase.SubjectId}.",
+                fromState: providerStartedPreviousState,
+                toState: kycCase.State,
+                correlationId: correlationId,
+                metadata: new Dictionary<string, string>
+                {
+                    ["journeyId"] = journeyId ?? string.Empty,
+                    ["executionMode"] = request.ExecutionMode.ToString()
+                }));
 
             _logger.LogInformation(
                 "InitiateProviderChecks: checks started for case {CaseId}, JourneyId={JourneyId}, CorrelationId={CorrelationId}",
@@ -446,9 +498,23 @@ namespace BiatecTokensApi.Services
                 Notes = request.Notes
             };
 
+            var previousState = kycCase.State;
             kycCase.Actions.Add(action);
             kycCase.State = nextState.Value;
             kycCase.UpdatedAt = _time.GetUtcNow();
+            kycCase.Timeline.Add(BuildTimelineEvent(
+                KycAmlOnboardingTimelineEventType.ReviewerActionRecorded,
+                actorId,
+                action.Timestamp,
+                BuildReviewerActionSummary(request.Kind, kycCase.SubjectId, nextState.Value),
+                fromState: previousState,
+                toState: nextState.Value,
+                correlationId: correlationId,
+                metadata: new Dictionary<string, string>
+                {
+                    ["actionKind"] = request.Kind.ToString(),
+                    ["rationale"] = request.Rationale ?? string.Empty
+                }));
 
             _logger.LogInformation(
                 "RecordReviewerAction: action {Kind} on case {CaseId} by {Actor}, new state {State}, CorrelationId={CorrelationId}",
@@ -680,6 +746,45 @@ namespace BiatecTokensApi.Services
                     _logger.LogWarning(ex, "Webhook emission failed for event {EventType}", evt.EventType);
                 }
             });
+        }
+
+        private static string BuildReviewerActionSummary(
+            KycAmlOnboardingActionKind actionKind,
+            string subjectId,
+            KycAmlOnboardingCaseState resultingState)
+        {
+            return actionKind switch
+            {
+                KycAmlOnboardingActionKind.Approve => $"Reviewer approved onboarding for subject {subjectId}.",
+                KycAmlOnboardingActionKind.Reject => $"Reviewer rejected onboarding for subject {subjectId}.",
+                KycAmlOnboardingActionKind.Escalate => $"Reviewer escalated onboarding for subject {subjectId}.",
+                KycAmlOnboardingActionKind.RequestAdditionalInfo => $"Reviewer requested additional information for subject {subjectId}.",
+                _ => $"Reviewer note recorded for subject {subjectId}. Case remains in state {resultingState}."
+            };
+        }
+
+        private static KycAmlOnboardingTimelineEvent BuildTimelineEvent(
+            KycAmlOnboardingTimelineEventType eventType,
+            string actorId,
+            DateTimeOffset occurredAt,
+            string summary,
+            KycAmlOnboardingCaseState? fromState = null,
+            KycAmlOnboardingCaseState? toState = null,
+            string? correlationId = null,
+            Dictionary<string, string>? metadata = null)
+        {
+            return new KycAmlOnboardingTimelineEvent
+            {
+                EventId = Guid.NewGuid().ToString("N"),
+                EventType = eventType,
+                OccurredAt = occurredAt,
+                ActorId = actorId,
+                Summary = summary,
+                FromState = fromState,
+                ToState = toState,
+                CorrelationId = correlationId,
+                Metadata = metadata ?? new Dictionary<string, string>()
+            };
         }
     }
 }

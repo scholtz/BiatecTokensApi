@@ -85,6 +85,21 @@ namespace BiatecTokensApi.Models.KycAmlOnboarding
         Simulated
     }
 
+    /// <summary>Typed onboarding timeline events used for operator-facing audit trails.</summary>
+    public enum KycAmlOnboardingTimelineEventType
+    {
+        /// <summary>The onboarding case was created.</summary>
+        CaseCreated,
+        /// <summary>Provider checks were initiated successfully.</summary>
+        ProviderChecksInitiated,
+        /// <summary>Provider checks could not start because configuration is missing.</summary>
+        ProviderConfigurationMissing,
+        /// <summary>Provider checks could not complete because the provider is unavailable or degraded.</summary>
+        ProviderUnavailable,
+        /// <summary>A reviewer action or note was recorded.</summary>
+        ReviewerActionRecorded
+    }
+
     // ── Core records ──────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -116,6 +131,9 @@ namespace BiatecTokensApi.Models.KycAmlOnboarding
         /// <summary>Ordered list of reviewer actions taken on this case.</summary>
         public List<KycAmlOnboardingActorAction> Actions { get; init; } = new();
 
+        /// <summary>Chronological onboarding timeline entries for this case.</summary>
+        public List<KycAmlOnboardingTimelineEvent> Timeline { get; init; } = new();
+
         /// <summary>Current evidence state for the case.</summary>
         public KycAmlOnboardingEvidenceState EvidenceState { get; set; } = KycAmlOnboardingEvidenceState.PendingVerification;
 
@@ -133,6 +151,39 @@ namespace BiatecTokensApi.Models.KycAmlOnboarding
 
         /// <summary>Optional organisation name for business subjects.</summary>
         public string? OrganizationName { get; init; }
+    }
+
+    /// <summary>
+    /// Immutable onboarding timeline entry capturing a business-significant lifecycle change.
+    /// </summary>
+    public record KycAmlOnboardingTimelineEvent
+    {
+        /// <summary>Unique identifier for this timeline event.</summary>
+        public string EventId { get; init; } = string.Empty;
+
+        /// <summary>Type of business event recorded.</summary>
+        public KycAmlOnboardingTimelineEventType EventType { get; init; }
+
+        /// <summary>UTC timestamp when the event occurred.</summary>
+        public DateTimeOffset OccurredAt { get; init; }
+
+        /// <summary>Actor or subsystem that caused the event.</summary>
+        public string ActorId { get; init; } = string.Empty;
+
+        /// <summary>Plain-language summary suitable for operator timelines.</summary>
+        public string Summary { get; init; } = string.Empty;
+
+        /// <summary>Case state before the event, when applicable.</summary>
+        public KycAmlOnboardingCaseState? FromState { get; init; }
+
+        /// <summary>Case state after the event, when applicable.</summary>
+        public KycAmlOnboardingCaseState? ToState { get; init; }
+
+        /// <summary>Correlation ID propagated from the originating workflow, if available.</summary>
+        public string? CorrelationId { get; init; }
+
+        /// <summary>Structured metadata describing the event in more detail.</summary>
+        public Dictionary<string, string> Metadata { get; init; } = new();
     }
 
     /// <summary>

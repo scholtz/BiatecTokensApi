@@ -1,0 +1,541 @@
+using BiatecTokensApi.Models.Auth;
+using BiatecTokensApi.Models.ComplianceAuditExport;
+using BiatecTokensApi.Models.ComplianceCaseManagement;
+using BiatecTokensApi.Models.ComplianceEvents;
+using BiatecTokensApi.Models.KycAmlOnboarding;
+using BiatecTokensApi.Models.ProtectedSignOffEvidencePersistence;
+using BiatecTokensApi.Models.RegulatoryEvidencePackage;
+using BiatecTokensApi.Repositories;
+using BiatecTokensApi.Repositories.Interface;
+using BiatecTokensApi.Services;
+using BiatecTokensApi.Services.Interface;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+
+namespace BiatecTokensTests
+{
+    [TestFixture]
+    [NonParallelizable]
+    public class ComplianceEventBackboneTests
+    {
+        [Test]
+        public async Task GetEvents_NotConfiguredReleaseReadiness_RemainsFailClosed()
+        {
+            var repo = new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance);
+            var onboarding = new FakeOnboardingCaseService
+            {
+                Cases =
+                [
+                    new KycAmlOnboardingCase
+                    {
+                        CaseId = "onboarding-case-1",
+                        SubjectId = "subject-1",
+                        CreatedAt = DateTimeOffset.Parse("2026-03-27T10:00:00Z"),
+                        UpdatedAt = DateTimeOffset.Parse("2026-03-27T10:05:00Z"),
+                        State = KycAmlOnboardingCaseState.ConfigurationMissing,
+                        EvidenceState = KycAmlOnboardingEvidenceState.MissingConfiguration,
+                        Timeline =
+                        [
+                            new KycAmlOnboardingTimelineEvent
+                            {
+                                EventId = "onb-tl-1",
+                                EventType = KycAmlOnboardingTimelineEventType.ProviderConfigurationMissing,
+                                OccurredAt = DateTimeOffset.Parse("2026-03-27T10:05:00Z"),
+                                ActorId = "system",
+                                Summary = "Provider checks could not start because configuration is missing.",
+                                ToState = KycAmlOnboardingCaseState.ConfigurationMissing
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            var protectedSignOff = new FakeProtectedSignOffEvidencePersistenceService
+            {
+                ReleaseReadiness = new GetSignOffReleaseReadinessResponse
+                {
+                    Success = true,
+                    HeadRef = "head-1",
+                    Status = SignOffReleaseReadinessStatus.BlockedMissingConfiguration,
+                    EvidenceFreshness = SignOffEvidenceFreshnessStatus.Unavailable,
+                    Mode = StrictArtifactMode.NotConfigured,
+                    EvaluatedAt = DateTimeOffset.Parse("2026-03-27T10:06:00Z"),
+                    OperatorGuidance = "Configure the protected sign-off environment before claiming release readiness.",
+                    LatestApprovalWebhook = new ApprovalWebhookRecord
+                    {
+                        RecordId = "webhook-1",
+                        CaseId = "onboarding-case-1",
+                        HeadRef = "head-1",
+                        ReceivedAt = DateTimeOffset.Parse("2026-03-27T10:04:00Z")
+                    }
+                }
+            };
+
+            var service = new ComplianceEventBackboneService(
+                repo,
+                onboarding,
+                protectedSignOff,
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventListResponse result = await service.GetEventsAsync(new ComplianceEventQueryRequest
+            {
+                CaseId = "onboarding-case-1",
+                HeadRef = "head-1"
+            }, "operator-1");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Events.Any(evt => evt.EventType == ComplianceEventType.ReleaseReadinessEvaluated), Is.True);
+            Assert.That(result.CurrentState.ReleaseReadiness, Is.Not.Null);
+            Assert.That(result.CurrentState.ReleaseReadiness!.Mode, Is.EqualTo(StrictArtifactMode.NotConfigured));
+            Assert.That(result.CurrentState.CurrentFreshness, Is.EqualTo(ComplianceEventFreshness.NotConfigured));
+            Assert.That(result.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.NotConfigured));
+            Assert.That(result.CurrentState.HasNotConfigured, Is.True);
+        }
+
+        [Test]
+        public async Task GetEvents_FailedDeliveryFilter_ReturnsOnlyFailedDeliveryEvents()
+        {
+            var repo = new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance);
+            await repo.SaveCaseAsync(new ComplianceCase
+            {
+                CaseId = "compliance-case-1",
+                SubjectId = "subject-2",
+                IssuerId = "issuer-2",
+                State = ComplianceCaseState.UnderReview,
+                CreatedAt = DateTimeOffset.Parse("2026-03-27T10:00:00Z"),
+                UpdatedAt = DateTimeOffset.Parse("2026-03-27T10:03:00Z"),
+                Timeline =
+                [
+                    new CaseTimelineEntry
+                    {
+                        EntryId = "case-timeline-1",
+                        CaseId = "compliance-case-1",
+                        EventType = CaseTimelineEventType.CaseCreated,
+                        OccurredAt = DateTimeOffset.Parse("2026-03-27T10:00:00Z"),
+                        ActorId = "operator",
+                        Description = "Case created."
+                    }
+                ],
+                DeliveryRecords =
+                [
+                    new CaseDeliveryRecord
+                    {
+                        DeliveryId = "delivery-success",
+                        CaseId = "compliance-case-1",
+                        EventId = "evt-1",
+                        EventType = BiatecTokensApi.Models.Webhook.WebhookEventType.ComplianceCaseCreated,
+                        Outcome = CaseDeliveryOutcome.Success,
+                        AttemptedAt = DateTimeOffset.Parse("2026-03-27T10:01:00Z"),
+                        AttemptCount = 1
+                    },
+                    new CaseDeliveryRecord
+                    {
+                        DeliveryId = "delivery-failure",
+                        CaseId = "compliance-case-1",
+                        EventId = "evt-2",
+                        EventType = BiatecTokensApi.Models.Webhook.WebhookEventType.ComplianceCaseStateTransitioned,
+                        Outcome = CaseDeliveryOutcome.RetryExhausted,
+                        AttemptedAt = DateTimeOffset.Parse("2026-03-27T10:02:00Z"),
+                        AttemptCount = 3,
+                        LastErrorSummary = "Connection refused",
+                        RecommendedAction = "Verify webhook endpoint configuration."
+                    }
+                ]
+            });
+
+            var service = new ComplianceEventBackboneService(
+                repo,
+                new FakeOnboardingCaseService(),
+                new FakeProtectedSignOffEvidencePersistenceService(),
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventListResponse result = await service.GetEventsAsync(new ComplianceEventQueryRequest
+            {
+                CaseId = "compliance-case-1",
+                DeliveryStatus = ComplianceEventDeliveryStatus.Failed,
+                Page = 1,
+                PageSize = 1
+            }, "operator-2");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.Events, Has.Count.EqualTo(1));
+            Assert.That(result.Events[0].EventType, Is.EqualTo(ComplianceEventType.NotificationDeliveryUpdated));
+            Assert.That(result.Events[0].DeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.Failed));
+            Assert.That(result.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.Failed));
+        }
+
+        [Test]
+        public async Task GetEvents_SubjectFilter_IncludesComplianceAuditExportEvents()
+        {
+            var service = new ComplianceEventBackboneService(
+                new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance),
+                new FakeOnboardingCaseService(),
+                new FakeProtectedSignOffEvidencePersistenceService(),
+                new FakeComplianceAuditExportService
+                {
+                    Exports =
+                    [
+                        new ComplianceAuditExportSummary
+                        {
+                            ExportId = "export-1",
+                            SubjectId = "subject-3",
+                            Scenario = AuditScenario.OnboardingCaseReview,
+                            Readiness = AuditExportReadiness.RequiresReview,
+                            AssembledAt = DateTime.Parse("2026-03-27T10:03:00Z"),
+                            ContentHash = "hash-1"
+                        }
+                    ]
+                },
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventListResponse result = await service.GetEventsAsync(new ComplianceEventQueryRequest
+            {
+                SubjectId = "subject-3"
+            }, "operator-3");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Events.Any(evt => evt.EventType == ComplianceEventType.ComplianceAuditExportGenerated), Is.True);
+        }
+
+        [Test]
+        public async Task GetEventsApi_Unauthenticated_ReturnsUnauthorized()
+        {
+            await using var factory = new CustomWebApplicationFactory();
+            using var client = factory.CreateClient();
+
+            HttpResponseMessage response = await client.GetAsync("/api/v1/compliance-events");
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        }
+
+        [Test]
+        public async Task GetCaseTimelineApi_ReturnsPaginatedTypedEvents()
+        {
+            await using var factory = new CustomWebApplicationFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            var createResponse = await client.PostAsJsonAsync("/api/v1/compliance-cases", new CreateComplianceCaseRequest
+            {
+                IssuerId = "issuer-events",
+                SubjectId = "subject-events",
+                Type = CaseType.InvestorEligibility,
+                Priority = CasePriority.High,
+                Jurisdiction = "US"
+            });
+            createResponse.EnsureSuccessStatusCode();
+            var createBody = await createResponse.Content.ReadFromJsonAsync<CreateComplianceCaseResponse>();
+            var caseId = createBody!.Case!.CaseId;
+
+            var evidenceResponse = await client.PostAsJsonAsync($"/api/v1/compliance-cases/{caseId}/evidence", new AddEvidenceRequest
+            {
+                EvidenceType = "KYC_DOCUMENT",
+                Status = CaseEvidenceStatus.Valid,
+                Summary = "Passport verified",
+                CapturedAt = DateTimeOffset.UtcNow
+            });
+            evidenceResponse.EnsureSuccessStatusCode();
+
+            HttpResponseMessage timelineResponse = await client.GetAsync($"/api/v1/compliance-events/cases/{caseId}/timeline?page=1&pageSize=1");
+            timelineResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? timeline = await timelineResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            Assert.That(timeline, Is.Not.Null);
+            Assert.That(timeline!.Success, Is.True);
+            Assert.That(timeline.TotalCount, Is.GreaterThanOrEqualTo(2));
+            Assert.That(timeline.Events, Has.Count.EqualTo(1));
+            Assert.That(timeline.CurrentState.TotalEvents, Is.GreaterThanOrEqualTo(2));
+            Assert.That(timeline.Events[0].EventType, Is.AnyOf(
+                ComplianceEventType.ComplianceCaseEvidenceUpdated,
+                ComplianceEventType.ComplianceCaseCreated));
+        }
+
+        [Test]
+        public async Task GetEventsApi_SubjectFilter_ReturnsAuditExportMilestone()
+        {
+            await using var factory = new CustomWebApplicationFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            string subjectId = $"subject-export-{Guid.NewGuid():N}";
+            var onboardingCreate = await client.PostAsJsonAsync("/api/v1/kyc-aml-onboarding/cases", new CreateOnboardingCaseRequest
+            {
+                SubjectId = subjectId,
+                SubjectKind = KycAmlOnboardingSubjectKind.Individual
+            });
+            onboardingCreate.EnsureSuccessStatusCode();
+            var onboardingBody = await onboardingCreate.Content.ReadFromJsonAsync<CreateOnboardingCaseResponse>();
+
+            var exportAssembly = await client.PostAsJsonAsync("/api/v1/compliance-audit-export/onboarding-case-review", new OnboardingCaseReviewExportRequest
+            {
+                SubjectId = subjectId,
+                CaseId = onboardingBody!.Case!.CaseId,
+                AudienceProfile = RegulatoryAudienceProfile.InternalCompliance
+            });
+            exportAssembly.EnsureSuccessStatusCode();
+
+            HttpResponseMessage eventsResponse = await client.GetAsync($"/api/v1/compliance-events?subjectId={Uri.EscapeDataString(subjectId)}&page=1&pageSize=100");
+            eventsResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? events = await eventsResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            Assert.That(events, Is.Not.Null);
+            Assert.That(events!.Events.Any(evt => evt.EventType == ComplianceEventType.ComplianceAuditExportGenerated), Is.True);
+        }
+
+        [Test]
+        public async Task GetEventsApi_HeadRefFilter_ExposesNotConfiguredReleaseState()
+        {
+            await using var factory = new NotConfiguredReleaseReadinessFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            var createResponse = await client.PostAsJsonAsync("/api/v1/compliance-cases", new CreateComplianceCaseRequest
+            {
+                IssuerId = "issuer-release",
+                SubjectId = "subject-release",
+                Type = CaseType.LaunchPackage,
+                Priority = CasePriority.Critical,
+                Jurisdiction = "US"
+            });
+            createResponse.EnsureSuccessStatusCode();
+            var createBody = await createResponse.Content.ReadFromJsonAsync<CreateComplianceCaseResponse>();
+            var caseId = createBody!.Case!.CaseId;
+
+            HttpResponseMessage response = await client.GetAsync("/api/v1/compliance-events?headRef=head-release-1&page=1&pageSize=50");
+            response.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? result = await response.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.CurrentState.ReleaseReadiness, Is.Not.Null);
+            Assert.That(result.CurrentState.ReleaseReadiness!.Mode, Is.EqualTo(StrictArtifactMode.NotConfigured));
+            Assert.That(result.CurrentState.CurrentFreshness, Is.EqualTo(ComplianceEventFreshness.NotConfigured));
+            Assert.That(result.Events.Any(evt => evt.EventType == ComplianceEventType.ReleaseReadinessEvaluated), Is.True);
+        }
+
+        private static async Task<HttpClient> CreateAuthenticatedClientAsync(WebApplicationFactory<BiatecTokensApi.Program> factory)
+        {
+            HttpClient bootstrapClient = factory.CreateClient();
+            string email = $"compliance-events-{Guid.NewGuid():N}@biatec-test.example.com";
+            var registerResponse = await bootstrapClient.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest
+            {
+                Email = email,
+                Password = "SecurePass123!",
+                ConfirmPassword = "SecurePass123!",
+                FullName = "Compliance Events Test"
+            });
+            registerResponse.EnsureSuccessStatusCode();
+            RegisterResponse? registerBody = await registerResponse.Content.ReadFromJsonAsync<RegisterResponse>();
+
+            HttpClient client = factory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", registerBody!.AccessToken);
+            return client;
+        }
+
+        private sealed class FakeOnboardingCaseService : IKycAmlOnboardingCaseService
+        {
+            public List<KycAmlOnboardingCase> Cases { get; init; } = new();
+
+            public Task<CreateOnboardingCaseResponse> CreateCaseAsync(CreateOnboardingCaseRequest request, string actorId)
+                => Task.FromResult(new CreateOnboardingCaseResponse { Success = true });
+
+            public Task<GetOnboardingCaseResponse> GetCaseAsync(string caseId)
+                => Task.FromResult(new GetOnboardingCaseResponse { Success = true, Case = Cases.FirstOrDefault(c => c.CaseId == caseId) });
+
+            public Task<InitiateProviderChecksResponse> InitiateProviderChecksAsync(string caseId, InitiateProviderChecksRequest request, string actorId)
+                => Task.FromResult(new InitiateProviderChecksResponse { Success = true });
+
+            public Task<RecordReviewerActionResponse> RecordReviewerActionAsync(string caseId, RecordReviewerActionRequest request, string actorId)
+                => Task.FromResult(new RecordReviewerActionResponse { Success = true });
+
+            public Task<GetOnboardingEvidenceSummaryResponse> GetEvidenceSummaryAsync(string caseId)
+                => Task.FromResult(new GetOnboardingEvidenceSummaryResponse { Success = true });
+
+            public Task<ListOnboardingCasesResponse> ListCasesAsync(ListOnboardingCasesRequest? request = null)
+            {
+                IEnumerable<KycAmlOnboardingCase> filtered = Cases;
+
+                if (!string.IsNullOrWhiteSpace(request?.SubjectId))
+                {
+                    filtered = filtered.Where(c => c.SubjectId == request.SubjectId);
+                }
+
+                if (request?.State.HasValue == true)
+                {
+                    filtered = filtered.Where(c => c.State == request.State.Value);
+                }
+
+                return Task.FromResult(new ListOnboardingCasesResponse
+                {
+                    Success = true,
+                    Cases = filtered.ToList(),
+                    TotalCount = filtered.Count()
+                });
+            }
+        }
+
+        private sealed class FakeProtectedSignOffEvidencePersistenceService : IProtectedSignOffEvidencePersistenceService
+        {
+            public GetSignOffReleaseReadinessResponse ReleaseReadiness { get; set; } = new()
+            {
+                Success = true,
+                HeadRef = "default-head",
+                Status = SignOffReleaseReadinessStatus.Pending,
+                EvidenceFreshness = SignOffEvidenceFreshnessStatus.Unavailable,
+                Mode = StrictArtifactMode.NotConfigured,
+                EvaluatedAt = DateTimeOffset.UtcNow
+            };
+
+            public List<ApprovalWebhookRecord> ApprovalWebhookHistory { get; } = new();
+            public List<ProtectedSignOffEvidencePack> EvidencePacks { get; } = new();
+
+            public Task<RecordApprovalWebhookResponse> RecordApprovalWebhookAsync(RecordApprovalWebhookRequest request, string actorId)
+                => Task.FromResult(new RecordApprovalWebhookResponse { Success = true });
+
+            public Task<PersistSignOffEvidenceResponse> PersistSignOffEvidenceAsync(PersistSignOffEvidenceRequest request, string actorId)
+                => Task.FromResult(new PersistSignOffEvidenceResponse { Success = true });
+
+            public Task<GetSignOffReleaseReadinessResponse> GetReleaseReadinessAsync(GetSignOffReleaseReadinessRequest request)
+                => Task.FromResult(ReleaseReadiness);
+
+            public Task<GetApprovalWebhookHistoryResponse> GetApprovalWebhookHistoryAsync(GetApprovalWebhookHistoryRequest request)
+                => Task.FromResult(new GetApprovalWebhookHistoryResponse
+                {
+                    Success = true,
+                    Records = ApprovalWebhookHistory
+                        .Where(r => string.IsNullOrWhiteSpace(request.CaseId) || r.CaseId == request.CaseId)
+                        .Where(r => string.IsNullOrWhiteSpace(request.HeadRef) || r.HeadRef == request.HeadRef)
+                        .OrderByDescending(r => r.ReceivedAt)
+                        .Take(request.MaxRecords)
+                        .ToList()
+                });
+
+            public Task<GetEvidencePackHistoryResponse> GetEvidencePackHistoryAsync(GetEvidencePackHistoryRequest request)
+                => Task.FromResult(new GetEvidencePackHistoryResponse
+                {
+                    Success = true,
+                    Packs = EvidencePacks
+                        .Where(p => string.IsNullOrWhiteSpace(request.CaseId) || p.CaseId == request.CaseId)
+                        .Where(p => string.IsNullOrWhiteSpace(request.HeadRef) || p.HeadRef == request.HeadRef)
+                        .OrderByDescending(p => p.CreatedAt)
+                        .Take(request.MaxRecords)
+                        .ToList()
+                });
+        }
+
+        private sealed class FakeComplianceAuditExportService : IComplianceAuditExportService
+        {
+            public List<ComplianceAuditExportSummary> Exports { get; init; } = new();
+
+            public Task<ComplianceAuditExportResponse> AssembleReleaseReadinessExportAsync(ReleaseReadinessExportRequest request)
+                => Task.FromResult(new ComplianceAuditExportResponse { Success = true });
+
+            public Task<ComplianceAuditExportResponse> AssembleOnboardingCaseReviewExportAsync(OnboardingCaseReviewExportRequest request)
+                => Task.FromResult(new ComplianceAuditExportResponse { Success = true });
+
+            public Task<ComplianceAuditExportResponse> AssembleBlockerReviewExportAsync(ComplianceBlockerReviewExportRequest request)
+                => Task.FromResult(new ComplianceAuditExportResponse { Success = true });
+
+            public Task<ComplianceAuditExportResponse> AssembleApprovalHistoryExportAsync(ApprovalHistoryExportRequest request)
+                => Task.FromResult(new ComplianceAuditExportResponse { Success = true });
+
+            public Task<GetComplianceAuditExportResponse> GetExportAsync(string exportId, string? correlationId = null)
+                => Task.FromResult(new GetComplianceAuditExportResponse { Success = true });
+
+            public Task<ListComplianceAuditExportsResponse> ListExportsAsync(string subjectId, AuditScenario? scenario = null, int limit = 20, string? correlationId = null)
+            {
+                IEnumerable<ComplianceAuditExportSummary> filtered = Exports.Where(e => e.SubjectId == subjectId);
+                if (scenario.HasValue)
+                {
+                    filtered = filtered.Where(e => e.Scenario == scenario.Value);
+                }
+
+                return Task.FromResult(new ListComplianceAuditExportsResponse
+                {
+                    Success = true,
+                    Exports = filtered.Take(limit).ToList()
+                });
+            }
+        }
+
+        private class CustomWebApplicationFactory : WebApplicationFactory<BiatecTokensApi.Program>
+        {
+            protected override void ConfigureWebHost(IWebHostBuilder builder)
+            {
+                builder.ConfigureAppConfiguration((_, config) =>
+                {
+                    config.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["App:Account"] = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                        ["KeyManagementConfig:Provider"] = "Hardcoded",
+                        ["KeyManagementConfig:HardcodedKey"] = "TestKeyForComplianceEventsTests32Chars!",
+                        ["JwtConfig:SecretKey"] = "TestSecretKeyForComplianceEventsTests32Chars!",
+                        ["JwtConfig:Issuer"] = "BiatecTokensApi",
+                        ["JwtConfig:Audience"] = "BiatecTokensUsers",
+                        ["JwtConfig:AccessTokenExpirationMinutes"] = "60",
+                        ["JwtConfig:RefreshTokenExpirationDays"] = "30",
+                        ["JwtConfig:ValidateIssuer"] = "true",
+                        ["JwtConfig:ValidateAudience"] = "true",
+                        ["JwtConfig:ValidateLifetime"] = "true",
+                        ["JwtConfig:ValidateIssuerSigningKey"] = "true",
+                        ["AlgorandAuthentication:Realm"] = "BiatecTokens#ARC14",
+                        ["AlgorandAuthentication:CheckExpiration"] = "false",
+                        ["AlgorandAuthentication:Debug"] = "true",
+                        ["AlgorandAuthentication:EmptySuccessOnFailure"] = "true",
+                        ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Server"] = "https://mainnet-api.4160.nodely.dev",
+                        ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Token"] = "",
+                        ["AlgorandAuthentication:AllowedNetworks:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=:Header"] = "",
+                        ["IPFSConfig:ApiUrl"] = "https://ipfs-api.biatec.io",
+                        ["IPFSConfig:GatewayUrl"] = "https://ipfs.biatec.io/ipfs",
+                        ["IPFSConfig:TimeoutSeconds"] = "30",
+                        ["IPFSConfig:MaxFileSizeBytes"] = "10485760",
+                        ["IPFSConfig:ValidateContentHash"] = "true",
+                        ["EVMChains:0:RpcUrl"] = "https://mainnet.base.org",
+                        ["EVMChains:0:ChainId"] = "8453",
+                        ["EVMChains:0:GasLimit"] = "4500000",
+                        ["Cors:0"] = "https://tokens.biatec.io",
+                        ["KycConfig:MockAutoApprove"] = "true",
+                        ["StripeConfig:SecretKey"] = "sk_test_placeholder",
+                        ["StripeConfig:PublishableKey"] = "pk_test_placeholder",
+                        ["StripeConfig:WebhookSecret"] = "whsec_placeholder",
+                    });
+                });
+            }
+        }
+
+        private sealed class NotConfiguredReleaseReadinessFactory : CustomWebApplicationFactory
+        {
+            protected override void ConfigureWebHost(IWebHostBuilder builder)
+            {
+                base.ConfigureWebHost(builder);
+                builder.ConfigureServices(services =>
+                {
+                    services.AddSingleton<IProtectedSignOffEvidencePersistenceService>(new FakeProtectedSignOffEvidencePersistenceService
+                    {
+                        ReleaseReadiness = new GetSignOffReleaseReadinessResponse
+                        {
+                            Success = true,
+                            HeadRef = "head-release-1",
+                            Status = SignOffReleaseReadinessStatus.BlockedMissingConfiguration,
+                            EvidenceFreshness = SignOffEvidenceFreshnessStatus.Unavailable,
+                            Mode = StrictArtifactMode.NotConfigured,
+                            EvaluatedAt = DateTimeOffset.UtcNow,
+                            OperatorGuidance = "Provide protected environment configuration before claiming release readiness.",
+                            LatestEvidencePack = new ProtectedSignOffEvidencePack
+                            {
+                                PackId = "release-pack-1",
+                                CaseId = "placeholder"
+                            }
+                        }
+                    });
+                });
+            }
+        }
+    }
+}
