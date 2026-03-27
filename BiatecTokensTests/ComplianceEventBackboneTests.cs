@@ -582,6 +582,7 @@ namespace BiatecTokensTests
             Assert.That(result.Events, Has.Count.EqualTo(1));
             Assert.That(result.Events[0].EventType, Is.EqualTo(ComplianceEventType.ReleaseReadinessEvaluated));
             Assert.That(result.Events[0].CaseId, Is.EqualTo(caseId));
+            Assert.That(result.Events[0].HeadRef, Is.EqualTo("head-release-1"));
             Assert.That(result.Events[0].Freshness, Is.EqualTo(ComplianceEventFreshness.NotConfigured));
             Assert.That(result.Events[0].DeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.NotConfigured));
         }
