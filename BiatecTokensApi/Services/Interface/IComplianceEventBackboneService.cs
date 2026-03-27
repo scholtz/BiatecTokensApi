@@ -15,5 +15,14 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="actorId">Authenticated actor requesting the timeline.</param>
         /// <returns>Paginated events plus the current delivery/degradation state summary.</returns>
         Task<ComplianceEventListResponse> GetEventsAsync(ComplianceEventQueryRequest request, string actorId);
+
+        /// <summary>
+        /// Retrieves a lightweight operator-dashboard queue summary broken down by blocked, action-needed,
+        /// waiting-on-provider, stale, and informational counts.
+        /// </summary>
+        /// <param name="request">Event filters used to scope the summary (same as GetEventsAsync).</param>
+        /// <param name="actorId">Authenticated actor requesting the summary.</param>
+        /// <returns>Queue summary counts per operator-dashboard category.</returns>
+        Task<ComplianceEventQueueSummaryResponse> GetQueueSummaryAsync(ComplianceEventQueryRequest request, string actorId);
     }
 }
