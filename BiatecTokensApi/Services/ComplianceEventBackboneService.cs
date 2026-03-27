@@ -1,3 +1,4 @@
+using BiatecTokensApi.Helpers;
 using BiatecTokensApi.Models.ComplianceAuditExport;
 using BiatecTokensApi.Models.ComplianceCaseManagement;
 using BiatecTokensApi.Models.ComplianceEvents;
@@ -268,7 +269,7 @@ namespace BiatecTokensApi.Services
                     EntityKind = ComplianceEventEntityKind.ComplianceAuditExport,
                     EntityId = export.ExportId,
                     SubjectId = export.SubjectId,
-                    Timestamp = DateTime.SpecifyKind(export.AssembledAt, DateTimeKind.Utc),
+                    Timestamp = new DateTimeOffset(DateTime.SpecifyKind(export.AssembledAt, DateTimeKind.Utc)),
                     Label = "Compliance audit export assembled",
                     Summary = $"Audit export assembled for scenario {export.Scenario}.",
                     Severity = MapSeverity(export.Readiness),
@@ -452,7 +453,7 @@ namespace BiatecTokensApi.Services
                 ActorId = pack.CreatedBy,
                 CorrelationId = pack.ApprovalWebhook?.CorrelationId,
                 Label = "Protected sign-off evidence captured",
-                Summary = $"Protected sign-off evidence pack captured for head {pack.HeadRef}.",
+                Summary = $"Protected sign-off evidence pack captured for head {LoggingHelper.SanitizeLogInput(pack.HeadRef)}.",
                 Severity = pack.IsReleaseGrade && pack.FreshnessStatus == SignOffEvidenceFreshnessStatus.Complete
                     ? ComplianceEventSeverity.Informational
                     : ComplianceEventSeverity.Warning,
@@ -487,7 +488,7 @@ namespace BiatecTokensApi.Services
                 ActorId = readiness.LatestApprovalWebhook?.ActorId ?? readiness.LatestEvidencePack?.CreatedBy,
                 CorrelationId = readiness.LatestApprovalWebhook?.CorrelationId,
                 Label = "Release readiness evaluated",
-                Summary = $"Release readiness evaluated for head {readiness.HeadRef}: {readiness.Status}.",
+                Summary = $"Release readiness evaluated for head {LoggingHelper.SanitizeLogInput(readiness.HeadRef)}: {readiness.Status}.",
                 RecommendedAction = readiness.OperatorGuidance,
                 Severity = readiness.Status == SignOffReleaseReadinessStatus.Ready
                     ? ComplianceEventSeverity.Informational

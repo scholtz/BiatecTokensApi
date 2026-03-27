@@ -753,13 +753,15 @@ namespace BiatecTokensApi.Services
             string subjectId,
             KycAmlOnboardingCaseState resultingState)
         {
+            var sanitizedSubjectId = LoggingHelper.SanitizeLogInput(subjectId);
+            var sanitizedResultingState = LoggingHelper.SanitizeLogInput(resultingState.ToString());
             return actionKind switch
             {
-                KycAmlOnboardingActionKind.Approve => $"Reviewer approved onboarding for subject {subjectId}.",
-                KycAmlOnboardingActionKind.Reject => $"Reviewer rejected onboarding for subject {subjectId}.",
-                KycAmlOnboardingActionKind.Escalate => $"Reviewer escalated onboarding for subject {subjectId}.",
-                KycAmlOnboardingActionKind.RequestAdditionalInfo => $"Reviewer requested additional information for subject {subjectId}.",
-                _ => $"Reviewer note recorded for subject {subjectId}. Case remains in state {resultingState}."
+                KycAmlOnboardingActionKind.Approve => $"Reviewer approved onboarding for subject {sanitizedSubjectId}.",
+                KycAmlOnboardingActionKind.Reject => $"Reviewer rejected onboarding for subject {sanitizedSubjectId}.",
+                KycAmlOnboardingActionKind.Escalate => $"Reviewer escalated onboarding for subject {sanitizedSubjectId}.",
+                KycAmlOnboardingActionKind.RequestAdditionalInfo => $"Reviewer requested additional information for subject {sanitizedSubjectId}.",
+                _ => $"Reviewer note recorded for subject {sanitizedSubjectId}. Case remains in state {sanitizedResultingState}."
             };
         }
 
