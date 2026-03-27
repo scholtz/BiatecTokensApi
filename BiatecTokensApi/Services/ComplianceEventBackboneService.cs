@@ -122,7 +122,8 @@ namespace BiatecTokensApi.Services
 
             var currentState = BuildCurrentStateSummary(ordered);
 
-            if (releaseReadiness != null)
+            bool hasVisibleReleaseReadinessEvent = ordered.Any(evt => evt.EventType == ComplianceEventType.ReleaseReadinessEvaluated);
+            if (releaseReadiness != null && hasVisibleReleaseReadinessEvent)
             {
                 currentState.ReleaseReadiness = releaseReadiness;
                 currentState.CurrentFreshness = MapFreshness(releaseReadiness);

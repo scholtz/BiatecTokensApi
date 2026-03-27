@@ -294,8 +294,9 @@ This applies to ALL workflow jobs that:
 **MANDATORY RULES for future aggregation/backbone APIs**:
 1. **Test every filter combination that can hide synthesized events** — especially `caseId + headRef`, `subjectId`, `freshness`, `deliveryStatus`, pagination, and ordering
 2. **When an API synthesizes aggregate events from other services, bind request-scoped identifiers onto those events if the upstream response lacks them** — especially `caseId` and `subjectId` on global notification-center feeds — so filtered timelines remain truthful and usable
-3. **Add API-level tests, not just service tests, for fail-closed operator semantics**: `not_configured`, waiting-on-provider, stale evidence, failed delivery, and recommended next action
+3. **Add API-level tests, not just service tests, for fail-closed operator semantics**: `not_configured`, waiting-on-provider, stale evidence, failed delivery, filtered-summary scoping, and recommended next action
 4. **Re-check the business-owner roadmap before finalizing** to ensure the contract directly serves the named product surface (here: enterprise notification center / operator timeline) instead of only satisfying a technical interpretation
+5. **When filters exclude a synthesized event, verify the response summary no longer leaks that hidden state** — `CurrentState.ReleaseReadiness`, `CurrentDeliveryStatus`, `CurrentFreshness`, and `HasNotConfigured` must stay aligned with the visible filtered event set so notification-center views remain truthful
 
 ## CRITICAL: Requirements vs Scope Section Priority
 

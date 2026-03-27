@@ -358,6 +358,68 @@ namespace BiatecTokensTests
         }
 
         [Test]
+        public async Task GetEvents_CaseAndHeadRefSentDeliveryFilter_DoesNotLeakHiddenReleaseReadinessState()
+        {
+            var protectedSignOff = new FakeProtectedSignOffEvidencePersistenceService
+            {
+                ReleaseReadiness = new GetSignOffReleaseReadinessResponse
+                {
+                    Success = true,
+                    HeadRef = "head-filtered-sent",
+                    Status = SignOffReleaseReadinessStatus.BlockedMissingConfiguration,
+                    EvidenceFreshness = SignOffEvidenceFreshnessStatus.Unavailable,
+                    Mode = StrictArtifactMode.NotConfigured,
+                    EvaluatedAt = DateTimeOffset.Parse("2026-03-27T10:09:00Z"),
+                    OperatorGuidance = "Provide protected environment configuration before release."
+                }
+            };
+            protectedSignOff.EvidencePacks.Add(new ProtectedSignOffEvidencePack
+            {
+                PackId = "pack-filtered-sent",
+                CaseId = "case-filtered-sent",
+                HeadRef = "head-filtered-sent",
+                CreatedAt = DateTimeOffset.Parse("2026-03-27T10:08:00Z"),
+                CreatedBy = "operator-pack",
+                FreshnessStatus = SignOffEvidenceFreshnessStatus.Partial,
+                IsReleaseGrade = false,
+                IsProviderBacked = false
+            });
+            protectedSignOff.ApprovalWebhookHistory.Add(new ApprovalWebhookRecord
+            {
+                RecordId = "webhook-filtered-sent",
+                CaseId = "case-filtered-sent",
+                HeadRef = "head-filtered-sent",
+                ReceivedAt = DateTimeOffset.Parse("2026-03-27T10:07:00Z"),
+                ActorId = "operator-webhook",
+                Outcome = ApprovalWebhookOutcome.Approved,
+                IsValid = true
+            });
+
+            var service = new ComplianceEventBackboneService(
+                new ComplianceCaseRepository(NullLogger<ComplianceCaseRepository>.Instance),
+                new FakeOnboardingCaseService(),
+                protectedSignOff,
+                new FakeComplianceAuditExportService(),
+                NullLogger<ComplianceEventBackboneService>.Instance);
+
+            ComplianceEventListResponse result = await service.GetEventsAsync(new ComplianceEventQueryRequest
+            {
+                CaseId = "case-filtered-sent",
+                HeadRef = "head-filtered-sent",
+                DeliveryStatus = ComplianceEventDeliveryStatus.Sent
+            }, "operator-filter");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.Events, Has.Count.EqualTo(1));
+            Assert.That(result.Events[0].EventType, Is.EqualTo(ComplianceEventType.ProtectedSignOffApprovalWebhookRecorded));
+            Assert.That(result.CurrentState.ReleaseReadiness, Is.Null);
+            Assert.That(result.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.Sent));
+            Assert.That(result.CurrentState.CurrentFreshness, Is.EqualTo(ComplianceEventFreshness.Current));
+            Assert.That(result.CurrentState.HasNotConfigured, Is.False);
+        }
+
+        [Test]
         public async Task GetEvents_FreshnessFilter_AwaitingProviderCallback_ReturnsOnboardingPendingSignal()
         {
             var service = new ComplianceEventBackboneService(
@@ -687,6 +749,27 @@ namespace BiatecTokensTests
             Assert.That(thirdPage.Events[0].HeadRef, Is.EqualTo("head-ordered-1"));
             Assert.That(firstPage.CurrentState.HighestSeverity, Is.EqualTo(ComplianceEventSeverity.Critical));
             Assert.That(firstPage.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.NotConfigured));
+        }
+
+        [Test]
+        public async Task GetEventsApi_WithCaseIdHeadRefAndSentDeliveryFilter_DoesNotLeakHiddenReleaseReadinessState()
+        {
+            await using var factory = new OrderedProtectedEventsFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            HttpResponseMessage response = await client.GetAsync(
+                "/api/v1/compliance-events?caseId=case-ordered-1&headRef=head-ordered-1&deliveryStatus=Sent&page=1&pageSize=50");
+            response.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? result = await response.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.TotalCount, Is.EqualTo(1));
+            Assert.That(result.Events, Has.Count.EqualTo(1));
+            Assert.That(result.Events[0].EventType, Is.EqualTo(ComplianceEventType.ProtectedSignOffApprovalWebhookRecorded));
+            Assert.That(result.CurrentState.ReleaseReadiness, Is.Null);
+            Assert.That(result.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.Sent));
+            Assert.That(result.CurrentState.CurrentFreshness, Is.EqualTo(ComplianceEventFreshness.Current));
+            Assert.That(result.CurrentState.HasNotConfigured, Is.False);
         }
 
         private static async Task<HttpClient> CreateAuthenticatedClientAsync(WebApplicationFactory<BiatecTokensApi.Program> factory)
