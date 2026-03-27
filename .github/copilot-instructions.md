@@ -284,6 +284,20 @@ This applies to ALL workflow jobs that:
 - Run on `pull_request` events
 - Use `EnricoMi/publish-unit-test-result-action` or any action that attempts to post PR comments
 
+**Lesson Learned (2026-03-27 - Issue #617, PR #618)**: The initial compliance-event backbone implementation built locally but still missed product-quality expectations because the tests did not cover filtered aggregate-event scenarios strongly enough. Specifically, the synthesized `ReleaseReadinessEvaluated` event was dropped when callers requested `caseId + headRef` and no evidence pack existed yet, and later was also found to disappear from the global feed under `subjectId + headRef` because the synthesized event did not carry the requested subject scope. Both defects undermined the fail-closed operator timeline semantics required by the roadmap for notification-center work.
+
+**Root cause**:
+1. ❌ Treated the backbone as "read-only aggregation" and under-tested query combinations
+2. ❌ No direct test proved synthesized aggregate events survive the same filters as persisted events
+3. ❌ Not enough roadmap-driven contract checks for operator-facing `severity`, `freshness`, and `recommendedAction` semantics
+
+**MANDATORY RULES for future aggregation/backbone APIs**:
+1. **Test every filter combination that can hide synthesized events** — especially `caseId + headRef`, `subjectId`, `freshness`, `deliveryStatus`, pagination, and ordering
+2. **When an API synthesizes aggregate events from other services, bind request-scoped identifiers onto those events if the upstream response lacks them** — especially `caseId` and `subjectId` on global notification-center feeds — so filtered timelines remain truthful and usable
+3. **Add API-level tests, not just service tests, for fail-closed operator semantics**: `not_configured`, waiting-on-provider, stale evidence, failed delivery, filtered-summary scoping, and recommended next action
+4. **Re-check the business-owner roadmap before finalizing** to ensure the contract directly serves the named product surface (here: enterprise notification center / operator timeline) instead of only satisfying a technical interpretation
+5. **When filters exclude a synthesized event, verify the response summary no longer leaks that hidden state** — `CurrentState.ReleaseReadiness`, `CurrentDeliveryStatus`, `CurrentFreshness`, and `HasNotConfigured` must stay aligned with the visible filtered event set so notification-center views remain truthful
+
 ## CRITICAL: Requirements vs Scope Section Priority
 
 **LESSON LEARNED (2026-02-18)**: When an issue contains BOTH detailed requirements (e.g., "Requirement 1-30: Define KPIs...") AND an "In Scope" section:
