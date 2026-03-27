@@ -587,6 +587,39 @@ namespace BiatecTokensTests
             Assert.That(result.Events[0].DeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.NotConfigured));
         }
 
+        [Test]
+        public async Task GetCaseTimelineApi_WithHeadRefPagination_OrdersProtectedEventsNewestFirst()
+        {
+            await using var factory = new OrderedProtectedEventsFactory();
+            using HttpClient client = await CreateAuthenticatedClientAsync(factory);
+
+            HttpResponseMessage firstPageResponse = await client.GetAsync(
+                "/api/v1/compliance-events/cases/case-ordered-1/timeline?headRef=head-ordered-1&page=1&pageSize=1");
+            firstPageResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? firstPage = await firstPageResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            HttpResponseMessage secondPageResponse = await client.GetAsync(
+                "/api/v1/compliance-events/cases/case-ordered-1/timeline?headRef=head-ordered-1&page=2&pageSize=1");
+            secondPageResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? secondPage = await secondPageResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            HttpResponseMessage thirdPageResponse = await client.GetAsync(
+                "/api/v1/compliance-events/cases/case-ordered-1/timeline?headRef=head-ordered-1&page=3&pageSize=1");
+            thirdPageResponse.EnsureSuccessStatusCode();
+            ComplianceEventListResponse? thirdPage = await thirdPageResponse.Content.ReadFromJsonAsync<ComplianceEventListResponse>();
+
+            Assert.That(firstPage, Is.Not.Null);
+            Assert.That(secondPage, Is.Not.Null);
+            Assert.That(thirdPage, Is.Not.Null);
+            Assert.That(firstPage!.TotalCount, Is.EqualTo(3));
+            Assert.That(firstPage.Events[0].EventType, Is.EqualTo(ComplianceEventType.ReleaseReadinessEvaluated));
+            Assert.That(secondPage!.Events[0].EventType, Is.EqualTo(ComplianceEventType.ProtectedSignOffEvidenceCaptured));
+            Assert.That(thirdPage!.Events[0].EventType, Is.EqualTo(ComplianceEventType.ProtectedSignOffApprovalWebhookRecorded));
+            Assert.That(firstPage.CurrentState.HighestSeverity, Is.EqualTo(ComplianceEventSeverity.Critical));
+            Assert.That(firstPage.CurrentState.CurrentDeliveryStatus, Is.EqualTo(ComplianceEventDeliveryStatus.NotConfigured));
+            Assert.That(firstPage.CurrentState.RecommendedAction, Does.Contain("Provide protected environment configuration"));
+        }
+
         private static async Task<HttpClient> CreateAuthenticatedClientAsync(WebApplicationFactory<BiatecTokensApi.Program> factory)
         {
             HttpClient bootstrapClient = factory.CreateClient();
@@ -799,6 +832,57 @@ namespace BiatecTokensTests
                             {
                                 PackId = "release-pack-1",
                                 CaseId = "placeholder"
+                            }
+                        }
+                    });
+                });
+            }
+        }
+
+        private sealed class OrderedProtectedEventsFactory : CustomWebApplicationFactory
+        {
+            protected override void ConfigureWebHost(IWebHostBuilder builder)
+            {
+                base.ConfigureWebHost(builder);
+                builder.ConfigureServices(services =>
+                {
+                    services.AddSingleton<IProtectedSignOffEvidencePersistenceService>(new FakeProtectedSignOffEvidencePersistenceService
+                    {
+                        ReleaseReadiness = new GetSignOffReleaseReadinessResponse
+                        {
+                            Success = true,
+                            HeadRef = "head-ordered-1",
+                            Status = SignOffReleaseReadinessStatus.BlockedMissingConfiguration,
+                            EvidenceFreshness = SignOffEvidenceFreshnessStatus.Unavailable,
+                            Mode = StrictArtifactMode.NotConfigured,
+                            EvaluatedAt = DateTimeOffset.Parse("2026-03-27T10:09:00Z"),
+                            OperatorGuidance = "Provide protected environment configuration before claiming release readiness."
+                        },
+                        ApprovalWebhookHistory =
+                        {
+                            new ApprovalWebhookRecord
+                            {
+                                RecordId = "webhook-ordered-1",
+                                CaseId = "case-ordered-1",
+                                HeadRef = "head-ordered-1",
+                                ReceivedAt = DateTimeOffset.Parse("2026-03-27T10:07:00Z"),
+                                ActorId = "operator-ordered-webhook",
+                                Outcome = ApprovalWebhookOutcome.Approved,
+                                IsValid = true
+                            }
+                        },
+                        EvidencePacks =
+                        {
+                            new ProtectedSignOffEvidencePack
+                            {
+                                PackId = "pack-ordered-1",
+                                CaseId = "case-ordered-1",
+                                HeadRef = "head-ordered-1",
+                                CreatedAt = DateTimeOffset.Parse("2026-03-27T10:08:00Z"),
+                                CreatedBy = "operator-ordered-pack",
+                                FreshnessStatus = SignOffEvidenceFreshnessStatus.Partial,
+                                IsReleaseGrade = false,
+                                IsProviderBacked = false
                             }
                         }
                     });
