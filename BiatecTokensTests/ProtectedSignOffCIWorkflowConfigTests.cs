@@ -2416,6 +2416,138 @@ namespace BiatecTokensTests
                     "CI70: upload-artifact must come after dotnet build step");
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // CI71-CI75: Evidence persistence pipeline tests
+        // These tests verify that the workflow's Step D evidence persistence
+        // sub-steps are present and structurally correct.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// CI71: Workflow Step D contains a call to the approval webhook endpoint
+        /// after lifecycle verification — required to seed the release-grade evidence chain.
+        /// </summary>
+        [Test]
+        public void CI71_WorkflowYaml_StepD_ContainsApprovalWebhookPersistenceCall()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("webhooks/approval"),
+                "CI71: Step D must call POST /api/v1/protected-signoff-evidence/webhooks/approval " +
+                "to record the approval webhook before persisting the evidence pack.");
+        }
+
+        /// <summary>
+        /// CI72: Workflow Step D contains a call to the evidence pack endpoint with
+        /// requireReleaseGrade=true and requireApprovalWebhook=true — enforces that
+        /// the backend labels the resulting pack as release-grade.
+        /// </summary>
+        [Test]
+        public void CI72_WorkflowYaml_StepD_ContainsEvidencePackPersistenceCall()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("EVID_BASE/evidence"),
+                "CI72: Step D must call POST /api/v1/protected-signoff-evidence/evidence.");
+            Assert.That(content, Does.Contain("requireReleaseGrade"),
+                "CI72: Evidence pack call must include requireReleaseGrade to enforce release-grade classification.");
+            Assert.That(content, Does.Contain("requireApprovalWebhook"),
+                "CI72: Evidence pack call must include requireApprovalWebhook to enforce approval chain.");
+        }
+
+        /// <summary>
+        /// CI73: Workflow Step D contains a call to the release-readiness endpoint after
+        /// evidence persistence — this is the authoritative backend StrictArtifactMode query.
+        /// </summary>
+        [Test]
+        public void CI73_WorkflowYaml_StepD_ContainsReleaseReadinessQuery()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("EVID_BASE/release-readiness"),
+                "CI73: Step D must call POST /api/v1/protected-signoff-evidence/release-readiness " +
+                "to obtain the authoritative backend StrictArtifactMode after evidence persistence.");
+        }
+
+        /// <summary>
+        /// CI74: Evidence manifest (schemaVersion 2.1) includes the backendStrictArtifactMode
+        /// field so downstream consumers can read the backend's authoritative classification.
+        /// </summary>
+        [Test]
+        public void CI74_WorkflowYaml_EvidenceManifest_ContainsBackendStrictArtifactMode()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            Assert.That(content, Does.Contain("backendStrictArtifactMode"),
+                "CI74: Evidence manifest must include backendStrictArtifactMode so downstream " +
+                "consumers can confirm the backend's authoritative StrictArtifactMode value.");
+        }
+
+        /// <summary>
+        /// CI75: isReleaseGradeEvidence condition requires backendMode=ReadyReleaseGrade — ensures
+        /// the manifest is truthful: CI cannot claim release-grade evidence without backend confirmation.
+        /// </summary>
+        [Test]
+        public void CI75_WorkflowYaml_IsReleaseGrade_RequiresBackendModeReadyReleaseGrade()
+        {
+            string workflowPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory,
+                    "../../../../.github/workflows/protected-sign-off.yml"));
+
+            if (!File.Exists(workflowPath))
+            {
+                Assert.Ignore($"Workflow file not found at '{workflowPath}'; skipping.");
+                return;
+            }
+
+            string content = File.ReadAllText(workflowPath);
+
+            // The IS_RELEASE_GRADE computation must reference BACKEND_MODE = ReadyReleaseGrade
+            Assert.That(content, Does.Contain("BACKEND_MODE\" = \"ReadyReleaseGrade\""),
+                "CI75: IS_RELEASE_GRADE must only be set to true when BACKEND_MODE is ReadyReleaseGrade. " +
+                "This enforces that the manifest's isReleaseGradeEvidence field reflects backend confirmation, " +
+                "not just CI-side lifecycle verification.");
+        }
+
         // ─── Shared extraction helper (used by CI39, CI40, CI41, CI43) ───────────
         //
         // Extracts the JSON template from between the MANIFEST_EOF heredoc markers in
