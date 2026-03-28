@@ -579,9 +579,13 @@ namespace BiatecTokensTests
         {
             var svc = CreateService();
             var result = await svc.ValidateDraftAsync("fresh-noop@example.com", "fresh-noop@example.com");
-            Assert.That(result.Success, Is.False);
-            Assert.That(result.ErrorMessage, Is.Not.Null.And.Not.Empty,
-                "Must return informative message when no draft exists.");
+            // The operation itself succeeds (Success=true) but the draft is not valid (IsValid=false)
+            Assert.That(result.IsValid, Is.False,
+                "Validation of non-existent draft must return IsValid=false.");
+            Assert.That(result.Errors, Is.Not.Empty,
+                "Must return at least one error indicating no draft exists.");
+            Assert.That(result.Errors.Any(e => e.Code == "NO_DRAFT"), Is.True,
+                "Must include a NO_DRAFT error code.");
         }
 
         [Test]
