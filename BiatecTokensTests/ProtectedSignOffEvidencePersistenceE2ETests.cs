@@ -952,18 +952,34 @@ namespace BiatecTokensTests
                 "EP40: Release readiness response must echo back the requested HeadRef for correlation.");
         }
 
-        /// <summary>EP41: Evidence pack IsReleaseGrade=false when requireReleaseGrade=false
-        /// (opt-out of release-grade classification must be respected).</summary>
+        /// <summary>EP41: Persistence with requireReleaseGrade=false succeeds even when
+        /// there is no prior approval webhook (fail-open: no error when not release-grade).</summary>
         [Test]
-        public async Task EP41_EvidencePack_NotReleaseGrade_WhenRequireReleaseGradeFalse()
+        public async Task EP41_RequireReleaseGradeFalse_PersistsSuccessfully_WithoutWebhook()
         {
+            // No webhook posted — without a webhook the pack cannot be IsReleaseGrade.
+            // requireReleaseGrade=false means the call must still succeed (HTTP 200)
+            // rather than blocking with an error.
             string head = UniqueHead();
             string caseId = UniqueCase();
-            await PostWebhookAsync(caseId, head);
-            var pack = await PostEvidenceAsync(head, caseId,
-                requireReleaseGrade: false, requireApprovalWebhook: false);
+            // Deliberately skip PostWebhookAsync — test fail-open path
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/evidence",
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = head,
+                    CaseId = caseId,
+                    RequireReleaseGrade = false,
+                    RequireApprovalWebhook = false,
+                    EnvironmentLabel = "protected-ci",
+                    FreshnessWindowHours = 24
+                });
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "EP41: Persistence with requireReleaseGrade=false must succeed (HTTP 200) even without a prior approval webhook.");
+            var pack = (await resp.Content.ReadFromJsonAsync<PersistSignOffEvidenceResponse>(_jsonOpts))!;
+            Assert.That(pack.Success, Is.True,
+                "EP41: Success must be true when requireReleaseGrade=false, even if conditions for release-grade are not met.");
             Assert.That(pack.Pack?.IsReleaseGrade ?? false, Is.False,
-                "EP41: Evidence pack must not be classified as release-grade when requireReleaseGrade=false.");
+                "EP41: Pack IsReleaseGrade must be false when no approval webhook was posted.");
         }
 
         /// <summary>EP42: Webhook response record has non-null CorrelationId for traceability.</summary>
