@@ -70,5 +70,105 @@ namespace BiatecTokensApi.Services.Interface
         /// <param name="operatorId">Authenticated operator whose badge count is requested.</param>
         /// <returns>Unread count with critical sub-count and evaluation timestamp.</returns>
         Task<NotificationUnreadCountResponse> GetUnreadCountAsync(string operatorId);
+
+        /// <summary>
+        /// Resolves one or more notifications for the authenticated operator, marking the
+        /// underlying workflow item as complete. Resolved notifications are retained for audit
+        /// but excluded from the active queue by default.
+        /// </summary>
+        /// <param name="request">IDs to resolve, optional note, and optional scoping filter.</param>
+        /// <param name="operatorId">Authenticated operator performing the action.</param>
+        /// <returns>Lifecycle action result with affected count and audit timestamp.</returns>
+        Task<NotificationLifecycleResponse> ResolveAsync(
+            ResolveNotificationsRequest request,
+            string operatorId);
+
+        /// <summary>
+        /// Reopens one or more previously resolved or dismissed notifications, returning them
+        /// to the active queue for further operator attention.
+        /// </summary>
+        /// <param name="request">IDs to reopen, optional note, and optional scoping filter.</param>
+        /// <param name="operatorId">Authenticated operator performing the action.</param>
+        /// <returns>Lifecycle action result with affected count and audit timestamp.</returns>
+        Task<NotificationLifecycleResponse> ReopenAsync(
+            ReopenNotificationsRequest request,
+            string operatorId);
+
+        /// <summary>
+        /// Returns a digest-grouped summary of notifications for the authenticated operator,
+        /// aggregated by workflow area for efficient operator dashboards.
+        /// </summary>
+        /// <param name="request">Digest filter options including workflow area, role, and date range.</param>
+        /// <param name="operatorId">Authenticated operator requesting the digest.</param>
+        /// <returns>Digest-grouped notification summaries with overall inbox counts.</returns>
+        Task<NotificationDigestResponse> GetDigestSummaryAsync(
+            NotificationDigestRequest request,
+            string operatorId);
+        /// <summary>
+        /// Resolves one or more notifications for the authenticated operator, marking the
+        /// underlying workflow item as complete. Resolved notifications are retained for audit
+        /// but excluded from the active queue by default.
+        /// </summary>
+        /// <param name="request">IDs to resolve, optional note, and optional scoping filter.</param>
+        /// <param name="operatorId">Authenticated operator performing the action.</param>
+        /// <returns>Lifecycle action result with affected count and audit timestamp.</returns>
+        Task<NotificationLifecycleResponse> ResolveAsync(
+            ResolveNotificationsRequest request,
+            string operatorId);
+
+        /// <summary>
+        /// Reopens one or more previously resolved or dismissed notifications, returning them
+        /// to the active queue for further operator attention.
+        /// </summary>
+        /// <param name="request">IDs to reopen, optional note, and optional scoping filter.</param>
+        /// <param name="operatorId">Authenticated operator performing the action.</param>
+        /// <returns>Lifecycle action result with affected count and audit timestamp.</returns>
+        Task<NotificationLifecycleResponse> ReopenAsync(
+            ReopenNotificationsRequest request,
+            string operatorId);
+
+        /// <summary>
+        /// Returns a digest-grouped summary of notifications for the authenticated operator,
+        /// aggregated by workflow area for efficient operator dashboards.
+        /// </summary>
+        /// <param name="request">Digest filter options including workflow area, role, and date range.</param>
+        /// <param name="operatorId">Authenticated operator requesting the digest.</param>
+        /// <returns>Digest-grouped notification summaries with overall inbox counts.</returns>
+        Task<NotificationDigestResponse> GetDigestSummaryAsync(
+            NotificationDigestRequest request,
+            string operatorId);
+        /// <summary>
+        /// Resolves one or more notifications for the authenticated operator, marking the
+        /// underlying workflow item as complete. Resolved notifications are retained for audit
+        /// but excluded from the active queue by default.
+        /// </summary>
+        /// <param name="request">IDs to resolve, optional note, and optional scoping filter.</param>
+        /// <param name="operatorId">Authenticated operator performing the action.</param>
+        /// <returns>Lifecycle action result with affected count and audit timestamp.</returns>
+        Task<NotificationLifecycleResponse> ResolveAsync(
+            ResolveNotificationsRequest request,
+            string operatorId);
+
+        /// <summary>
+        /// Reopens one or more previously resolved or dismissed notifications, returning them
+        /// to the active queue for further operator attention.
+        /// </summary>
+        /// <param name="request">IDs to reopen, optional note, and optional scoping filter.</param>
+        /// <param name="operatorId">Authenticated operator performing the action.</param>
+        /// <returns>Lifecycle action result with affected count and audit timestamp.</returns>
+        Task<NotificationLifecycleResponse> ReopenAsync(
+            ReopenNotificationsRequest request,
+            string operatorId);
+
+        /// <summary>
+        /// Returns a digest-grouped summary of notifications for the authenticated operator,
+        /// aggregated by workflow area for efficient operator dashboards.
+        /// </summary>
+        /// <param name="request">Digest filter options including workflow area, role, and date range.</param>
+        /// <param name="operatorId">Authenticated operator requesting the digest.</param>
+        /// <returns>Digest-grouped notification summaries with overall inbox counts.</returns>
+        Task<NotificationDigestResponse> GetDigestSummaryAsync(
+            NotificationDigestRequest request,
+            string operatorId);
     }
 }

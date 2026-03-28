@@ -199,6 +199,164 @@ namespace BiatecTokensApi.Controllers
             return Ok(await _service.DismissAsync(request, operatorId));
         }
 
+        /// <summary>
+        /// Resolves one or more notifications for the authenticated operator.
+        /// Resolved notifications are retained for audit but excluded from the active queue by default.
+        /// When notificationIds is omitted or empty, all acknowledged notifications are resolved.
+        /// </summary>
+        /// <param name="request">IDs to resolve, optional note, and optional scoping filter.</param>
+        [HttpPost("resolve")]
+        [ProducesResponseType(typeof(NotificationLifecycleResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Resolve([FromBody] ResolveNotificationsRequest? request = null)
+        {
+            var operatorId = GetOperatorId();
+            request ??= new ResolveNotificationsRequest();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.Resolve Operator={OperatorId} IdsCount={Count}",
+                LoggingHelper.SanitizeLogInput(operatorId),
+                request.NotificationIds.Count);
+
+            return Ok(await _service.ResolveAsync(request, operatorId));
+        }
+
+        /// <summary>
+        /// Reopens one or more previously resolved or dismissed notifications.
+        /// When notificationIds is omitted or empty, all resolved notifications are reopened.
+        /// </summary>
+        /// <param name="request">IDs to reopen, optional note, and optional scoping filter.</param>
+        [HttpPost("reopen")]
+        [ProducesResponseType(typeof(NotificationLifecycleResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Reopen([FromBody] ReopenNotificationsRequest? request = null)
+        {
+            var operatorId = GetOperatorId();
+            request ??= new ReopenNotificationsRequest();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.Reopen Operator={OperatorId} IdsCount={Count}",
+                LoggingHelper.SanitizeLogInput(operatorId),
+                request.NotificationIds.Count);
+
+            return Ok(await _service.ReopenAsync(request, operatorId));
+        }
+
+        /// <summary>
+        /// Returns a digest-grouped summary of notifications for the authenticated operator.
+        /// Aggregated by workflow area for efficient operator dashboard rendering.
+        /// </summary>
+        [HttpGet("digest")]
+        [ProducesResponseType(typeof(NotificationDigestResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetDigestSummary(
+            [FromQuery] NotificationWorkflowArea? workflowArea = null,
+            [FromQuery] OperatorRole? role = null,
+            [FromQuery] DateTimeOffset? fromDate = null,
+            [FromQuery] DateTimeOffset? toDate = null,
+            [FromQuery] bool? agedOnly = null)
+        {
+            var operatorId = GetOperatorId();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.GetDigestSummary Operator={OperatorId} WorkflowArea={WorkflowArea} Role={Role}",
+                LoggingHelper.SanitizeLogInput(operatorId),
+                workflowArea,
+                role);
+
+            var request = new NotificationDigestRequest
+            {
+                WorkflowArea = workflowArea,
+                Role = role,
+                FromDate = fromDate,
+                ToDate = toDate,
+                AgedOnly = agedOnly
+            };
+
+            return Ok(await _service.GetDigestSummaryAsync(request, operatorId));
+        }
+
+        /// <summary>
+        /// Resolves one or more notifications for the authenticated operator.
+        /// Resolved notifications are retained for audit but excluded from the active queue by default.
+        /// When notificationIds is omitted or empty, all acknowledged notifications are resolved.
+        /// </summary>
+        /// <param name="request">IDs to resolve, optional note, and optional scoping filter.</param>
+        [HttpPost("resolve")]
+        [ProducesResponseType(typeof(NotificationLifecycleResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Resolve([FromBody] ResolveNotificationsRequest? request = null)
+        {
+            var operatorId = GetOperatorId();
+            request ??= new ResolveNotificationsRequest();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.Resolve Operator={OperatorId} IdsCount={Count}",
+                LoggingHelper.SanitizeLogInput(operatorId),
+                request.NotificationIds.Count);
+
+            return Ok(await _service.ResolveAsync(request, operatorId));
+        }
+
+        /// <summary>
+        /// Reopens one or more previously resolved or dismissed notifications.
+        /// When notificationIds is omitted or empty, all resolved notifications are reopened.
+        /// </summary>
+        /// <param name="request">IDs to reopen, optional note, and optional scoping filter.</param>
+        [HttpPost("reopen")]
+        [ProducesResponseType(typeof(NotificationLifecycleResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Reopen([FromBody] ReopenNotificationsRequest? request = null)
+        {
+            var operatorId = GetOperatorId();
+            request ??= new ReopenNotificationsRequest();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.Reopen Operator={OperatorId} IdsCount={Count}",
+                LoggingHelper.SanitizeLogInput(operatorId),
+                request.NotificationIds.Count);
+
+            return Ok(await _service.ReopenAsync(request, operatorId));
+        }
+
+        /// <summary>
+        /// Returns a digest-grouped summary of notifications for the authenticated operator.
+        /// Aggregated by workflow area for efficient operator dashboard rendering.
+        /// </summary>
+        [HttpGet("digest")]
+        [ProducesResponseType(typeof(NotificationDigestResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetDigestSummary(
+            [FromQuery] NotificationWorkflowArea? workflowArea = null,
+            [FromQuery] OperatorRole? role = null,
+            [FromQuery] DateTimeOffset? fromDate = null,
+            [FromQuery] DateTimeOffset? toDate = null,
+            [FromQuery] bool? agedOnly = null)
+        {
+            var operatorId = GetOperatorId();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.GetDigestSummary Operator={OperatorId} WorkflowArea={WorkflowArea} Role={Role}",
+                LoggingHelper.SanitizeLogInput(operatorId),
+                workflowArea,
+                role);
+
+            var request = new NotificationDigestRequest
+            {
+                WorkflowArea = workflowArea,
+                Role = role,
+                FromDate = fromDate,
+                ToDate = toDate,
+                AgedOnly = agedOnly
+            };
+
+            return Ok(await _service.GetDigestSummaryAsync(request, operatorId));
+        }
+
         private string GetOperatorId() =>
             User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst("nameid")?.Value
