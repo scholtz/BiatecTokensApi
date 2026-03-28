@@ -520,6 +520,10 @@ namespace BiatecTokensApi
             // export-linked audit trails, and webhook-ready downstream integrations
             builder.Services.AddSingleton<IComplianceEventBackboneService, ComplianceEventBackboneService>();
 
+            // Register the operator notification center that wraps the compliance-event backbone
+            // with per-operator lifecycle state (Unread / Read / Acknowledged / Dismissed)
+            builder.Services.AddSingleton<IOperatorNotificationCenterService, OperatorNotificationCenterService>();
+
             // Register Scheduled Reporting service for reporting templates, report runs,
             // schedule definitions, evidence freshness evaluation, and delivery tracking
             builder.Services.AddSingleton<IScheduledReportingService>(sp =>
