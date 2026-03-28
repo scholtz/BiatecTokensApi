@@ -5,6 +5,7 @@ namespace BiatecTokensApi.Models.OperatorNotification
     /// <summary>
     /// Per-operator lifecycle state for a compliance notification.
     /// Lifecycle transitions: Unread → Read → Acknowledged → Dismissed (or any step can transition to Dismissed).
+    /// Resolved indicates the underlying workflow item is complete. Reopened allows re-activation from Resolved.
     /// </summary>
     public enum NotificationLifecycleState
     {
@@ -18,7 +19,145 @@ namespace BiatecTokensApi.Models.OperatorNotification
         Acknowledged,
 
         /// <summary>The operator has dismissed the notification from their active queue.</summary>
-        Dismissed
+        Dismissed,
+
+        /// <summary>
+        /// The operator has marked the underlying workflow item as resolved.
+        /// Resolved notifications are retained for audit but excluded from active views by default.
+        /// </summary>
+        Resolved,
+
+        /// <summary>
+        /// A previously resolved or dismissed notification has been reopened because the workflow
+        /// item requires further operator attention (e.g., evidence invalidated, blocker re-raised).
+        /// </summary>
+        Reopened
+    }
+
+    /// <summary>
+    /// Enterprise operator role determining which notifications are relevant by default.
+    /// Used for role-aware audience targeting so each persona receives the right notification set.
+    /// </summary>
+    public enum OperatorRole
+    {
+        /// <summary>Reviews KYC/AML evidence, compliance decisions, and case-level escalations.</summary>
+        ComplianceReviewer,
+
+        /// <summary>Manages onboarding queues, investor identity checks, and case creation workflows.</summary>
+        OnboardingOperator,
+
+        /// <summary>Oversees team workload, SLA adherence, escalation routing, and operational summaries.</summary>
+        Manager,
+
+        /// <summary>Full platform visibility including release readiness, exports, and governance posture.</summary>
+        EnterpriseAdministrator,
+
+        /// <summary>Read-only audit trail access for internal or external review purposes.</summary>
+        SystemAuditor
+    }
+
+    /// <summary>
+    /// High-level workflow domain that a notification belongs to.
+    /// Supports digest grouping, role-aware filtering, and frontend routing.
+    /// </summary>
+    public enum NotificationWorkflowArea
+    {
+        /// <summary>KYC/AML investor onboarding workflows.</summary>
+        KycOnboarding,
+
+        /// <summary>Compliance case lifecycle: evidence, decisions, escalations.</summary>
+        ComplianceCase,
+
+        /// <summary>Protected sign-off approval and evidence-pack workflows.</summary>
+        ProtectedSignOff,
+
+        /// <summary>Release-readiness evaluation and gating.</summary>
+        ReleaseReadiness,
+
+        /// <summary>Scheduled reporting and report delivery workflows.</summary>
+        Reporting,
+
+        /// <summary>Compliance audit export assembly and delivery.</summary>
+        ExportAudit,
+
+        /// <summary>General or cross-cutting platform notifications.</summary>
+        General
+    }
+
+    /// <summary>
+    /// Age classification for escalation and SLA-awareness purposes.
+    /// Enables inbox sorting and badge theming by urgency age.
+    /// </summary>
+    public enum NotificationAgeBucket
+    {
+        /// <summary>Created within the last hour – no escalation signal.</summary>
+        Fresh,
+
+        /// <summary>Created 1–24 hours ago – mild aging signal.</summary>
+        Aging,
+
+        /// <summary>Created 1–7 days ago – stale and likely requiring attention.</summary>
+        Stale,
+
+        /// <summary>Created more than 7 days ago – SLA-critical escalation signal.</summary>
+        Overdue
+    }
+
+    /// <summary>
+    /// SLA-aware escalation metadata attached to a notification envelope.
+    /// Enables the frontend to render escalation badges and priority ordering without
+    /// having to compute age or SLA thresholds client-side.
+    /// </summary>
+    public class NotificationEscalationMetadata
+    {
+        /// <summary>Age classification based on elapsed time since the notification was created.</summary>
+        public NotificationAgeBucket AgeBucket { get; set; } = NotificationAgeBucket.Fresh;
+
+        /// <summary>
+        /// Age in whole hours since the notification was first generated.
+        /// Zero for very recent notifications.
+        /// </summary>
+        public int AgeHours { get; set; }
+
+        /// <summary>
+        /// True when this notification represents a blocked workflow that has not advanced
+        /// within an operationally significant window (typically 24 hours for Critical, 72 for Warning).
+        /// </summary>
+        public bool IsEscalated { get; set; }
+
+        /// <summary>
+        /// True when the notification is associated with a Critical-severity event that has remained
+        /// unacknowledged for more than the SLA threshold.
+        /// </summary>
+        public bool IsSlaBreached { get; set; }
+
+        /// <summary>
+        /// Optional human-readable hint about the nature of the escalation.
+        /// For example: "KYC blocker unacknowledged for 48h" or "Release evidence stale for 6 days".
+        /// </summary>
+        public string? EscalationHint { get; set; }
+    }
+
+    /// <summary>
+    /// Immutable audit record capturing a single lifecycle state transition.
+    /// Stored on the envelope to provide a tamper-evident, auditable change log.
+    /// </summary>
+    public class NotificationAuditEntry
+    {
+        /// <summary>UTC timestamp when this lifecycle change occurred.</summary>
+        public DateTimeOffset ChangedAt { get; set; }
+
+        /// <summary>Lifecycle state before this transition.</summary>
+        public NotificationLifecycleState PreviousState { get; set; }
+
+        /// <summary>Lifecycle state after this transition.</summary>
+        public NotificationLifecycleState NewState { get; set; }
+
+        /// <summary>Operator who made this change.</summary>
+        public string ActorId { get; set; } = string.Empty;
+
+        /// <summary>Optional operator note provided at the time of the transition.</summary>
+        public string? Note { get; set; }
     }
 
     /// <summary>
@@ -48,14 +187,62 @@ namespace BiatecTokensApi.Models.OperatorNotification
         /// <summary>UTC timestamp when the operator dismissed the notification, if applicable.</summary>
         public DateTimeOffset? DismissedAt { get; set; }
 
+        /// <summary>UTC timestamp when the operator resolved the notification, if applicable.</summary>
+        public DateTimeOffset? ResolvedAt { get; set; }
+
+        /// <summary>UTC timestamp when the notification was reopened from a resolved or dismissed state, if applicable.</summary>
+        public DateTimeOffset? ReopenedAt { get; set; }
+
         /// <summary>Identifier of the operator who last changed the lifecycle state.</summary>
         public string? LastActorId { get; set; }
 
         /// <summary>
-        /// Optional operator-supplied note attached when acknowledging or dismissing.
+        /// Optional operator-supplied note attached when acknowledging, dismissing, or resolving.
         /// Supports auditability for regulated environments.
         /// </summary>
         public string? OperatorNote { get; set; }
+
+        /// <summary>
+        /// High-level workflow area this notification belongs to.
+        /// Supports frontend routing, digest grouping, and role-aware filtering.
+        /// </summary>
+        public NotificationWorkflowArea WorkflowArea { get; set; } = NotificationWorkflowArea.General;
+
+        /// <summary>
+        /// Operator roles for whom this notification is primarily relevant.
+        /// Frontend can use this for audience-aware inbox filtering.
+        /// </summary>
+        public List<OperatorRole> AudienceRoles { get; set; } = new();
+
+        /// <summary>
+        /// SLA-aware escalation metadata providing age bucket, escalation flag, and hints.
+        /// Always populated – never null – to allow safe property access by frontends.
+        /// </summary>
+        public NotificationEscalationMetadata EscalationMetadata { get; set; } = new();
+
+        /// <summary>
+        /// Immutable ordered audit trail of lifecycle state changes.
+        /// Supports compliance audit review of operator awareness and action history.
+        /// </summary>
+        public List<NotificationAuditEntry> AuditTrail { get; set; } = new();
+
+        /// <summary>
+        /// True when the notification requires an explicit operator action (e.g., approve, remediate, review).
+        /// False for purely informational notifications.
+        /// </summary>
+        public bool IsActionable { get; set; }
+
+        /// <summary>
+        /// Optional drill-down route or workflow reference that the frontend should navigate to.
+        /// For example: "compliance/cases/{caseId}" or "release/{headRef}/sign-off".
+        /// </summary>
+        public string? ActionTarget { get; set; }
+
+        /// <summary>
+        /// Optional human-readable guidance on what action is recommended.
+        /// For example: "Review KYC evidence and record a compliance decision."
+        /// </summary>
+        public string? RemediationGuidance { get; set; }
     }
 
     /// <summary>
