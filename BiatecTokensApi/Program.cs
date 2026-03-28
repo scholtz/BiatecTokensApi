@@ -568,6 +568,10 @@ namespace BiatecTokensApi
                     sp.GetRequiredService<ILogger<ProtectedSignOffEvidencePersistenceService>>(),
                     sp.GetService<IWebhookService>()));
 
+            // Register tenant branding service for white-label configuration, draft/publish lifecycle,
+            // domain readiness, and branding audit history
+            builder.Services.AddSingleton<ITenantBrandingService, TenantBrandingService>();
+
             // Register background workers
             builder.Services.AddHostedService<BiatecTokensApi.Workers.TransactionMonitorWorker>();
 
