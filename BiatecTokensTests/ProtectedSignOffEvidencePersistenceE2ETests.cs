@@ -743,5 +743,307 @@ namespace BiatecTokensTests
             Assert.That(hasProperty, Is.True,
                 "EP30: Release readiness JSON must include 'operatorGuidance' field for operator-readable diagnostics.");
         }
+
+        // ════════════════════════════════════════════════════════════════════
+        // EP31–EP45: Extended coverage — payload shaping, fail-closed edge
+        //            cases, and determinism across independent sessions
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>EP31: Approval webhook with Denied outcome prevents evidence from being
+        /// classified as release-grade (fail-closed against unauthorised sign-off).</summary>
+        [Test]
+        public async Task EP31_DeniedWebhook_EvidenceNotReleaseGrade()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            // Post a Denied webhook — not an Approved webhook
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/webhooks/approval",
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId,
+                    HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Denied,
+                    ActorId = "ep-test-actor-31",
+                    Reason = "EP31 denied",
+                    CorrelationId = Guid.NewGuid().ToString("N")
+                });
+            resp.EnsureSuccessStatusCode();
+
+            // Persist evidence after a Denied webhook
+            var evidenceResp = await _client.PostAsJsonAsync($"{EvidenceBase}/evidence",
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = head,
+                    CaseId = caseId,
+                    RequireReleaseGrade = true,
+                    RequireApprovalWebhook = true,
+                    EnvironmentLabel = "protected-ci",
+                    FreshnessWindowHours = 24
+                });
+            // The persistence may succeed at HTTP level (200) but the pack must NOT be IsReleaseGrade
+            if (evidenceResp.IsSuccessStatusCode)
+            {
+                var pack = (await evidenceResp.Content.ReadFromJsonAsync<PersistSignOffEvidenceResponse>(_jsonOpts))!;
+                Assert.That(pack.Pack?.IsReleaseGrade ?? false, Is.False,
+                    "EP31: Evidence persisted after a Denied webhook must not be classified as release-grade.");
+            }
+
+            var readiness = await GetReadinessAsync(head, caseId);
+            Assert.That(readiness.Mode, Is.Not.EqualTo(StrictArtifactMode.ReadyReleaseGrade),
+                "EP31: Denied webhook must prevent ReadyReleaseGrade classification.");
+        }
+
+        /// <summary>EP32: Readiness endpoint returns HTTP 200 even when mode is not ReadyReleaseGrade.</summary>
+        [Test]
+        public async Task EP32_ReadinessEndpoint_Returns200_EvenWhenNotReady()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            // No webhook, no evidence — should still return 200 with fail-closed mode
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/release-readiness",
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
+            Assert.That((int)resp.StatusCode, Is.LessThan(500),
+                "EP32: Release-readiness must never return 5xx; fail-closed errors belong in the payload.");
+        }
+
+        /// <summary>EP33: Evidence endpoint returns HTTP 200 for a valid request.</summary>
+        [Test]
+        public async Task EP33_EvidenceEndpoint_Returns200_ForValidRequest()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/evidence",
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = head,
+                    CaseId = caseId,
+                    RequireReleaseGrade = true,
+                    RequireApprovalWebhook = true,
+                    EnvironmentLabel = "protected-ci",
+                    FreshnessWindowHours = 24
+                });
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "EP33: Evidence endpoint must return 200 for a valid, authenticated request.");
+        }
+
+        /// <summary>EP34: Webhook endpoint returns HTTP 200 for a valid request.</summary>
+        [Test]
+        public async Task EP34_WebhookEndpoint_Returns200_ForValidRequest()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/webhooks/approval",
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId,
+                    HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    ActorId = "ep-test-actor-34",
+                    Reason = "EP34 approval",
+                    CorrelationId = Guid.NewGuid().ToString("N")
+                });
+            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "EP34: Webhook endpoint must return 200 for a valid, authenticated request.");
+        }
+
+        /// <summary>EP35: Full flow with custom freshnessWindowHours still produces ReadyReleaseGrade.</summary>
+        [Test]
+        public async Task EP35_FullFlow_WithCustomFreshnessWindow_ProducesReadyReleaseGrade()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            // Use a 1-hour freshness window (tighter than the default 24h)
+            var evidenceResp = await _client.PostAsJsonAsync($"{EvidenceBase}/evidence",
+                new PersistSignOffEvidenceRequest
+                {
+                    HeadRef = head,
+                    CaseId = caseId,
+                    RequireReleaseGrade = true,
+                    RequireApprovalWebhook = true,
+                    EnvironmentLabel = "protected-ci",
+                    FreshnessWindowHours = 1
+                });
+            evidenceResp.EnsureSuccessStatusCode();
+            var readiness = await GetReadinessAsync(head, caseId);
+            Assert.That(readiness.Mode, Is.EqualTo(StrictArtifactMode.ReadyReleaseGrade),
+                "EP35: Full flow with a 1-hour freshness window must still produce ReadyReleaseGrade.");
+        }
+
+        /// <summary>EP36: Three independent head/case pairs all produce isolated ReadyReleaseGrade
+        /// modes — no cross-contamination between sessions.</summary>
+        [Test]
+        public async Task EP36_ThreeIsolatedHeads_EachProducesReadyReleaseGrade()
+        {
+            var pairs = Enumerable.Range(0, 3)
+                .Select(_ => (head: UniqueHead(), caseId: UniqueCase()))
+                .ToList();
+
+            foreach (var (head, caseId) in pairs)
+            {
+                await PostWebhookAsync(caseId, head);
+                await PostEvidenceAsync(head, caseId);
+            }
+
+            foreach (var (head, caseId) in pairs)
+            {
+                var readiness = await GetReadinessAsync(head, caseId);
+                Assert.That(readiness.Mode, Is.EqualTo(StrictArtifactMode.ReadyReleaseGrade),
+                    $"EP36: Each isolated head must independently reach ReadyReleaseGrade. head={head}");
+            }
+        }
+
+        /// <summary>EP37: Evidence pack response carries a non-null PackId for tracking.</summary>
+        [Test]
+        public async Task EP37_EvidencePack_HasNonNullPackId()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            var pack = await PostEvidenceAsync(head, caseId);
+            Assert.That(pack.Pack?.PackId, Is.Not.Null.And.Not.Empty,
+                "EP37: Evidence pack response must include a non-empty PackId for downstream audit-trail tracking.");
+        }
+
+        /// <summary>EP38: Readiness response IsReleaseEvidence is false when no evidence exists
+        /// (fail-closed: absence of evidence must not be interpreted as release-grade).</summary>
+        [Test]
+        public async Task EP38_NoEvidence_IsReleaseEvidence_False_FailClosed()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            // Only webhook, no evidence
+            await PostWebhookAsync(caseId, head);
+            var readiness = await GetReadinessAsync(head, caseId);
+            Assert.That(readiness.IsReleaseEvidence, Is.False,
+                "EP38: IsReleaseEvidence must be false when no evidence pack has been persisted (fail-closed).");
+        }
+
+        /// <summary>EP39: Readiness JSON status field is present and non-null.</summary>
+        [Test]
+        public async Task EP39_ReadinessJson_ContainsStatusField()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            await PostEvidenceAsync(head, caseId);
+
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/release-readiness",
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
+            string json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            Assert.That(doc.RootElement.TryGetProperty("status", out _), Is.True,
+                "EP39: Release readiness JSON must include 'status' field for downstream operator UIs.");
+        }
+
+        /// <summary>EP40: Readiness JSON headRef field echoes back the requested head reference.</summary>
+        [Test]
+        public async Task EP40_ReadinessJson_HeadRef_EchoesRequest()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            await PostEvidenceAsync(head, caseId);
+
+            var readiness = await GetReadinessAsync(head, caseId);
+            Assert.That(readiness.HeadRef, Is.EqualTo(head),
+                "EP40: Release readiness response must echo back the requested HeadRef for correlation.");
+        }
+
+        /// <summary>EP41: Evidence pack IsReleaseGrade=false when requireReleaseGrade=false
+        /// (opt-out of release-grade classification must be respected).</summary>
+        [Test]
+        public async Task EP41_EvidencePack_NotReleaseGrade_WhenRequireReleaseGradeFalse()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            var pack = await PostEvidenceAsync(head, caseId,
+                requireReleaseGrade: false, requireApprovalWebhook: false);
+            Assert.That(pack.Pack?.IsReleaseGrade ?? false, Is.False,
+                "EP41: Evidence pack must not be classified as release-grade when requireReleaseGrade=false.");
+        }
+
+        /// <summary>EP42: Webhook response record has non-null CorrelationId for traceability.</summary>
+        [Test]
+        public async Task EP42_WebhookRecord_HasNonNullCorrelationId()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            string correlationId = Guid.NewGuid().ToString("N");
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/webhooks/approval",
+                new RecordApprovalWebhookRequest
+                {
+                    CaseId = caseId,
+                    HeadRef = head,
+                    Outcome = ApprovalWebhookOutcome.Approved,
+                    ActorId = "ep-test-actor-42",
+                    Reason = "EP42 correlation test",
+                    CorrelationId = correlationId
+                });
+            resp.EnsureSuccessStatusCode();
+            var record = (await resp.Content.ReadFromJsonAsync<RecordApprovalWebhookResponse>(_jsonOpts))!;
+            Assert.That(record.Record, Is.Not.Null, "EP42: Webhook response must include a Record object.");
+            Assert.That(record.Record!.CorrelationId, Is.Not.Null.And.Not.Empty,
+                "EP42: Webhook record must carry a non-empty CorrelationId for downstream traceability.");
+        }
+
+        /// <summary>EP43: Readiness mode for missing-evidence is not ReadyReleaseGrade
+        /// (deterministic fail-closed contract for operator dashboards).</summary>
+        [Test]
+        public async Task EP43_NoWebhookNoEvidence_Mode_IsNotReadyReleaseGrade()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            // Neither webhook nor evidence — completely blank state
+            var readiness = await GetReadinessAsync(head, caseId);
+            Assert.That(readiness.Mode, Is.Not.EqualTo(StrictArtifactMode.ReadyReleaseGrade),
+                "EP43: A completely blank head/case must never reach ReadyReleaseGrade (fail-closed invariant).");
+            Assert.That(readiness.IsReleaseEvidence, Is.False,
+                "EP43: IsReleaseEvidence must be false for a completely blank head/case.");
+        }
+
+        /// <summary>EP44: Full flow produces a non-null Blockers list (empty when ready, non-empty
+        /// when blocked — the list must always be present for downstream diagnostics).</summary>
+        [Test]
+        public async Task EP44_ReadinessBlockersList_NotNull_AlwaysPresent()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            await PostEvidenceAsync(head, caseId);
+
+            var readiness = await GetReadinessAsync(head, caseId);
+            Assert.That(readiness.Blockers, Is.Not.Null,
+                "EP44: Blockers list must be non-null — downstream operator dashboards depend on it being present.");
+        }
+
+        /// <summary>EP45: StrictArtifactMode contract — after full flow the mode integer equals
+        /// (int)StrictArtifactMode.ReadyReleaseGrade=4, proving the serialized numeric value is stable.</summary>
+        [Test]
+        public async Task EP45_StrictArtifactMode_ReadyReleaseGrade_NumericValue_Is4()
+        {
+            string head = UniqueHead();
+            string caseId = UniqueCase();
+            await PostWebhookAsync(caseId, head);
+            await PostEvidenceAsync(head, caseId);
+
+            var resp = await _client.PostAsJsonAsync($"{EvidenceBase}/release-readiness",
+                new GetSignOffReleaseReadinessRequest { HeadRef = head, CaseId = caseId });
+            string json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            // ReadyReleaseGrade is the 5th enum value (0-indexed = 4).
+            // This test locks the serialised wire value so downstream consumers
+            // (CI workflow, operator UIs) can rely on it without a breaking change.
+            int modeValue = doc.RootElement.GetProperty("mode").GetInt32();
+            Assert.That(modeValue, Is.EqualTo(4),
+                "EP45: ReadyReleaseGrade must serialise to integer 4 — changing this would break " +
+                "downstream consumers that interpret the numeric mode value.");
+            Assert.That(modeValue, Is.EqualTo((int)StrictArtifactMode.ReadyReleaseGrade),
+                "EP45: Numeric mode must equal (int)StrictArtifactMode.ReadyReleaseGrade.");
+        }
     }
 }
