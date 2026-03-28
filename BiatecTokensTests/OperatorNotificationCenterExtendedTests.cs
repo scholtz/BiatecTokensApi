@@ -60,7 +60,7 @@ namespace BiatecTokensTests
             new() { Events = events.ToList() };
 
         private static OperatorNotificationCenterService MakeSvc(
-            FakeBackbone backbone,
+            IComplianceEventBackboneService backbone,
             FakeTime? clock = null) =>
             new(backbone, NullLogger<OperatorNotificationCenterService>.Instance, clock);
 
