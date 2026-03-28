@@ -160,6 +160,9 @@ namespace BiatecTokensApi
                     // Use namespace-qualified names for all ComplianceAuditExport types to avoid conflicts
                     if (type.Namespace == "BiatecTokensApi.Models.ComplianceAuditExport")
                         return $"ComplianceAuditExport{type.Name}";
+                    // Use namespace-qualified names for all OperatorNotification types to avoid conflicts
+                    if (type.Namespace == "BiatecTokensApi.Models.OperatorNotification")
+                        return $"OperatorNotification{type.Name}";
                     return type.Name;
                 });
                 
@@ -523,6 +526,10 @@ namespace BiatecTokensApi
             // Register the operator notification center that wraps the compliance-event backbone
             // with per-operator lifecycle state (Unread / Read / Acknowledged / Dismissed)
             builder.Services.AddSingleton<IOperatorNotificationCenterService, OperatorNotificationCenterService>();
+
+            // Register the notification preference service for per-operator severity thresholds,
+            // digest policies, muting semantics, and fail-closed escalation configuration
+            builder.Services.AddSingleton<INotificationPreferenceService, NotificationPreferenceService>();
 
             // Register Scheduled Reporting service for reporting templates, report runs,
             // schedule definitions, evidence freshness evaluation, and delivery tracking
