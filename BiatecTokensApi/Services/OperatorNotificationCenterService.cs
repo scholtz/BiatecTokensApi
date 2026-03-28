@@ -109,11 +109,11 @@ namespace BiatecTokensApi.Services
                 filtered = filtered.Where(n => n.CreatedAt <= request.ToDate.Value);
 
             // New role-aware, workflow-area, and aged-only filters
-            if (request.RoleFilter.HasValue)
-                filtered = filtered.Where(n => n.AudienceRoles.Contains(request.RoleFilter.Value));
+            if (request.Role.HasValue)
+                filtered = filtered.Where(n => n.AudienceRoles.Contains(request.Role.Value));
 
-            if (request.WorkflowAreaFilter.HasValue)
-                filtered = filtered.Where(n => n.WorkflowArea == request.WorkflowAreaFilter.Value);
+            if (request.WorkflowArea.HasValue)
+                filtered = filtered.Where(n => n.WorkflowArea == request.WorkflowArea.Value);
 
             if (request.AgedOnly == true)
                 filtered = filtered.Where(n =>

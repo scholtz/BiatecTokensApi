@@ -2,270 +2,185 @@ using BiatecTokensApi.Models.ComplianceEvents;
 
 namespace BiatecTokensApi.Models.OperatorNotification
 {
-    /// <summary>
-    /// Per-operator lifecycle state for a compliance notification.
-    /// Lifecycle transitions: Unread → Read → Acknowledged → Dismissed (or any step can transition to Dismissed).
-    /// Resolved indicates the underlying workflow item is complete. Reopened allows re-activation from Resolved.
-    /// </summary>
+    /// <summary>Per-operator lifecycle state for a notification.</summary>
     public enum NotificationLifecycleState
     {
-        /// <summary>The notification has not yet been seen by the operator.</summary>
-        Unread,
-
-        /// <summary>The operator has opened or explicitly marked the notification as read.</summary>
-        Read,
-
-        /// <summary>The operator has acknowledged the notification, confirming awareness.</summary>
-        Acknowledged,
-
-        /// <summary>The operator has dismissed the notification from their active queue.</summary>
-        Dismissed,
-
-        /// <summary>
-        /// The operator has marked the underlying workflow item as resolved.
-        /// Resolved notifications are retained for audit but excluded from active views by default.
-        /// </summary>
-        Resolved,
-
-        /// <summary>
-        /// A previously resolved or dismissed notification has been reopened because the workflow
-        /// item requires further operator attention (e.g., evidence invalidated, blocker re-raised).
-        /// </summary>
-        Reopened
+        /// <summary>Not yet seen by the operator.</summary>
+        Unread = 0,
+        /// <summary>Opened or viewed by the operator.</summary>
+        Read = 1,
+        /// <summary>Operator explicitly confirmed awareness.</summary>
+        Acknowledged = 2,
+        /// <summary>Operator archived the notification.</summary>
+        Dismissed = 3,
+        /// <summary>Operator marked the underlying workflow item as complete.</summary>
+        Resolved = 4,
+        /// <summary>Operator reopened a previously resolved or dismissed notification.</summary>
+        Reopened = 5
     }
 
-    /// <summary>
-    /// Enterprise operator role determining which notifications are relevant by default.
-    /// Used for role-aware audience targeting so each persona receives the right notification set.
-    /// </summary>
+    /// <summary>Operator roles for role-aware notification targeting.</summary>
     public enum OperatorRole
     {
-        /// <summary>Reviews KYC/AML evidence, compliance decisions, and case-level escalations.</summary>
-        ComplianceReviewer,
-
-        /// <summary>Manages onboarding queues, investor identity checks, and case creation workflows.</summary>
-        OnboardingOperator,
-
-        /// <summary>Oversees team workload, SLA adherence, escalation routing, and operational summaries.</summary>
-        Manager,
-
-        /// <summary>Full platform visibility including release readiness, exports, and governance posture.</summary>
-        EnterpriseAdministrator,
-
-        /// <summary>Read-only audit trail access for internal or external review purposes.</summary>
-        SystemAuditor
+        /// <summary>Compliance reviewer responsible for KYC/AML decisions.</summary>
+        ComplianceReviewer = 0,
+        /// <summary>Onboarding operator managing investor onboarding flows.</summary>
+        OnboardingOperator = 1,
+        /// <summary>Operations manager with oversight across workflow areas.</summary>
+        Manager = 2,
+        /// <summary>Enterprise administrator with platform-wide configuration access.</summary>
+        EnterpriseAdministrator = 3,
+        /// <summary>System auditor with read-only access for audit and regulatory review.</summary>
+        SystemAuditor = 4
     }
 
-    /// <summary>
-    /// High-level workflow domain that a notification belongs to.
-    /// Supports digest grouping, role-aware filtering, and frontend routing.
-    /// </summary>
+    /// <summary>Workflow area classification for notification grouping and digest semantics.</summary>
     public enum NotificationWorkflowArea
     {
-        /// <summary>KYC/AML investor onboarding workflows.</summary>
-        KycOnboarding,
-
-        /// <summary>Compliance case lifecycle: evidence, decisions, escalations.</summary>
-        ComplianceCase,
-
-        /// <summary>Protected sign-off approval and evidence-pack workflows.</summary>
-        ProtectedSignOff,
-
-        /// <summary>Release-readiness evaluation and gating.</summary>
-        ReleaseReadiness,
-
-        /// <summary>Scheduled reporting and report delivery workflows.</summary>
-        Reporting,
-
-        /// <summary>Compliance audit export assembly and delivery.</summary>
-        ExportAudit,
-
-        /// <summary>General or cross-cutting platform notifications.</summary>
-        General
+        /// <summary>General or uncategorized notifications.</summary>
+        General = 0,
+        /// <summary>KYC/AML onboarding workflow notifications.</summary>
+        KycOnboarding = 1,
+        /// <summary>Compliance case management notifications.</summary>
+        ComplianceCase = 2,
+        /// <summary>Token deployment and operations notifications.</summary>
+        TokenOperations = 3,
+        /// <summary>Protected sign-off and release evidence notifications.</summary>
+        ProtectedSignOff = 4,
+        /// <summary>Release readiness evaluations and gating notifications.</summary>
+        ReleaseReadiness = 5,
+        /// <summary>Regulatory reporting and export notifications.</summary>
+        Reporting = 6,
+        /// <summary>Audit export and compliance evidence notifications.</summary>
+        ExportAudit = 7,
+        /// <summary>System health and infrastructure notifications.</summary>
+        SystemHealth = 8
     }
 
-    /// <summary>
-    /// Age classification for escalation and SLA-awareness purposes.
-    /// Enables inbox sorting and badge theming by urgency age.
-    /// </summary>
+    /// <summary>Age bucket for escalation threshold computation.</summary>
     public enum NotificationAgeBucket
     {
-        /// <summary>Created within the last hour – no escalation signal.</summary>
-        Fresh,
-
-        /// <summary>Created 1–24 hours ago – mild aging signal.</summary>
-        Aging,
-
-        /// <summary>Created 1–7 days ago – stale and likely requiring attention.</summary>
-        Stale,
-
-        /// <summary>Created more than 7 days ago – SLA-critical escalation signal.</summary>
-        Overdue
+        /// <summary>Under 1 hour old.</summary>
+        Fresh = 0,
+        /// <summary>1–24 hours old.</summary>
+        Aging = 1,
+        /// <summary>1–7 days old.</summary>
+        Stale = 2,
+        /// <summary>Over 7 days old without action.</summary>
+        Overdue = 3
     }
 
     /// <summary>
-    /// SLA-aware escalation metadata attached to a notification envelope.
-    /// Enables the frontend to render escalation badges and priority ordering without
-    /// having to compute age or SLA thresholds client-side.
+    /// Escalation metadata computed for each notification envelope.
     /// </summary>
     public class NotificationEscalationMetadata
     {
-        /// <summary>Age classification based on elapsed time since the notification was created.</summary>
-        public NotificationAgeBucket AgeBucket { get; set; } = NotificationAgeBucket.Fresh;
+        /// <summary>Age bucket relative to creation time.</summary>
+        public NotificationAgeBucket AgeBucket { get; set; }
 
-        /// <summary>
-        /// Age in whole hours since the notification was first generated.
-        /// Zero for very recent notifications.
-        /// </summary>
-        public int AgeHours { get; set; }
+        /// <summary>Hours elapsed since creation.</summary>
+        public double AgeHours { get; set; }
 
-        /// <summary>
-        /// True when this notification represents a blocked workflow that has not advanced
-        /// within an operationally significant window (typically 24 hours for Critical, 72 for Warning).
-        /// </summary>
-        public bool IsEscalated { get; set; }
-
-        /// <summary>
-        /// True when the notification is associated with a Critical-severity event that has remained
-        /// unacknowledged for more than the SLA threshold.
-        /// </summary>
+        /// <summary>True when operator SLA has been exceeded.</summary>
         public bool IsSlaBreached { get; set; }
 
-        /// <summary>
-        /// Optional human-readable hint about the nature of the escalation.
-        /// For example: "KYC blocker unacknowledged for 48h" or "Release evidence stale for 6 days".
-        /// </summary>
+        /// <summary>True when escalation is required based on age and severity.</summary>
+        public bool IsEscalated { get; set; }
+
+        /// <summary>Human-readable escalation hint describing urgency.</summary>
         public string? EscalationHint { get; set; }
+
+        /// <summary>Recommended operator action based on lifecycle state and escalation.</summary>
+        public string? RecommendedAction { get; set; }
     }
 
-    /// <summary>
-    /// Immutable audit record capturing a single lifecycle state transition.
-    /// Stored on the envelope to provide a tamper-evident, auditable change log.
-    /// </summary>
+    /// <summary>Immutable audit entry recording a lifecycle state change.</summary>
     public class NotificationAuditEntry
     {
-        /// <summary>UTC timestamp when this lifecycle change occurred.</summary>
+        /// <summary>UTC timestamp when the state change was recorded.</summary>
         public DateTimeOffset ChangedAt { get; set; }
 
         /// <summary>Lifecycle state before this transition.</summary>
         public NotificationLifecycleState PreviousState { get; set; }
 
-        /// <summary>Lifecycle state after this transition.</summary>
+        /// <summary>Lifecycle state applied by this action.</summary>
         public NotificationLifecycleState NewState { get; set; }
 
-        /// <summary>Operator who made this change.</summary>
+        /// <summary>Operator identifier who performed the action.</summary>
         public string ActorId { get; set; } = string.Empty;
 
-        /// <summary>Optional operator note provided at the time of the transition.</summary>
+        /// <summary>Optional operator note at time of state change.</summary>
         public string? Note { get; set; }
     }
 
     /// <summary>
-    /// Operator-enriched notification envelope that wraps a canonical compliance event
-    /// with per-operator lifecycle state and audit metadata.
+    /// Notification envelope enriching a compliance event with per-operator lifecycle state,
+    /// escalation metadata, workflow area, audience roles, and audit trail.
     /// </summary>
     public class OperatorNotificationEnvelope
     {
-        /// <summary>Stable identifier for this notification (matches the underlying event ID).</summary>
+        /// <summary>Unique notification identifier (mirrors the compliance event ID).</summary>
         public string NotificationId { get; set; } = string.Empty;
 
-        /// <summary>The canonical compliance event this notification is based on.</summary>
+        /// <summary>The underlying compliance event.</summary>
         public ComplianceEventEnvelope Event { get; set; } = new();
 
-        /// <summary>Current lifecycle state for the requesting operator.</summary>
-        public NotificationLifecycleState LifecycleState { get; set; } = NotificationLifecycleState.Unread;
-
-        /// <summary>UTC timestamp when this notification was first generated.</summary>
+        /// <summary>UTC creation time derived from the compliance event.</summary>
         public DateTimeOffset CreatedAt { get; set; }
 
-        /// <summary>UTC timestamp when the operator first marked the notification as read, if applicable.</summary>
+        /// <summary>Current per-operator lifecycle state.</summary>
+        public NotificationLifecycleState LifecycleState { get; set; }
+
+        /// <summary>UTC timestamp when first read by the operator.</summary>
         public DateTimeOffset? ReadAt { get; set; }
 
-        /// <summary>UTC timestamp when the operator acknowledged the notification, if applicable.</summary>
+        /// <summary>UTC timestamp when acknowledged by the operator.</summary>
         public DateTimeOffset? AcknowledgedAt { get; set; }
 
-        /// <summary>UTC timestamp when the operator dismissed the notification, if applicable.</summary>
+        /// <summary>UTC timestamp when dismissed by the operator.</summary>
         public DateTimeOffset? DismissedAt { get; set; }
 
-        /// <summary>UTC timestamp when the operator resolved the notification, if applicable.</summary>
+        /// <summary>UTC timestamp when resolved by the operator.</summary>
         public DateTimeOffset? ResolvedAt { get; set; }
 
-        /// <summary>UTC timestamp when the notification was reopened from a resolved or dismissed state, if applicable.</summary>
+        /// <summary>UTC timestamp when most recently reopened.</summary>
         public DateTimeOffset? ReopenedAt { get; set; }
 
-        /// <summary>Identifier of the operator who last changed the lifecycle state.</summary>
+        /// <summary>Identifier of the last operator who changed the lifecycle state.</summary>
         public string? LastActorId { get; set; }
 
-        /// <summary>
-        /// Optional operator-supplied note attached when acknowledging, dismissing, or resolving.
-        /// Supports auditability for regulated environments.
-        /// </summary>
+        /// <summary>Optional operator note from the most recent lifecycle action.</summary>
         public string? OperatorNote { get; set; }
 
-        /// <summary>
-        /// High-level workflow area this notification belongs to.
-        /// Supports frontend routing, digest grouping, and role-aware filtering.
-        /// </summary>
-        public NotificationWorkflowArea WorkflowArea { get; set; } = NotificationWorkflowArea.General;
-
-        /// <summary>
-        /// Operator roles for whom this notification is primarily relevant.
-        /// Frontend can use this for audience-aware inbox filtering.
-        /// </summary>
-        public List<OperatorRole> AudienceRoles { get; set; } = new();
-
-        /// <summary>
-        /// SLA-aware escalation metadata providing age bucket, escalation flag, and hints.
-        /// Always populated – never null – to allow safe property access by frontends.
-        /// </summary>
-        public NotificationEscalationMetadata EscalationMetadata { get; set; } = new();
-
-        /// <summary>
-        /// Immutable ordered audit trail of lifecycle state changes.
-        /// Supports compliance audit review of operator awareness and action history.
-        /// </summary>
-        public List<NotificationAuditEntry> AuditTrail { get; set; } = new();
-
-        /// <summary>
-        /// True when the notification requires an explicit operator action (e.g., approve, remediate, review).
-        /// False for purely informational notifications.
-        /// </summary>
+        /// <summary>True when this notification requires operator response.</summary>
         public bool IsActionable { get; set; }
 
-        /// <summary>
-        /// Optional drill-down route or workflow reference that the frontend should navigate to.
-        /// For example: "compliance/cases/{caseId}" or "release/{headRef}/sign-off".
-        /// </summary>
-        public string? ActionTarget { get; set; }
+        /// <summary>Workflow area classification for grouping and digest semantics.</summary>
+        public NotificationWorkflowArea WorkflowArea { get; set; }
 
-        /// <summary>
-        /// Optional human-readable guidance on what action is recommended.
-        /// For example: "Review KYC evidence and record a compliance decision."
-        /// </summary>
+        /// <summary>Operator roles that should receive this notification.</summary>
+        public List<OperatorRole> AudienceRoles { get; set; } = new();
+
+        /// <summary>Escalation metadata computed at query time.</summary>
+        public NotificationEscalationMetadata EscalationMetadata { get; set; } = new();
+
+        /// <summary>Immutable audit trail of lifecycle state changes.</summary>
+        public List<NotificationAuditEntry> AuditTrail { get; set; } = new();
+
+        /// <summary>Recommended remediation guidance for actionable notifications.</summary>
         public string? RemediationGuidance { get; set; }
     }
 
-    /// <summary>
-    /// Filter and pagination options for the operator notification center.
-    /// Extends the base compliance event query with notification-specific filters.
-    /// </summary>
+    /// <summary>Filter and pagination options for the operator notification center.</summary>
     public class OperatorNotificationQueryRequest
     {
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-        /// <summary>Filter by case ID across onboarding, compliance, and sign-off domains.</summary>
+        /// <summary>Filter by case ID.</summary>
         public string? CaseId { get; set; }
 
         /// <summary>Filter by subject or investor identifier.</summary>
         public string? SubjectId { get; set; }
 
-        /// <summary>Filter by a specific entity identifier.</summary>
+        /// <summary>Filter by entity identifier.</summary>
         public string? EntityId { get; set; }
 
         /// <summary>Filter by release head ref.</summary>
@@ -283,17 +198,20 @@ namespace BiatecTokensApi.Models.OperatorNotification
         /// <summary>Filter by notification lifecycle state.</summary>
         public NotificationLifecycleState? LifecycleState { get; set; }
 
-        /// <summary>
-        /// When true, only returns notifications not yet dismissed (Unread, Read, Acknowledged).
-        /// Equivalent to filtering out Dismissed state.
-        /// </summary>
+        /// <summary>When true, dismissed notifications are excluded.</summary>
         public bool? ExcludeDismissed { get; set; }
 
-        /// <summary>
-        /// When true, only returns unread notifications.
-        /// Equivalent to filtering LifecycleState = Unread.
-        /// </summary>
+        /// <summary>When true, only unread notifications are returned.</summary>
         public bool? UnreadOnly { get; set; }
+
+        /// <summary>Filter by operator role.</summary>
+        public OperatorRole? Role { get; set; }
+
+        /// <summary>Filter by workflow area.</summary>
+        public NotificationWorkflowArea? WorkflowArea { get; set; }
+
+        /// <summary>When true, only notifications in Stale or Overdue age buckets are returned.</summary>
+        public bool? AgedOnly { get; set; }
 
         /// <summary>Filter to events created on or after this UTC timestamp.</summary>
         public DateTimeOffset? FromDate { get; set; }
@@ -306,178 +224,104 @@ namespace BiatecTokensApi.Models.OperatorNotification
 
         /// <summary>Page size capped at 100. Defaults to 50.</summary>
         public int PageSize { get; set; } = 50;
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
-
-        /// <summary>Filter by operator role (only notifications relevant to this role are returned).</summary>
-        public OperatorRole? RoleFilter { get; set; }
-
-        /// <summary>Filter by workflow area.</summary>
-        public NotificationWorkflowArea? WorkflowAreaFilter { get; set; }
-
-        /// <summary>When true, only returns notifications in Stale or Overdue age buckets (escalated items).</summary>
-        public bool? AgedOnly { get; set; }
     }
 
     /// <summary>Request to mark one or more notifications as read.</summary>
     public class MarkNotificationsReadRequest
     {
-        /// <summary>
-        /// Specific notification IDs to mark as read.
-        /// When empty, all Unread notifications visible to the operator are marked as read.
-        /// </summary>
+        /// <summary>IDs to mark as read. When empty, all Unread notifications are marked.</summary>
         public List<string> NotificationIds { get; set; } = new();
 
-        /// <summary>Optional scoping filter so only notifications matching a case are affected.</summary>
+        /// <summary>Optional case scoping filter.</summary>
         public string? CaseId { get; set; }
 
-        /// <summary>Optional correlation ID for audit-trail linkage.</summary>
+        /// <summary>Optional correlation ID for audit tracing.</summary>
         public string? CorrelationId { get; set; }
     }
 
     /// <summary>Request to acknowledge one or more notifications.</summary>
     public class AcknowledgeNotificationsRequest
     {
-        /// <summary>
-        /// Specific notification IDs to acknowledge.
-        /// When empty, all Read or Unread notifications visible to the operator are acknowledged.
-        /// </summary>
+        /// <summary>IDs to acknowledge. When empty, all Unread or Read notifications are acknowledged.</summary>
         public List<string> NotificationIds { get; set; } = new();
 
-        /// <summary>Optional scoping filter so only notifications matching a case are affected.</summary>
-        public string? CaseId { get; set; }
-
-        /// <summary>Optional operator note attached as audit evidence of the acknowledgement decision.</summary>
+        /// <summary>Optional operator note recorded as audit evidence.</summary>
         public string? OperatorNote { get; set; }
 
-        /// <summary>Optional correlation ID for audit-trail linkage.</summary>
+        /// <summary>Optional case scoping filter.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>Optional correlation ID for audit tracing.</summary>
         public string? CorrelationId { get; set; }
     }
 
     /// <summary>Request to dismiss one or more notifications from the active queue.</summary>
     public class DismissNotificationsRequest
     {
-        /// <summary>
-        /// Specific notification IDs to dismiss.
-        /// When empty, all non-Dismissed notifications visible to the operator are dismissed.
-        /// </summary>
+        /// <summary>IDs to dismiss. When empty, all non-Dismissed notifications are dismissed.</summary>
         public List<string> NotificationIds { get; set; } = new();
 
-        /// <summary>Optional scoping filter so only notifications matching a case are affected.</summary>
-        public string? CaseId { get; set; }
-
-        /// <summary>Optional operator note explaining the dismissal for audit purposes.</summary>
+        /// <summary>Optional operator note recorded as audit evidence.</summary>
         public string? OperatorNote { get; set; }
 
-        /// <summary>Optional correlation ID for audit-trail linkage.</summary>
+        /// <summary>Optional case scoping filter.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>Optional correlation ID for audit tracing.</summary>
         public string? CorrelationId { get; set; }
     }
 
-    /// <summary>
-    /// Response containing paginated operator notifications with lifecycle state and summary.
-    /// </summary>
+    /// <summary>Request to resolve one or more notifications.</summary>
+    public class ResolveNotificationsRequest
+    {
+        /// <summary>IDs to resolve. When empty, all acknowledged notifications are resolved.</summary>
+        public List<string> NotificationIds { get; set; } = new();
+
+        /// <summary>Optional operator note recorded as audit evidence.</summary>
+        public string? OperatorNote { get; set; }
+
+        /// <summary>Optional case scoping filter.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>Optional correlation ID for audit tracing.</summary>
+        public string? CorrelationId { get; set; }
+    }
+
+    /// <summary>Request to reopen one or more previously resolved or dismissed notifications.</summary>
+    public class ReopenNotificationsRequest
+    {
+        /// <summary>IDs to reopen. When empty, all resolved notifications are reopened.</summary>
+        public List<string> NotificationIds { get; set; } = new();
+
+        /// <summary>Optional operator note recorded as audit evidence.</summary>
+        public string? OperatorNote { get; set; }
+
+        /// <summary>Optional case scoping filter.</summary>
+        public string? CaseId { get; set; }
+
+        /// <summary>Optional correlation ID for audit tracing.</summary>
+        public string? CorrelationId { get; set; }
+    }
+
+    /// <summary>Paginated notification list response with inbox summary and degraded-state flags.</summary>
     public class OperatorNotificationListResponse
     {
-        /// <summary>True when any upstream event source is in a degraded state, reducing result completeness.</summary>
-        public bool IsDegradedState { get; set; }
-
-        /// <summary>Human-readable explanation of the degraded state, if applicable.</summary>
-        public string? DegradedReason { get; set; }
         /// <summary>True when the query succeeded.</summary>
         public bool Success { get; set; }
 
-        /// <summary>Paginated list of operator notifications with per-operator lifecycle state.</summary>
+        /// <summary>Paginated notification envelopes.</summary>
         public List<OperatorNotificationEnvelope> Notifications { get; set; } = new();
 
         /// <summary>Total matching notifications before pagination.</summary>
         public int TotalCount { get; set; }
 
-        /// <summary>Requested page number.</summary>
+        /// <summary>Page number.</summary>
         public int Page { get; set; }
 
-        /// <summary>Requested page size after server-side clamping.</summary>
+        /// <summary>Page size after server-side clamping.</summary>
         public int PageSize { get; set; }
 
-        /// <summary>Summary counts across the unfiltered inbox for the requesting operator.</summary>
+        /// <summary>Inbox summary counts for the requesting operator.</summary>
         public OperatorNotificationInboxSummary InboxSummary { get; set; } = new();
 
         /// <summary>Machine-readable error code on failure.</summary>
@@ -486,29 +330,26 @@ namespace BiatecTokensApi.Models.OperatorNotification
         /// <summary>Business-readable error message on failure.</summary>
         public string? ErrorMessage { get; set; }
 
-        /// <summary>True when any upstream event source is in a degraded state, reducing result completeness.</summary>
+        /// <summary>True when any upstream source is degraded, reducing completeness.</summary>
         public bool IsDegradedState { get; set; }
 
-        /// <summary>Human-readable explanation of the degraded state, if applicable.</summary>
+        /// <summary>Explanation of the degraded state, if applicable.</summary>
         public string? DegradedReason { get; set; }
-    
+    }
 
-
-    /// <summary>
-    /// Lifecycle action response for mark-read, acknowledge, or dismiss operations.
-    /// </summary>
+    /// <summary>Lifecycle action response for mark-read, acknowledge, dismiss, resolve, or reopen.</summary>
     public class NotificationLifecycleResponse
     {
-        /// <summary>True when the lifecycle action was applied successfully.</summary>
+        /// <summary>True when the action succeeded.</summary>
         public bool Success { get; set; }
 
-        /// <summary>Number of notifications affected by the action.</summary>
+        /// <summary>Number of notifications affected.</summary>
         public int AffectedCount { get; set; }
 
         /// <summary>New lifecycle state applied to affected notifications.</summary>
         public NotificationLifecycleState AppliedState { get; set; }
 
-        /// <summary>UTC timestamp when the lifecycle action was recorded.</summary>
+        /// <summary>UTC timestamp when the action was recorded.</summary>
         public DateTimeOffset ActionedAt { get; set; }
 
         /// <summary>Machine-readable error code on failure.</summary>
@@ -518,84 +359,56 @@ namespace BiatecTokensApi.Models.OperatorNotification
         public string? ErrorMessage { get; set; }
     }
 
-    /// <summary>
-    /// Lightweight inbox summary providing badge counts for the operator notification center.
-    /// </summary>
+    /// <summary>Inbox summary providing badge counts for the operator notification center.</summary>
     public class OperatorNotificationInboxSummary
     {
-        /// <summary>Number of escalated notifications (IsEscalated = true in escalation metadata).</summary>
-        public int EscalatedCount { get; set; }
-
-        /// <summary>Number of SLA-breached notifications (IsSlaBreached = true).</summary>
-        public int SlaBreachedCount { get; set; }
-
-        /// <summary>Number of notifications related to degraded-state upstream events.</summary>
-        public int DegradedStateCount { get; set; }
-
-        /// <summary>Number of resolved notifications retained for audit.</summary>
-        public int ResolvedCount { get; set; }
-        /// <summary>Number of notifications that have not yet been read.</summary>
+        /// <summary>Unread notifications.</summary>
         public int UnreadCount { get; set; }
 
-        /// <summary>Number of notifications that have been read but not yet acknowledged.</summary>
+        /// <summary>Read but not yet acknowledged.</summary>
         public int ReadCount { get; set; }
 
-        /// <summary>Number of notifications that have been acknowledged but not dismissed.</summary>
+        /// <summary>Acknowledged but not yet resolved.</summary>
         public int AcknowledgedCount { get; set; }
 
-        /// <summary>Number of dismissed notifications (excluded from the active queue).</summary>
+        /// <summary>Dismissed notifications retained in audit history.</summary>
         public int DismissedCount { get; set; }
 
-        /// <summary>Number of unread or read notifications with Critical severity requiring immediate attention.</summary>
+        /// <summary>Resolved notifications retained for audit.</summary>
+        public int ResolvedCount { get; set; }
+
+        /// <summary>Active critical-severity notifications (blockers).</summary>
         public int ActiveBlockerCount { get; set; }
 
-        /// <summary>Number of unread or read notifications with Warning severity requiring operator attention.</summary>
+        /// <summary>Active warning-severity notifications.</summary>
         public int ActiveWarningCount { get; set; }
 
-        /// <summary>Total active notifications (Unread + Read + Acknowledged, excludes Dismissed).</summary>
+        /// <summary>Total active notifications (Unread + Read + Acknowledged).</summary>
         public int TotalActiveCount { get; set; }
+
+        /// <summary>Escalated notifications.</summary>
+        public int EscalatedCount { get; set; }
+
+        /// <summary>SLA-breached notifications.</summary>
+        public int SlaBreachedCount { get; set; }
+
+        /// <summary>Notifications with degraded upstream data.</summary>
+        public int DegradedStateCount { get; set; }
 
         /// <summary>UTC timestamp when this summary was computed.</summary>
         public DateTimeOffset ComputedAt { get; set; }
-
-        /// <summary>Number of escalated notifications (IsEscalated = true in escalation metadata).</summary>
-        public int EscalatedCount { get; set; }
-
-        /// <summary>Number of SLA-breached notifications (IsSlaBreached = true).</summary>
-        public int SlaBreachedCount { get; set; }
-
-        /// <summary>Number of notifications related to degraded-state upstream events.</summary>
-        public int DegradedStateCount { get; set; }
-
-        /// <summary>Number of resolved notifications retained for audit.</summary>
-        public int ResolvedCount { get; set; }
-
-
-        /// <summary>Number of escalated notifications (IsEscalated = true in escalation metadata).</summary>
-        public int EscalatedCount { get; set; }
-
-        /// <summary>Number of SLA-breached notifications (IsSlaBreached = true).</summary>
-        public int SlaBreachedCount { get; set; }
-
-        /// <summary>Number of notifications related to degraded-state upstream events.</summary>
-        public int DegradedStateCount { get; set; }
-
-        /// <summary>Number of resolved notifications retained for audit.</summary>
-        public int ResolvedCount { get; set; }
     }
 
-    /// <summary>
-    /// Response from the unread-count endpoint, optimised for notification badge rendering.
-    /// </summary>
+    /// <summary>Unread count response for lightweight badge polling.</summary>
     public class NotificationUnreadCountResponse
     {
         /// <summary>True when the count was retrieved successfully.</summary>
         public bool Success { get; set; }
 
-        /// <summary>Total number of unread notifications for the authenticated operator.</summary>
+        /// <summary>Total unread notification count.</summary>
         public int UnreadCount { get; set; }
 
-        /// <summary>Number of unread Critical notifications requiring immediate action.</summary>
+        /// <summary>Unread notifications with Critical severity.</summary>
         public int CriticalUnreadCount { get; set; }
 
         /// <summary>UTC timestamp when this count was evaluated.</summary>
@@ -603,110 +416,77 @@ namespace BiatecTokensApi.Models.OperatorNotification
 
         /// <summary>Machine-readable error code on failure.</summary>
         public string? ErrorCode { get; set; }
+
+        /// <summary>Business-readable error message on failure.</summary>
+        public string? ErrorMessage { get; set; }
     }
 
-    /// <summary>
-    /// Targeting descriptor for role-aware notification routing.
-    /// Specifies which operator roles this notification is applicable to
-    /// and whether it should be excluded from certain views.
-    /// </summary>
+    /// <summary>Audience target descriptor defining role applicability for notifications.</summary>
     public class NotificationAudienceTarget
     {
-        /// <summary>Operator roles for whom this notification is relevant.</summary>
+        /// <summary>Operator roles this notification is relevant to.</summary>
         public List<OperatorRole> ApplicableRoles { get; set; } = new();
 
-        /// <summary>
-        /// When true, this notification should appear in the default inbox for the applicable roles.
-        /// False for supplementary/informational items that appear only when explicitly queried.
-        /// </summary>
-        public bool IsDefaultVisible { get; set; } = true;
-
-        /// <summary>Optional workflow area override for this specific targeting context.</summary>
-        public NotificationWorkflowArea? WorkflowAreaOverride { get; set; }
-
-        /// <summary>Optional routing hint for frontend navigation (e.g., "compliance/cases/{caseId}").</summary>
-        public string? RoutingHint { get; set; }
-    }
-
-    /// <summary>
-    /// Digest-ready aggregation of notifications for a specific workflow area or time window.
-    /// Enables operators to receive summarised views rather than individual notification streams.
-    /// </summary>
-    public class NotificationDigestSummary
-    {
-        /// <summary>Workflow area this digest covers.</summary>
+        /// <summary>Workflow area this audience target belongs to.</summary>
         public NotificationWorkflowArea WorkflowArea { get; set; }
 
-        /// <summary>Total notifications in this digest group.</summary>
+        /// <summary>True when all operators in the audience must explicitly acknowledge.</summary>
+        public bool RequiresAcknowledgement { get; set; }
+
+        /// <summary>Optional maximum hours before this notification is considered overdue.</summary>
+        public double? SlaHours { get; set; }
+    }
+
+    /// <summary>Digest summary for a single workflow area.</summary>
+    public class NotificationDigestSummary
+    {
+        /// <summary>Workflow area this digest group covers.</summary>
+        public NotificationWorkflowArea WorkflowArea { get; set; }
+
+        /// <summary>Total notifications in this area for the operator.</summary>
         public int TotalCount { get; set; }
 
-        /// <summary>Number of unread notifications in this group.</summary>
+        /// <summary>Unread notifications in this area.</summary>
         public int UnreadCount { get; set; }
 
-        /// <summary>Number of critical-severity notifications in this group.</summary>
+        /// <summary>Critical-severity notifications in this area.</summary>
         public int CriticalCount { get; set; }
 
-        /// <summary>Number of escalated notifications in this group.</summary>
+        /// <summary>Escalated notifications in this area.</summary>
         public int EscalatedCount { get; set; }
 
-        /// <summary>Most recent notification timestamp in this group.</summary>
+        /// <summary>SLA-breached notifications in this area.</summary>
+        public int SlaBreachedCount { get; set; }
+
+        /// <summary>Resolved notifications in this area.</summary>
+        public int ResolvedCount { get; set; }
+
+        /// <summary>True when this area has degraded or partial upstream data.</summary>
+        public bool HasDegradedState { get; set; }
+
+        /// <summary>Most recent notification creation time in this area, or null if empty.</summary>
+        public DateTimeOffset? MostRecentAt { get; set; }
+
+        /// <summary>Latest notification creation time (alias for MostRecentAt).</summary>
         public DateTimeOffset? LatestAt { get; set; }
 
-        /// <summary>Recommended action summary for operators reviewing this digest group.</summary>
+        /// <summary>Recommended next action for this workflow area.</summary>
         public string? RecommendedAction { get; set; }
     }
 
-    /// <summary>Request to mark one or more notifications as resolved.</summary>
-    public class ResolveNotificationsRequest
-    {
-        /// <summary>
-        /// Specific notification IDs to resolve.
-        /// When empty, all Acknowledged notifications visible to the operator are resolved.
-        /// </summary>
-        public List<string> NotificationIds { get; set; } = new();
-
-        /// <summary>Optional scoping filter so only notifications matching a case are affected.</summary>
-        public string? CaseId { get; set; }
-
-        /// <summary>Optional operator note explaining the resolution decision for audit purposes.</summary>
-        public string? OperatorNote { get; set; }
-
-        /// <summary>Optional correlation ID for audit-trail linkage.</summary>
-        public string? CorrelationId { get; set; }
-    }
-
-    /// <summary>Request to reopen one or more previously resolved or dismissed notifications.</summary>
-    public class ReopenNotificationsRequest
-    {
-        /// <summary>
-        /// Specific notification IDs to reopen.
-        /// When empty, all Resolved notifications visible to the operator are reopened.
-        /// </summary>
-        public List<string> NotificationIds { get; set; } = new();
-
-        /// <summary>Optional scoping filter so only notifications matching a case are affected.</summary>
-        public string? CaseId { get; set; }
-
-        /// <summary>Optional operator note explaining why the notification is being reopened.</summary>
-        public string? OperatorNote { get; set; }
-
-        /// <summary>Optional correlation ID for audit-trail linkage.</summary>
-        public string? CorrelationId { get; set; }
-    }
-
-    /// <summary>Request for a digest summary of operator notifications grouped by workflow area.</summary>
+    /// <summary>Request for a digest summary grouped by workflow area.</summary>
     public class NotificationDigestRequest
     {
-        /// <summary>Optional filter for a specific workflow area. When null, all areas are included.</summary>
+        /// <summary>Optional workflow area filter; when null, all areas are included.</summary>
         public NotificationWorkflowArea? WorkflowArea { get; set; }
 
-        /// <summary>Optional role filter for audience-targeted digest.</summary>
+        /// <summary>Optional operator role filter.</summary>
         public OperatorRole? Role { get; set; }
 
-        /// <summary>Filter to events created on or after this UTC timestamp.</summary>
+        /// <summary>Optional earliest creation date filter (UTC).</summary>
         public DateTimeOffset? FromDate { get; set; }
 
-        /// <summary>Filter to events created on or before this UTC timestamp.</summary>
+        /// <summary>Optional latest creation date filter (UTC).</summary>
         public DateTimeOffset? ToDate { get; set; }
 
         /// <summary>When true, only includes notifications in Stale or Overdue age buckets.</summary>
@@ -734,135 +514,4 @@ namespace BiatecTokensApi.Models.OperatorNotification
         /// <summary>Business-readable error message on failure.</summary>
         public string? ErrorMessage { get; set; }
     }
-
-    /// <summary>
-    /// Targeting descriptor for role-aware notification routing.
-    /// Specifies which operator roles this notification is applicable to
-    /// and whether it should be excluded from certain views.
-    /// </summary>
-    public class NotificationAudienceTarget
-    {
-        /// <summary>Operator roles for whom this notification is relevant.</summary>
-        public List<OperatorRole> ApplicableRoles { get; set; } = new();
-
-        /// <summary>
-        /// When true, this notification should appear in the default inbox for the applicable roles.
-        /// False for supplementary/informational items that appear only when explicitly queried.
-        /// </summary>
-        public bool IsDefaultVisible { get; set; } = true;
-
-        /// <summary>Optional workflow area override for this specific targeting context.</summary>
-        public NotificationWorkflowArea? WorkflowAreaOverride { get; set; }
-
-        /// <summary>Optional routing hint for frontend navigation (e.g., "compliance/cases/{caseId}").</summary>
-        public string? RoutingHint { get; set; }
-    }
-
-    /// <summary>
-    /// Digest-ready aggregation of notifications for a specific workflow area or time window.
-    /// Enables operators to receive summarised views rather than individual notification streams.
-    /// </summary>
-    public class NotificationDigestSummary
-    {
-        /// <summary>Workflow area this digest covers.</summary>
-        public NotificationWorkflowArea WorkflowArea { get; set; }
-
-        /// <summary>Total notifications in this digest group.</summary>
-        public int TotalCount { get; set; }
-
-        /// <summary>Number of unread notifications in this group.</summary>
-        public int UnreadCount { get; set; }
-
-        /// <summary>Number of critical-severity notifications in this group.</summary>
-        public int CriticalCount { get; set; }
-
-        /// <summary>Number of escalated notifications in this group.</summary>
-        public int EscalatedCount { get; set; }
-
-        /// <summary>Most recent notification timestamp in this group.</summary>
-        public DateTimeOffset? LatestAt { get; set; }
-
-        /// <summary>Recommended action summary for operators reviewing this digest group.</summary>
-        public string? RecommendedAction { get; set; }
-    }
-
-    /// <summary>Request to mark one or more notifications as resolved.</summary>
-    public class ResolveNotificationsRequest
-    {
-        /// <summary>
-        /// Specific notification IDs to resolve.
-        /// When empty, all Acknowledged notifications visible to the operator are resolved.
-        /// </summary>
-        public List<string> NotificationIds { get; set; } = new();
-
-        /// <summary>Optional scoping filter so only notifications matching a case are affected.</summary>
-        public string? CaseId { get; set; }
-
-        /// <summary>Optional operator note explaining the resolution decision for audit purposes.</summary>
-        public string? OperatorNote { get; set; }
-
-        /// <summary>Optional correlation ID for audit-trail linkage.</summary>
-        public string? CorrelationId { get; set; }
-    }
-
-    /// <summary>Request to reopen one or more previously resolved or dismissed notifications.</summary>
-    public class ReopenNotificationsRequest
-    {
-        /// <summary>
-        /// Specific notification IDs to reopen.
-        /// When empty, all Resolved notifications visible to the operator are reopened.
-        /// </summary>
-        public List<string> NotificationIds { get; set; } = new();
-
-        /// <summary>Optional scoping filter so only notifications matching a case are affected.</summary>
-        public string? CaseId { get; set; }
-
-        /// <summary>Optional operator note explaining why the notification is being reopened.</summary>
-        public string? OperatorNote { get; set; }
-
-        /// <summary>Optional correlation ID for audit-trail linkage.</summary>
-        public string? CorrelationId { get; set; }
-    }
-
-    /// <summary>Request for a digest summary of operator notifications grouped by workflow area.</summary>
-    public class NotificationDigestRequest
-    {
-        /// <summary>Optional filter for a specific workflow area. When null, all areas are included.</summary>
-        public NotificationWorkflowArea? WorkflowArea { get; set; }
-
-        /// <summary>Optional role filter for audience-targeted digest.</summary>
-        public OperatorRole? Role { get; set; }
-
-        /// <summary>Filter to events created on or after this UTC timestamp.</summary>
-        public DateTimeOffset? FromDate { get; set; }
-
-        /// <summary>Filter to events created on or before this UTC timestamp.</summary>
-        public DateTimeOffset? ToDate { get; set; }
-
-        /// <summary>When true, only includes notifications in Stale or Overdue age buckets.</summary>
-        public bool? AgedOnly { get; set; }
-    }
-
-    /// <summary>Response containing digest-grouped notification summaries by workflow area.</summary>
-    public class NotificationDigestResponse
-    {
-        /// <summary>True when the digest was computed successfully.</summary>
-        public bool Success { get; set; }
-
-        /// <summary>Digest summaries grouped by workflow area.</summary>
-        public List<NotificationDigestSummary> DigestGroups { get; set; } = new();
-
-        /// <summary>Overall totals across all digest groups.</summary>
-        public OperatorNotificationInboxSummary OverallSummary { get; set; } = new();
-
-        /// <summary>UTC timestamp when this digest was computed.</summary>
-        public DateTimeOffset ComputedAt { get; set; }
-
-        /// <summary>Machine-readable error code on failure.</summary>
-        public string? ErrorCode { get; set; }
-
-        /// <summary>Business-readable error message on failure.</summary>
-        public string? ErrorMessage { get; set; }
-    }
-
 }
