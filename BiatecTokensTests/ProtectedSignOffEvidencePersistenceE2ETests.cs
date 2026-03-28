@@ -591,9 +591,10 @@ namespace BiatecTokensTests
             string json = await resp.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
 
-            Assert.That(doc.RootElement.GetProperty("mode").GetString(),
-                Is.EqualTo("ReadyReleaseGrade"),
-                "EP23: JSON mode must be 'ReadyReleaseGrade' string after full persistence flow.");
+            // StrictArtifactMode is serialized as an integer by default; ReadyReleaseGrade = 4.
+            Assert.That(doc.RootElement.GetProperty("mode").GetInt32(),
+                Is.EqualTo((int)StrictArtifactMode.ReadyReleaseGrade),
+                "EP23: JSON mode must equal ReadyReleaseGrade after full persistence flow.");
         }
 
         /// <summary>EP24: Release readiness JSON isReleaseEvidence=true after full flow.</summary>
