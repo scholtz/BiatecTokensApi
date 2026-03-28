@@ -18,14 +18,17 @@ namespace BiatecTokensApi.Controllers
     public class OperatorNotificationCenterController : ControllerBase
     {
         private readonly IOperatorNotificationCenterService _service;
+        private readonly INotificationPreferenceService _preferenceService;
         private readonly ILogger<OperatorNotificationCenterController> _logger;
 
         /// <summary>Initializes the controller.</summary>
         public OperatorNotificationCenterController(
             IOperatorNotificationCenterService service,
+            INotificationPreferenceService preferenceService,
             ILogger<OperatorNotificationCenterController> logger)
         {
             _service = service;
+            _preferenceService = preferenceService;
             _logger = logger;
         }
 
@@ -227,6 +230,46 @@ namespace BiatecTokensApi.Controllers
             };
 
             return Ok(await _service.GetDigestSummaryAsync(request, operatorId));
+        }
+
+        /// <summary>
+        /// Returns the authenticated operator's notification preferences.
+        /// A default preference record is returned when no explicit configuration exists.
+        /// </summary>
+        [HttpGet("preferences")]
+        [ProducesResponseType(typeof(NotificationPreferenceResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetPreferences()
+        {
+            var operatorId = GetOperatorId();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.GetPreferences Operator={OperatorId}",
+                LoggingHelper.SanitizeLogInput(operatorId));
+
+            return Ok(await _preferenceService.GetPreferencesAsync(operatorId));
+        }
+
+        /// <summary>
+        /// Updates the authenticated operator's notification preferences.
+        /// Only non-null fields in the request body are applied; omitted fields retain their current values.
+        /// Every change is appended to the preference audit trail.
+        /// </summary>
+        [HttpPut("preferences")]
+        [ProducesResponseType(typeof(NotificationPreferenceResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> UpdatePreferences(
+            [FromBody] UpdateNotificationPreferenceRequest? request = null)
+        {
+            var operatorId = GetOperatorId();
+            request ??= new UpdateNotificationPreferenceRequest();
+
+            _logger.LogInformation(
+                "OperatorNotificationCenter.UpdatePreferences Operator={OperatorId}",
+                LoggingHelper.SanitizeLogInput(operatorId));
+
+            return Ok(await _preferenceService.UpdatePreferencesAsync(request, operatorId));
         }
 
         private string GetOperatorId() =>

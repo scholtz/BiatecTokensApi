@@ -169,6 +169,12 @@ namespace BiatecTokensApi.Models.OperatorNotification
 
         /// <summary>Recommended remediation guidance for actionable notifications.</summary>
         public string? RemediationGuidance { get; set; }
+
+        /// <summary>
+        /// Per-operator routing metadata computed from the operator's notification preferences,
+        /// indicating immediate-delivery requirements, muting, severity gating, and digest windows.
+        /// </summary>
+        public NotificationRoutingMetadata? RoutingMetadata { get; set; }
     }
 
     /// <summary>Filter and pagination options for the operator notification center.</summary>
