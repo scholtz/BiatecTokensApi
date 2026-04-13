@@ -50,7 +50,7 @@ jobs:
       - name: Test write permissions (conditional)
         id: write-test
         if: steps.pr-type.outputs.type == 'trusted'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         continue-on-error: true
         with:
           script: |
@@ -74,7 +74,7 @@ jobs:
       
       - name: Simulate comment (with graceful failure)
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         continue-on-error: true
         with:
           script: |
