@@ -34,6 +34,21 @@ namespace BiatecTokensApi.Services
             _lazyClient = new Lazy<IAmazonSecretsManager>(() => CreateClient());
         }
 
+        /// <summary>
+        /// Constructor for testing — accepts a pre-built IAmazonSecretsManager instance.
+        /// </summary>
+        internal AwsKmsProvider(
+            IOptions<KeyManagementConfig> config,
+            ILogger<AwsKmsProvider> logger,
+            IHttpContextAccessor httpContextAccessor,
+            IAmazonSecretsManager client)
+        {
+            _config = config.Value;
+            _logger = logger;
+            _httpContextAccessor = httpContextAccessor;
+            _lazyClient = new Lazy<IAmazonSecretsManager>(() => client);
+        }
+
         private IAmazonSecretsManager CreateClient()
         {
             if (_config.AwsKms == null)
@@ -119,13 +134,13 @@ namespace BiatecTokensApi.Services
                     return false;
                 }
 
-                if (string.IsNullOrEmpty(_config.AwsKms.Region))
+                if (string.IsNullOrWhiteSpace(_config.AwsKms.Region))
                 {
                     _logger.LogError("AWS KMS region is not configured");
                     return false;
                 }
 
-                if (string.IsNullOrEmpty(_config.AwsKms.KeyId))
+                if (string.IsNullOrWhiteSpace(_config.AwsKms.KeyId))
                 {
                     _logger.LogError("AWS KMS key ID is not configured");
                     return false;
@@ -133,8 +148,8 @@ namespace BiatecTokensApi.Services
 
                 if (!_config.AwsKms.UseIamRole)
                 {
-                    if (string.IsNullOrEmpty(_config.AwsKms.AccessKeyId) ||
-                        string.IsNullOrEmpty(_config.AwsKms.SecretAccessKey))
+                    if (string.IsNullOrWhiteSpace(_config.AwsKms.AccessKeyId) ||
+                        string.IsNullOrWhiteSpace(_config.AwsKms.SecretAccessKey))
                     {
                         _logger.LogError("AWS KMS access credentials are incomplete");
                         return false;

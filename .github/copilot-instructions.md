@@ -286,6 +286,17 @@ This applies to ALL workflow jobs that:
 
 **Lesson Learned (2026-03-27 - Issue #617, PR #618)**: The initial compliance-event backbone implementation built locally but still missed product-quality expectations because the tests did not cover filtered aggregate-event scenarios strongly enough. Specifically, the synthesized `ReleaseReadinessEvaluated` event was dropped when callers requested `caseId + headRef` and no evidence pack existed yet, and later was also found to disappear from the global feed under `subjectId + headRef` because the synthesized event did not carry the requested subject scope. Both defects undermined the fail-closed operator timeline semantics required by the roadmap for notification-center work.
 
+**Lesson Learned (2026-04-13 - Dependabot PR #645, AWSSDK.SecretsManager bump)**: A Dependabot PR for a minor package version bump had 1 test failure out of 5570 (`ReadinessStatus_BlockedPackage_HasNonEmptyRemediationItems` in `RegulatoryEvidencePackageTests`). The test failure was caused by a latent bug in `RegulatoryEvidencePackageService.BuildRemediationItems` — when a package was `Blocked` via KYC/AML failure (Priority 4 in `DetermineReadiness`), no remediation items were generated because `BuildRemediationItems` only handled contradictions, missing required sources, and stale sources, but not KYC/AML failure. The package update itself was fine; the pre-existing bug just manifested in CI.
+
+**Root cause**: `BuildRemediationItems` was not receiving `kycAmlSummary` as a parameter, so KYC/AML-blocked packages had empty `RemediationItems`. The `NearingExpiry` availability status for KYC/AML sources produces a "Pending" KYC/AML status → `passedAll = false` → `Blocked` at Priority 4, while Priority 3 (required stale) is skipped because `NearingExpiry != Stale`.
+
+**MANDATORY RULES for Dependabot PRs when CI shows test failures**:
+1. **Always investigate the actual failing test** — use `EnricoMi/publish-unit-test-result-action` check run URLs to identify the specific failing test (linked in PR comments)
+2. **Dependabot PRs can surface latent bugs** — the package update itself may be fine; the tests may expose a pre-existing bug unrelated to the package
+3. **Fix the failing test AND the underlying bug** — do not just adjust the test to pass; find the root cause in the service/domain logic
+4. **Add missing test coverage** — if the failed area has no dedicated test file (e.g., `AwsKmsProviderTests.cs` was missing), add comprehensive unit tests as part of the fix
+5. **Use `IsNullOrWhiteSpace` instead of `IsNullOrEmpty`** for configuration validation in key providers — whitespace-only config values are as invalid as empty ones
+
 **Root cause**:
 1. ❌ Treated the backbone as "read-only aggregation" and under-tested query combinations
 2. ❌ No direct test proved synthesized aggregate events survive the same filters as persisted events
