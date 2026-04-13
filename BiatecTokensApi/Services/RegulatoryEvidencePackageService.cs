@@ -290,7 +290,7 @@ namespace BiatecTokensApi.Services
             var openContradictions = contradictions.Where(c => !c.IsResolved).ToList();
 
             // Build remediation items
-            var remediationItems = BuildRemediationItems(missingRequired, stale, openContradictions);
+            var remediationItems = BuildRemediationItems(missingRequired, stale, openContradictions, kycAmlSummary);
 
             // Build approval history
             var approvalHistory = BuildApprovalHistory(subjectId, now);
@@ -536,7 +536,8 @@ namespace BiatecTokensApi.Services
         private List<RegRemediationItem> BuildRemediationItems(
             List<RegEvidenceSourceEntry> missingRequired,
             List<RegEvidenceSourceEntry> stale,
-            List<RegContradictionItem> openContradictions)
+            List<RegContradictionItem> openContradictions,
+            RegKycAmlSummary? kycAmlSummary = null)
         {
             var items = new List<RegRemediationItem>();
 
@@ -603,6 +604,54 @@ namespace BiatecTokensApi.Services
                     OwnerHint = "compliance",
                     IsResolved = false
                 });
+            }
+
+            // Add KYC/AML remediation items when checks haven't passed
+            if (kycAmlSummary != null && !kycAmlSummary.PassedAllChecks)
+            {
+                if (kycAmlSummary.KycStatus != "Approved")
+                {
+                    items.Add(new RegRemediationItem
+                    {
+                        RemediationId = $"rem-kyc-{kycAmlSummary.SubjectId}",
+                        Title = $"KYC check not approved: current status is '{kycAmlSummary.KycStatus}'",
+                        Description = $"The KYC (Know Your Customer) identity verification check for subject '{kycAmlSummary.SubjectId}' " +
+                                      $"has not been approved. Current KYC status: {kycAmlSummary.KycStatus}. " +
+                                      "Package readiness is blocked until KYC approval is obtained.",
+                        Severity = RegMissingDataSeverity.Blocker,
+                        RelatedSourceIds = new List<string>(),
+                        RemediationSteps = new List<string>
+                        {
+                            "Initiate or re-run a KYC identity verification check for this subject.",
+                            "Ensure the KYC decision record is submitted to the ingestion endpoint.",
+                            "Regenerate the evidence package after KYC approval is confirmed."
+                        },
+                        OwnerHint = "compliance",
+                        IsResolved = false
+                    });
+                }
+
+                if (kycAmlSummary.AmlStatus != "Cleared")
+                {
+                    items.Add(new RegRemediationItem
+                    {
+                        RemediationId = $"rem-aml-{kycAmlSummary.SubjectId}",
+                        Title = $"AML screening not cleared: current status is '{kycAmlSummary.AmlStatus}'",
+                        Description = $"The AML (Anti-Money Laundering) sanctions screening for subject '{kycAmlSummary.SubjectId}' " +
+                                      $"has not been cleared. Current AML status: {kycAmlSummary.AmlStatus}. " +
+                                      "Package readiness is blocked until AML screening is cleared.",
+                        Severity = RegMissingDataSeverity.Blocker,
+                        RelatedSourceIds = new List<string>(),
+                        RemediationSteps = new List<string>
+                        {
+                            "Initiate or re-run an AML sanctions screening check for this subject.",
+                            "Ensure the AML decision record is submitted to the ingestion endpoint.",
+                            "Regenerate the evidence package after AML screening is cleared."
+                        },
+                        OwnerHint = "compliance",
+                        IsResolved = false
+                    });
+                }
             }
 
             return items;
