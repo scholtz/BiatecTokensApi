@@ -983,6 +983,42 @@ Before approving dependency updates, always check:
 
 Use the `gh-advisory-database` tool for supported ecosystems before adding new dependencies.
 
+#### 8. MANDATORY: Add Tests for Major Version Bumps (X.y.z)
+
+**Lesson Learned (2026-04-13 — NBitcoin 9.0.5 → 10.0.1, PR for NBitcoin bump)**:
+A Dependabot major-version bump was merged without adding any tests that exercise the upgraded dependency's API. Root causes:
+1. ❌ No tests covered the NBitcoin code path at all (the `GenerateMnemonic` method was dead code — private and never called).
+2. ❌ No tests were added to verify API compatibility between NBitcoin 9.x and 10.x.
+3. ❌ Dead code with an external dependency was not identified or documented.
+
+**MANDATORY RULES for major version bumps**:
+1. **Audit every usage of the upgraded package** — search for `using PackageName` and all call sites.
+2. **Identify dead code** — if a method that uses the package is never called, document it, add tests via the nearest public API, OR remove the dead code.
+3. **Add a dedicated test class** named `<PackageName>CompatibilityTests.cs` (or similar) with at minimum 10 tests covering:
+   - The exact API calls made by production code
+   - Happy path with valid inputs
+   - Edge cases (wrong password, empty input, boundary values)
+   - Round-trip tests (encode→decode, encrypt→decrypt)
+   - API contracts that would break on version change (e.g. method signatures, return types)
+4. **For cryptographic libraries**: Always test encrypt/decrypt round-trip, error on wrong key, valid output format (Base64, hex, etc.).
+5. **For BIP39/mnemonic libraries**: Always test word count, checksum validity, wordlist size, reconstruction from string.
+
+**Example: NBitcoin 10.x compatibility test structure**:
+```bash
+# Verify NBitcoin API used in production compiles and runs
+dotnet test --filter "FullyQualifiedName~NBitcoinMnemonicCompatibilityTests"
+```
+- `NC01` — `new Mnemonic(Wordlist.English, WordCount.TwentyFour)` produces 24 words
+- `NC02` — Generated mnemonic passes BIP39 checksum
+- `NC03` — Two calls produce different mnemonics (entropy is random)
+- `NC04` — Mnemonic round-trip from string works
+- `NC07` — `Wordlist.English.WordExists(word, out int idx)` ← API changed in 10.x from `WordIndex`
+- `NC08` — AES-GCM encrypt/decrypt round-trip is lossless
+- `NC10` — Wrong password throws `CryptographicException` (use `InstanceOf<>` not `Throws<>` for subclasses)
+- `NC14` — Decrypted mnemonic is the expected 25-word Algorand phrase
+
+**CRITICAL API CHANGE detected in NBitcoin 10.x**: `Wordlist.WordIndex(string)` was renamed to `Wordlist.WordExists(string, out int index)`. Always verify the exact method signatures using reflection or test compilation before writing tests.
+
 ## CI/CD Configuration Requirements
 
 ### Critical: Adding New Required Services
